@@ -1,0 +1,16 @@
+name: Deploy Notification
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Notify Discord
+        run: |
+          curl -X POST -H "Content-Type: application/json" \
+            -d '{"content":"🚀 Pushed to main - NUCs will auto-deploy soon\n\nCommit: ${{ github.event.head_commit.message }}\nAuthor: ${{ github.actor }}"}' \
+            "${{ secrets.DISCORD_WEBHOOK_URL }}"
