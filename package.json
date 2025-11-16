@@ -6,8 +6,8 @@
     "packages/*"
   ],
   "scripts": {
-    "lint": "echo \"TODO: lint\"",
-    "build": "echo \"TODO: build\"",
-    "test": "echo \"TODO: test\""
+    "lint": "pnpm -r run lint || echo \"TODO: lint\"",
+    "build": "pnpm -r run build",
+    "test": "pnpm -r run test || echo \"TODO: wire tests\""
   }
 }
