@@ -1,0 +1,23 @@
+@import "tailwindcss";
+
+:root {
+  --background: #0a0a0a;
+  --foreground: #ededed;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  /* Slimy.ai logo colors */
+  --color-neon-green: #00FF41;
+  --color-lime-green: #7FFF00;
+  --color-purple: #8B4FBF;
+  --color-dark-purple: #6B3FA0;
+  --color-gray-dark: #595F6B;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: system-ui, -apple-system, sans-serif;
+}

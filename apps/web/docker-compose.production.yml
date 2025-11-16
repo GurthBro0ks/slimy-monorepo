@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: slimyai-web
+    ports:
+      - "3001:3000"
+    environment:
+      # Point to the same domain - Caddy will route /api/* to admin API
+      - NEXT_PUBLIC_ADMIN_API_BASE=https://admin.slimyai.xyz
+      - NEXT_PUBLIC_SNELP_CODES_URL=https://snelp.com/api/codes
+      - NODE_ENV=production
+    restart: unless-stopped
+    networks:
+      - slimy-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  slimy-network:
+    external: true

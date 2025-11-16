@@ -1,0 +1,233 @@
+---
+title: Club Analytics
+order: 3
+---
+
+# Club Analytics
+
+AI-powered analytics for Super Snail club management using GPT-4 Vision technology.
+
+## Overview
+
+Club Analytics provides comprehensive insights into club performance through automated screenshot analysis. Upload images of your club stats, member lists, or performance dashboards, and our AI will extract key metrics, provide insights, and offer recommendations for improvement.
+
+## Features
+
+### 🤖 AI-Powered Analysis
+
+- **GPT-4 Vision Integration**: Advanced image recognition and data extraction
+- **Automated Insights**: AI-generated analysis of club performance and trends
+- **Smart Recommendations**: Actionable suggestions based on performance data
+
+### 📊 Key Metrics Tracked
+
+- **Membership Statistics**: Total members, active members, participation rates
+- **Performance Scores**: Club ranking, win rates, competitive metrics
+- **Activity Tracking**: Member engagement and contribution levels
+- **Historical Trends**: Performance comparison over time
+
+### 📤 Data Management
+
+- **Secure Upload**: Guild-specific file storage with access controls
+- **Database Storage**: Persistent analysis results with full metadata
+- **Export Capabilities**: Google Sheets integration for external analysis
+
+### 🎯 Smart Analysis
+
+- **Confidence Scoring**: Quality assessment of AI analysis results
+- **Error Handling**: Robust processing with partial failure recovery
+- **Batch Processing**: Analyze multiple screenshots simultaneously
+
+## Getting Started
+
+### 1. Access Club Analytics
+
+Navigate to the Club Analytics page in your dashboard. You must have club role permissions to access this feature.
+
+### 2. Upload Screenshots
+
+- Click "Upload & Analyze" to select club screenshots
+- Supported formats: PNG, JPG, JPEG, WebP
+- Maximum file size: 10MB per image
+- Multiple files can be selected for batch analysis
+
+### 3. View AI Analysis
+
+- Analysis begins automatically after upload
+- Results appear in the "Analysis Results" section
+- Each analysis includes summary, metrics, insights, and recommendations
+
+### 4. Export Data
+
+- Use "Export All to Google Sheets" for complete analysis history
+- Individual analysis export available per result
+- Exports include all metrics, insights, and recommendations
+
+## How It Works
+
+### Upload Process
+
+1. **File Validation**: Images are validated for accessibility and format
+2. **Secure Storage**: Files stored in guild-specific directories
+3. **AI Analysis**: GPT-4 Vision processes images for data extraction
+4. **Result Storage**: Analysis results saved to database with metadata
+
+### Analysis Pipeline
+
+1. **Image Processing**: High-resolution analysis of uploaded screenshots
+2. **Data Extraction**: AI identifies and extracts relevant club metrics
+3. **Insight Generation**: Pattern recognition and trend analysis
+4. **Recommendation Engine**: Contextual suggestions based on performance
+
+### Data Structure
+
+Each analysis includes:
+
+- **Summary**: AI-generated overview of findings
+- **Metrics**: Quantifiable data points (members, scores, rates)
+- **Insights**: Key observations and patterns
+- **Recommendations**: Actionable improvement suggestions
+- **Confidence Score**: Analysis quality indicator (0-100%)
+
+## Best Practices
+
+### Screenshot Quality
+
+- **Clear Images**: Ensure screenshots are well-lit and readable
+- **Full Context**: Capture complete stats panels or member lists
+- **Recent Data**: Use current screenshots for accurate analysis
+- **Consistent Format**: Maintain similar layouts for better comparison
+
+### Analysis Optimization
+
+- **Regular Uploads**: Weekly or bi-weekly analysis for trend tracking
+- **Complete Coverage**: Include all relevant club statistics
+- **Quality Over Quantity**: Fewer high-quality images yield better results
+- **Context Preservation**: Don't crop important UI elements or labels
+
+### Data Management
+
+- **Regular Exports**: Backup analysis data to Google Sheets
+- **Review Results**: Validate AI insights against known performance
+- **Track Improvements**: Use recommendations to guide club strategy
+- **Member Communication**: Share insights with club leadership
+
+## API Reference
+
+### Upload Endpoint
+
+```typescript
+POST /api/club/upload
+Content-Type: multipart/form-data
+
+Parameters:
+- screenshots: File[] (required) - Image files to analyze
+- guildId: string (required) - Discord guild identifier
+- analyze: boolean (optional) - Trigger AI analysis after upload
+
+Response:
+{
+  success: boolean,
+  uploaded: number,
+  files: Array<{
+    name: string,
+    size: number,
+    url: string,
+    status: string
+  }>,
+  analysisTriggered: boolean,
+  analysisResults?: ClubAnalysisResult[]
+}
+```
+
+### Analysis Endpoint
+
+```typescript
+POST /api/club/analyze
+
+Parameters:
+- imageUrls: string[] (required) - URLs of uploaded images
+- guildId: string (required) - Discord guild identifier
+- userId: string (required) - User identifier
+- options?: VisionAnalysisOptions (optional)
+
+Response:
+{
+  success: boolean,
+  results: StoredClubAnalysis[],
+  summary: {
+    totalImages: number,
+    validImages: number,
+    analyzedImages: number,
+    storedResults: number,
+    averageConfidence: number
+  }
+}
+```
+
+### Export Endpoint
+
+```typescript
+POST /api/club/export
+
+Parameters:
+- guildId: string (required) - Discord guild identifier
+- includeAnalysis: boolean (optional) - Include analysis data
+- dateRange?: object (optional) - Date range for export
+
+Response:
+{
+  success: boolean,
+  spreadsheetId: string,
+  spreadsheetUrl: string,
+  exported: object,
+  data: object
+}
+```
+
+## Troubleshooting
+
+### Upload Issues
+
+- **File Too Large**: Reduce image size or compression
+- **Invalid Format**: Use PNG, JPG, or WebP formats only
+- **Network Errors**: Check internet connection and retry
+
+### Analysis Issues
+
+- **Low Confidence**: Upload clearer or higher resolution images
+- **Incomplete Results**: Ensure screenshots show complete data panels
+- **API Errors**: Try again later or contact support
+
+### Export Issues
+
+- **Permission Denied**: Verify Google Sheets integration is configured
+- **Rate Limits**: Wait before retrying large exports
+- **Connection Errors**: Check API connectivity and authentication
+
+## Security & Privacy
+
+- **Guild Isolation**: Data is segregated by Discord server
+- **Access Control**: Club role permissions required
+- **Secure Storage**: Encrypted file storage and database encryption
+- **Audit Logging**: All analysis activities are logged for security
+
+## Support
+
+For technical issues or feature requests:
+
+- Check this documentation for common solutions
+- Review browser console for error details
+- Contact the development team for advanced support
+- Provide screenshot examples for analysis improvement
+
+## Roadmap
+
+### Planned Features
+
+- **Real-time Analysis**: Live performance monitoring
+- **Custom Metrics**: User-defined analysis categories
+- **Advanced Visualizations**: Charts and graphs for trends
+- **Member Profiles**: Individual performance tracking
+- **Automated Alerts**: Performance threshold notifications
+- **Integration APIs**: Third-party tool connections

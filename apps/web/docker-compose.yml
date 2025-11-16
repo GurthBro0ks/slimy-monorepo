@@ -1,0 +1,17 @@
+# Main development docker-compose file
+# This file includes all services for development and testing
+# For production deployments, use individual service compose files:
+# - docker-compose.infrastructure.yml (redis, postgres)
+# - docker-compose.admin-api.yml (admin API service)
+# - docker-compose.web.yml (web application)
+# - docker-compose.api-gateway.yml (API gateway)
+# - docker-compose.monitoring.yml (monitoring stack)
+
+version: '3.8'
+
+# Include all services
+include:
+  - ../docker-compose.infrastructure.yml
+  - ../docker-compose.admin-api.yml
+  - ../docker-compose.web.yml
+  - ../docker-compose.api-gateway.yml

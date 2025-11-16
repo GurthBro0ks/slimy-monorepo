@@ -1,0 +1,28 @@
+{
+  "codes": [
+    {
+      "code": "SNAIL2024",
+      "source": "sample",
+      "ts": "2024-10-01T00:00:00Z",
+      "tags": ["active", "global"],
+      "expires": null,
+      "region": "global"
+    },
+    {
+      "code": "SLIME123",
+      "source": "sample",
+      "ts": "2024-10-15T00:00:00Z",
+      "tags": ["active"],
+      "expires": "2024-12-31T23:59:59Z",
+      "region": "global"
+    },
+    {
+      "code": "TESTCODE",
+      "source": "sample",
+      "ts": "2024-10-20T00:00:00Z",
+      "tags": ["active"],
+      "expires": null,
+      "region": "na"
+    }
+  ]
+}

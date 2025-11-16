@@ -1,0 +1,84 @@
+name: Aggregate Codes
+
+on:
+  schedule:
+    # Run every 10 minutes
+    - cron: '*/10 * * * *'
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  aggregate:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run aggregation
+        env:
+          DISCORD_TOKEN: ${{ secrets.DISCORD_TOKEN }}
+          DISCORD_CLIENT_ID: ${{ secrets.DISCORD_CLIENT_ID }}
+          FIRECRAWL_API_KEY: ${{ secrets.FIRECRAWL_API_KEY }}
+        run: |
+          node -e "
+          const { aggregateCodes } = require('./lib/aggregator.ts');
+          const fs = require('fs');
+          
+          (async () => {
+            try {
+              const result = await aggregateCodes();
+              
+              // Write to artifact file
+              fs.writeFileSync(
+                'codes-snapshot.json',
+                JSON.stringify(result, null, 2)
+              );
+              
+              console.log('Aggregation complete:');
+              console.log('- Total codes:', result.codes.length);
+              console.log('- Sources:', Object.keys(result.sources).join(', '));
+              
+              // Log source statuses
+              for (const [source, metadata] of Object.entries(result.sources)) {
+                console.log(\`  \${source}: \${metadata.status} (\${metadata.itemCount} items)\`);
+                if (metadata.error) {
+                  console.error(\`    Error: \${metadata.error}\`);
+                }
+              }
+            } catch (error) {
+              console.error('Aggregation failed:', error);
+              process.exit(1);
+            }
+          })();
+          "
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: codes-snapshot-${{ github.run_number }}
+          path: codes-snapshot.json
+          retention-days: 7
+
+      - name: Check for failures
+        run: |
+          if grep -q '"status":"failed"' codes-snapshot.json; then
+            echo "::warning::One or more sources failed to fetch"
+          fi
+          
+          if grep -q '"status":"degraded"' codes-snapshot.json; then
+            echo "::warning::One or more sources are degraded"
+          fi

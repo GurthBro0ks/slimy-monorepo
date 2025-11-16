@@ -1,0 +1,61 @@
+version: '3.8'
+
+services:
+  admin-api:
+    build:
+      context: ../app/admin-api
+      dockerfile: Dockerfile
+    container_name: slimyai-admin-api-test
+    ports:
+      - "3081:3080"  # Use different port to avoid conflict
+    environment:
+      - PORT=3080
+      - NODE_ENV=production
+      - SESSION_SECRET=${SESSION_SECRET:-}
+      - COOKIE_DOMAIN=${COOKIE_DOMAIN:-.slimyai.xyz}
+      - CORS_ALLOW_ORIGIN=${CORS_ALLOW_ORIGIN:-https://admin.slimyai.xyz,http://127.0.0.1:3000,http://localhost:3000}
+      - DISCORD_CLIENT_ID=${DISCORD_CLIENT_ID:-}
+      - DISCORD_CLIENT_SECRET=${DISCORD_CLIENT_SECRET:-}
+      - DISCORD_REDIRECT_URI=${DISCORD_REDIRECT_URI:-https://admin.slimyai.xyz/api/auth/callback}
+      - DISCORD_BOT_TOKEN=${DISCORD_BOT_TOKEN:-}
+      - ADMIN_USER_IDS=${ADMIN_USER_IDS:-}
+      - CLUB_USER_IDS=${CLUB_USER_IDS:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - STATS_SHEET_ID=${STATS_SHEET_ID:-}
+      - SNELP_CODES_URL=${SNELP_CODES_URL:-https://snelp.com/api/codes}
+    volumes:
+      - admin-api-data-test:/app/data
+      - admin-api-uploads-test:/app/uploads
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3080/api/health', res => process.exit(res.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1));"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: slimyai-web-test
+    ports:
+      - "3002:3000"  # Use different port
+    environment:
+      - NEXT_PUBLIC_ADMIN_API_BASE=http://admin-api:3080
+      - NEXT_PUBLIC_SNELP_CODES_URL=https://snelp.com/api/codes
+      - NODE_ENV=production
+    depends_on:
+      admin-api:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+volumes:
+  admin-api-data-test:
+  admin-api-uploads-test:

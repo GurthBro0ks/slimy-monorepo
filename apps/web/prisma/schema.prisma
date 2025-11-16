@@ -1,0 +1,186 @@
+// Prisma Schema for SlimyAI Web
+// This defines the database schema for the application
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Club Analysis
+model ClubAnalysis {
+  id          String   @id @default(cuid())
+  guildId     String
+  userId      String
+  title       String?
+  summary     String
+  confidence  Float
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  images      ClubAnalysisImage[]
+  metrics     ClubMetric[]
+
+  @@index([guildId])
+  @@index([userId])
+  @@index([createdAt])
+  @@map("club_analyses")
+}
+
+// Club Analysis Images
+model ClubAnalysisImage {
+  id           String   @id @default(cuid())
+  analysisId   String
+  imageUrl     String
+  originalName String
+  fileSize     Int
+  uploadedAt   DateTime @default(now())
+
+  // Relations
+  analysis     ClubAnalysis @relation(fields: [analysisId], references: [id], onDelete: Cascade)
+
+  @@index([analysisId])
+  @@map("club_analysis_images")
+}
+
+// Club Metrics
+model ClubMetric {
+  id         String   @id @default(cuid())
+  analysisId String
+  name       String
+  value      String   // Stored as JSON string for flexibility
+  unit       String?
+  category   String
+  createdAt  DateTime @default(now())
+
+  // Relations
+  analysis   ClubAnalysis @relation(fields: [analysisId], references: [id], onDelete: Cascade)
+
+  @@index([analysisId])
+  @@index([category])
+  @@map("club_metrics")
+}
+
+// User Preferences
+model UserPreferences {
+  id                String   @id @default(cuid())
+  userId            String   @unique
+  theme             String   @default("auto") // light, dark, auto
+  language          String   @default("en")
+  notifications     Boolean  @default(true)
+  chatPersonality   String   @default("helpful")
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([userId])
+  @@map("user_preferences")
+}
+
+// Chat Conversations
+model ChatConversation {
+  id        String   @id @default(cuid())
+  userId    String
+  title     String?
+  mode      String   @default("helpful")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  messages  ChatMessage[]
+
+  @@index([userId])
+  @@index([createdAt])
+  @@map("chat_conversations")
+}
+
+// Chat Messages
+model ChatMessage {
+  id             String   @id @default(cuid())
+  conversationId String
+  role           String   // user, assistant, system
+  content        String   @db.Text
+  timestamp      DateTime @default(now())
+
+  // Relations
+  conversation   ChatConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId])
+  @@index([timestamp])
+  @@map("chat_messages")
+}
+
+// Guild Feature Flags (for persistence)
+model GuildFeatureFlags {
+  id              String   @id @default(cuid())
+  guildId         String   @unique
+  colorPrimary    String?
+  badgeStyle      String?  // rounded, square, pill
+  ensembleOCR     Boolean  @default(false)
+  secondApprover  Boolean  @default(false)
+  askManus        Boolean  @default(false)
+  publicStats     Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([guildId])
+  @@map("guild_feature_flags")
+}
+
+// Code Reports (for tracking reported codes)
+model CodeReport {
+  id        String   @id @default(cuid())
+  code      String
+  reason    String   // expired, invalid, duplicate, other
+  details   String?  @db.Text
+  reportedBy String
+  status    String   @default("pending") // pending, verified, rejected
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([code])
+  @@index([status])
+  @@index([createdAt])
+  @@map("code_reports")
+}
+
+// Audit Logs (for persistence)
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String
+  username   String?
+  action     String
+  resource   String
+  resourceId String?
+  changes    String?  @db.Text // JSON string
+  ipAddress  String?
+  userAgent  String?  @db.Text
+  status     String   // success, failure
+  errorMsg   String?  @db.Text
+  metadata   String?  @db.Text // JSON string
+  createdAt  DateTime @default(now())
+
+  @@index([userId])
+  @@index([action])
+  @@index([resource])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+// User Sessions (optional - for session management)
+model UserSession {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([token])
+  @@index([expiresAt])
+  @@map("user_sessions")
+}
