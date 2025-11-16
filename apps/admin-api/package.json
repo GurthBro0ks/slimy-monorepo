@@ -1,9 +1,9 @@
 {
-  "name": "@slimy/$name",
+  "name": "@slimy/admin-api",
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "build": "echo \"TODO: build $name\"",
-    "test": "echo \"TODO: test $name\""
+    "build": "echo \"TODO: build admin-api\"",
+    "test": "echo \"TODO: test admin-api\""
   }
 }

@@ -1,9 +1,9 @@
 {
-  "name": "@slimy/$name",
+  "name": "@slimy/shared-snail",
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "build": "echo \"TODO: build $name\"",
-    "test": "echo \"TODO: test $name\""
+    "build": "echo \"TODO: build shared-snail\"",
+    "test": "echo \"TODO: test shared-snail\""
   }
 }
