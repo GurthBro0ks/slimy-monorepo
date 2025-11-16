@@ -1,0 +1,13 @@
+{
+  "name": "slimy-monorepo",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "lint": "echo \"TODO: lint\"",
+    "build": "echo \"TODO: build\"",
+    "test": "echo \"TODO: test\""
+  }
+}
