@@ -31,6 +31,9 @@ const { requireCsrf } = require("../middleware/csrf");
 const { cacheGuildData, cacheStats } = require("../middleware/cache");
 const { snail, validateFileUploads } = require("../lib/validation/schemas");
 const { apiHandler } = require("../lib/errors");
+const { queueManager } = require("../lib/queues");
+const config = require("../lib/config");
+const { logger } = require("../lib/logger");
 
 const router = express.Router({ mergeParams: true });
 
@@ -90,16 +93,27 @@ router.use(requireGuildMember("guildId"));
 
 /**
  * POST /api/snail/:guildId/analyze
- * 
+ *
  * Analyze Super Snail screenshots using OpenAI Vision API.
- * 
+ *
+ * If REDIS_URL is configured, screenshots are queued for background processing.
+ * Otherwise, they are processed immediately in the request.
+ *
  * Requires: member role, guild membership
- * 
+ *
  * Request: multipart/form-data
  *   - images: File[] (required) - Up to 8 image files, max 10MB each
  *   - prompt: string (optional) - Additional context for analysis
- * 
- * Response:
+ *
+ * Response (background mode):
+ *   - ok: boolean
+ *   - queued: boolean - true if job was queued
+ *   - jobId: string - Queue job ID
+ *   - guildId: string
+ *   - userId: string
+ *   - message: string - Status message
+ *
+ * Response (immediate mode):
  *   - ok: boolean
  *   - saved: boolean - Whether analysis was saved
  *   - guildId: string
@@ -107,7 +121,7 @@ router.use(requireGuildMember("guildId"));
  *   - prompt: string
  *   - results: array - Analysis results for each image
  *   - savedAt: string - ISO timestamp
- * 
+ *
  * Errors:
  *   - 400: missing_images - No images provided
  *   - 413: file_too_large - File exceeds size limit
@@ -146,56 +160,117 @@ router.post(
       const userId = req.user.id;
       const prompt = String(req.body?.prompt || "").trim();
 
-      const analyses = [];
-      for (const file of files) {
-        const buffer = await fsp.readFile(file.path);
-        const mimeType =
-          file.mimetype || mime.lookup(file.originalname) || "image/png";
-        const dataUrl = `data:${mimeType};base64,${buffer.toString("base64")}`;
-        const analysis = await analyzeSnailDataUrl(dataUrl, { prompt });
-        const publicUrl = `/api/uploads/files/snail/${guildId}/${path.basename(file.path)}`;
-        analyses.push({
-          file: {
-            name: file.originalname,
-            storedAs: path.basename(file.path),
-            size: file.size,
-            mimetype: mimeType,
-            url: publicUrl,
+      // Check if queue is available
+      const useQueue = config.redis.enabled && queueManager.isInitialized;
+
+      if (useQueue) {
+        // Background processing with job queue
+        logger.info("[snail/analyze] Queueing screenshot analysis", {
+          guildId,
+          userId,
+          fileCount: files.length,
+        });
+
+        // Prepare file data for the job
+        const fileData = files.map((file) => ({
+          path: file.path,
+          originalname: file.originalname,
+          size: file.size,
+          mimetype: file.mimetype,
+        }));
+
+        const uploadedBy = {
+          id: req.user.id,
+          name: req.user.globalName || req.user.username,
+          role: req.user.role,
+        };
+
+        // Add job to queue
+        const job = await queueManager.addJob(
+          "screenshot",
+          "analyze_screenshots",
+          {
+            type: "analyze_screenshots",
+            data: {
+              guildId,
+              userId,
+              prompt,
+              files: fileData,
+              uploadedBy,
+            },
           },
-          uploadedBy: {
-            id: req.user.id,
-            name: req.user.globalName || req.user.username,
-            role: req.user.role,
-          },
-          analysis,
+          {
+            priority: 1,
+          }
+        );
+
+        return res.json({
+          ok: true,
+          queued: true,
+          jobId: job.id,
+          guildId,
+          userId,
+          message: "Screenshot analysis started in background. Results will be available shortly.",
+        });
+      } else {
+        // Immediate processing (fallback when Redis is not available)
+        logger.info("[snail/analyze] Processing screenshots immediately (Redis not available)", {
+          guildId,
+          userId,
+          fileCount: files.length,
+        });
+
+        const analyses = [];
+        for (const file of files) {
+          const buffer = await fsp.readFile(file.path);
+          const mimeType =
+            file.mimetype || mime.lookup(file.originalname) || "image/png";
+          const dataUrl = `data:${mimeType};base64,${buffer.toString("base64")}`;
+          const analysis = await analyzeSnailDataUrl(dataUrl, { prompt });
+          const publicUrl = `/api/uploads/files/snail/${guildId}/${path.basename(file.path)}`;
+          analyses.push({
+            file: {
+              name: file.originalname,
+              storedAs: path.basename(file.path),
+              size: file.size,
+              mimetype: mimeType,
+              url: publicUrl,
+            },
+            uploadedBy: {
+              id: req.user.id,
+              name: req.user.globalName || req.user.username,
+              role: req.user.role,
+            },
+            analysis,
+          });
+        }
+
+        const payload = {
+          guildId,
+          userId,
+          prompt,
+          results: analyses,
+          uploadedAt: new Date().toISOString(),
+        };
+
+        const target = path.join(DATA_ROOT, guildId, userId, "latest.json");
+        await writeJson(target, payload);
+
+        metrics.recordImages(files.length);
+
+        return res.json({
+          ok: true,
+          saved: true,
+          guildId,
+          userId,
+          prompt,
+          results: analyses,
+          savedAt: payload.uploadedAt,
         });
       }
-
-      const payload = {
-        guildId,
-        userId,
-        prompt,
-        results: analyses,
-        uploadedAt: new Date().toISOString(),
-      };
-
-      const target = path.join(DATA_ROOT, guildId, userId, "latest.json");
-      await writeJson(target, payload);
-
-      metrics.recordImages(files.length);
-
-      res.json({
-        ok: true,
-        saved: true,
-        guildId,
-        userId,
-        prompt,
-        results: analyses,
-        savedAt: payload.uploadedAt,
-      });
     } catch (err) {
-      console.error("[snail/analyze] failed");
-      res.status(500).json({ error: "server_error" });
+      logger.error("[snail/analyze] failed", err);
+      return res.status(500).json({ error: "server_error" });
     }
   },
 );
