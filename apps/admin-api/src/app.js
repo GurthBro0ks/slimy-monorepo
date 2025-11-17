@@ -7,6 +7,7 @@ const cookieParser = require("cookie-parser");
 const { readAuth } = require("./middleware/auth");
 const routes = require("./routes");
 const { UPLOADS_DIR } = require("./services/uploads");
+const { metricsMiddleware } = require("./lib/metrics");
 
 const app = express();
 app.set("trust proxy", 1);
@@ -29,6 +30,9 @@ app.use((_, res, next) => {
   res.set("Cache-Control", "no-store");
   next();
 });
+
+// Add Prometheus metrics middleware to track all requests
+app.use(metricsMiddleware);
 
 app.use(readAuth);
 app.use("/", routes);
