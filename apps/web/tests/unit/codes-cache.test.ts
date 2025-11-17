@@ -2,16 +2,41 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { CodesCache, CacheKeys } from "@/lib/codes/cache";
 
 // Mock redis
+let mockConnectResolve = true;
+let mockConnectError: Error | null = null;
+
 vi.mock("redis", () => ({
-  createClient: vi.fn().mockReturnValue({
-    on: vi.fn(),
-    connect: vi.fn().mockResolvedValue(undefined),
-    disconnect: vi.fn().mockResolvedValue(undefined),
-    get: vi.fn(),
-    setEx: vi.fn(),
-    del: vi.fn(),
-    exists: vi.fn(),
-    keys: vi.fn(),
+  createClient: vi.fn((config: any) => {
+    const listeners: { [key: string]: Function[] } = {};
+
+    return {
+      on: vi.fn((event: string, callback: Function) => {
+        if (!listeners[event]) {
+          listeners[event] = [];
+        }
+        listeners[event].push(callback);
+
+        // Simulate connect event on next tick if connection should succeed
+        if (event === "connect" && mockConnectResolve) {
+          Promise.resolve().then(() => callback());
+        }
+      }),
+      connect: vi.fn(async () => {
+        if (mockConnectError) {
+          throw mockConnectError;
+        }
+        if (listeners["connect"]) {
+          listeners["connect"].forEach((cb) => cb());
+        }
+        return undefined;
+      }),
+      disconnect: vi.fn().mockResolvedValue(undefined),
+      get: vi.fn(),
+      setEx: vi.fn(),
+      del: vi.fn(),
+      exists: vi.fn(),
+      keys: vi.fn(),
+    };
   }),
 }));
 
@@ -20,6 +45,10 @@ describe("CodesCache", () => {
   let mockRedisClient: any;
 
   beforeEach(() => {
+    // Reset mock state
+    mockConnectResolve = true;
+    mockConnectError = null;
+
     // Reset mocks
     mockRedisClient = {
       on: vi.fn(),
@@ -34,7 +63,7 @@ describe("CodesCache", () => {
 
     vi.clearAllMocks();
     cache = new CodesCache({ enabled: true });
-    // Inject mock client
+    // Inject mock client for tests that don't call connect()
     (cache as any).client = mockRedisClient;
     (cache as any).connected = true;
     (cache as any).config.enabled = true;
@@ -43,15 +72,23 @@ describe("CodesCache", () => {
   describe("connection management", () => {
     it("should connect successfully", async () => {
       const cacheWithoutClient = new CodesCache({ enabled: true, url: "redis://localhost:6379" });
+
+      // Set mock to resolve successfully
+      mockConnectResolve = true;
+      mockConnectError = null;
+
       await cacheWithoutClient.connect();
 
       expect(cacheWithoutClient.isAvailable()).toBe(true);
     });
 
     it("should handle connection failures", async () => {
-      mockRedisClient.connect.mockRejectedValue(new Error("Connection failed"));
+      // Set mock to reject with error
+      mockConnectResolve = false;
+      mockConnectError = new Error("Connection failed");
 
       const cacheWithoutClient = new CodesCache({ enabled: true, url: "redis://localhost:6379" });
+
       await expect(cacheWithoutClient.connect()).rejects.toThrow("Connection failed");
 
       expect(cacheWithoutClient.isAvailable()).toBe(false);
