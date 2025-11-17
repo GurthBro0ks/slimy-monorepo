@@ -13,6 +13,7 @@ const botRoutes = require("./bot");
 const statsRoutes = require("./stats");
 const snailRoutes = require("./snail");
 const chatRoutes = require("./chat");
+const statusRoutes = require("./status");
 
 router.get("/api/", (_req, res) => res.json({ ok: true }));
 router.get("/api/health", (_req, res) => {
@@ -23,6 +24,7 @@ router.get("/api/health", (_req, res) => {
     timestamp: new Date().toISOString(),
   });
 });
+router.use("/api", statusRoutes);
 router.use("/api", debugRoutes);
 router.use("/api/auth", authRoutes);
 router.use("/api/guilds/:guildId/snail", snailRoutes);

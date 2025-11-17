@@ -8,6 +8,7 @@ const dotenv = require("dotenv");
 const database = require("../lib/database");
 const { applyDatabaseUrl } = require("./src/utils/apply-db-url");
 const logger = require("../lib/logger");
+const { setupSentry, Sentry } = require("./lib/monitoring");
 
 function loadEnv() {
   const explicitEnvPath =
@@ -31,6 +32,11 @@ function loadEnv() {
 async function start() {
   loadEnv();
   applyDatabaseUrl(process.env.DB_URL);
+
+  // Initialize Sentry if DSN is provided
+  if (process.env.SENTRY_DSN) {
+    setupSentry(process.env.SENTRY_DSN);
+  }
 
   if (!process.env.JWT_SECRET) {
     throw new Error("JWT_SECRET must be set in .env.admin for admin-api");
@@ -63,6 +69,10 @@ async function start() {
 
   process.on("unhandledRejection", (err) => {
     logger.error("[admin-api] Unhandled rejection", { err: err?.message || err });
+    // Send to Sentry if available
+    if (err instanceof Error) {
+      Sentry.captureException(err);
+    }
   });
 }
 
