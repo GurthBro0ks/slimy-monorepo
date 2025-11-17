@@ -65,6 +65,7 @@ model Guild {
   discordId String   @unique @map("discord_id")
   name      String
   settings  Json?    // JSON object for guild-specific settings
+  config    Json?    // Per-guild configuration & feature flags
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
