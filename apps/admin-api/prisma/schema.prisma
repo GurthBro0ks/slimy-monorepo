@@ -20,6 +20,12 @@ model User {
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
+  // User profile fields
+  displayName String?  @map("display_name")
+  avatarUrl   String?  @map("avatar_url")
+  timezone    String?
+  preferences Json?    // Theme, default models, etc.
+
   // Relations
   sessions      Session[]
   userGuilds    UserGuild[]
@@ -30,6 +36,7 @@ model User {
   screenshotAnalyses ScreenshotAnalysis[]
   screenshotComparisons ScreenshotComparison[]
   auditLogs     AuditLog[]
+  savedPrompts  SavedPrompt[]
 
   // Performance indexes
   @@index([createdAt])
@@ -448,4 +455,25 @@ model AuditLog {
   @@index([requestId])
 
   @@map("audit_logs")
+}
+
+// User saved prompts/macros
+model SavedPrompt {
+  id        Int      @id @default(autoincrement())
+  userId    String   @map("user_id")
+  title     String
+  content   String   @db.Text // The actual prompt text
+  tags      String?  // Comma-separated tags
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Performance indexes
+  @@index([userId])
+  @@index([createdAt])
+  @@index([userId, createdAt])
+
+  @@map("saved_prompts")
 }
