@@ -449,3 +449,48 @@ model AuditLog {
 
   @@map("audit_logs")
 }
+
+// Agent Task Management
+model AgentTask {
+  id          Int      @id @default(autoincrement())
+  agentName   String   @map("agent_name") // e.g. "claude-code", "autocodex", "snail-analytics"
+  status      String   @default("pending") // "pending" | "running" | "completed" | "failed"
+  input       Json
+  output      Json?
+  error       String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  triggeredBy String?  @map("triggered_by") // user or system id
+  tags        String?  // comma-separated tags
+
+  // Performance indexes
+  @@index([agentName])
+  @@index([status])
+  @@index([createdAt])
+  @@index([updatedAt])
+  @@index([agentName, status])
+  @@index([agentName, createdAt])
+  @@index([status, createdAt])
+  @@index([triggeredBy])
+
+  @@map("agent_tasks")
+}
+
+// Agent Definitions/Registry
+model AgentDefinition {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique // Agent name identifier
+  description String   // Human-readable description
+  capabilities Json    // JSON array of supported task types/capabilities
+  config      Json?    // Optional configuration (model names, cost hints, etc.)
+  enabled     Boolean  @default(true)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // Performance indexes
+  @@index([name])
+  @@index([enabled])
+  @@index([createdAt])
+
+  @@map("agent_definitions")
+}
