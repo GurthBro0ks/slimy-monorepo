@@ -6,7 +6,9 @@ ENV PATH=${PNPM_HOME}:${PATH}
 RUN corepack enable && corepack prepare pnpm@10.22.0 --activate
 
 FROM base AS deps
+ENV PNPM_CONFIG_IGNORE_SCRIPTS=false
 WORKDIR /app
+RUN corepack enable && corepack prepare pnpm@10.22.0 --activate
 COPY package.json pnpm-lock.yaml ./
 # Ensure install scripts run so Prisma CLI + Next binaries are built
 RUN pnpm config set ignore-scripts false

@@ -64,7 +64,7 @@ describe("CodeDeduplicator", () => {
       const result = deduplicator.deduplicate(caseVariants);
 
       expect(result.codes).toHaveLength(1);
-      expect(result.stats.duplicates).toBe(2); // 2 duplicates of the same normalized code
+      expect(result.stats.duplicates).toBe(1); // counts duplicate groups, not entries
     });
 
     it("should preserve all unique codes", () => {
