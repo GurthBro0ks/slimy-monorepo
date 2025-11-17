@@ -7,7 +7,12 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node server.js",
-    "build": "node -e \"console.log('admin-api runs directly from source; no build artifacts generated yet.')\""
+    "build": "node -e \"console.log('admin-api runs directly from source; no build artifacts generated yet.')\"",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:migrate:deploy": "prisma migrate deploy",
+    "db:seed": "node prisma/seed.js",
+    "db:studio": "prisma studio"
   },
   "engines": {
     "node": ">=20"

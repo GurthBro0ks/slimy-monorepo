@@ -6,8 +6,13 @@
     "packages/*"
   ],
   "scripts": {
+    "bootstrap": "tsx tools/bootstrap.ts",
     "lint": "pnpm -r run lint || echo \"TODO: lint\"",
     "build": "pnpm -r run build",
     "test": "pnpm -r run test || echo \"TODO: wire tests\""
+  },
+  "devDependencies": {
+    "dotenv": "^16.6.1",
+    "tsx": "^4.20.6"
   }
 }
