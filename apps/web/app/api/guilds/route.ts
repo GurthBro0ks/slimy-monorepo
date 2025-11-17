@@ -53,15 +53,27 @@ export async function GET(request: NextRequest) {
 
 /**
  * POST /api/guilds
- * Create a new guild (admin only)
+ * Create a new guild OR trigger sync (based on action parameter)
  */
 export async function POST(request: NextRequest) {
   try {
     await requireAuth(request);
 
     const body = await request.json();
-    const { discordId, name, settings } = body;
+    const { action, discordId, name, settings } = body;
 
+    // Handle sync action
+    if (action === "sync") {
+      const result = await apiClient.post("/api/guilds/sync", {});
+
+      if (!result.ok) {
+        return NextResponse.json(result, { status: result.status || 500 });
+      }
+
+      return NextResponse.json(result.data);
+    }
+
+    // Handle create guild
     // Basic validation
     if (!discordId || !name) {
       return NextResponse.json(
