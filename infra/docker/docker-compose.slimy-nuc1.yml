@@ -1,0 +1,171 @@
+version: "3.8"
+
+services:
+  db:
+    image: mysql:8
+    container_name: slimy-mysql
+    restart: unless-stopped
+    command:
+      - mysqld
+      - --default-authentication-plugin=mysql_native_password
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        set -eu
+        if [ -n "$${DB_URL:-}" ] && { [ -z "$${MYSQL_USER:-}" ] || [ -z "$${MYSQL_PASSWORD:-}" ] || [ -z "$${MYSQL_DATABASE:-}" ]; }; then
+          url_no_proto="$${DB_URL#*://}"
+          creds_part="$${url_no_proto%%@*}"
+          host_and_db="$${url_no_proto#*@}"
+          db_part="$${host_and_db#*/}"
+          user_part="$${creds_part%%:*}"
+          pass_part="$${creds_part#*:}"
+          db_name="$${db_part%%\?*}"
+          export MYSQL_USER="$${MYSQL_USER:-$${user_part}}"
+          export MYSQL_PASSWORD="$${MYSQL_PASSWORD:-$${pass_part}}"
+          export MYSQL_DATABASE="$${MYSQL_DATABASE:-$${db_name}}"
+        fi
+        : "$${MYSQL_USER:?MYSQL_USER is required (set in env_file)}"
+        : "$${MYSQL_PASSWORD:?MYSQL_PASSWORD is required (set in env_file)}"
+        : "$${MYSQL_DATABASE:?MYSQL_DATABASE is required (set in env_file)}"
+        export MYSQL_ROOT_PASSWORD="$${MYSQL_ROOT_PASSWORD:-$${MYSQL_PASSWORD}}"
+        exec /usr/local/bin/docker-entrypoint.sh "$$@"
+    env_file:
+      - /opt/slimy/app/admin-api/.env.admin.production
+    ports:
+      - "3306:3306"
+    volumes:
+      - slimy-db-data:/var/lib/mysql
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - mysqladmin ping -p"$$MYSQL_ROOT_PASSWORD" >/dev/null 2>&1
+      interval: 10s
+      timeout: 5s
+      retries: 30
+    networks:
+      - slimy-net
+
+  admin-api:
+    build:
+      context: ../../apps/admin-api
+      dockerfile: Dockerfile
+    container_name: slimy-admin-api
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      - /opt/slimy/app/admin-api/.env.admin.production
+    environment:
+      PORT: "3080"
+      NODE_ENV: production
+    ports:
+      - "3080:3080"
+    volumes:
+      - admin-api-data:/app/data
+      - admin-api-uploads:/app/uploads
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - >
+          require('http').get('http://127.0.0.1:3080/api/health', res =>
+          process.exit(res.statusCode === 200 ? 0 : 1)).on('error', () =>
+          process.exit(1));
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - slimy-net
+
+  admin-ui:
+    image: node:22-alpine
+    container_name: slimy-admin-ui
+    restart: unless-stopped
+    working_dir: /workspace
+    depends_on:
+      admin-api:
+        condition: service_healthy
+    env_file:
+      - /opt/slimy/app/admin-ui/.env.production
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: "3081"
+    command: >
+      sh -c "
+        set -eu;
+        if [ ! -d node_modules ]; then
+          npm ci --omit=dev;
+        fi;
+        npm run build;
+        npm run start
+      "
+    ports:
+      - "3081:3081"
+    volumes:
+      - ../../apps/admin-ui:/workspace
+      - admin-ui-node-modules:/workspace/node_modules
+      - admin-ui-build:/workspace/.next
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - >
+          require('http').get('http://127.0.0.1:3081', res =>
+          process.exit(res.statusCode === 200 ? 0 : 1)).on('error', () =>
+          process.exit(1));
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - slimy-net
+
+  web:
+    build:
+      context: ../../apps/web
+      dockerfile: Dockerfile
+    container_name: slimy-web
+    restart: unless-stopped
+    depends_on:
+      admin-api:
+        condition: service_healthy
+    env_file:
+      - /opt/slimy/test/slimyai-web/.env.production
+    environment:
+      HOST: 0.0.0.0
+      PORT: "3000"
+      NODE_ENV: production
+    ports:
+      - "3000:3000"
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - >
+          require('http').get('http://127.0.0.1:3000/api/health', res =>
+          process.exit(res.statusCode === 200 ? 0 : 1)).on('error', () =>
+          process.exit(1));
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - slimy-net
+
+volumes:
+  slimy-db-data:
+  admin-api-data:
+  admin-api-uploads:
+  admin-ui-node-modules:
+  admin-ui-build:
+
+networks:
+  slimy-net:
+    driver: bridge
