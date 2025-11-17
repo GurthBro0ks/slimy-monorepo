@@ -32,6 +32,8 @@ export type ApiResponse<T = unknown> = ApiSuccess<T> | ApiError;
 export interface RequestConfig extends RequestInit {
   timeout?: number;
   skipJsonParsing?: boolean;
+  retryOn5xx?: boolean; // Enable automatic retry on 5xx errors
+  maxRetries?: number; // Maximum number of retries (default: 2)
 }
 
 export class AdminApiClient {
@@ -115,7 +117,22 @@ export class AdminApiClient {
   }
 
   /**
+   * Check if status code is a 5xx server error
+   */
+  private is5xxError(status?: number): boolean {
+    return typeof status === 'number' && status >= 500 && status < 600;
+  }
+
+  /**
+   * Sleep for specified milliseconds
+   */
+  private sleep(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  /**
    * Core request method - single source of truth for proxy logic
+   * Supports optional retry for 5xx errors with exponential backoff
    */
   async request<T = unknown>(
     path: string,
@@ -132,6 +149,8 @@ export class AdminApiClient {
     const {
       timeout = 30000, // 30 seconds default
       skipJsonParsing = false,
+      retryOn5xx = false,
+      maxRetries = 2,
       headers: customHeaders,
       ...fetchOptions
     } = options;
@@ -139,75 +158,98 @@ export class AdminApiClient {
     const url = this.buildUrl(path);
     const headers = this.getDefaultHeaders(customHeaders);
 
-    // Add timeout support
-    const controller = new AbortController();
-    const timeoutId = timeout > 0 
-      ? setTimeout(() => controller.abort(), timeout)
-      : null;
+    const attemptLimit = retryOn5xx ? maxRetries + 1 : 1;
 
-    try {
-      const response = await fetch(url, {
-        ...fetchOptions,
-        headers,
-        signal: controller.signal,
-      });
+    for (let attempt = 0; attempt < attemptLimit; attempt++) {
+      // Add timeout support
+      const controller = new AbortController();
+      const timeoutId = timeout > 0
+        ? setTimeout(() => controller.abort(), timeout)
+        : null;
 
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-      }
+      try {
+        const response = await fetch(url, {
+          ...fetchOptions,
+          headers,
+          signal: controller.signal,
+        });
 
-      if (!response.ok) {
-        let errorData: unknown;
-        try {
-          const errorText = await response.text();
-          errorData = errorText ? JSON.parse(errorText) : { message: errorText };
-        } catch {
-          errorData = { message: `Request failed with status ${response.status}` };
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+        }
+
+        if (!response.ok) {
+          let errorData: unknown;
+          try {
+            const errorText = await response.text();
+            errorData = errorText ? JSON.parse(errorText) : { message: errorText };
+          } catch {
+            errorData = { message: `Request failed with status ${response.status}` };
+          }
+
+          const apiError: ApiError = {
+            ok: false,
+            code: (errorData as { code?: string })?.code || 'UPSTREAM_ERROR',
+            message: (errorData as { message?: string })?.message || `Admin API returned ${response.status}`,
+            status: response.status,
+            details: errorData,
+          };
+
+          // Retry on 5xx if enabled and attempts remain
+          if (retryOn5xx && this.is5xxError(response.status) && attempt < attemptLimit - 1) {
+            const delay = Math.min(1000 * Math.pow(2, attempt), 5000); // Max 5 seconds
+            console.warn(`[AdminApiClient] 5xx error (${response.status}), retrying in ${delay}ms (attempt ${attempt + 1}/${attemptLimit})`);
+            await this.sleep(delay);
+            continue;
+          }
+
+          return apiError;
+        }
+
+        // Handle streaming responses (SSE, etc.)
+        if (skipJsonParsing || response.headers.get('content-type')?.includes('text/event-stream')) {
+          return {
+            ok: true,
+            data: response as unknown as T,
+            status: response.status,
+            headers: response.headers,
+          };
+        }
+
+        // Parse JSON response
+        const contentType = response.headers.get('content-type') || '';
+        let data: T;
+
+        if (contentType.includes('application/json')) {
+          data = await response.json();
+        } else {
+          data = (await response.text()) as T;
         }
 
         return {
-          ok: false,
-          code: (errorData as { code?: string })?.code || 'UPSTREAM_ERROR',
-          message: (errorData as { message?: string })?.message || `Admin API returned ${response.status}`,
-          status: response.status,
-          details: errorData,
-        };
-      }
-
-      // Handle streaming responses (SSE, etc.)
-      if (skipJsonParsing || response.headers.get('content-type')?.includes('text/event-stream')) {
-        return {
           ok: true,
-          data: response as unknown as T,
+          data,
           status: response.status,
           headers: response.headers,
         };
+      } catch (error) {
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+        }
+
+        console.error('[AdminApiClient] Request error:', error);
+
+        // Don't retry on network errors
+        return this.handleError(error);
       }
-
-      // Parse JSON response
-      const contentType = response.headers.get('content-type') || '';
-      let data: T;
-
-      if (contentType.includes('application/json')) {
-        data = await response.json();
-      } else {
-        data = (await response.text()) as T;
-      }
-
-      return {
-        ok: true,
-        data,
-        status: response.status,
-        headers: response.headers,
-      };
-    } catch (error) {
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-      }
-
-      console.error('[AdminApiClient] Request error:', error);
-      return this.handleError(error);
     }
+
+    // Should never reach here, but just in case
+    return {
+      ok: false,
+      code: 'UNKNOWN_ERROR',
+      message: 'Request failed after all retries',
+    };
   }
 
   /**
