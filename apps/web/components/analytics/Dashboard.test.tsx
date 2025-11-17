@@ -1,32 +1,33 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { Dashboard } from './Dashboard';
 
 // Mock the api-client
-jest.mock('@/lib/api-client', () => ({
+vi.mock('@/lib/api-client', () => ({
   apiClient: {
-    get: jest.fn(),
+    get: vi.fn(),
   },
 }));
 
 import { apiClient } from '@/lib/api-client';
 
-const mockApiClient = apiClient as jest.Mocked<typeof apiClient>;
+const mockApiClient = apiClient as ReturnType<typeof vi.mocked>;
 
 describe('Dashboard', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     // Mock URL.createObjectURL and URL.revokeObjectURL for export functionality
-    global.URL.createObjectURL = jest.fn(() => 'mock-url');
-    global.URL.revokeObjectURL = jest.fn();
+    global.URL.createObjectURL = vi.fn(() => 'mock-url');
+    global.URL.revokeObjectURL = vi.fn();
 
     // Mock fetch for export functionality
-    global.fetch = jest.fn();
+    global.fetch = vi.fn();
   });
 
   afterEach(() => {
-    jest.restoreAllMocks();
+    vi.restoreAllMocks();
   });
 
   it('renders loading state initially', () => {
@@ -136,17 +137,17 @@ describe('Dashboard', () => {
       data: { success: true, systemMetrics: mockSystemMetrics }
     });
 
-    (global.fetch as jest.Mock).mockResolvedValue({
+    vi.mocked(global.fetch).mockResolvedValue({
       ok: true,
       json: async () => ({ success: true, events: mockEvents })
-    });
+    } as any);
 
     // Mock document methods for download
-    const mockCreateElement = jest.spyOn(document, 'createElement');
+    const mockCreateElement = vi.spyOn(document, 'createElement');
     const mockAnchor = {
       href: '',
       download: '',
-      click: jest.fn()
+      click: vi.fn()
     };
     mockCreateElement.mockReturnValue(mockAnchor as any);
 
