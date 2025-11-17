@@ -1,21 +1,40 @@
 'use client';
 
-import { useState, KeyboardEvent } from 'react';
+import { useState, KeyboardEvent, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Send } from 'lucide-react';
 
 interface MessageInputProps {
   onSend: (message: string) => void;
   disabled?: boolean;
+  value?: string;
+  onValueChange?: (value: string) => void;
 }
 
-export function MessageInput({ onSend, disabled = false }: MessageInputProps) {
+export function MessageInput({ onSend, disabled = false, value, onValueChange }: MessageInputProps) {
   const [input, setInput] = useState('');
+
+  // Sync with external value if provided
+  useEffect(() => {
+    if (value !== undefined) {
+      setInput(value);
+    }
+  }, [value]);
+
+  const handleInputChange = (newValue: string) => {
+    setInput(newValue);
+    if (onValueChange) {
+      onValueChange(newValue);
+    }
+  };
 
   const handleSend = () => {
     if (input.trim() && !disabled) {
       onSend(input.trim());
       setInput('');
+      if (onValueChange) {
+        onValueChange('');
+      }
     }
   };
 
@@ -30,7 +49,7 @@ export function MessageInput({ onSend, disabled = false }: MessageInputProps) {
     <div className="flex gap-2">
       <textarea
         value={input}
-        onChange={(e) => setInput(e.target.value)}
+        onChange={(e) => handleInputChange(e.target.value)}
         onKeyDown={handleKeyDown}
         placeholder="Type your message... (Shift+Enter for new line)"
         disabled={disabled}
