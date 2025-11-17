@@ -8,6 +8,8 @@ RUN corepack enable && corepack prepare pnpm@10.22.0 --activate
 FROM base AS deps
 WORKDIR /app
 COPY package.json pnpm-lock.yaml ./
+# Ensure install scripts run so Prisma CLI + Next binaries are built
+RUN pnpm config set ignore-scripts false
 RUN pnpm install --frozen-lockfile --prod=false
 
 FROM base AS builder
