@@ -3,3 +3,11 @@ apps/*/node_modules/
 apps/*/.next/
 .next/
 dist/
+
+# Test artifacts
+coverage/
+test-results/
+playwright-report/
+.vitest/
+*.spec.ts.snap
+*.test.ts.snap
