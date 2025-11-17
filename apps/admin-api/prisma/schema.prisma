@@ -449,3 +449,37 @@ model AuditLog {
 
   @@map("audit_logs")
 }
+
+// Slimecraft server status pings - historical tracking
+model SlimecraftStatusPing {
+  id          Int      @id @default(autoincrement())
+  timestamp   DateTime @default(now())
+  online      Boolean
+  latencyMs   Int?     @map("latency_ms")
+  playerCount Int?     @map("player_count")
+  raw         Json?
+
+  // Performance indexes
+  @@index([timestamp])
+  @@index([online])
+  @@index([timestamp, online])
+
+  @@map("slimecraft_status_pings")
+}
+
+// Slimecraft backup events log
+model SlimecraftBackup {
+  id          Int      @id @default(autoincrement())
+  label       String?  // e.g. "pre-reset", "nightly"
+  createdAt   DateTime @default(now()) @map("created_at")
+  sizeMb      Int?     @map("size_mb")
+  notes       String?
+  triggeredBy String?  @map("triggered_by") // discordId or manual operator
+
+  // Performance indexes
+  @@index([createdAt])
+  @@index([label])
+  @@index([triggeredBy])
+
+  @@map("slimecraft_backups")
+}
