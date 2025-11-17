@@ -8,6 +8,32 @@
   "scripts": {
     "lint": "pnpm -r run lint || echo \"TODO: lint\"",
     "build": "pnpm -r run build",
-    "test": "pnpm -r run test || echo \"TODO: wire tests\""
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "test:ui": "vitest --ui",
+    "test:backend": "vitest run --project backend",
+    "test:frontend": "vitest run --project frontend",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:all": "pnpm test && pnpm --filter @slimy/web test && pnpm test:e2e",
+    "playwright:install": "playwright install --with-deps chromium"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.56.1",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^14.6.1",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@types/supertest": "^6.0.2",
+    "@vitejs/plugin-react": "^5.1.0",
+    "@vitest/coverage-v8": "^4.0.7",
+    "@vitest/ui": "^4.0.7",
+    "jsdom": "^27.1.0",
+    "supertest": "^7.0.0",
+    "typescript": "^5",
+    "vitest": "^4.0.7"
   }
 }
