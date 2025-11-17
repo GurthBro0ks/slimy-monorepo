@@ -1,0 +1,172 @@
+---
+title: Architecture Overview
+description: System architecture of the Slimy.ai monorepo
+---
+
+# Architecture Overview
+
+The Slimy.ai platform is built as a monorepo containing multiple applications and shared packages.
+
+## System Components
+
+### Frontend (Web)
+
+**Location:** `apps/web/`
+
+- **Framework:** Next.js 16 with App Router
+- **Language:** TypeScript
+- **Styling:** Tailwind CSS
+- **Purpose:** Main user-facing website with docs, tools, and analytics
+
+**Key Features:**
+- Server-side API proxies for secure backend communication
+- MDX-based documentation system
+- Role-based access control (Admin, Club, User)
+- Codes aggregator (Snelp + Reddit)
+- Public stats and analytics dashboards
+
+### Backend (Admin API)
+
+**Location:** `apps/admin-api/`
+
+- **Framework:** Express.js / Node.js
+- **Database:** PostgreSQL with Prisma ORM
+- **Caching:** Redis
+- **Purpose:** Backend API for Discord bot and web app
+
+**Key Endpoints:**
+- `/api/auth/me` - User authentication and role mapping
+- `/api/guilds` - Guild management (admin only)
+- `/api/codes` - Codes aggregation
+- `/api/diag` - Health checks and diagnostics
+- `/api/analytics` - Analytics data
+
+### Admin UI
+
+**Location:** `apps/admin-ui/`
+
+- **Purpose:** Admin panel for managing bot configuration
+- **Stack:** Similar to web app (Next.js/React)
+
+### Discord Bot
+
+**Location:** `apps/bot/`
+
+- **Purpose:** Discord bot integration
+- **Communication:** Connects to Admin API for data persistence
+
+## Architecture Diagram
+
+```
+┌─────────────┐         ┌──────────────┐
+│   Web App   │────────▶│  Admin API   │
+│  (Next.js)  │  Proxy  │  (Express)   │
+└─────────────┘         └──────┬───────┘
+                               │
+                        ┌──────▼───────┐
+                        │  PostgreSQL  │
+                        │   (Prisma)   │
+                        └──────────────┘
+                               │
+                        ┌──────▼───────┐
+                        │    Redis     │
+                        │   (Cache)    │
+                        └──────────────┘
+
+┌─────────────┐
+│ Discord Bot │────────▶ Admin API
+└─────────────┘
+```
+
+## Proxy Layer
+
+The web app uses server-side API route handlers to proxy requests to the Admin API:
+
+**Benefits:**
+- Keeps API credentials secure (server-side only)
+- Implements server-side caching
+- Adds authentication/authorization layer
+- Provides a consistent API interface
+
+**Implementation:** See `apps/web/app/api/` directory
+
+## Role-Based Access
+
+Configured in `slimy.config.ts`:
+
+```typescript
+export const roleMap = {
+  admin: ['ROLE_ID_1', 'ROLE_ID_2'],
+  club: ['ROLE_ID_3'],
+};
+```
+
+**Routes:**
+- Admin role → `/guilds` (guild management)
+- Club role → `/club` (club analytics)
+- Default → `/snail` (user tools)
+
+## Deployment Architecture
+
+### Docker
+
+Each app has its own Dockerfile:
+- `apps/web/Dockerfile` - Multi-stage build with standalone output
+- `apps/admin-api/Dockerfile` - Node.js backend container
+
+### Reverse Proxy
+
+**Caddy** is used as a reverse proxy:
+- SSL/TLS termination
+- Request routing
+- Static file serving
+- Security headers
+
+**Configuration:** `apps/web/Caddyfile.template`
+
+## Data Flow
+
+1. **User Request** → Web App (Next.js)
+2. **Server-Side Route** → API Proxy Handler
+3. **API Proxy** → Admin API
+4. **Admin API** → Database/Redis
+5. **Response** ← Back through chain
+6. **Rendered Page** → User
+
+## Performance Optimizations
+
+- **Caching:** Redis for API responses (60s TTL)
+- **Static Generation:** Pre-rendered pages where possible
+- **Code Splitting:** Dynamic imports and route-based chunks
+- **CDN Support:** Image optimization and CDN configuration
+- **Bundle Analysis:** Webpack bundle analyzer integration
+
+## Database Schema
+
+Managed by Prisma:
+- Location: `apps/web/prisma/schema.prisma` and `apps/admin-api/prisma/schema.prisma`
+- Migrations: Automated via Prisma Migrate
+- Client Generation: `pnpm db:generate`
+
+## Monitoring & Observability
+
+- Health checks: `/api/diag`
+- Plausible Analytics integration
+- Lighthouse CI for performance monitoring
+- Error tracking (TODO)
+
+## Security
+
+- Role-based access control
+- Server-side API proxies (no client-side secrets)
+- Security headers (X-Frame-Options, CSP, etc.)
+- Input validation with Zod
+- Secure cookie handling
+
+## TODO
+
+- [ ] Add centralized logging
+- [ ] Implement error tracking (Sentry)
+- [ ] Add rate limiting
+- [ ] Implement request tracing
+- [ ] Add API documentation (OpenAPI/Swagger)

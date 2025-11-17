@@ -1,0 +1,371 @@
+---
+title: Agents & Tasks
+description: AI agents, task systems, and automation in Slimy.ai
+---
+
+# Agents & Tasks
+
+The Slimy.ai platform includes several AI-powered agents and task automation systems.
+
+## AI Chat Agents
+
+### Chat Bot (OpenAI Integration)
+
+**Location:** `lib/chat/openai.ts`, `lib/openai-client.ts`
+
+The chat system integrates with OpenAI's API to provide conversational assistance to users.
+
+**Features:**
+- Conversational AI using GPT models
+- Context-aware responses
+- Message history management
+- Streaming responses (optional)
+
+**Usage:**
+
+```typescript
+import { createChatCompletion } from '@/lib/chat/openai';
+
+const response = await createChatCompletion({
+  messages: [
+    { role: 'user', content: 'Help me with Super Snail Game' }
+  ],
+  userId: 'user-id',
+});
+```
+
+**Configuration:**
+
+Environment variables:
+- `OPENAI_API_KEY` - OpenAI API key
+- `OPENAI_MODEL` - Model to use (default: `gpt-4-turbo`)
+- `OPENAI_MAX_TOKENS` - Max response tokens
+
+**Endpoints:**
+- `POST /api/chat/bot` - Direct bot interaction
+- `POST /api/chat/message` - Send message in conversation
+- `GET /api/chat/messages` - Retrieve conversation history
+
+---
+
+## Task System (Admin API)
+
+**Location:** `apps/admin-api/src/services/tasks.js`
+
+The Admin API includes a task runner for background operations.
+
+### Supported Tasks
+
+#### 1. **Ingest Screenshots**
+
+Process and analyze uploaded game screenshots.
+
+**Task:** `ingest`
+
+**Parameters:**
+- `guildId` (required): Guild ID
+- `directory`: Source directory for screenshots
+- `type`: Screenshot type
+- `commit`: Whether to commit changes
+- `dryRun`: Test mode
+- `applyCorrections`: Auto-apply OCR corrections
+- `limit`: Max screenshots to process
+- `capHint`: Processing hint
+- `forceCommit`: Force commit even with warnings
+
+**Example:**
+
+```javascript
+POST /api/tasks/run
+{
+  "task": "ingest",
+  "guildId": "12345",
+  "directory": "/uploads/screenshots",
+  "commit": true,
+  "limit": 100
+}
+```
+
+#### 2. **Verify Stats**
+
+Verify guild statistics for consistency.
+
+**Task:** `verify`
+
+**Parameters:**
+- `guildId` (required): Guild ID
+- `strict`: Enable strict validation
+- `warnLow`: Lower warning threshold
+- `warnHigh`: Upper warning threshold
+
+#### 3. **Recompute Latest**
+
+Recompute latest statistics snapshots.
+
+**Task:** `recompute`
+
+**Parameters:**
+- `guildId` (required): Guild ID
+- `snapshotId`: Specific snapshot to recompute
+- `latest`: Recompute latest snapshot (default: true)
+
+#### 4. **Backup MySQL**
+
+Create database backups.
+
+**Task:** `backup-mysql`
+
+**Parameters:**
+- `guildId` (required): Guild ID
+- Auto-creates timestamped backup files
+
+---
+
+## Task Runner
+
+**Location:** `apps/admin-api/src/services/task-runner.js`
+
+The task runner executes background tasks asynchronously.
+
+**Features:**
+- Queue-based task execution
+- Status tracking (pending, running, completed, failed)
+- Error handling and retry logic
+- Progress reporting
+- Task history
+
+**API:**
+
+```javascript
+// Submit a task
+POST /api/tasks/run
+{
+  "task": "ingest",
+  "guildId": "12345",
+  "params": { /* task-specific params */ }
+}
+
+// Response
+{
+  "taskId": "task-uuid",
+  "status": "pending"
+}
+
+// Check task status
+GET /api/tasks/:taskId
+
+// Response
+{
+  "taskId": "task-uuid",
+  "status": "running",
+  "progress": 45,
+  "startedAt": "2025-01-15T10:30:00Z"
+}
+```
+
+---
+
+## Screenshot Analysis Agent
+
+**Location:** `lib/club/screenshot-analyzer.ts` (conceptual)
+
+Analyzes game screenshots to extract structured data.
+
+**Capabilities:**
+- OCR text extraction
+- Game UI element detection
+- Stats extraction (player level, resources, etc.)
+- Error correction and validation
+
+**Pipeline:**
+
+1. **Upload** - User uploads screenshot via `/api/screenshot`
+2. **Pre-process** - Image normalization, cropping
+3. **OCR** - Text extraction using Tesseract/Cloud Vision
+4. **Parsing** - Extract structured data
+5. **Validation** - Verify extracted data against known patterns
+6. **Storage** - Save to database with metadata
+
+**Example Analysis Result:**
+
+```json
+{
+  "detectedElements": ["player_stats", "resources", "inventory"],
+  "confidence": 0.95,
+  "metadata": {
+    "playerLevel": 142,
+    "resources": {
+      "coins": 1234567,
+      "gems": 890
+    },
+    "timestamp": "2025-01-15T10:30:00Z"
+  }
+}
+```
+
+---
+
+## Automation Workflows
+
+### Code Aggregator
+
+**Location:** `lib/codes-aggregator.ts`
+
+Automated aggregation of game codes from multiple sources.
+
+**Sources:**
+- Snelp API
+- Reddit (r/SuperSnailGame)
+- Manual submissions
+
+**Workflow:**
+
+1. **Fetch** - Poll sources on schedule (every 5 minutes)
+2. **Deduplicate** - Remove duplicates across sources
+3. **Validate** - Check code format and expiration
+4. **Cache** - Store in Redis (60s TTL)
+5. **Serve** - Expose via `/api/codes`
+
+**Scheduled Tasks:**
+- Every 5 minutes: Fetch new codes
+- Every hour: Clean expired codes
+- Daily: Generate code usage report
+
+---
+
+## Claude Code Integration
+
+This documentation system was built with Claude Code, Anthropic's AI coding assistant.
+
+**Integration Points:**
+
+1. **Auto-Generated Docs** - TSdoc extraction (see below)
+2. **Code Review** - Automated PR reviews
+3. **Refactoring** - Bulk code improvements
+4. **Testing** - Test generation and coverage
+
+**Usage:**
+
+The repository includes a `scripts/extract-tsdoc.ts` script (see Testing docs) that can be used to extract TypeScript documentation comments and generate API documentation automatically.
+
+---
+
+## Task Scheduling
+
+**Location:** Configured in Admin API
+
+**Cron Jobs:**
+
+- `0 */5 * * *` - Code aggregator refresh
+- `0 0 * * *` - Daily stats summary
+- `0 2 * * *` - Database backups
+- `0 0 * * 0` - Weekly cleanup
+
+**Implementation:**
+- Using `node-cron` or similar
+- Task queue with Redis
+- Error notifications via Discord webhooks
+
+---
+
+## Agent Configuration
+
+### OpenAI Agent Config
+
+```typescript
+// lib/chat/config.ts
+export const CHAT_CONFIG = {
+  model: 'gpt-4-turbo',
+  temperature: 0.7,
+  maxTokens: 1000,
+  systemPrompt: 'You are a helpful assistant for Super Snail Game...',
+  tools: [
+    'code_lookup',
+    'stats_analysis',
+    'club_recommendations'
+  ]
+};
+```
+
+### Task Runner Config
+
+```javascript
+// admin-api/config/tasks.js
+module.exports = {
+  maxConcurrent: 3,
+  retryAttempts: 3,
+  retryDelay: 5000, // 5 seconds
+  timeout: 600000,  // 10 minutes
+};
+```
+
+---
+
+## Future Enhancements
+
+### Planned Agents
+
+- [ ] **Auto-Mod Agent** - Automated moderation for Discord
+- [ ] **Stats Predictor** - ML model for club performance prediction
+- [ ] **Code Validator** - Real-time code validation agent
+- [ ] **Image Recognition** - Advanced game element detection
+
+### Planned Tasks
+
+- [ ] **Auto-backup** - Automated backups to S3/Cloud Storage
+- [ ] **Data Migration** - Guild data import/export
+- [ ] **Analytics Pipeline** - Automated analytics aggregation
+- [ ] **Cache Warming** - Pre-populate caches for performance
+
+---
+
+## Monitoring Agents
+
+Monitor agent health and task execution:
+
+- **Task Queue Depth** - Alert if queue > 100
+- **Failed Tasks** - Alert on task failures
+- **Agent Response Time** - Monitor OpenAI latency
+- **Error Rate** - Track agent error rates
+
+**Dashboard:** See `/admin/tasks` (admin only)
+
+---
+
+## Development
+
+### Creating New Tasks
+
+1. Add task to `SUPPORTED_TASKS` in `tasks.js`
+2. Implement task function in `task-runner.js`
+3. Add route handler in `routes/tasks.js`
+4. Add task documentation here
+5. Write tests in `tests/tasks.test.js`
+
+### Creating New Agents
+
+1. Define agent interface in `lib/agents/types.ts`
+2. Implement agent in `lib/agents/[name].ts`
+3. Add configuration in `lib/agents/config.ts`
+4. Create API endpoint in `app/api/agents/[name]/route.ts`
+5. Add monitoring and logging
+6. Document agent capabilities
+
+---
+
+## Resources
+
+- [OpenAI API Documentation](https://platform.openai.com/docs)
+- [Task Queue Best Practices](https://docs.example.com/task-queues)
+- Admin API task implementation: `apps/admin-api/src/services/`
+- Chat implementation: `apps/web/lib/chat/`
+
+---
+
+## TODO
+
+- [ ] Document Claude Code workflow integration
+- [ ] Add agent performance benchmarks
+- [ ] Create agent testing framework
+- [ ] Add multi-model support (Anthropic Claude, etc.)
+- [ ] Implement agent chaining/orchestration
