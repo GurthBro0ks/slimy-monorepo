@@ -16,6 +16,8 @@ const usageService = require("../services/usage");
 const healthService = require("../services/health");
 const { rescanMember } = require("../services/rescan");
 const { recordAudit } = require("../services/audit");
+const guildClient = require("../../lib/discord/guild-client");
+const guildService = require("../services/guild.service");
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -87,8 +89,130 @@ const usageQuerySchema = z.object({
 
 router.use(requireAuth);
 
+// GET /api/guilds - List linked guilds
 router.get("/", (req, res) => {
   res.json({ guilds: req.user.guilds || [] });
+});
+
+// GET /api/guilds/sync - Fetch guilds from Discord API
+router.get("/sync", async (req, res, next) => {
+  try {
+    const botToken = process.env.DISCORD_BOT_TOKEN;
+
+    if (!botToken) {
+      return res.status(503).json({
+        error: "discord-not-configured",
+        message: "Discord bot token not configured",
+      });
+    }
+
+    const useCache = req.query.refresh !== "true";
+    const guilds = await guildClient.fetchGuilds(botToken, {
+      useCache,
+      userId: req.user.sub,
+    });
+
+    await recordAudit({
+      adminId: req.user.sub,
+      action: "guilds.sync",
+      payload: { guildCount: guilds.length, useCache },
+    });
+
+    res.json({
+      guilds: guilds.map(g => ({
+        id: g.id,
+        name: g.name,
+        icon: g.icon,
+        owner: g.owner,
+        permissions: g.permissions,
+        features: g.features,
+      })),
+      cached: useCache,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST /api/guilds/:id - Create or update guild from Discord
+router.post("/:id", requireRole("editor"), requireCsrf, async (req, res, next) => {
+  try {
+    const discordId = req.params.id;
+    const botToken = process.env.DISCORD_BOT_TOKEN;
+
+    if (!botToken) {
+      return res.status(503).json({
+        error: "discord-not-configured",
+        message: "Discord bot token not configured",
+      });
+    }
+
+    // Fetch guild details from Discord
+    const discordGuild = await guildClient.fetchGuild(botToken, discordId, {
+      userId: req.user.sub,
+    });
+
+    // Check if guild already exists
+    let guild;
+    try {
+      guild = await guildService.getGuildByDiscordId(discordId);
+
+      // Update existing guild
+      guild = await guildService.updateGuild(guild.id, {
+        name: discordGuild.name,
+        settings: {
+          ...(guild.settings || {}),
+          icon: discordGuild.icon,
+          features: discordGuild.features,
+          lastSyncedAt: new Date().toISOString(),
+        },
+      });
+
+      await recordAudit({
+        adminId: req.user.sub,
+        action: "guild.update",
+        guildId: guild.id,
+        payload: { discordId, source: "discord-sync" },
+      });
+
+      res.json({
+        guild,
+        created: false,
+        syncedAt: new Date().toISOString(),
+      });
+    } catch (err) {
+      if (err.message === "Guild not found") {
+        // Create new guild
+        guild = await guildService.createGuild({
+          discordId,
+          name: discordGuild.name,
+          settings: {
+            icon: discordGuild.icon,
+            features: discordGuild.features,
+            lastSyncedAt: new Date().toISOString(),
+          },
+        });
+
+        await recordAudit({
+          adminId: req.user.sub,
+          action: "guild.create",
+          guildId: guild.id,
+          payload: { discordId, source: "discord-sync" },
+        });
+
+        res.status(201).json({
+          guild,
+          created: true,
+          syncedAt: new Date().toISOString(),
+        });
+      } else {
+        throw err;
+      }
+    }
+  } catch (err) {
+    next(err);
+  }
 });
 
 router.get(
