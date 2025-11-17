@@ -5,7 +5,8 @@ Production-ready website for Slimy.ai Discord bot with Admin API integration, co
 ## Features
 
 - **Next.js 16** with App Router, TypeScript, and Tailwind CSS
-- **Admin API Proxies** - Server-side proxies for secure API access
+- **API Gateway** - Centralized proxy layer with rate limiting, auth, and retry logic
+- **Admin API Client** - Type-safe client for admin-api with automatic retry on 5xx errors
 - **Codes Aggregator** - Merges codes from Snelp and Reddit r/SuperSnailGame
 - **MDX Docs System** - Auto-import docs from GitHub with sidebar navigation
 - **Role-Based Access** - Admin, Club, and User roles with route guards
@@ -31,7 +32,16 @@ pnpm dev
 ## Environment Variables
 
 ```bash
-NEXT_PUBLIC_ADMIN_API_BASE=""         # Admin API base URL
+# Admin API
+NEXT_PUBLIC_ADMIN_API_BASE=""         # Admin API base URL (required)
+
+# API Gateway (optional)
+GATEWAY_RATE_LIMIT_ENABLED=true       # Enable rate limiting (default: true)
+GATEWAY_RATE_LIMIT_MAX=100            # Max requests/minute (default: 100)
+GATEWAY_RATE_LIMIT_WINDOW_MS=60000    # Rate limit window (default: 60000)
+GATEWAY_AUTH_REQUIRED=false           # Require auth (default: false)
+
+# External APIs
 NEXT_PUBLIC_SNELP_CODES_URL=""        # Snelp codes API URL
 NEXT_PUBLIC_PLAUSIBLE_DOMAIN=""       # Plausible analytics domain
 
@@ -41,14 +51,33 @@ DOCS_SOURCE_PATH="docs"               # Path to docs
 GITHUB_TOKEN=""                       # GitHub token
 ```
 
-## Admin API Wiring
+## API Gateway & Admin API
 
-Server-side proxies connect to the Admin API:
+The application uses a centralized API Gateway for all admin-api communication:
+
+### Gateway Route
+
+All requests to `/api/gateway/*` are forwarded to admin-api with:
+- **Rate limiting** - 100 requests/minute per IP (configurable)
+- **Retry logic** - Automatic retry on 5xx errors
+- **Standard errors** - Consistent `{ ok, data/error }` format
+- **Request logging** - All requests logged with timing
+
+**Example:**
+- `GET /api/gateway/stats` → `admin-api/api/stats`
+- `POST /api/gateway/guilds` → `admin-api/api/guilds`
+
+See [API Gateway Documentation](docs/API_GATEWAY.md) for details.
+
+### Existing API Routes
+
+Legacy routes use `adminApiClient` directly:
 
 - `GET /api/diag` → Health check (cached 60s)
 - `GET /api/auth/me` → User auth and role mapping
-- `GET /api/guilds` → Guild list for admins
-- `GET /api/codes` → Codes aggregator (Snelp + Reddit)
+- `GET /api/guilds` → Guild list for admins (with auth)
+- `GET /api/stats` → Stats proxy (refactored to use gateway pattern)
+- `GET /api/codes` → Codes aggregator (local, not proxied)
 
 ### Role Mapping
 
