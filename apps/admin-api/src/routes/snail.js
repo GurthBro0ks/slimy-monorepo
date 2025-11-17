@@ -184,6 +184,24 @@ router.post(
 
       metrics.recordImages(files.length);
 
+      // Publish event to event bus for snapshot creation
+      try {
+        const eventBus = require('../lib/eventBus');
+        await eventBus.publish({
+          type: 'CLUB_SNAPSHOT_CREATED',
+          payload: {
+            snapshotId: `${guildId}_${userId}_${Date.now()}`,
+            guildId,
+            userId,
+            imageCount: files.length,
+            prompt,
+            timestamp: payload.uploadedAt,
+          },
+        });
+      } catch (error) {
+        console.error('[snail/analyze] Failed to publish CLUB_SNAPSHOT_CREATED event:', error);
+      }
+
       res.json({
         ok: true,
         saved: true,
@@ -303,6 +321,7 @@ router.post("/calc", requireCsrf, express.json(), snail.calc, (req, res) => {
  */
 router.get("/codes", snail.codes, cacheGuildData(1800, 3600), async (req, res) => {
   const guildId = String(req.params.guildId);
+  const userId = req.user?.id;
   const scope = ["active", "past7", "all"].includes(req.query.scope)
     ? req.query.scope
     : "active";
@@ -315,6 +334,24 @@ router.get("/codes", snail.codes, cacheGuildData(1800, 3600), async (req, res) =
     });
     if (response.ok) {
       const data = await response.json();
+
+      // Publish event to event bus for successful codes lookup
+      try {
+        const eventBus = require('../lib/eventBus');
+        await eventBus.publish({
+          type: 'CODES_LOOKUP_PERFORMED',
+          payload: {
+            guildId,
+            userId,
+            source: 'remote',
+            sourceCount: data.codes?.length || 0,
+            scope,
+          },
+        });
+      } catch (error) {
+        console.error('[snail/codes] Failed to publish CODES_LOOKUP_PERFORMED event:', error);
+      }
+
       return res.json({ ok: true, source: "remote", ...data });
     }
     console.warn(
@@ -329,6 +366,24 @@ router.get("/codes", snail.codes, cacheGuildData(1800, 3600), async (req, res) =
       path.join(CODES_ROOT, `${guildId}.json`),
       { codes: [] },
     );
+
+    // Publish event to event bus for fallback codes lookup
+    try {
+      const eventBus = require('../lib/eventBus');
+      await eventBus.publish({
+        type: 'CODES_LOOKUP_PERFORMED',
+        payload: {
+          guildId,
+          userId,
+          source: 'local',
+          sourceCount: fallback.codes?.length || 0,
+          scope,
+        },
+      });
+    } catch (error) {
+      console.error('[snail/codes] Failed to publish CODES_LOOKUP_PERFORMED event:', error);
+    }
+
     return res.json({ ok: true, source: "local", ...fallback });
   }
 });
