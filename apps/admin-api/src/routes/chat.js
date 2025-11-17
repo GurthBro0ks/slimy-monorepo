@@ -21,6 +21,7 @@ const { queueManager } = require("../lib/queues");
 const database = require("../../../lib/database");
 const { chat } = require("../lib/validation/schemas");
 const { apiHandler } = require("../lib/errors");
+const { trackEvent } = require("../../lib/stats/tracker");
 
 // Special room ID for admin-only global chat
 const ADMIN_ROOM_ID = "admin-global";
@@ -77,6 +78,18 @@ router.post("/bot", requireCsrf, requireRole("member"), express.json(), chat.bot
     });
 
     metrics.recordChatMessage();
+
+    // Track chat message event for analytics
+    trackEvent({
+      type: 'chat_message',
+      userId,
+      guildId,
+      value: 1,
+      metadata: {
+        promptLength: prompt.trim().length,
+        jobId: job.id,
+      },
+    });
 
     return {
       ok: true,

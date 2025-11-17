@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { analyzeClubScreenshot, analyzeClubScreenshots, validateImageUrl, type ClubAnalysisResult } from '@/lib/club/vision';
 import { clubDatabase } from '@/lib/club/database';
+import { adminApiClient } from '@/lib/api/admin-client';
 
 export async function POST(request: NextRequest) {
   try {
@@ -69,6 +70,23 @@ export async function POST(request: NextRequest) {
         console.error('Failed to store analysis result:', error);
         // Continue with other results even if one fails to store
       }
+    }
+
+    // Track club snapshot creation event for analytics
+    try {
+      await adminApiClient.post('/api/stats/events/track', {
+        type: 'club_snapshot_created',
+        userId,
+        guildId,
+        value: storedResults.length,
+        metadata: {
+          imageCount: validUrls.length,
+          averageConfidence: results.reduce((sum, r) => sum + r.confidence, 0) / results.length,
+        },
+      });
+    } catch (error) {
+      // Don't fail the request if tracking fails
+      console.error('Failed to track club snapshot event:', error);
     }
 
     return NextResponse.json({
