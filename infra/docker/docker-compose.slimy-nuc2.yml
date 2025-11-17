@@ -1,0 +1,141 @@
+name: slimy-nuc2
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: slimy-db
+    restart: unless-stopped
+    env_file:
+      - /opt/slimy/secrets/.env.db.slimy-nuc2
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - /opt/slimy/backups/postgres:/backups
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+    networks:
+      - slimy
+
+  admin-api:
+    build:
+      context: ../../apps/admin-api
+      dockerfile: Dockerfile
+    container_name: slimy-admin-api
+    restart: unless-stopped
+    env_file:
+      - /opt/slimy/secrets/.env.admin.production
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: 3080
+      TRUST_PROXY: "1"
+      UPLOADS_DIR: /var/lib/slimy/uploads
+      BACKUP_ROOT: /var/backups/slimy
+      BACKUP_MYSQL_DIR: /var/backups/slimy/mysql
+      BACKUP_DATA_DIR: /var/backups/slimy/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "3080:3080"
+    volumes:
+      - /opt/slimy/data/admin-api/data:/app/data
+      - /opt/slimy/data/admin-api/uploads:/var/lib/slimy/uploads
+      - /opt/slimy/backups/admin-api:/var/backups/slimy
+      - /opt/slimy/logs/admin-api:/app/logs
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          node -e "require('http').get('http://127.0.0.1:3080/api/health',
+          res => process.exit(res.statusCode === 200 ? 0 : 1)).on('error',
+          () => process.exit(1));"
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+    networks:
+      - slimy
+
+  web:
+    build:
+      context: ../../apps/web
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_ADMIN_API_BASE: ${NEXT_PUBLIC_ADMIN_API_BASE:-https://admin.slimyai.xyz}
+        NEXT_PUBLIC_SNELP_CODES_URL: ${NEXT_PUBLIC_SNELP_CODES_URL:-https://snelp.com/api/codes}
+        NEXT_PUBLIC_PLAUSIBLE_DOMAIN: ${NEXT_PUBLIC_PLAUSIBLE_DOMAIN:-slimy.ai}
+    container_name: slimy-web
+    restart: unless-stopped
+    env_file:
+      - /opt/slimy/secrets/.env.web.production
+    environment:
+      HOST: 0.0.0.0
+      PORT: 3000
+      NEXT_TELEMETRY_DISABLED: "1"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      admin-api:
+        condition: service_started
+    ports:
+      - "3000:3000"
+    volumes:
+      - /opt/slimy/logs/web:/app/logs
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O- http://127.0.0.1:3000/api/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 6
+      start_period: 30s
+    networks:
+      - slimy
+
+  caddy:
+    image: caddy:2
+    container_name: slimy-caddy
+    restart: unless-stopped
+    depends_on:
+      web:
+        condition: service_healthy
+      admin-api:
+        condition: service_started
+    network_mode: host
+    volumes:
+      - ./Caddyfile.slimy-nuc2:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+  loopback1455:
+    image: python:3-alpine
+    container_name: slimy-loopback1455
+    restart: unless-stopped
+    command: ["python3", "-m", "http.server", "1455"]
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O- http://127.0.0.1:1455 || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+    ports:
+      - "1455:1455"
+    networks:
+      - slimy
+
+networks:
+  slimy:
+    name: slimy-network
+
+volumes:
+  postgres_data:
+    external: true
+    name: slimyai-web_postgres_data
+  caddy_data:
+    external: true
+    name: slimyai-web_caddy_data
+  caddy_config:
+    external: true
+    name: slimyai-web_caddy_config

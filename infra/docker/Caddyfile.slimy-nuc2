@@ -1,0 +1,83 @@
+(slime_common) {
+  encode zstd gzip
+  header {
+    Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+  }
+}
+
+slimyai.xyz, www.slimyai.xyz {
+  import slime_common
+  @bedrock_api_slime path /api/bedrock-status /api/bedrock-status/*
+  reverse_proxy @bedrock_api_slime 127.0.0.1:3000 {
+    flush_interval -1
+  }
+
+  @admin_api_slime {
+    path /api/*
+    not path /api/bedrock-status /api/bedrock-status/*
+  }
+  reverse_proxy @admin_api_slime 127.0.0.1:3080 {
+    flush_interval -1
+  }
+
+  reverse_proxy 127.0.0.1:3000
+}
+
+login.slimyai.xyz {
+  import slime_common
+  @bedrock_api_login path /api/bedrock-status /api/bedrock-status/*
+  reverse_proxy @bedrock_api_login 127.0.0.1:3000 {
+    flush_interval -1
+  }
+
+  @admin_api_login {
+    path /api/*
+    not path /api/bedrock-status /api/bedrock-status/*
+  }
+  reverse_proxy @admin_api_login 127.0.0.1:3080 {
+    flush_interval -1
+  }
+
+  reverse_proxy 127.0.0.1:3000
+}
+
+panel.slimyai.xyz {
+  import slime_common
+  @bedrock_api_panel path /api/bedrock-status /api/bedrock-status/*
+  reverse_proxy @bedrock_api_panel 127.0.0.1:3000 {
+    flush_interval -1
+  }
+
+  @admin_api_panel {
+    path /api/*
+    not path /api/bedrock-status /api/bedrock-status/*
+  }
+  reverse_proxy @admin_api_panel 127.0.0.1:3080 {
+    flush_interval -1
+  }
+
+  reverse_proxy 127.0.0.1:3000
+}
+
+slime.chat, www.slime.chat {
+  import slime_common
+  reverse_proxy 127.0.0.1:3000
+}
+
+:8080 {
+  import slime_common
+  @bedrock_api_local path /api/bedrock-status /api/bedrock-status/*
+  reverse_proxy @bedrock_api_local 127.0.0.1:3000 {
+    flush_interval -1
+  }
+
+  @admin_api_local {
+    path /api/*
+    not path /api/bedrock-status /api/bedrock-status/*
+  }
+  reverse_proxy @admin_api_local 127.0.0.1:3080 {
+    flush_interval -1
+  }
+
+  reverse_proxy 127.0.0.1:3000
+}
