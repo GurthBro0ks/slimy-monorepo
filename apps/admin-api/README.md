@@ -205,6 +205,139 @@ router.get('/protected', requireAuth, (req, res) => {
 });
 ```
 
+## Caching
+
+The API includes a Redis-backed caching utility with automatic fallback to in-memory caching when Redis is unavailable.
+
+### Configuration
+
+Add to your `.env.admin.production`:
+
+```bash
+# Redis Cache (optional)
+REDIS_URL=redis://localhost:6379
+```
+
+If `REDIS_URL` is not set or Redis is unavailable, the cache will automatically fallback to in-memory storage.
+
+### Usage in Routes
+
+**Basic Example:**
+
+```javascript
+const { redisCache } = require('./lib/cache/redis');
+
+router.get('/api/guilds/:guildId/settings', requireAuth, async (req, res) => {
+  const cacheKey = `guild:${req.params.guildId}:settings`;
+
+  // Try to get from cache first
+  const cached = await redisCache.get(cacheKey);
+  if (cached) {
+    return res.json(cached);
+  }
+
+  // Fetch from database
+  const settings = await fetchGuildSettings(req.params.guildId);
+
+  // Cache for 5 minutes (300 seconds)
+  await redisCache.set(cacheKey, settings, 300);
+
+  res.json(settings);
+});
+```
+
+**Using getOrSet (Recommended):**
+
+```javascript
+const { redisCache } = require('./lib/cache/redis');
+
+router.get('/api/guilds/:guildId/stats', requireAuth, async (req, res) => {
+  const cacheKey = `guild:${req.params.guildId}:stats`;
+
+  // Get from cache or compute if not exists
+  const stats = await redisCache.getOrSet(
+    cacheKey,
+    600, // TTL: 10 minutes
+    async () => {
+      // This function only runs if cache miss
+      return await computeExpensiveStats(req.params.guildId);
+    }
+  );
+
+  res.json(stats);
+});
+```
+
+**Middleware Example:**
+
+```javascript
+const { redisCache } = require('./lib/cache/redis');
+
+// Cache middleware factory
+function cacheMiddleware(keyFn, ttlSeconds = 300) {
+  return async (req, res, next) => {
+    const cacheKey = keyFn(req);
+    const cached = await redisCache.get(cacheKey);
+
+    if (cached) {
+      return res.json(cached);
+    }
+
+    // Store original res.json
+    const originalJson = res.json.bind(res);
+
+    // Override res.json to cache the response
+    res.json = async (data) => {
+      await redisCache.set(cacheKey, data, ttlSeconds);
+      return originalJson(data);
+    };
+
+    next();
+  };
+}
+
+// Usage
+router.get(
+  '/api/guilds',
+  requireAuth,
+  cacheMiddleware(req => `user:${req.user.id}:guilds`, 300),
+  async (req, res) => {
+    const guilds = await fetchUserGuilds(req.user.id);
+    res.json(guilds);
+  }
+);
+```
+
+### Cache Methods
+
+- `get(key)` - Get a value from cache (returns null if not found)
+- `set(key, value, ttlSeconds)` - Store a value with TTL
+- `getOrSet(key, ttlSeconds, callbackFn)` - Get from cache or compute and store
+- `delete(key)` - Remove a key from cache
+- `clear()` - Clear all cache entries (use with caution)
+
+### Testing
+
+Run cache tests with Vitest:
+
+```bash
+npm test                # Run all tests
+npm run test:watch      # Watch mode
+npm run test:ui         # UI mode
+npm run test:coverage   # Coverage report
+```
+
+### Fallback Behavior
+
+The cache automatically handles Redis failures:
+
+1. If `REDIS_URL` is not configured → uses memory cache
+2. If Redis connection fails → uses memory cache
+3. If Redis becomes unavailable during operation → falls back to memory cache
+4. All cache operations work identically regardless of backend
+
+**Note**: Memory cache is not shared across multiple server instances and is lost on restart.
+
 ## Security Notes
 
 - All cookies have `httpOnly: true` (not accessible via JavaScript)
@@ -218,6 +351,7 @@ router.get('/protected', requireAuth, (req, res) => {
 
 - [ ] Connect stub endpoints to actual database
 - [ ] Implement POST/PUT/DELETE endpoints for settings
+- [x] Add Redis caching with memory fallback (see Caching section)
 - [ ] Add Redis for persistent session storage
 - [ ] Add rate limiting
 - [ ] Add request logging middleware
