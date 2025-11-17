@@ -1,21 +1,20 @@
-FROM node:22-alpine AS base
+FROM node:22-slim AS base
 
-# Install pnpm
-RUN corepack enable && corepack prepare pnpm@10.20.0 --activate
+ENV PNPM_HOME=/root/.local/share/pnpm
+ENV PATH=${PNPM_HOME}:${PATH}
 
-# Dependencies
+RUN corepack enable && corepack prepare pnpm@10.22.0 --activate
+
 FROM base AS deps
 WORKDIR /app
 COPY package.json pnpm-lock.yaml ./
-RUN pnpm install --frozen-lockfile
+RUN pnpm install --frozen-lockfile --prod=false
 
-# Builder
 FROM base AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Build args for environment variables
 ARG NEXT_PUBLIC_ADMIN_API_BASE
 ARG NEXT_PUBLIC_SNELP_CODES_URL
 ARG NEXT_PUBLIC_PLAUSIBLE_DOMAIN
@@ -24,10 +23,10 @@ ENV NEXT_PUBLIC_ADMIN_API_BASE=$NEXT_PUBLIC_ADMIN_API_BASE
 ENV NEXT_PUBLIC_SNELP_CODES_URL=$NEXT_PUBLIC_SNELP_CODES_URL
 ENV NEXT_PUBLIC_PLAUSIBLE_DOMAIN=$NEXT_PUBLIC_PLAUSIBLE_DOMAIN
 
+RUN pnpm run db:generate
 RUN pnpm build
 
-# Runner
-FROM base AS runner
+FROM node:22-slim AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production
