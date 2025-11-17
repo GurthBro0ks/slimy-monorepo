@@ -449,3 +449,46 @@ model AuditLog {
 
   @@map("audit_logs")
 }
+
+// Club Analytics v1: Club power snapshots
+// Stores periodic snapshots of club member power levels for tracking and analysis
+model ClubSnapshot {
+  id          Int      @id @default(autoincrement())
+  guildId     String   @map("guild_id") // Discord guild ID
+  capturedAt  DateTime @default(now()) @map("captured_at") // When this snapshot was taken
+  metadata    Json?    // Optional metadata (notes, source, etc.)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  // Relations
+  members ClubMemberSnapshot[]
+
+  // Performance indexes
+  @@index([guildId])
+  @@index([capturedAt])
+  @@index([guildId, capturedAt])
+  @@index([createdAt])
+
+  @@map("club_snapshots")
+}
+
+// Individual member power data within a club snapshot
+model ClubMemberSnapshot {
+  id         Int    @id @default(autoincrement())
+  snapshotId Int    @map("snapshot_id")
+  memberKey  String @map("member_key") // Discord user ID or "Name#1234" - flexible identifier
+  totalPower BigInt @map("total_power") // Total power level
+  simPower   BigInt @default(0) @map("sim_power") // Sim power level
+  rank       Int?   // Optional rank within club
+
+  // Relations
+  snapshot ClubSnapshot @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
+
+  // Performance indexes
+  @@index([snapshotId])
+  @@index([memberKey])
+  @@index([snapshotId, memberKey])
+  @@index([snapshotId, rank])
+  @@index([totalPower])
+
+  @@map("club_member_snapshots")
+}
