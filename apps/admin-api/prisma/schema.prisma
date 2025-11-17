@@ -415,18 +415,23 @@ model ScreenshotRecommendation {
 }
 
 // Audit logs for event sourcing and compliance
+// Supports both HTTP request auditing and event bus events
 model AuditLog {
   id            String   @id @default(cuid())
   userId        String?  @map("user_id") // User who performed the action (null for system actions)
+  guildId       String?  @map("guild_id") // Guild context for the event
   action        String   // Action performed (e.g., 'login', 'chat_message', 'create_conversation')
-  resourceType  String   @map("resource_type") // Type of resource (e.g., 'user', 'chat', 'guild')
-  resourceId    String   @map("resource_id") // ID of the affected resource
-  details       Json?    // Additional details about the action
+  eventType     String?  @map("event_type") // Event type for event bus (e.g., 'CHAT_MESSAGE_CREATED')
+  resourceType  String?  @map("resource_type") // Type of resource (e.g., 'user', 'chat', 'guild')
+  resourceId    String?  @map("resource_id") // ID of the affected resource
+  payload       Json?    // Event payload / additional details about the action
+  details       Json?    // Additional details about the action (legacy field)
   ipAddress     String?  @map("ip_address") // IP address of the user
   userAgent     String?  @map("user_agent") // User agent string
   sessionId     String?  @map("session_id") // Session ID for tracking
   requestId     String?  @map("request_id") // Request ID for correlation
   timestamp     DateTime @default(now())
+  createdAt     DateTime @default(now()) @map("created_at") // Alias for timestamp
   success       Boolean  @default(true) // Whether the action was successful
   errorMessage  String?  @map("error_message") // Error message if action failed
 
@@ -435,13 +440,19 @@ model AuditLog {
 
   // Performance indexes
   @@index([userId])
+  @@index([guildId])
   @@index([action])
+  @@index([eventType])
   @@index([resourceType])
   @@index([resourceId])
   @@index([timestamp])
+  @@index([createdAt])
   @@index([success])
   @@index([userId, timestamp])
+  @@index([guildId, timestamp])
   @@index([action, timestamp])
+  @@index([eventType, timestamp])
+  @@index([eventType, createdAt])
   @@index([resourceType, timestamp])
   @@index([userId, action, timestamp])
   @@index([resourceType, resourceId])

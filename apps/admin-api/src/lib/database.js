@@ -509,7 +509,7 @@ class Database {
   async createChatMessage({ conversationId, userId, guildId, text, adminOnly = false }) {
     const prisma = this.getClient();
 
-    return await prisma.chatMessage.create({
+    const message = await prisma.chatMessage.create({
       data: {
         conversationId,
         userId,
@@ -522,6 +522,27 @@ class Database {
         guild: true,
       },
     });
+
+    // Publish event to event bus
+    try {
+      const eventBus = require('./eventBus');
+      await eventBus.publish({
+        type: 'CHAT_MESSAGE_CREATED',
+        payload: {
+          messageId: message.id,
+          conversationId: message.conversationId,
+          userId: message.userId,
+          guildId: message.guildId,
+          text: message.text,
+          adminOnly: message.adminOnly,
+        },
+      });
+    } catch (error) {
+      // Log but don't fail the message creation
+      console.error('[database] Failed to publish CHAT_MESSAGE_CREATED event:', error);
+    }
+
+    return message;
   }
 
   async getChatMessages(guildId, limit = 50, includeAdminOnly = false) {
