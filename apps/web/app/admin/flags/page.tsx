@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Callout } from "@/components/ui/callout";
+import { RequireRole } from "@/components/auth/RequireRole";
 
 interface GuildFlags {
   guildId: string;
@@ -93,14 +94,15 @@ export default function FlagsAdminPage() {
   };
 
   return (
-    <div className="container px-4 py-8">
-      <div className="mx-auto max-w-4xl">
-        <div className="mb-8">
-          <h1 className="mb-2 text-4xl font-bold">Feature Flags</h1>
-          <p className="text-muted-foreground">
-            Manage guild-scoped themes and experiments
-          </p>
-        </div>
+    <RequireRole role="admin">
+      <div className="container px-4 py-8">
+        <div className="mx-auto max-w-4xl">
+          <div className="mb-8">
+            <h1 className="mb-2 text-4xl font-bold">Feature Flags</h1>
+            <p className="text-muted-foreground">
+              Manage guild-scoped themes and experiments
+            </p>
+          </div>
 
         <Card className="mb-6">
           <CardHeader>
@@ -223,6 +225,7 @@ export default function FlagsAdminPage() {
         )}
       </div>
     </div>
+    </RequireRole>
   );
 }
 

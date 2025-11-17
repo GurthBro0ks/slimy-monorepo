@@ -5,6 +5,7 @@ const crypto = require("crypto");
 const { signSession, setAuthCookie, clearAuthCookie } = require("../../lib/jwt");
 const { storeSession, clearSession, getSession } = require("../../lib/session-store");
 const { resolveRoleLevel } = require("../lib/roles");
+const { getUserFromRequest } = require("../lib/session");
 const config = require("../config");
 
 const router = express.Router();
@@ -373,18 +374,32 @@ router.get("/callback", async (req, res) => {
   }
 });
 
-router.get("/me", (req, res) => {
+router.get("/me", async (req, res) => {
   console.info("[admin-api] /api/auth/me called", {
     hasUser: Boolean(req.user),
     userId: req.user?.id || null,
   });
-  if (!req.user) {
-    return res.status(401).json({ error: "unauthorized" });
+
+  // Use new session helper to get user from request
+  const user = await getUserFromRequest(req);
+
+  if (!user) {
+    return res.status(401).json({ error: "Unauthorized" });
   }
-  const session = getSession(req.user.id);
+
+  // Get session data for backwards compatibility
+  const session = getSession(user.id);
+
   return res.json({
-    ...req.user,
-    guilds: req.user.guilds || [],
+    user: {
+      id: user.id,
+      role: user.role,
+      discordId: user.discordId,
+      username: user.username,
+      globalName: user.globalName,
+      avatar: user.avatar,
+    },
+    guilds: session?.guilds || req.user?.guilds || [],
     sessionGuilds: session?.guilds || [],
   });
 });

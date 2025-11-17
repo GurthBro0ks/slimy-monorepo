@@ -8,6 +8,9 @@ const { requireAuth } = require("../middleware/auth");
 const { requireCsrf } = require("../middleware/csrf");
 const { requireRole, requireGuildAccess } = require("../middleware/rbac");
 const { validateBody, validateQuery } = require("../middleware/validate");
+// New RBAC middleware for role-based access control
+const { requireUser } = require("../lib/session");
+const { requireRole: requireRoleV2 } = require("../middleware/permissions");
 const settingsService = require("../services/settings");
 const personalityService = require("../services/personality");
 const channelService = require("../services/channels");
@@ -110,6 +113,8 @@ router.put(
   "/:guildId/settings",
   requireGuildAccess,
   requireRole("editor"),
+  requireUser, // New session validation
+  requireRoleV2("admin"), // New RBAC: only admins can update settings
   requireCsrf,
   validateBody(settingsSchema),
   async (req, res, next) => {
