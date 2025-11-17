@@ -11,6 +11,7 @@ vi.mock('@/lib/club/vision', () => ({
 vi.mock('@/lib/club/database', () => ({
   clubDatabase: {
     storeAnalysis: vi.fn(),
+    getAnalysesByGuild: vi.fn(),
   },
 }));
 
