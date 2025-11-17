@@ -449,3 +449,23 @@ model AuditLog {
 
   @@map("audit_logs")
 }
+
+// Slime.craft Updates / Notices
+model SlimecraftUpdate {
+  id         Int      @id @default(autoincrement())
+  type       String   @default("info") // "info" | "warning" | "outage" | etc.
+  title      String?
+  body       String   @db.Text // main text of the update
+  pinned     Boolean  @default(false)
+  createdBy  String?  @map("created_by") // discordId or username (optional)
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  // Performance indexes
+  @@index([createdAt])
+  @@index([pinned])
+  @@index([type])
+  @@index([pinned, createdAt])
+
+  @@map("slimecraft_updates")
+}
