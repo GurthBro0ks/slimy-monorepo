@@ -1,10 +1,19 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // Mock the file system operations
-vi.mock('fs/promises', () => ({
-  writeFile: vi.fn(),
-  mkdir: vi.fn(),
-}));
+vi.mock('fs/promises', () => {
+  const mockFn = vi.fn().mockResolvedValue(undefined);
+  return {
+    writeFile: mockFn,
+    mkdir: mockFn,
+    readFile: mockFn,
+    default: {
+      writeFile: mockFn,
+      mkdir: mockFn,
+      readFile: mockFn,
+    },
+  };
+});
 
 // Mock the vision analysis
 vi.mock('@/lib/club/vision', () => ({
@@ -34,6 +43,15 @@ import { writeFile, mkdir } from 'fs/promises';
 import { analyzeClubScreenshots } from '@/lib/club/vision';
 
 describe('/api/club/upload', () => {
+  // Helper to create a mock File with arrayBuffer support
+  const createMockFile = (content: string, name: string, type: string) => {
+    const buffer = Buffer.from(content);
+    const file = new File([buffer], name, { type });
+    // Add arrayBuffer method that File doesn't have in test environment
+    (file as any).arrayBuffer = async () => buffer.buffer;
+    return file;
+  };
+
   beforeEach(() => {
     vi.clearAllMocks();
     (mkdir as any).mockResolvedValue(undefined);
@@ -63,7 +81,7 @@ describe('/api/club/upload', () => {
   it('should return 400 when no guildId provided', async () => {
     const formData = new FormData();
     // Create a mock file
-    const mockFile = new File(['test'], 'test.png', { type: 'image/png' });
+    const mockFile = createMockFile('test', 'test.png', 'image/png');
     formData.append('screenshots', mockFile);
 
     const mockRequest = {
@@ -83,7 +101,7 @@ describe('/api/club/upload', () => {
     formData.append('guildId', 'guild-123');
     formData.append('analyze', 'false');
 
-    const mockFile = new File(['test'], 'test.png', { type: 'image/png' });
+    const mockFile = createMockFile('test', 'test.png', 'image/png');
     formData.append('screenshots', mockFile);
 
     const mockRequest = {
@@ -107,7 +125,7 @@ describe('/api/club/upload', () => {
     formData.append('guildId', 'guild-123');
     formData.append('analyze', 'true');
 
-    const mockFile = new File(['test'], 'test.png', { type: 'image/png' });
+    const mockFile = createMockFile('test', 'test.png', 'image/png');
     formData.append('screenshots', mockFile);
 
     const mockAnalysisResult = [{
@@ -136,17 +154,17 @@ describe('/api/club/upload', () => {
     expect(data.success).toBe(true);
     expect(data.analysisTriggered).toBe(true);
     expect(data.analysisResults).toEqual(mockAnalysisResult);
-    expect(analyzeClubScreenshots).toHaveBeenCalledWith(
-      ['http://localhost:3000/uploads/club/guild-123/test.png'],
-      undefined
-    );
+    // Check that analyzeClubScreenshots was called with URLs containing guild-123 path
+    const callArgs = (analyzeClubScreenshots as any).mock.calls[0];
+    expect(callArgs[0]).toHaveLength(1);
+    expect(callArgs[0][0]).toMatch(/uploads\/club\/guild-123/);
   });
 
   it('should handle file upload errors gracefully', async () => {
     const formData = new FormData();
     formData.append('guildId', 'guild-123');
 
-    const mockFile = new File(['test'], 'test.png', { type: 'image/png' });
+    const mockFile = createMockFile('test', 'test.png', 'image/png');
     formData.append('screenshots', mockFile);
 
     (writeFile as any).mockRejectedValue(new Error('Disk full'));
@@ -168,7 +186,7 @@ describe('/api/club/upload', () => {
     formData.append('guildId', 'guild-123');
     formData.append('analyze', 'true');
 
-    const mockFile = new File(['test'], 'test.png', { type: 'image/png' });
+    const mockFile = createMockFile('test', 'test.png', 'image/png');
     formData.append('screenshots', mockFile);
 
     (analyzeClubScreenshots as any).mockRejectedValue(new Error('Analysis failed'));

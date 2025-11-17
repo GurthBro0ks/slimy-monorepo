@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
       imageUrls.push(`${request.nextUrl.origin}${imageUrl}`);
     }
 
-    let analysisResults = null;
+    let analysisResults: any[] = [];
 
     // Optionally trigger analysis
     if (analyze && imageUrls.length > 0) {
@@ -68,6 +68,7 @@ export async function POST(request: NextRequest) {
       } catch (error) {
         console.error('Analysis failed:', error);
         // Don't fail the upload if analysis fails
+        analysisResults = [];
       }
     }
 

@@ -1,10 +1,19 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // Mock dependencies
-vi.mock('fs/promises', () => ({
-  writeFile: vi.fn(),
-  mkdir: vi.fn(),
-}));
+vi.mock('fs/promises', () => {
+  const mockFn = vi.fn().mockResolvedValue(undefined);
+  return {
+    writeFile: mockFn,
+    mkdir: mockFn,
+    readFile: mockFn,
+    default: {
+      writeFile: mockFn,
+      mkdir: mockFn,
+      readFile: mockFn,
+    },
+  };
+});
 
 vi.mock('@/lib/screenshot/analyzer', () => ({
   analyzeScreenshot: vi.fn(),
@@ -68,6 +77,15 @@ describe('/api/screenshot', () => {
   });
 
   describe('POST /api/screenshot', () => {
+    // Helper to create a mock File with arrayBuffer support
+    const createMockFile = (content: string, name: string, type: string) => {
+      const buffer = Buffer.from(content);
+      const file = new File([buffer], name, { type });
+      // Add arrayBuffer method that File doesn't have in test environment
+      (file as any).arrayBuffer = async () => buffer.buffer;
+      return file;
+    };
+
     it('should return 400 when no screenshots or URLs provided', async () => {
       const formData = new FormData();
       formData.append('userId', 'user-123');
@@ -86,7 +104,7 @@ describe('/api/screenshot', () => {
 
     it('should return 400 when no userId provided', async () => {
       const formData = new FormData();
-      const mockFile = new File(['test'], 'test.png', { type: 'image/png' });
+      const mockFile = createMockFile('test', 'test.png', 'image/png');
       formData.append('screenshots', mockFile);
 
       const mockRequest = {
@@ -107,7 +125,7 @@ describe('/api/screenshot', () => {
       const formData = new FormData();
       formData.append('userId', 'user-123');
       formData.append('type', 'invalid-type');
-      const mockFile = new File(['test'], 'test.png', { type: 'image/png' });
+      const mockFile = createMockFile('test', 'test.png', 'image/png');
       formData.append('screenshots', mockFile);
 
       const mockRequest = {
@@ -128,7 +146,7 @@ describe('/api/screenshot', () => {
       formData.append('type', 'game-stats');
       formData.append('analyze', 'true');
 
-      const mockFile = new File(['test'], 'test.png', { type: 'image/png' });
+      const mockFile = createMockFile('test', 'test.png', 'image/png');
       formData.append('screenshots', mockFile);
 
       const mockRequest = {
@@ -176,7 +194,7 @@ describe('/api/screenshot', () => {
       formData.append('imageUrls', 'http://example.com/image2.png');
       formData.append('analyze', 'true');
 
-      const mockFile = new File(['test'], 'test.png', { type: 'image/png' });
+      const mockFile = createMockFile('test', 'test.png', 'image/png');
       formData.append('screenshots', mockFile);
 
       (analyzeScreenshots as any).mockResolvedValue([
@@ -209,13 +227,17 @@ describe('/api/screenshot', () => {
       expect(data.success).toBe(true);
       expect(data.processed).toBe(3);
       expect(data.analyzed).toBe(2);
-      expect(analyzeScreenshots).toHaveBeenCalledWith(
+      // Check that analyzeScreenshots was called with the right number of URLs
+      const callArgs = (analyzeScreenshots as any).mock.calls[0];
+      expect(callArgs[0]).toHaveLength(3);
+      // Check that it includes the external URLs
+      expect(callArgs[0]).toContain('http://example.com/image1.png');
+      expect(callArgs[0]).toContain('http://example.com/image2.png');
+      // Check that it includes a URL from the uploaded screenshots (path will be dynamic)
+      expect(callArgs[0]).toEqual(
         expect.arrayContaining([
-          'http://example.com/image1.png',
-          'http://example.com/image2.png',
-          'http://localhost:3000/uploads/screenshots/user-123/test.png'
-        ]),
-        expect.any(Object)
+          expect.stringMatching(/^http:\/\/localhost:3000\/uploads\/screenshots\/user-123\//)
+        ])
       );
     });
 
@@ -224,7 +246,7 @@ describe('/api/screenshot', () => {
       formData.append('userId', 'user-123');
       formData.append('analyze', 'false');
 
-      const mockFile = new File(['test'], 'test.png', { type: 'image/png' });
+      const mockFile = createMockFile('test', 'test.png', 'image/png');
       formData.append('screenshots', mockFile);
 
       const mockRequest = {

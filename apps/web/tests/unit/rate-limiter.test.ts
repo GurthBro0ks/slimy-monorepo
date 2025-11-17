@@ -1,29 +1,42 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { isRateLimited } from "@/lib/rate-limiter";
 import { join } from "path";
-import { existsSync, unlinkSync } from "fs";
+
+// Create a shared store outside the mock so we can access it for clearing
+const fileStore = new Map<string, string>();
 
 // Mock file system operations for testing
 vi.mock("fs", async (importOriginal) => {
   const actual = await importOriginal();
-  const store = new Map<string, string>();
 
-  return {
+  const mockModule = {
     ...actual,
     readFileSync: vi.fn((path: string) => {
-      if (store.has(path)) {
-        return store.get(path);
+      if (fileStore.has(path)) {
+        return fileStore.get(path);
       }
       throw new Error("File not found");
     }),
     writeFileSync: vi.fn((path: string, content: string) => {
-      store.set(path, content);
+      fileStore.set(path, content);
     }),
-    existsSync: vi.fn((path: string) => store.has(path) || path.endsWith("rate-limits")),
+    existsSync: vi.fn((path: string) => fileStore.has(path) || path.endsWith("rate-limits")),
     mkdirSync: vi.fn(),
-    // Helper to clear the mock store between tests
-    __clearStore: () => store.clear(),
+    default: {
+      readFileSync: vi.fn((path: string) => {
+        if (fileStore.has(path)) {
+          return fileStore.get(path);
+        }
+        throw new Error("File not found");
+      }),
+      writeFileSync: vi.fn((path: string, content: string) => {
+        fileStore.set(path, content);
+      }),
+      existsSync: vi.fn((path: string) => fileStore.has(path) || path.endsWith("rate-limits")),
+      mkdirSync: vi.fn(),
+    }
   };
+  return mockModule;
 });
 
 // Mock Date.now() for time control
@@ -35,7 +48,7 @@ describe("Rate Limiter", () => {
   const windowMs = 5000; // 5 seconds
 
   beforeEach(() => {
-    (require("fs").__clearStore as () => void)();
+    fileStore.clear();
     vi.restoreAllMocks();
     mockDate(10000); // Start at 10 seconds
   });

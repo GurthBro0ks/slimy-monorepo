@@ -2,7 +2,7 @@
  * Tests for centralized configuration
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeAll } from 'vitest';
 import { config } from '@/lib/config';
 
 describe('Configuration', () => {

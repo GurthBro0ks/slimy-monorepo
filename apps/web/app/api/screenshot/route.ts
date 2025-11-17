@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
 
     if (screenshotType && !isValidScreenshotType(screenshotType)) {
       return NextResponse.json(
-        { error: `Invalid screenshot type. Supported types: ${Object.keys(require('@/lib/screenshot/analyzer')).filter(k => k.endsWith('Templates')).join(', ')}` },
+        { error: 'Invalid screenshot type' },
         { status: 400 }
       );
     }
@@ -88,7 +88,7 @@ export async function POST(request: NextRequest) {
 
     let analysisResults: ScreenshotAnalysisResult[] = [];
     const analysisOptions = {
-      type: screenshotType as ScreenshotType,
+      type: screenshotType || undefined,
       ...options
     };
 
@@ -115,6 +115,7 @@ export async function POST(request: NextRequest) {
       uploaded: screenshots.length,
       processed: validUrls.length,
       analyzed: analysisResults.length,
+      analysisTriggered: analyze,
       results: analysisResults,
       summary: {
         totalImages: allImageUrls.length,
@@ -181,6 +182,8 @@ export async function GET(request: NextRequest) {
       filters: {
         userId,
         type,
+        limit,
+        offset,
         search,
         tags
       },
