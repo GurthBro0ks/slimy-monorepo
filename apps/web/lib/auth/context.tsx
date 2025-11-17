@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { apiClient } from "@/lib/api-client";
 import { AuthContextType, AuthState, AuthUser } from "./types";
+import { recordLogin } from "@/lib/analytics";
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -27,18 +28,35 @@ export function AuthProvider({ children }: AuthProviderProps) {
       });
 
       if (response.ok && response.data) {
+        // Track successful login only on initial authentication (not on refresh)
+        const wasLoggedOut = !state.user;
+
         setState({
           user: response.data,
           loading: false,
           error: null,
           lastRefresh: Date.now(),
         });
+
+        // Record login success event only on first login, not on refresh
+        if (wasLoggedOut) {
+          recordLogin(true, {
+            userId: response.data.id,
+            method: "oauth",
+            provider: "discord",
+          });
+        }
       } else {
         setState({
           user: null,
           loading: false,
           error: "Failed to authenticate",
           lastRefresh: 0,
+        });
+
+        // Record login failure
+        recordLogin(false, {
+          reason: "authentication_failed",
         });
       }
     } catch (error) {

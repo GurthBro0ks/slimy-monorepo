@@ -1,9 +1,20 @@
+"use client";
+
 import { MessageSquare } from "lucide-react";
 import { LazyChatInterface } from "@/components/lazy";
-import { Suspense } from "react";
+import { Suspense, useEffect } from "react";
 import { LoadingSpinner } from "@/lib/lazy";
+import { recordPageView } from "@/lib/analytics";
 
 export default function ChatPage() {
+  // Track page view on mount
+  useEffect(() => {
+    recordPageView("/chat", {
+      title: "Slime Chat - slimy.ai",
+      section: "chat",
+    });
+  }, []);
+
   return (
     <div className="container px-4 py-8">
       <div className="mx-auto max-w-5xl">
