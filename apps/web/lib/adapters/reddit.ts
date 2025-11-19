@@ -4,6 +4,7 @@
  */
 
 import { Code, SourceMetadata } from "../types/codes";
+import { httpGet } from "@/lib/http";
 
 const SUBREDDIT = "SuperSnail_US";
 const TRUST_WEIGHT = 0.6;
@@ -74,19 +75,26 @@ export async function fetchRedditCodes(): Promise<{
   codes: Code[];
   metadata: SourceMetadata;
 }> {
-  try {
-    const searchQuery = encodeURIComponent('code OR "secret code" OR redeem');
-    const url = `https://www.reddit.com/r/${SUBREDDIT}/search.json?q=${searchQuery}&restrict_sr=1&sort=new&limit=50&t=month`;
+  const searchQuery = encodeURIComponent('code OR "secret code" OR redeem');
+  const url = `https://www.reddit.com/r/${SUBREDDIT}/search.json?q=${searchQuery}&restrict_sr=1&sort=new&limit=50&t=month`;
 
-    const response = await fetch(url, {
-      headers: {
-        "User-Agent": "Slimy.ai/2.0",
-      },
-      next: { revalidate: 600 }, // Cache for 10 minutes
-    });
+  // Use HTTP client with retry and timeout
+  const result = await httpGet<{ data?: { children?: RedditPost[] } }>(url, {
+    headers: {
+      "User-Agent": "Slimy.ai/2.0",
+    },
+    next: { revalidate: 600 } as { revalidate: number }, // Cache for 10 minutes
+    timeout: 15000,
+    retries: 2,
+    skipErrorLogging: false, // Log errors for monitoring
+  });
 
-    if (response.status === 429) {
-      console.warn("Reddit rate limited");
+  // Handle errors
+  if (!result.ok) {
+    const { error } = result;
+
+    // Special handling for rate limiting
+    if (error.status === 429) {
       return {
         codes: [],
         metadata: {
@@ -99,34 +107,7 @@ export async function fetchRedditCodes(): Promise<{
       };
     }
 
-    if (!response.ok) {
-      throw new Error(`Reddit API error: ${response.status}`);
-    }
-
-    const data = await response.json();
-    const posts: RedditPost[] = data.data?.children || [];
-
-    // Extract codes from all posts
-    const allCodes: Code[] = [];
-    for (const post of posts) {
-      const extracted = extractCodesFromPost(post.data);
-      allCodes.push(...extracted);
-    }
-
-    // Deduplicate cross-posts (same code within 24 hours)
-    const deduped = deduplicateCrossPosts(allCodes);
-
-    return {
-      codes: deduped,
-      metadata: {
-        source: "reddit",
-        status: "ok",
-        lastFetch: new Date().toISOString(),
-        itemCount: deduped.length,
-      },
-    };
-  } catch (error) {
-    console.error("Failed to fetch Reddit codes:", error);
+    // Generic error handling
     return {
       codes: [],
       metadata: {
@@ -134,10 +115,33 @@ export async function fetchRedditCodes(): Promise<{
         status: "failed",
         lastFetch: new Date().toISOString(),
         itemCount: 0,
-        error: error instanceof Error ? error.message : "Unknown error",
+        error: error.message,
       },
     };
   }
+
+  // Extract posts from response
+  const posts: RedditPost[] = result.data.data?.children || [];
+
+  // Extract codes from all posts
+  const allCodes: Code[] = [];
+  for (const post of posts) {
+    const extracted = extractCodesFromPost(post.data);
+    allCodes.push(...extracted);
+  }
+
+  // Deduplicate cross-posts (same code within 24 hours)
+  const deduped = deduplicateCrossPosts(allCodes);
+
+  return {
+    codes: deduped,
+    metadata: {
+      source: "reddit",
+      status: "ok",
+      lastFetch: new Date().toISOString(),
+      itemCount: deduped.length,
+    },
+  };
 }
 
 /**
