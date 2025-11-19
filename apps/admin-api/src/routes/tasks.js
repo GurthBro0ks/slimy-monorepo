@@ -9,6 +9,7 @@ const { tasksLimiter } = require("../middleware/rate-limit");
 const { recordAudit } = require("../services/audit");
 const { startTask, getTask } = require("../services/task-runner");
 const { SUPPORTED_TASKS, buildTaskOptions } = require("../services/tasks");
+const { BadRequestError, NotFoundError, AuthorizationError } = require("../lib/errors");
 
 function sendEvent(res, event, data) {
   res.write(`event: ${event}\n`);
@@ -24,49 +25,54 @@ guildTaskRouter.post(
   requireRole("admin"),
   requireCsrf,
   tasksLimiter,
-  async (req, res) => {
-    const { guildId, taskName } = req.params;
-    const normalizedTask = taskName.toLowerCase();
+  async (req, res, next) => {
+    try {
+      const { guildId, taskName } = req.params;
+      const normalizedTask = taskName.toLowerCase();
 
-    if (!SUPPORTED_TASKS.has(normalizedTask)) {
-      return res.status(400).json({ error: "unsupported-task" });
+      if (!SUPPORTED_TASKS.has(normalizedTask)) {
+        throw new BadRequestError("Unsupported task type");
+      }
+
+      const options = buildTaskOptions(normalizedTask, guildId, req.body || {});
+
+      await recordAudit({
+        adminId: req.user.sub,
+        action: `guild.task.${normalizedTask}`,
+        guildId,
+        payload: options,
+      });
+
+      const { taskId } = startTask(normalizedTask, guildId, options, req.user.sub);
+      res.json({ taskId });
+    } catch (err) {
+      next(err);
     }
-
-    const options = buildTaskOptions(normalizedTask, guildId, req.body || {});
-
-    await recordAudit({
-      adminId: req.user.sub,
-      action: `guild.task.${normalizedTask}`,
-      guildId,
-      payload: options,
-    });
-
-    const { taskId } = startTask(normalizedTask, guildId, options, req.user.sub);
-    res.json({ taskId });
   },
 );
 
 const taskStreamRouter = express.Router();
 taskStreamRouter.use(requireAuth);
 
-taskStreamRouter.get("/tasks/:taskId/stream", (req, res) => {
-  const { taskId } = req.params;
-  const record = getTask(taskId);
-  if (!record) {
-    return res.status(404).json({ error: "task-not-found" });
-  }
+taskStreamRouter.get("/tasks/:taskId/stream", (req, res, next) => {
+  try {
+    const { taskId } = req.params;
+    const record = getTask(taskId);
+    if (!record) {
+      throw new NotFoundError("Task not found");
+    }
 
-  let hasAccess = false;
-  if (record.guildId === null || record.guildId === "__global__") {
-    hasAccess = req.user?.role === "owner";
-  } else {
-    hasAccess = req.user?.guilds?.some(
-      (guild) => guild.id === record.guildId,
-    );
-  }
-  if (!hasAccess) {
-    return res.status(403).json({ error: "guild-access-denied" });
-  }
+    let hasAccess = false;
+    if (record.guildId === null || record.guildId === "__global__") {
+      hasAccess = req.user?.role === "owner";
+    } else {
+      hasAccess = req.user?.guilds?.some(
+        (guild) => guild.id === record.guildId,
+      );
+    }
+    if (!hasAccess) {
+      throw new AuthorizationError("Access denied to this task");
+    }
 
   res.setHeader("Content-Type", "text/event-stream");
   res.setHeader("Cache-Control", "no-cache");
@@ -104,6 +110,9 @@ taskStreamRouter.get("/tasks/:taskId/stream", (req, res) => {
   if (record.done) {
     // Task completed before stream established; ensure connection closes
     cleanup();
+  }
+  } catch (err) {
+    next(err);
   }
 });
 

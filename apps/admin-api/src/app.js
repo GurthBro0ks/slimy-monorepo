@@ -5,6 +5,8 @@ const morgan = require("morgan");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
 const { readAuth } = require("./middleware/auth");
+const requestIdMiddleware = require("./middleware/request-id");
+const { errorHandler, notFoundHandler } = require("./middleware/error-handler");
 const routes = require("./routes");
 const { UPLOADS_DIR } = require("./services/uploads");
 
@@ -30,6 +32,9 @@ app.use((_, res, next) => {
   next();
 });
 
+// Request ID middleware - adds unique ID to each request
+app.use(requestIdMiddleware);
+
 app.use(readAuth);
 app.use("/", routes);
 app.use(
@@ -40,5 +45,9 @@ app.use(
     },
   }),
 );
+
+// Error handling middleware - MUST be last
+app.use(notFoundHandler);
+app.use(errorHandler);
 
 module.exports = app;

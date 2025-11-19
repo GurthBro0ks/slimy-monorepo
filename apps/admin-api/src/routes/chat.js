@@ -20,7 +20,13 @@ const metrics = require("../lib/monitoring/metrics");
 const { queueManager } = require("../lib/queues");
 const database = require("../../../lib/database");
 const { chat } = require("../lib/validation/schemas");
-const { apiHandler } = require("../lib/errors");
+const {
+  apiHandler,
+  BadRequestError,
+  AuthorizationError,
+  NotFoundError,
+  ConfigurationError
+} = require("../lib/errors");
 
 // Special room ID for admin-only global chat
 const ADMIN_ROOM_ID = "admin-global";
@@ -56,15 +62,12 @@ router.post("/bot", requireCsrf, requireRole("member"), express.json(), chat.bot
 
   // Basic validation (more detailed validation happens in the job processor)
   if (!prompt || typeof prompt !== 'string' || prompt.trim().length === 0) {
-    const error = new Error("missing_prompt");
-    error.code = "missing_prompt";
-    throw error;
+    throw new BadRequestError("Prompt is required");
   }
 
   // Check if queues are available
   if (!queueManager.isInitialized) {
-    res.status(503).json({ error: "queues_unavailable" });
-    return;
+    throw new ConfigurationError("Chat queues are currently unavailable");
   }
 
   try {
@@ -89,17 +92,7 @@ router.post("/bot", requireCsrf, requireRole("member"), express.json(), chat.bot
     console.error('[chat/bot] Failed to submit chat job:', error);
     throw error;
   }
-}, {
-  routeName: "chat/bot",
-  errorMapper: (error, req, res) => {
-    if (error.code === "missing_prompt") {
-      res.status(400).json({ error: "missing_prompt" });
-      return false; // Don't continue with default error handling
-    }
-    // Let default error handling take over
-    return null;
-  }
-}));
+}, { routeName: "chat/bot" }));
 
 /**
  * GET /api/chat/jobs/:jobId
@@ -130,8 +123,7 @@ router.get("/jobs/:jobId", requireRole("member"), apiHandler(async (req, res) =>
 
   // Check if queues are available
   if (!queueManager.isInitialized) {
-    res.status(503).json({ error: "queues_unavailable" });
-    return;
+    throw new ConfigurationError("Chat queues are currently unavailable");
   }
 
   try {
@@ -139,14 +131,12 @@ router.get("/jobs/:jobId", requireRole("member"), apiHandler(async (req, res) =>
     const job = await chatQueue.getJob(jobId);
 
     if (!job) {
-      res.status(404).json({ error: "job_not_found" });
-      return;
+      throw new NotFoundError("Job not found");
     }
 
     // Check job ownership (stored in job data)
     if (job.data.userId !== userId) {
-      res.status(403).json({ error: "job_access_denied" });
-      return;
+      throw new AuthorizationError("Access denied to this job");
     }
 
     const state = await job.getState();
@@ -208,8 +198,7 @@ router.get("/db-jobs/:jobId", apiHandler(async (req, res) => {
 
   // Check if queues are available
   if (!queueManager.isInitialized) {
-    res.status(503).json({ error: "queues_unavailable" });
-    return;
+    throw new ConfigurationError("Database queues are currently unavailable");
   }
 
   try {
@@ -217,14 +206,12 @@ router.get("/db-jobs/:jobId", apiHandler(async (req, res) => {
     const job = await databaseQueue.getJob(jobId);
 
     if (!job) {
-      res.status(404).json({ error: "job_not_found" });
-      return;
+      throw new NotFoundError("Job not found");
     }
 
     // Check job ownership (stored in job data)
     if (job.data.userId !== userId) {
-      res.status(403).json({ error: "job_access_denied" });
-      return;
+      throw new AuthorizationError("Access denied to this job");
     }
 
     const state = await job.getState();
@@ -283,11 +270,7 @@ router.get("/:guildId/history", chat.history, apiHandler(async (req, res) => {
 
   if (guildId === ADMIN_ROOM_ID) {
     if (!isAdmin) {
-      res.status(403).json({
-        error: "forbidden",
-        hint: "admin room is available to admins only",
-      });
-      return; // Early return to prevent further execution
+      throw new AuthorizationError("Admin room is available to admins only");
     }
   } else {
     const session = getSession(req.user.id);
@@ -299,19 +282,11 @@ router.get("/:guildId/history", chat.history, apiHandler(async (req, res) => {
       isAdmin || effectiveRole === "admin" || effectiveRole === "club";
 
     if (!allowed) {
-      res.status(403).json({
-        error: "forbidden",
-        hint: "insufficient role to view chat history",
-      });
-      return; // Early return to prevent further execution
+      throw new AuthorizationError("Insufficient role to view chat history");
     }
 
     if (!guildEntry && !isAdmin) {
-      res.status(403).json({
-        error: "not_in_guild",
-        guildId,
-      });
-      return; // Early return to prevent further execution
+      throw new AuthorizationError("You are not a member of this guild");
     }
   }
 
@@ -367,8 +342,7 @@ router.post("/conversations", requireCsrf, express.json(), chat.createConversati
 
   // Check if queues are available
   if (!queueManager.isInitialized) {
-    res.status(503).json({ error: "queues_unavailable" });
-    return;
+    throw new ConfigurationError("Database queues are currently unavailable");
   }
 
   try {
@@ -460,8 +434,7 @@ router.get("/conversations/:conversationId", chat.getConversation, apiHandler(as
   const userId = req.user.id;
 
   if (!database.isConfigured()) {
-    res.status(404).json({ error: "conversation_not_found" });
-    return;
+    throw new ConfigurationError("Database is not configured");
   }
 
   // Verify ownership
@@ -469,8 +442,7 @@ router.get("/conversations/:conversationId", chat.getConversation, apiHandler(as
   const conversation = conversations.find(c => c.id === conversationId);
 
   if (!conversation) {
-    res.status(404).json({ error: "conversation_not_found" });
-    return;
+    throw new NotFoundError("Conversation not found");
   }
 
   const messages = await database.getChatMessages(conversationId, 1000);
@@ -517,24 +489,13 @@ router.delete("/conversations/:conversationId", requireCsrf, chat.deleteConversa
   const userId = req.user.id;
 
   if (!database.isConfigured()) {
-    res.status(404).json({ error: "conversation_not_found" });
-    return;
+    throw new ConfigurationError("Database is not configured");
   }
 
   await database.deleteChatConversation(conversationId, userId);
 
   return { ok: true };
-}, {
-  routeName: "chat/conversations/:id",
-  errorMapper: (error, req, res) => {
-    if (error.message === 'Conversation not found or access denied') {
-      res.status(404).json({ error: "conversation_not_found" });
-      return false; // Don't continue with default error handling
-    }
-    // Let default error handling take over
-    return null;
-  }
-}));
+}, { routeName: "chat/conversations/:id" }));
 
 /**
  * PATCH /api/chat/conversations/:conversationId
@@ -561,24 +522,13 @@ router.patch("/conversations/:conversationId", requireCsrf, express.json(), chat
   const { title } = req.body;
 
   if (!database.isConfigured()) {
-    res.status(404).json({ error: "conversation_not_found" });
-    return;
+    throw new ConfigurationError("Database is not configured");
   }
 
   await database.updateConversationTitle(conversationId, userId, title);
 
   return { ok: true };
-}, {
-  routeName: "chat/conversations/:id",
-  errorMapper: (error, req, res) => {
-    if (error.message === 'Conversation not found or access denied') {
-      res.status(404).json({ error: "conversation_not_found" });
-      return false; // Don't continue with default error handling
-    }
-    // Let default error handling take over
-    return null;
-  }
-}));
+}, { routeName: "chat/conversations/:id" }));
 
 /**
  * POST /api/chat/messages
@@ -608,8 +558,7 @@ router.post("/messages", requireCsrf, express.json(), chat.addMessage, apiHandle
 
   // Check if queues are available
   if (!queueManager.isInitialized) {
-    res.status(503).json({ error: "queues_unavailable" });
-    return;
+    throw new ConfigurationError("Database queues are currently unavailable");
   }
 
   try {

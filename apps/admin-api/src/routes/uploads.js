@@ -10,6 +10,7 @@ const mime = require("mime-types");
 const { requireAuth } = require("../middleware/auth");
 const { requireCsrf } = require("../middleware/csrf");
 const withUploader = require("../middleware/withUploader");
+const { BadRequestError, InternalServerError } = require("../lib/errors");
 const {
   UPLOADS_DIR,
   listGuildUploads,
@@ -105,7 +106,7 @@ async function buildVariants(filePath) {
   return { original, large, thumb };
 }
 
-router.get("/:guildId", requireAuth, async (req, res) => {
+router.get("/:guildId", requireAuth, async (req, res, next) => {
   try {
     const items = await listGuildUploads(req.params.guildId, {
       days: Number(req.query.days || 14),
@@ -114,7 +115,7 @@ router.get("/:guildId", requireAuth, async (req, res) => {
     res.json({ items });
   } catch (err) {
     console.error("[uploads] list failed:", err);
-    res.status(500).json({ error: "failed_to_list_uploads" });
+    next(new InternalServerError("Failed to list uploads"));
   }
 });
 
@@ -127,17 +128,17 @@ router.post(
     upload.array("files", MAX_FILES)(req, res, (err) => {
       if (err) {
         if (err.code === "LIMIT_FILE_SIZE") {
-          return res.status(413).json({ error: "file_too_large" });
+          return next(new BadRequestError(`File size exceeds maximum of ${MAX_MB}MB`));
         }
         if (err.message === "unsupported_type") {
-          return res.status(400).json({ error: "unsupported_type" });
+          return next(new BadRequestError("Unsupported file type. Only JPEG, PNG, and WebP images are allowed"));
         }
-        return res.status(400).json({ error: err.message || "upload_failed" });
+        return next(new BadRequestError(err.message || "Upload failed"));
       }
       next();
     });
   },
-  async (req, res) => {
+  async (req, res, next) => {
     try {
       const processed = [];
       for (const file of req.files || []) {
@@ -171,7 +172,7 @@ router.post(
       });
     } catch (err) {
       console.error("[uploads] failed to process files:", err);
-      res.status(500).json({ error: "upload_processing_failed" });
+      next(new InternalServerError("Failed to process uploaded files"));
     }
   },
 );
