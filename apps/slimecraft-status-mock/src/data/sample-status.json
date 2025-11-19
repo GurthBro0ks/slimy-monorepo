@@ -1,0 +1,97 @@
+{
+  "timestamp": "2025-11-19T10:30:00.000Z",
+  "servers": {
+    "java": {
+      "status": "online",
+      "host": "play.slime.craft",
+      "port": 25565,
+      "version": "1.20.4",
+      "protocol": 765,
+      "players": {
+        "online": 42,
+        "max": 100,
+        "list": [
+          { "name": "Steve", "uuid": "069a79f4-44e9-4726-a5be-fca90e38aaf5" },
+          { "name": "Alex", "uuid": "853c80ef-3c37-49fd-aa49-938b674adae6" },
+          { "name": "Notch", "uuid": "f7c77d99-9f15-4a66-a87d-c4a51ef30d19" }
+        ]
+      },
+      "motd": "Welcome to slime.craft - Survival & Creative",
+      "favicon": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
+      "tps": {
+        "current": 19.8,
+        "oneMinute": 19.7,
+        "fiveMinutes": 19.6,
+        "fifteenMinutes": 19.5
+      },
+      "uptime": {
+        "seconds": 345600,
+        "formatted": "4 days, 0 hours"
+      },
+      "memory": {
+        "used": 8192,
+        "allocated": 12288,
+        "max": 16384,
+        "unit": "MB"
+      }
+    },
+    "bedrock": {
+      "status": "online",
+      "host": "bedrock.slime.craft",
+      "port": 19132,
+      "version": "1.20.51",
+      "protocol": 622,
+      "players": {
+        "online": 18,
+        "max": 50
+      },
+      "motd": "slime.craft Bedrock Edition",
+      "gamemode": "Survival",
+      "uptime": {
+        "seconds": 345600,
+        "formatted": "4 days, 0 hours"
+      }
+    }
+  },
+  "map": {
+    "service": "squaremap",
+    "url": "https://map.slime.craft",
+    "lastRender": "2025-11-19T10:25:00.000Z",
+    "worlds": [
+      {
+        "name": "world",
+        "displayName": "Overworld",
+        "lastUpdate": "2025-11-19T10:25:00.000Z",
+        "renderProgress": 100,
+        "players": 42
+      },
+      {
+        "name": "world_nether",
+        "displayName": "The Nether",
+        "lastUpdate": "2025-11-19T10:20:00.000Z",
+        "renderProgress": 100,
+        "players": 5
+      },
+      {
+        "name": "world_the_end",
+        "displayName": "The End",
+        "lastUpdate": "2025-11-19T10:15:00.000Z",
+        "renderProgress": 100,
+        "players": 2
+      }
+    ]
+  },
+  "performance": {
+    "overall": "healthy",
+    "warnings": [],
+    "cpu": {
+      "usage": 45.2,
+      "cores": 8
+    },
+    "disk": {
+      "used": 125.5,
+      "total": 500,
+      "unit": "GB"
+    }
+  }
+}
