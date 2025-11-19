@@ -48,8 +48,8 @@ services:
 
   admin-api:
     build:
-      context: ../../apps/admin-api
-      dockerfile: Dockerfile
+      context: ../..
+      dockerfile: apps/admin-api/Dockerfile
     container_name: slimy-admin-api
     restart: unless-stopped
     depends_on:
@@ -128,8 +128,8 @@ services:
 
   web:
     build:
-      context: ../../apps/web
-      dockerfile: Dockerfile
+      context: ../..
+      dockerfile: apps/web/Dockerfile
     container_name: slimy-web
     restart: unless-stopped
     depends_on:

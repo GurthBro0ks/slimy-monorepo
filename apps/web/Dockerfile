@@ -6,18 +6,26 @@ ENV PATH=${PNPM_HOME}:${PATH}
 RUN corepack enable && corepack prepare pnpm@10.22.0 --activate
 
 FROM base AS deps
-ENV PNPM_CONFIG_IGNORE_SCRIPTS=false
 WORKDIR /app
 RUN corepack enable && corepack prepare pnpm@10.22.0 --activate
-COPY package.json pnpm-lock.yaml ./
-# Ensure install scripts run so Prisma CLI + Next binaries are built
-RUN pnpm config set ignore-scripts false
+
+# Copy monorepo workspace files
+# NOTE: Docker build context must be monorepo root (../..)
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY apps/web/package.json ./apps/web/
+COPY apps/web/prisma ./apps/web/prisma
+# Copy other workspace package.json files for dependency resolution (needed for pnpm workspace)
+COPY apps/admin-api/package.json ./apps/admin-api/
+COPY apps/admin-ui/package.json ./apps/admin-ui/
+COPY apps/bot/package.json ./apps/bot/
+
+# pnpm v10+ requires explicit build script approval (see pnpm-workspace.yaml)
 RUN pnpm install --frozen-lockfile --prod=false
 
 FROM base AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
-COPY . .
+COPY apps/web ./apps/web
 
 ARG NEXT_PUBLIC_ADMIN_API_BASE
 ARG NEXT_PUBLIC_SNELP_CODES_URL
@@ -27,6 +35,8 @@ ENV NEXT_PUBLIC_ADMIN_API_BASE=$NEXT_PUBLIC_ADMIN_API_BASE
 ENV NEXT_PUBLIC_SNELP_CODES_URL=$NEXT_PUBLIC_SNELP_CODES_URL
 ENV NEXT_PUBLIC_PLAUSIBLE_DOMAIN=$NEXT_PUBLIC_PLAUSIBLE_DOMAIN
 
+# Generate Prisma client and build the web app
+WORKDIR /app/apps/web
 RUN pnpm exec prisma generate
 RUN pnpm build
 
@@ -38,9 +48,10 @@ ENV NODE_ENV=production
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
-COPY --from=builder /app/public ./public
-COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+# Copy built artifacts from apps/web in the builder stage
+COPY --from=builder /app/apps/web/public ./public
+COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/static ./.next/static
 
 USER nextjs
 

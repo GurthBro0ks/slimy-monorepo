@@ -1,3 +1,13 @@
 packages:
   - "apps/*"
   - "packages/*"
+
+# pnpm v10+ requires explicit approval for build scripts
+# Allow trusted dependencies to run lifecycle scripts (postinstall, etc.)
+onlyBuiltDependencies:
+  - "@prisma/client"
+  - "@prisma/engines"
+  - "prisma"
+  - "sharp"
+  - "esbuild"
+  - "unrs-resolver"
