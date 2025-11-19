@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>slime.craft Server Status</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <header class="header">
+      <h1>slime.craft Server Status</h1>
+      <p class="subtitle">Real-time monitoring dashboard</p>
+      <div class="last-update">
+        Last updated: <span id="last-update-time">--:--:--</span>
+      </div>
+    </header>
+
+    <!-- Overall Status Banner -->
+    <div class="status-banner" id="status-banner">
+      <div class="banner-content">
+        <span class="banner-icon">✓</span>
+        <span class="banner-text">All systems operational</span>
+      </div>
+    </div>
+
+    <!-- Main Content Grid -->
+    <div class="grid">
+      <!-- Java Server Card -->
+      <div class="card">
+        <div class="card-header">
+          <h2>Java Edition Server</h2>
+          <span class="status-badge" id="java-status-badge">ONLINE</span>
+        </div>
+        <div class="card-body">
+          <div class="info-row">
+            <span class="label">Address:</span>
+            <span class="value" id="java-host">play.slime.craft:25565</span>
+          </div>
+          <div class="info-row">
+            <span class="label">Version:</span>
+            <span class="value" id="java-version">1.20.4</span>
+          </div>
+          <div class="info-row">
+            <span class="label">Players:</span>
+            <span class="value" id="java-players">42 / 100</span>
+          </div>
+          <div class="info-row">
+            <span class="label">TPS:</span>
+            <span class="value tps-value" id="java-tps">19.8</span>
+          </div>
+          <div class="info-row">
+            <span class="label">Uptime:</span>
+            <span class="value" id="java-uptime">4 days, 0 hours</span>
+          </div>
+          <div class="info-row">
+            <span class="label">Memory:</span>
+            <span class="value" id="java-memory">8192 / 16384 MB</span>
+          </div>
+        </div>
+        <div class="card-footer">
+          <div class="progress-bar">
+            <div class="progress-fill" id="java-memory-progress" style="width: 50%"></div>
+          </div>
+          <span class="progress-label">Memory Usage</span>
+        </div>
+      </div>
+
+      <!-- Bedrock Server Card -->
+      <div class="card">
+        <div class="card-header">
+          <h2>Bedrock Edition Server</h2>
+          <span class="status-badge" id="bedrock-status-badge">ONLINE</span>
+        </div>
+        <div class="card-body">
+          <div class="info-row">
+            <span class="label">Address:</span>
+            <span class="value" id="bedrock-host">bedrock.slime.craft:19132</span>
+          </div>
+          <div class="info-row">
+            <span class="label">Version:</span>
+            <span class="value" id="bedrock-version">1.20.51</span>
+          </div>
+          <div class="info-row">
+            <span class="label">Players:</span>
+            <span class="value" id="bedrock-players">18 / 50</span>
+          </div>
+          <div class="info-row">
+            <span class="label">Gamemode:</span>
+            <span class="value" id="bedrock-gamemode">Survival</span>
+          </div>
+          <div class="info-row">
+            <span class="label">Uptime:</span>
+            <span class="value" id="bedrock-uptime">4 days, 0 hours</span>
+          </div>
+        </div>
+        <div class="card-footer">
+          <div class="progress-bar">
+            <div class="progress-fill" id="bedrock-players-progress" style="width: 36%"></div>
+          </div>
+          <span class="progress-label">Player Capacity</span>
+        </div>
+      </div>
+
+      <!-- Map Renderer Card -->
+      <div class="card">
+        <div class="card-header">
+          <h2>Live Map (Squaremap)</h2>
+          <span class="status-badge status-badge-success">ACTIVE</span>
+        </div>
+        <div class="card-body">
+          <div class="info-row">
+            <span class="label">Service:</span>
+            <span class="value" id="map-service">Squaremap</span>
+          </div>
+          <div class="info-row">
+            <span class="label">Map URL:</span>
+            <span class="value">
+              <a href="https://map.slime.craft" target="_blank" id="map-url">map.slime.craft</a>
+            </span>
+          </div>
+          <div class="info-row">
+            <span class="label">Last Render:</span>
+            <span class="value" id="map-last-render">2 minutes ago</span>
+          </div>
+          <div class="info-row">
+            <span class="label">Active Worlds:</span>
+            <span class="value" id="map-worlds-count">3</span>
+          </div>
+        </div>
+        <div class="card-footer">
+          <div class="world-list" id="world-list">
+            <div class="world-item">
+              <span class="world-name">Overworld</span>
+              <span class="world-players">42 players</span>
+            </div>
+            <div class="world-item">
+              <span class="world-name">The Nether</span>
+              <span class="world-players">5 players</span>
+            </div>
+            <div class="world-item">
+              <span class="world-name">The End</span>
+              <span class="world-players">2 players</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Performance Metrics Card -->
+      <div class="card">
+        <div class="card-header">
+          <h2>System Performance</h2>
+          <span class="status-badge status-badge-success" id="performance-badge">HEALTHY</span>
+        </div>
+        <div class="card-body">
+          <div class="info-row">
+            <span class="label">Overall Status:</span>
+            <span class="value" id="performance-status">Healthy</span>
+          </div>
+          <div class="info-row">
+            <span class="label">CPU Usage:</span>
+            <span class="value" id="cpu-usage">45.2%</span>
+          </div>
+          <div class="info-row">
+            <span class="label">CPU Cores:</span>
+            <span class="value" id="cpu-cores">8</span>
+          </div>
+          <div class="info-row">
+            <span class="label">Disk Usage:</span>
+            <span class="value" id="disk-usage">125.5 / 500 GB</span>
+          </div>
+          <div class="info-row">
+            <span class="label">Warnings:</span>
+            <span class="value" id="warnings-count">None</span>
+          </div>
+        </div>
+        <div class="card-footer">
+          <div class="progress-bar">
+            <div class="progress-fill progress-fill-success" id="cpu-progress" style="width: 45%"></div>
+          </div>
+          <span class="progress-label">CPU Load</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer">
+      <p>Mock Status Dashboard v1.0.0 | Data refreshes every 30 seconds</p>
+      <p class="footer-note">This is a prototype using mock data from JSON files</p>
+    </footer>
+  </div>
+
+  <!-- JavaScript to load and display data -->
+  <script type="module">
+    // In a real implementation, this would fetch from /api/mock-status
+    // For now, we'll simulate with the embedded data structure
+
+    async function loadStatus() {
+      try {
+        // In production: const response = await fetch('/api/mock-status');
+        // For now, simulate with hardcoded data that matches our JSON structure
+        const data = {
+          timestamp: new Date().toISOString(),
+          servers: {
+            java: {
+              status: 'online',
+              host: 'play.slime.craft',
+              port: 25565,
+              version: '1.20.4',
+              players: { online: 42, max: 100 },
+              tps: { current: 19.8 },
+              uptime: { formatted: '4 days, 0 hours' },
+              memory: { used: 8192, max: 16384 }
+            },
+            bedrock: {
+              status: 'online',
+              host: 'bedrock.slime.craft',
+              port: 19132,
+              version: '1.20.51',
+              players: { online: 18, max: 50 },
+              gamemode: 'Survival',
+              uptime: { formatted: '4 days, 0 hours' }
+            }
+          },
+          map: {
+            service: 'squaremap',
+            url: 'https://map.slime.craft',
+            lastRender: new Date(Date.now() - 120000).toISOString(),
+            worlds: [
+              { displayName: 'Overworld', players: 42 },
+              { displayName: 'The Nether', players: 5 },
+              { displayName: 'The End', players: 2 }
+            ]
+          },
+          performance: {
+            overall: 'healthy',
+            cpu: { usage: 45.2, cores: 8 },
+            disk: { used: 125.5, total: 500 },
+            warnings: []
+          }
+        };
+
+        updateUI(data);
+      } catch (error) {
+        console.error('Failed to load status:', error);
+      }
+    }
+
+    function updateUI(data) {
+      // Update timestamp
+      document.getElementById('last-update-time').textContent =
+        new Date(data.timestamp).toLocaleTimeString();
+
+      // Java server
+      const java = data.servers.java;
+      document.getElementById('java-host').textContent = `${java.host}:${java.port}`;
+      document.getElementById('java-version').textContent = java.version;
+      document.getElementById('java-players').textContent = `${java.players.online} / ${java.players.max}`;
+      document.getElementById('java-tps').textContent = java.tps.current.toFixed(1);
+      document.getElementById('java-uptime').textContent = java.uptime.formatted;
+      document.getElementById('java-memory').textContent = `${java.memory.used} / ${java.memory.max} MB`;
+
+      const memoryPercent = (java.memory.used / java.memory.max) * 100;
+      document.getElementById('java-memory-progress').style.width = `${memoryPercent}%`;
+
+      // Bedrock server
+      const bedrock = data.servers.bedrock;
+      document.getElementById('bedrock-host').textContent = `${bedrock.host}:${bedrock.port}`;
+      document.getElementById('bedrock-version').textContent = bedrock.version;
+      document.getElementById('bedrock-players').textContent = `${bedrock.players.online} / ${bedrock.players.max}`;
+      document.getElementById('bedrock-gamemode').textContent = bedrock.gamemode;
+      document.getElementById('bedrock-uptime').textContent = bedrock.uptime.formatted;
+
+      const playerPercent = (bedrock.players.online / bedrock.players.max) * 100;
+      document.getElementById('bedrock-players-progress').style.width = `${playerPercent}%`;
+
+      // Map
+      const map = data.map;
+      document.getElementById('map-service').textContent = map.service;
+      document.getElementById('map-url').href = map.url;
+      document.getElementById('map-worlds-count').textContent = map.worlds.length;
+
+      const renderTime = Math.floor((Date.now() - new Date(map.lastRender).getTime()) / 60000);
+      document.getElementById('map-last-render').textContent = `${renderTime} minutes ago`;
+
+      // Performance
+      const perf = data.performance;
+      document.getElementById('performance-status').textContent =
+        perf.overall.charAt(0).toUpperCase() + perf.overall.slice(1);
+      document.getElementById('cpu-usage').textContent = `${perf.cpu.usage}%`;
+      document.getElementById('cpu-cores').textContent = perf.cpu.cores;
+      document.getElementById('disk-usage').textContent = `${perf.disk.used} / ${perf.disk.total} GB`;
+      document.getElementById('warnings-count').textContent =
+        perf.warnings.length === 0 ? 'None' : perf.warnings.length;
+      document.getElementById('cpu-progress').style.width = `${perf.cpu.usage}%`;
+    }
+
+    // Load on page load
+    loadStatus();
+
+    // Refresh every 30 seconds
+    setInterval(loadStatus, 30000);
+  </script>
+</body>
+</html>
