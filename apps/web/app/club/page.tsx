@@ -246,7 +246,7 @@ export default function ClubPage() {
                     <span className="text-muted-foreground">Avg Confidence:</span>
                     <span className="font-semibold text-neon-green">
                       {analyses.length > 0
-                        ? `${Math.round(analyses.reduce((sum, a) => sum + a.confidence, 0) / analyses.length * 100)}%`
+                        ? `${(analyses.reduce((sum, a) => sum + a.confidence, 0) / analyses.length * 100).toFixed(1)}%`
                         : 'N/A'
                       }
                     </span>
