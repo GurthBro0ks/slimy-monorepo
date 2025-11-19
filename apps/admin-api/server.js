@@ -5,9 +5,9 @@ const path = require("path");
 
 const dotenv = require("dotenv");
 
-const database = require("../lib/database");
+const database = require("./lib/database");
 const { applyDatabaseUrl } = require("./src/utils/apply-db-url");
-const logger = require("../lib/logger");
+const logger = require("./lib/logger");
 
 function loadEnv() {
   const explicitEnvPath =
