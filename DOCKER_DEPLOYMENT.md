@@ -8,6 +8,53 @@ This guide explains how to build and deploy the Slimy.ai monorepo using Docker o
 - Git configured to pull from the repository
 - pnpm installed (for local development/testing)
 
+## Quick NUC Deploy Checklist
+
+Use this checklist for deploying updates to NUC1 or NUC2:
+
+**On your laptop:**
+1. Make and test changes locally
+2. Run the full build sequence:
+   ```bash
+   corepack enable && corepack prepare pnpm@10.22.0 --activate
+   pnpm install
+   pnpm --filter @slimy/web run db:generate
+   pnpm build
+   pnpm --filter @slimy/web test
+   ```
+3. Commit and push to GitHub
+
+**On the NUC (via SSH):**
+1. Navigate to the monorepo:
+   ```bash
+   cd /opt/slimy/slimy-monorepo
+   git pull
+   ```
+
+2. Run the same build sequence locally on the NUC:
+   ```bash
+   corepack enable && corepack prepare pnpm@10.22.0 --activate
+   pnpm install
+   pnpm --filter @slimy/web run db:generate
+   pnpm build
+   pnpm --filter @slimy/web test
+   ```
+
+3. Build and deploy Docker images:
+   ```bash
+   cd infra/docker
+
+   # For NUC1:
+   docker compose -f docker-compose.slimy-nuc1.yml build
+   docker compose -f docker-compose.slimy-nuc1.yml up -d
+
+   # For NUC2:
+   docker compose -f docker-compose.slimy-nuc2.yml build
+   docker compose -f docker-compose.slimy-nuc2.yml up -d
+   ```
+
+4. If you encounter overlay2 cache errors (see below), run the cache cleanup procedure.
+
 ## Quick Start (Fresh Deploy)
 
 From a fresh clone, follow these steps:
@@ -137,6 +184,76 @@ pnpm --filter @slimy/web run dev
 ```
 
 ## Troubleshooting
+
+### Docker overlay2 Cache Corruption (NUC Hosts)
+
+**Symptoms:**
+When running `docker compose build`, you may encounter errors like:
+```
+failed to solve: cannot replace to directory
+  /var/lib/docker/overlay2/.../merged/app/node_modules/axios with file
+```
+
+Or similar errors mentioning `overlay2`, `node_modules`, or "cannot replace directory with file."
+
+**Cause:**
+This is a **host-level Docker cache corruption issue**, NOT a bug in the repository code. Docker's overlay2 storage driver can occasionally accumulate stale or corrupted cache layers, especially after many builds with changing dependencies.
+
+**Fix: Safe Cache Cleanup (Recommended)**
+
+Run these commands **on the affected NUC** to clear build cache and rebuild from scratch:
+
+```bash
+# Navigate to the docker directory
+cd /opt/slimy/slimy-monorepo/infra/docker
+
+# 1. Stop the running stack (if any)
+docker compose -f docker-compose.slimy-nuc2.yml down
+# OR for NUC1:
+docker compose -f docker-compose.slimy-nuc1.yml down
+
+# 2. Clear Docker build cache (safe - preserves images, volumes, and data)
+docker builder prune -f
+
+# 3. Rebuild images from scratch without cache
+docker compose -f docker-compose.slimy-nuc2.yml build --no-cache
+# OR for NUC1:
+docker compose -f docker-compose.slimy-nuc1.yml build --no-cache
+
+# 4. Start the stack again
+docker compose -f docker-compose.slimy-nuc2.yml up -d
+# OR for NUC1:
+docker compose -f docker-compose.slimy-nuc1.yml up -d
+```
+
+**What These Commands Do:**
+- `docker compose down`: Stops and removes containers (but preserves volumes and data)
+- `docker builder prune -f`: Removes **only build cache** (safe, doesn't touch images or volumes)
+- `docker compose build --no-cache`: Forces a completely fresh build without using any cached layers
+- `docker compose up -d`: Starts the services in detached mode
+
+**⚠️ Nuclear Options (Use with Extreme Caution)**
+
+If the safe cleanup doesn't resolve the issue, you may consider more aggressive options. **DO NOT run these without understanding the consequences:**
+
+```bash
+# Option 1: Remove ALL unused images, containers, and networks (but not volumes)
+docker system prune -a -f
+
+# Option 2: Remove EVERYTHING including volumes (⚠️ DESTROYS DATA!)
+# DO NOT RUN THIS unless you have backups and explicitly want to reset everything
+docker system prune -a --volumes -f
+```
+
+**When to use nuclear options:**
+- Only if the safe cache cleanup fails
+- Only if you have recent database/data backups
+- Only if you understand that volumes (database data) will be lost
+
+**When NOT to use nuclear options:**
+- If this is your first encounter with the overlay2 error (try safe cleanup first)
+- If you don't have recent backups
+- If you're uncertain about the impact
 
 ### Build Scripts Warning
 
