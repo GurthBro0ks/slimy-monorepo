@@ -7,12 +7,13 @@
  * - Request caching
  * - Comprehensive error handling
  * - Request logging
- * 
+ *
  * This client wraps AdminApiClient with additional features.
  * AdminApiClient is the single source of truth for proxy logic.
  */
 
 import { adminApiClient, type ApiResponse as AdminApiResponse } from './api/admin-client';
+import { getAdminApiBase } from './config/adminApi';
 
 export interface ApiError {
   ok: false;
@@ -63,7 +64,7 @@ export class ApiClient {
   private adminClient = adminApiClient;
 
   constructor(baseUrl?: string) {
-    this.baseUrl = baseUrl || process.env.NEXT_PUBLIC_ADMIN_API_BASE || '';
+    this.baseUrl = baseUrl || getAdminApiBase();
     this.defaultTimeout = 10000; // 10 seconds
 
     this.retryConfig = {

@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CheckCircle, XCircle, AlertCircle, HelpCircle, RefreshCw } from "lucide-react";
+import { isAdminApiConfigured } from "@/lib/config/adminApi";
 
 interface ServiceStatus {
   name: string;
@@ -23,14 +24,11 @@ export default function StatusPage() {
 
   const checkStatus = useCallback(async () => {
     setRefreshing(true);
-    
-    // Check if Admin API is configured
-    const adminApiBase = process.env.NEXT_PUBLIC_ADMIN_API_BASE;
-    
+
     // Check Admin API
-    if (!adminApiBase) {
-      setServices(prev => prev.map(s => 
-        s.name === "Admin API" 
+    if (!isAdminApiConfigured()) {
+      setServices(prev => prev.map(s =>
+        s.name === "Admin API"
           ? { ...s, status: "not_configured", message: "NEXT_PUBLIC_ADMIN_API_BASE not configured" }
           : s
       ));

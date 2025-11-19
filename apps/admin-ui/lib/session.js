@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { buildApiUrl } from "./config";
 
 const SessionContext = createContext({
   user: null,
@@ -49,7 +50,7 @@ export function SessionProvider({ children }) {
     const fallbackCsrf = adoptCsrfFromHash();
 
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_ADMIN_API_BASE}/api/auth/me`, {
+      const response = await fetch(buildApiUrl('/api/auth/me'), {
         credentials: "include",
       });
 

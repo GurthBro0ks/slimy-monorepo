@@ -1,9 +1,9 @@
 /**
  * Centralized Admin API Client
- * 
+ *
  * Single source of truth for all Admin API proxy logic.
  * Consolidates proxy configuration, header handling, and error handling.
- * 
+ *
  * Features:
  * - Single configuration point for base URL
  * - Consistent header handling
@@ -11,6 +11,8 @@
  * - Support for streaming responses (SSE)
  * - Request/response interceptors
  */
+
+import { getAdminApiBase } from '../config/adminApi';
 
 export interface ApiError {
   ok: false;
@@ -38,8 +40,8 @@ export class AdminApiClient {
   private baseUrl: string;
 
   constructor(baseUrl?: string) {
-    this.baseUrl = baseUrl || process.env.NEXT_PUBLIC_ADMIN_API_BASE || '';
-    
+    this.baseUrl = baseUrl || getAdminApiBase();
+
     if (!this.baseUrl) {
       console.warn('[AdminApiClient] NEXT_PUBLIC_ADMIN_API_BASE not configured');
     }
