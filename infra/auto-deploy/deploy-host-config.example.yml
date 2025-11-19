@@ -1,0 +1,88 @@
+# Auto-Deploy Host Configuration
+#
+# This file defines the deployment configuration for a single host.
+# Copy this file to deploy-host-config.yml and customize for your environment.
+#
+# cp deploy-host-config.example.yml deploy-host-config.yml
+
+# ============================================================================
+# Repository Configuration
+# ============================================================================
+
+# Absolute path to the Git repository on this host
+# This is where the code is cloned and will be updated
+repo_path: /opt/slimy/slimy-monorepo
+
+# Git branch to track and deploy
+# Common values: main, master, production, staging
+branch: main
+
+# ============================================================================
+# Build & Test Commands
+# ============================================================================
+
+# Command to run tests before deployment
+# Leave empty or set to null to skip tests
+# The script will abort deployment if tests fail (unless SKIP_TESTS=1)
+# Examples:
+#   - npm test
+#   - pnpm test
+#   - ./scripts/run-tests.sh
+#   - docker compose -f docker-compose.test.yml up --abort-on-container-exit
+test_command: pnpm test
+
+# Command to build the application
+# Leave empty or set to null to skip build step
+# The script will abort deployment if build fails
+# Examples:
+#   - npm run build
+#   - pnpm build
+#   - docker compose build
+#   - make build
+build_command: pnpm build
+
+# ============================================================================
+# Deployment Command
+# ============================================================================
+
+# Command to deploy/restart the application
+# This runs only if tests and build succeed
+# Examples:
+#   - docker compose up -d
+#   - docker compose -f docker-compose.prod.yml up -d --build
+#   - systemctl restart slimy-web
+#   - pm2 restart all
+#   - ./scripts/deploy.sh
+deploy_command: docker compose -f docker-compose.prod.yml up -d
+
+# ============================================================================
+# Example Configurations for Different Scenarios
+# ============================================================================
+
+# Example 1: Simple Node.js application with PM2
+# repo_path: /var/www/my-app
+# branch: production
+# test_command: npm run test:ci
+# build_command: npm run build
+# deploy_command: pm2 restart my-app
+
+# Example 2: Docker Compose application (no build step in repo)
+# repo_path: /opt/services/api
+# branch: main
+# test_command: null
+# build_command: null
+# deploy_command: docker compose up -d --build
+
+# Example 3: Monorepo with specific workspace
+# repo_path: /home/user/slimy-monorepo
+# branch: main
+# test_command: pnpm --filter @slimy/web test
+# build_command: pnpm --filter @slimy/web build
+# deploy_command: docker compose -f apps/web/docker-compose.yml up -d
+
+# Example 4: Just pull and restart (no tests/build)
+# repo_path: /opt/configs
+# branch: main
+# test_command: null
+# build_command: null
+# deploy_command: systemctl restart nginx
