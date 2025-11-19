@@ -8,6 +8,7 @@ const { requireAuth } = require("../middleware/auth");
 const { requireCsrf } = require("../middleware/csrf");
 const { requireRole, requireGuildAccess } = require("../middleware/rbac");
 const { validateBody, validateQuery } = require("../middleware/validate");
+const { guilds: guildValidation } = require("../lib/validation/schemas");
 const settingsService = require("../services/settings");
 const personalityService = require("../services/personality");
 const channelService = require("../services/channels");
@@ -260,12 +261,10 @@ router.delete(
   requireGuildAccess,
   requireRole("editor"),
   requireCsrf,
+  guildValidation.deleteCorrection,
   async (req, res, next) => {
     try {
       const correctionId = Number(req.params.correctionId);
-      if (!Number.isFinite(correctionId)) {
-        return res.status(400).json({ error: "invalid-correction-id" });
-      }
 
       const success = await correctionsService.deleteCorrectionById(
         req.params.guildId,
@@ -293,10 +292,18 @@ router.post(
   requireRole("editor"),
   requireCsrf,
   upload.single("file"),
+  guildValidation.rescanUser,
   async (req, res, next) => {
     try {
       if (!req.file) {
-        return res.status(400).json({ error: "file-required" });
+        return res.status(400).json({
+          ok: false,
+          error: {
+            code: "INVALID_REQUEST",
+            message: "File is required",
+            details: [{ field: "file", message: "No file uploaded" }],
+          },
+        });
       }
 
       const result = await rescanMember(
