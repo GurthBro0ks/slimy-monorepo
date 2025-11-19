@@ -5,6 +5,7 @@
  */
 
 import { getLogger } from './logger';
+import { httpPost } from '@/lib/http';
 import type { JSONObject } from '../types/common';
 
 /**
@@ -69,16 +70,15 @@ class WebhookAlertChannel implements AlertChannel {
   }
 
   async send(alert: Alert): Promise<void> {
-    try {
-      await fetch(this.webhookUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(alert),
-      });
-    } catch (error) {
-      console.error('Failed to send webhook alert:', error);
+    // Use HTTP client with timeout and no retries for webhooks
+    const result = await httpPost(this.webhookUrl, alert, {
+      timeout: 10000,
+      retries: 0,
+      skipErrorLogging: true, // We'll log our own errors
+    });
+
+    if (!result.ok) {
+      console.error('Failed to send webhook alert:', result.error.message);
     }
   }
 }
