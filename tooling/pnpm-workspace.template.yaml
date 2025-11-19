@@ -1,0 +1,139 @@
+# ============================================================================
+# pnpm Workspace Configuration Template
+# ============================================================================
+#
+# ⚠️  IMPORTANT: This is a TEMPLATE file showing the PROPOSED workspace structure.
+#
+# DO NOT USE THIS FILE DIRECTLY!
+#
+# To adopt this workspace configuration:
+#   1. Review the packages list below
+#   2. Ensure all listed directories exist with package.json files
+#   3. Copy this file to the root: cp tooling/pnpm-workspace.template.yaml pnpm-workspace.yaml
+#   4. Modify as needed for your specific setup
+#   5. Run: pnpm install
+#
+# ============================================================================
+
+packages:
+  # ============================================================================
+  # Applications (Runnable Services)
+  # ============================================================================
+  # These are the main applications that can be deployed independently.
+  # Each app should have its own Dockerfile and deployment configuration.
+
+  - 'apps/web'                    # Customer-facing Next.js portal
+  - 'apps/admin-api'              # Backend Express.js REST API
+  - 'apps/admin-ui'               # Admin Next.js dashboard
+  - 'apps/bot'                    # Discord/Telegram bot service
+
+  # ============================================================================
+  # Shared Packages (Libraries)
+  # ============================================================================
+  # These are shared libraries used across multiple applications.
+  # They should be framework-agnostic and highly reusable.
+
+  # --- Core Business Logic ---
+  - 'packages/shared-snail'       # Core "snail" domain logic and game mechanics
+
+  # --- Data Layer ---
+  - 'packages/shared-db'          # Database clients and Prisma helpers
+  - 'packages/shared-auth'        # Authentication and authorization utilities
+
+  # --- Configuration & Constants ---
+  - 'packages/shared-config'      # Configuration loaders and validation
+  - 'packages/shared-codes'       # Error codes, enums, and constants
+
+  # --- Utilities ---
+  - 'packages/shared-types'       # TypeScript type definitions
+  - 'packages/shared-utils'       # Common utility functions
+
+  # --- Development Tools ---
+  - 'packages/eslint-config'      # Shared ESLint configurations
+  - 'packages/tsconfig'           # Shared TypeScript configurations
+
+  # ============================================================================
+  # Future Packages (Add as needed)
+  # ============================================================================
+  # Uncomment these lines as you create new packages:
+
+  # - 'packages/shared-ui'         # Shared React components
+  # - 'packages/shared-api'        # API client library
+  # - 'packages/shared-hooks'      # Shared React hooks
+  # - 'packages/shared-logger'     # Centralized logging
+  # - 'packages/shared-events'     # Event bus system
+  # - 'packages/shared-queue'      # Job queue utilities
+  # - 'packages/shared-cache'      # Caching utilities
+  # - 'packages/shared-testing'    # Testing utilities and fixtures
+  # - 'packages/shared-docs'       # Documentation tools
+
+# ============================================================================
+# Workspace Settings
+# ============================================================================
+#
+# Additional pnpm workspace settings can be configured here.
+# See: https://pnpm.io/pnpm-workspace_yaml
+
+# ============================================================================
+# Shared Dependencies (Optional)
+# ============================================================================
+#
+# You can define shared dependencies at the root level to ensure
+# consistent versions across all packages.
+#
+# To use shared dependencies:
+#   1. Add dependencies to root package.json
+#   2. Use "workspace:*" protocol in individual packages
+#   3. Run: pnpm install
+#
+# Example in package.json:
+#   {
+#     "dependencies": {
+#       "@slimy/shared-types": "workspace:*",
+#       "@slimy/shared-utils": "workspace:*"
+#     }
+#   }
+#
+# ============================================================================
+
+# ============================================================================
+# Development Workflow
+# ============================================================================
+#
+# Common commands:
+#
+#   pnpm install              # Install all dependencies
+#   pnpm -r run build         # Build all packages
+#   pnpm -r run test          # Test all packages
+#   pnpm -r run lint          # Lint all packages
+#   pnpm --filter web dev     # Run web app in dev mode
+#   pnpm --filter @slimy/shared-db build  # Build specific package
+#
+# Filtering examples:
+#
+#   pnpm --filter "./apps/*" build        # Build all apps
+#   pnpm --filter "./packages/*" test     # Test all packages
+#   pnpm --filter "...web" build          # Build web and its dependencies
+#   pnpm --filter "web..." build          # Build web and its dependents
+#
+# ============================================================================
+
+# ============================================================================
+# Migration Notes
+# ============================================================================
+#
+# Current State:
+#   - Workspace is already partially configured
+#   - Some packages exist but may be empty scaffolds
+#   - Apps are functional but may have duplicate code
+#
+# Migration Path:
+#   1. Extract shared code to packages
+#   2. Update import statements in apps
+#   3. Configure TypeScript project references
+#   4. Set up build dependencies in package.json
+#   5. Test builds work correctly
+#
+# See docs/monorepo-migration-checklist.md for detailed steps.
+#
+# ============================================================================
