@@ -118,7 +118,7 @@ router.post(
   "/analyze",
   requireCsrf,
   express.json(),
-  snail.upload,
+  snail.analyze,
   (req, res, next) => {
     upload.array("images", MAX_FILES)(req, res, (err) => {
       if (err) {

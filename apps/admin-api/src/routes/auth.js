@@ -5,6 +5,7 @@ const crypto = require("crypto");
 const { signSession, setAuthCookie, clearAuthCookie } = require("../../lib/jwt");
 const { storeSession, clearSession, getSession } = require("../../lib/session-store");
 const { resolveRoleLevel } = require("../lib/roles");
+const { auth: authValidation } = require("../lib/validation/schemas");
 const config = require("../config");
 
 const router = express.Router();
@@ -105,7 +106,7 @@ async function fetchJson(url, options) {
   return response.json();
 }
 
-router.get("/login", (_req, res) => {
+router.get("/login", authValidation.login, (_req, res) => {
   const state = issueState(res);
   const params = new URLSearchParams({
     client_id: CLIENT_ID,
@@ -118,7 +119,7 @@ router.get("/login", (_req, res) => {
   res.redirect(302, `${DISCORD.AUTH_URL}?${params.toString()}`);
 });
 
-router.get("/callback", async (req, res) => {
+router.get("/callback", authValidation.callback, async (req, res) => {
   try {
     const { code, state } = req.query;
     console.info("[admin-api] /api/auth/callback start", {
