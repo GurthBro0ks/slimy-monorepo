@@ -111,6 +111,7 @@ export function useChat(conversationId?: string) {
       updatedAt: Date.now(),
     }));
 
+    // TODO: migrate to apps/web/lib/http/client.ts for better error handling and retry logic
     // Retry logic for network/API failures
     let response;
     let retryCount = 0;

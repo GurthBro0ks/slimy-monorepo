@@ -4,6 +4,7 @@
  */
 
 import { Code, SourceMetadata } from "../types/codes";
+import { httpClient, isHttpError } from "../http/client";
 
 const SUBREDDIT = "SuperSnail_US";
 const TRUST_WEIGHT = 0.6;
@@ -78,32 +79,15 @@ export async function fetchRedditCodes(): Promise<{
     const searchQuery = encodeURIComponent('code OR "secret code" OR redeem');
     const url = `https://www.reddit.com/r/${SUBREDDIT}/search.json?q=${searchQuery}&restrict_sr=1&sort=new&limit=50&t=month`;
 
-    const response = await fetch(url, {
+    const data = await httpClient.get<{ data?: { children?: RedditPost[] } }>(url, {
       headers: {
         "User-Agent": "Slimy.ai/2.0",
       },
+      // @ts-expect-error - Next.js specific option
       next: { revalidate: 600 }, // Cache for 10 minutes
+      retries: 1, // Reduce retries for external API
     });
 
-    if (response.status === 429) {
-      console.warn("Reddit rate limited");
-      return {
-        codes: [],
-        metadata: {
-          source: "reddit",
-          status: "degraded",
-          lastFetch: new Date().toISOString(),
-          itemCount: 0,
-          error: "Rate limited",
-        },
-      };
-    }
-
-    if (!response.ok) {
-      throw new Error(`Reddit API error: ${response.status}`);
-    }
-
-    const data = await response.json();
     const posts: RedditPost[] = data.data?.children || [];
 
     // Extract codes from all posts
@@ -126,6 +110,21 @@ export async function fetchRedditCodes(): Promise<{
       },
     };
   } catch (error) {
+    // Handle rate limiting specifically
+    if (isHttpError(error) && error.status === 429) {
+      return {
+        codes: [],
+        metadata: {
+          source: "reddit",
+          status: "degraded",
+          lastFetch: new Date().toISOString(),
+          itemCount: 0,
+          error: "Rate limited",
+        },
+      };
+    }
+
+    // Log and return failure for other errors
     console.error("Failed to fetch Reddit codes:", error);
     return {
       codes: [],
@@ -134,7 +133,7 @@ export async function fetchRedditCodes(): Promise<{
         status: "failed",
         lastFetch: new Date().toISOString(),
         itemCount: 0,
-        error: error instanceof Error ? error.message : "Unknown error",
+        error: isHttpError(error) ? error.message : (error instanceof Error ? error.message : "Unknown error"),
       },
     };
   }
