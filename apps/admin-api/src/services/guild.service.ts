@@ -2,6 +2,7 @@
 
 const database = require("../../../lib/database");
 const { v4: uuidv4 } = require("uuid");
+const { success, failure } = require("../types/result");
 
 class GuildService {
   /**
@@ -34,76 +35,86 @@ class GuildService {
 
   /**
    * Get guild by ID
+   * @returns Result containing the guild data or an error
    */
   async getGuildById(id) {
-    const guild = await database.getClient().guild.findUnique({
-      where: { id },
-      include: {
-        userGuilds: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                discordId: true,
-                username: true,
-                globalName: true,
-                avatar: true,
-                createdAt: true,
+    try {
+      const guild = await database.getClient().guild.findUnique({
+        where: { id },
+        include: {
+          userGuilds: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  discordId: true,
+                  username: true,
+                  globalName: true,
+                  avatar: true,
+                  createdAt: true,
+                },
               },
             },
           },
-        },
-        _count: {
-          select: {
-            userGuilds: true,
-            chatMessages: true,
+          _count: {
+            select: {
+              userGuilds: true,
+              chatMessages: true,
+            },
           },
         },
-      },
-    });
+      });
 
-    if (!guild) {
-      throw new Error("Guild not found");
+      if (!guild) {
+        return failure(new Error("Guild not found"));
+      }
+
+      return success(this.formatGuildResponse(guild));
+    } catch (error) {
+      return failure(error instanceof Error ? error : new Error(String(error)));
     }
-
-    return this.formatGuildResponse(guild);
   }
 
   /**
    * Get guild by Discord ID
+   * @returns Result containing the guild data or an error
    */
   async getGuildByDiscordId(discordId) {
-    const guild = await database.getClient().guild.findUnique({
-      where: { discordId },
-      include: {
-        userGuilds: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                discordId: true,
-                username: true,
-                globalName: true,
-                avatar: true,
-                createdAt: true,
+    try {
+      const guild = await database.getClient().guild.findUnique({
+        where: { discordId },
+        include: {
+          userGuilds: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  discordId: true,
+                  username: true,
+                  globalName: true,
+                  avatar: true,
+                  createdAt: true,
+                },
               },
             },
           },
-        },
-        _count: {
-          select: {
-            userGuilds: true,
-            chatMessages: true,
+          _count: {
+            select: {
+              userGuilds: true,
+              chatMessages: true,
+            },
           },
         },
-      },
-    });
+      });
 
-    if (!guild) {
-      throw new Error("Guild not found");
+      if (!guild) {
+        return failure(new Error("Guild not found"));
+      }
+
+      return success(this.formatGuildResponse(guild));
+    } catch (error) {
+      return failure(error instanceof Error ? error : new Error(String(error)));
     }
-
-    return this.formatGuildResponse(guild);
   }
 
   /**
