@@ -16,6 +16,7 @@ const usageService = require("../services/usage");
 const healthService = require("../services/health");
 const { rescanMember } = require("../services/rescan");
 const { recordAudit } = require("../services/audit");
+const { logger, logError } = require("../lib/logger");
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -95,12 +96,31 @@ router.get(
   "/:guildId/settings",
   requireGuildAccess,
   async (req, res, next) => {
+    const guildId = req.params.guildId;
+    const userId = req.user.sub;
+    const commandLogger = logger.child({
+      command: "club.settings.get",
+      guildId,
+      userId,
+      requestId: req.id
+    });
+
     try {
+      commandLogger.info("Fetching guild settings");
       const result = await settingsService.getSettings(req.params.guildId, {
         includeTest: req.query.test === "true",
       });
+      commandLogger.info({
+        hasSheetUrl: Boolean(result.sheetUrl),
+        weekWindowDays: result.weekWindowDays,
+      }, "Guild settings retrieved successfully");
       res.json(result);
     } catch (err) {
+      logError(commandLogger, err, {
+        command: "club.settings.get",
+        guildId,
+        userId,
+      });
       next(err);
     }
   },
@@ -113,7 +133,19 @@ router.put(
   requireCsrf,
   validateBody(settingsSchema),
   async (req, res, next) => {
+    const guildId = req.params.guildId;
+    const userId = req.user.sub;
+    const commandLogger = logger.child({
+      command: "club.settings.update",
+      guildId,
+      userId,
+      requestId: req.id
+    });
+
     try {
+      commandLogger.info({
+        updates: Object.keys(req.validated.body),
+      }, "Updating guild settings");
       const result = await settingsService.updateSettings(
         req.params.guildId,
         req.validated.body,
@@ -124,8 +156,16 @@ router.put(
         guildId: req.params.guildId,
         payload: req.validated.body,
       });
+      commandLogger.info({
+        updatedFields: Object.keys(req.validated.body),
+      }, "Guild settings updated successfully");
       res.json(result);
     } catch (err) {
+      logError(commandLogger, err, {
+        command: "club.settings.update",
+        guildId,
+        userId,
+      });
       next(err);
     }
   },
@@ -217,13 +257,36 @@ router.get(
   requireGuildAccess,
   validateQuery(correctionsQuerySchema),
   async (req, res, next) => {
+    const guildId = req.params.guildId;
+    const userId = req.user.sub;
+    const weekId = req.validated?.query?.weekId;
+    const commandLogger = logger.child({
+      command: "club.corrections.list",
+      guildId,
+      userId,
+      weekId,
+      requestId: req.id
+    });
+
     try {
+      commandLogger.info({
+        weekId: weekId || "all",
+      }, "Fetching guild corrections");
       const corrections = await correctionsService.listCorrections(
         req.params.guildId,
-        req.validated?.query?.weekId,
+        weekId,
       );
+      commandLogger.info({
+        count: corrections.length,
+        weekId: weekId || "all",
+      }, "Guild corrections retrieved successfully");
       res.json({ corrections });
     } catch (err) {
+      logError(commandLogger, err, {
+        command: "club.corrections.list",
+        guildId,
+        userId,
+      });
       next(err);
     }
   },
@@ -236,7 +299,21 @@ router.post(
   requireCsrf,
   validateBody(correctionSchema),
   async (req, res, next) => {
+    const guildId = req.params.guildId;
+    const userId = req.user.sub;
+    const commandLogger = logger.child({
+      command: "club.corrections.create",
+      guildId,
+      userId,
+      requestId: req.id
+    });
+
     try {
+      commandLogger.info({
+        metric: req.validated.body.metric,
+        weekId: req.validated.body.weekId,
+        memberKey: req.validated.body.memberKey,
+      }, "Creating guild correction");
       const result = await correctionsService.createCorrection(
         req.params.guildId,
         req.validated.body,
@@ -248,8 +325,17 @@ router.post(
         guildId: req.params.guildId,
         payload: req.validated.body,
       });
+      commandLogger.info({
+        correctionId: result.id,
+        metric: req.validated.body.metric,
+      }, "Guild correction created successfully");
       res.status(201).json(result);
     } catch (err) {
+      logError(commandLogger, err, {
+        command: "club.corrections.create",
+        guildId,
+        userId,
+      });
       next(err);
     }
   },
@@ -261,17 +347,34 @@ router.delete(
   requireRole("editor"),
   requireCsrf,
   async (req, res, next) => {
+    const guildId = req.params.guildId;
+    const userId = req.user.sub;
+    const correctionId = Number(req.params.correctionId);
+    const commandLogger = logger.child({
+      command: "club.corrections.delete",
+      guildId,
+      userId,
+      correctionId,
+      requestId: req.id
+    });
+
     try {
-      const correctionId = Number(req.params.correctionId);
       if (!Number.isFinite(correctionId)) {
+        commandLogger.warn("Invalid correction ID provided");
         return res.status(400).json({ error: "invalid-correction-id" });
       }
 
+      commandLogger.info({
+        correctionId,
+      }, "Deleting guild correction");
       const success = await correctionsService.deleteCorrectionById(
         req.params.guildId,
         correctionId,
       );
       if (!success) {
+        commandLogger.warn({
+          correctionId,
+        }, "Correction not found for deletion");
         return res.status(404).json({ error: "not-found" });
       }
       await recordAudit({
@@ -280,8 +383,17 @@ router.delete(
         guildId: req.params.guildId,
         payload: { id: correctionId },
       });
+      commandLogger.info({
+        correctionId,
+      }, "Guild correction deleted successfully");
       return res.status(204).end();
     } catch (err) {
+      logError(commandLogger, err, {
+        command: "club.corrections.delete",
+        guildId,
+        userId,
+        correctionId,
+      });
       next(err);
     }
   },
@@ -331,14 +443,37 @@ router.get(
   requireGuildAccess,
   validateQuery(usageQuerySchema),
   async (req, res, next) => {
+    const guildId = req.params.guildId;
+    const userId = req.user.sub;
+    const commandLogger = logger.child({
+      command: "club.usage.get",
+      guildId,
+      userId,
+      requestId: req.id
+    });
+
     try {
-      const result = await usageService.getUsage(req.params.guildId, {
+      const params = {
         window: req.validated?.query?.window,
         startDate: req.validated?.query?.startDate,
         endDate: req.validated?.query?.endDate,
-      });
+      };
+      commandLogger.info({
+        window: params.window || "default",
+        hasDateRange: Boolean(params.startDate && params.endDate),
+      }, "Fetching guild usage statistics");
+      const result = await usageService.getUsage(req.params.guildId, params);
+      commandLogger.info({
+        totalRequests: result.totalRequests || 0,
+        window: params.window || "default",
+      }, "Guild usage statistics retrieved successfully");
       res.json(result);
     } catch (err) {
+      logError(commandLogger, err, {
+        command: "club.usage.get",
+        guildId,
+        userId,
+      });
       next(err);
     }
   },
