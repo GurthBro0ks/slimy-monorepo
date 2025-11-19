@@ -281,6 +281,104 @@ class Database {
     });
   }
 
+  /**
+   * Deletes expired sessions in batches to avoid large transactions
+   * that could lock the database or cause performance issues.
+   *
+   * @param {Object} options - Cleanup options
+   * @param {number} options.batchSize - Number of sessions to delete per batch (default: 1000)
+   * @param {number} options.delayMs - Delay between batches in milliseconds (default: 100)
+   * @param {number} options.maxAge - Delete sessions older than this many days (default: 30)
+   * @param {Function} options.onProgress - Callback for progress updates (batchNum, deletedCount, totalDeleted)
+   * @returns {Promise<{totalDeleted: number, batchesProcessed: number, duration: number}>}
+   */
+  async cleanupExpiredSessionsBatched(options = {}) {
+    const {
+      batchSize = 1000,
+      delayMs = 100,
+      maxAge = 30,
+      onProgress = null,
+    } = options;
+
+    const prisma = this.getClient();
+    const startTime = Date.now();
+    let totalDeleted = 0;
+    let batchesProcessed = 0;
+
+    // Calculate cutoff date
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - maxAge);
+
+    console.log(`[cleanup] Starting session cleanup: removing sessions older than ${cutoffDate.toISOString()}`);
+
+    try {
+      while (true) {
+        // Find expired sessions (limit to batch size)
+        const expiredSessions = await prisma.session.findMany({
+          where: {
+            expiresAt: {
+              lt: cutoffDate,
+            },
+          },
+          select: {
+            id: true,
+          },
+          take: batchSize,
+        });
+
+        // No more expired sessions to delete
+        if (expiredSessions.length === 0) {
+          break;
+        }
+
+        // Extract session IDs
+        const sessionIds = expiredSessions.map(s => s.id);
+
+        // Delete this batch
+        const result = await prisma.session.deleteMany({
+          where: {
+            id: {
+              in: sessionIds,
+            },
+          },
+        });
+
+        totalDeleted += result.count;
+        batchesProcessed++;
+
+        // Call progress callback if provided
+        if (onProgress) {
+          onProgress(batchesProcessed, result.count, totalDeleted);
+        }
+
+        console.log(`[cleanup] Batch ${batchesProcessed}: deleted ${result.count} sessions (total: ${totalDeleted})`);
+
+        // If we deleted fewer than the batch size, we're done
+        if (expiredSessions.length < batchSize) {
+          break;
+        }
+
+        // Delay between batches to avoid overwhelming the database
+        if (delayMs > 0) {
+          await new Promise(resolve => setTimeout(resolve, delayMs));
+        }
+      }
+
+      const duration = Date.now() - startTime;
+      console.log(`[cleanup] Session cleanup completed: ${totalDeleted} sessions deleted in ${batchesProcessed} batches (${duration}ms)`);
+
+      return {
+        totalDeleted,
+        batchesProcessed,
+        duration,
+      };
+    } catch (err) {
+      const duration = Date.now() - startTime;
+      console.error(`[cleanup] Session cleanup failed after ${batchesProcessed} batches (${totalDeleted} deleted):`, err.message);
+      throw err;
+    }
+  }
+
   async deleteUserSessions(userId) {
     const prisma = this.getClient();
 
