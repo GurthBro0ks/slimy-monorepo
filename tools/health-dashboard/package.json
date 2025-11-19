@@ -1,0 +1,24 @@
+{
+  "name": "@slimy/health-dashboard",
+  "version": "1.0.0",
+  "description": "CLI tool for checking health of Slimy.ai services",
+  "type": "module",
+  "main": "check-services.ts",
+  "scripts": {
+    "check": "tsx check-services.ts",
+    "check:verbose": "tsx check-services.ts --verbose",
+    "check:json": "tsx check-services.ts --json"
+  },
+  "keywords": [
+    "health-check",
+    "monitoring",
+    "cli"
+  ],
+  "author": "Slimy.ai",
+  "license": "UNLICENSED",
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "tsx": "^4.0.0",
+    "typescript": "^5.0.0"
+  }
+}
