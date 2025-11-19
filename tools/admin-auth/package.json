@@ -1,0 +1,30 @@
+{
+  "name": "@slimy/admin-auth-diagnostics",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Diagnostic tools for Slimy admin authentication flow",
+  "type": "commonjs",
+  "scripts": {
+    "inspect": "tsx inspect-auth-flow.ts",
+    "inspect:prod": "ADMIN_API_BASE=https://admin-api.slimyai.xyz tsx inspect-auth-flow.ts",
+    "inspect:staging": "ADMIN_API_BASE=https://admin-api-staging.slimyai.xyz tsx inspect-auth-flow.ts",
+    "inspect:local": "ADMIN_API_BASE=http://localhost:3080 tsx inspect-auth-flow.ts"
+  },
+  "keywords": [
+    "slimy",
+    "admin",
+    "authentication",
+    "diagnostics",
+    "discord-oauth"
+  ],
+  "author": "Slimy.ai Team",
+  "license": "UNLICENSED",
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "tsx": "^4.7.0",
+    "typescript": "^5.3.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
