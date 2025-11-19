@@ -16,13 +16,27 @@ import { Code, SourceMetadata, AggregationResult, SourceSite } from "./types/cod
  */
 export async function aggregateCodes(): Promise<AggregationResult> {
   // Fetch from all sources in parallel
-  const [discord, reddit, wiki, pocketgamer, snelp] = await Promise.all([
+  const [discord, reddit, wiki, pocketgamer, snelpResult] = await Promise.all([
     fetchDiscordCodes(),
     fetchRedditCodes(),
     fetchWikiCodes(),
     fetchPocketGamerCodes(),
     fetchSnelpCodes(),
   ]);
+
+  // Handle Snelp Result type - convert to legacy format for graceful degradation
+  const snelp = snelpResult.ok
+    ? snelpResult.data
+    : {
+        codes: [],
+        metadata: {
+          source: "snelp" as const,
+          status: "failed" as const,
+          lastFetch: new Date().toISOString(),
+          itemCount: 0,
+          error: snelpResult.error.message,
+        },
+      };
 
   // Combine all codes
   const allCodes: Code[] = [
