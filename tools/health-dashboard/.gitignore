@@ -1,0 +1,16 @@
+# Ignore the actual config file (contains environment-specific URLs)
+services.json
+
+# Node modules
+node_modules/
+
+# Build output
+dist/
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db

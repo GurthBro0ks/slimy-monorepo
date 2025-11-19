@@ -1,0 +1,72 @@
+{
+  "defaults": {
+    "timeout": 5000
+  },
+  "services": [
+    {
+      "name": "Web App - Health",
+      "url": "http://localhost:3000/api/health",
+      "timeout": 3000,
+      "critical": true
+    },
+    {
+      "name": "Web App - Codes Health",
+      "url": "http://localhost:3000/api/codes/health",
+      "timeout": 3000,
+      "critical": false
+    },
+    {
+      "name": "Web App - Diagnostics",
+      "url": "http://localhost:3000/api/diag",
+      "timeout": 5000,
+      "critical": false
+    },
+    {
+      "name": "Admin API - Health",
+      "url": "http://localhost:3080/api/health",
+      "timeout": 3000,
+      "critical": true
+    },
+    {
+      "name": "Admin API - Ping",
+      "url": "http://localhost:3080/api/ping",
+      "timeout": 2000,
+      "critical": false
+    },
+    {
+      "name": "Admin API - Diagnostics",
+      "url": "http://localhost:3080/api/diag",
+      "timeout": 5000,
+      "critical": false
+    }
+  ],
+  "_comments": {
+    "description": "Health check configuration for Slimy.ai services",
+    "usage": [
+      "Copy this file to services.json and update URLs as needed",
+      "For local development, use localhost URLs",
+      "For server deployment (nuc1/nuc2), use production URLs",
+      "Set critical: true for services that must be up for the system to function"
+    ],
+    "fields": {
+      "name": "Human-readable service name",
+      "url": "Full URL to the health endpoint",
+      "timeout": "Request timeout in milliseconds (optional, uses default if not specified)",
+      "critical": "If true, CLI exits with code 2 when this service is down"
+    },
+    "examples": {
+      "production": {
+        "web": "https://slimy.ai/api/health",
+        "admin": "https://admin.slimy.ai/api/health"
+      },
+      "nuc1": {
+        "web": "http://nuc1.local:3000/api/health",
+        "admin": "http://nuc1.local:3080/api/health"
+      },
+      "nuc2": {
+        "web": "http://nuc2.local:3000/api/health",
+        "admin": "http://nuc2.local:3080/api/health"
+      }
+    }
+  }
+}
