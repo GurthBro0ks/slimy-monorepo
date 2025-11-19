@@ -1,0 +1,116 @@
+{
+  "examples": [
+    {
+      "description": "Java Edition server - Online with players",
+      "props": {
+        "serverName": "Creative Builders Hub",
+        "isOnline": true,
+        "serverType": "java",
+        "currentPlayers": 42,
+        "maxPlayers": 100,
+        "motd": "§6Welcome to §l§bCreative Builders§r§6! §7[1.20.1]",
+        "host": "mc.buildershub.com",
+        "port": 25565,
+        "version": "1.20.1",
+        "lastChecked": "2025-11-19T14:32:15.000Z",
+        "favicon": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
+      }
+    },
+    {
+      "description": "Java Edition server - Online, empty",
+      "props": {
+        "serverName": "Survival Vanilla",
+        "isOnline": true,
+        "serverType": "java",
+        "currentPlayers": 0,
+        "maxPlayers": 20,
+        "motd": "A pure vanilla experience - No mods, no plugins!",
+        "host": "vanilla.example.net",
+        "port": 25565,
+        "version": "1.20.4",
+        "lastChecked": "2025-11-19T14:31:00.000Z",
+        "favicon": null
+      }
+    },
+    {
+      "description": "Java Edition server - Offline",
+      "props": {
+        "serverName": "Modded Adventures",
+        "isOnline": false,
+        "serverType": "java",
+        "currentPlayers": null,
+        "maxPlayers": null,
+        "motd": null,
+        "host": "modded.offline-example.com",
+        "port": 25565,
+        "version": null,
+        "lastChecked": "2025-11-19T14:30:45.000Z",
+        "favicon": null
+      }
+    },
+    {
+      "description": "Bedrock Edition server - Online with players",
+      "props": {
+        "serverName": "Bedrock SkyWars",
+        "isOnline": true,
+        "serverType": "bedrock",
+        "currentPlayers": 128,
+        "maxPlayers": 200,
+        "motd": "§l§eSKYWARS ARENA§r\n§7Compete for glory!",
+        "host": "bedrock.skywars.net",
+        "port": 19132,
+        "version": "1.20.51",
+        "lastChecked": "2025-11-19T14:33:00.000Z",
+        "favicon": null
+      }
+    },
+    {
+      "description": "Bedrock Edition server - Online, nearly full",
+      "props": {
+        "serverName": "PE Survival Realm",
+        "isOnline": true,
+        "serverType": "bedrock",
+        "currentPlayers": 9,
+        "maxPlayers": 10,
+        "motd": "Cross-platform survival realm",
+        "host": "realm.pocket-edition.com",
+        "port": 19132,
+        "version": "1.20.50",
+        "lastChecked": "2025-11-19T14:32:50.000Z",
+        "favicon": null
+      }
+    },
+    {
+      "description": "Bedrock Edition server - Custom port",
+      "props": {
+        "serverName": "Bedrock Custom",
+        "isOnline": true,
+        "serverType": "bedrock",
+        "currentPlayers": 5,
+        "maxPlayers": 50,
+        "motd": "Custom port Bedrock server",
+        "host": "custom.bedrock-server.io",
+        "port": 25566,
+        "version": "1.20.40",
+        "lastChecked": "2025-11-19T14:29:30.000Z",
+        "favicon": null
+      }
+    },
+    {
+      "description": "Minimal example - Online status only",
+      "props": {
+        "serverName": "Simple Server",
+        "isOnline": true,
+        "serverType": "java"
+      }
+    },
+    {
+      "description": "Minimal example - Offline",
+      "props": {
+        "serverName": "Offline Server",
+        "isOnline": false,
+        "serverType": "java"
+      }
+    }
+  ]
+}
