@@ -5,9 +5,11 @@
   "type": "commonjs",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
     "dev": "node server.js",
-    "build": "node -e \"console.log('admin-api runs directly from source; no build artifacts generated yet.')\""
+    "start": "node server.js",
+    "build": "node -e \"console.log('admin-api runs directly from source; no build artifacts generated yet.')\"",
+    "test": "echo \"TODO: add tests for admin-api\"",
+    "lint": "echo \"TODO: add lint for admin-api\""
   },
   "engines": {
     "node": ">=20"
