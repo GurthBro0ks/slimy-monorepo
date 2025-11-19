@@ -31,8 +31,8 @@ const baseConfig = {
       // Add service context to all logs
       return {
         ...obj,
-        service: process.env.ADMIN_API_SERVICE_NAME || "slimy-admin-api",
-        version: process.env.ADMIN_API_VERSION || "dev",
+        service: process.env.BOT_SERVICE_NAME || "slimy-discord-bot",
+        version: process.env.BOT_VERSION || "dev",
         env: process.env.NODE_ENV || "development",
         hostname: require("os").hostname(),
         pid: process.pid,
@@ -42,22 +42,6 @@ const baseConfig = {
   timestamp: pino.stdTimeFunctions.isoTime,
   // Add serializers for common objects
   serializers: {
-    req: (req) => ({
-      method: req.method,
-      url: req.url,
-      headers: {
-        "user-agent": req.headers["user-agent"],
-        "content-type": req.headers["content-type"],
-        "x-forwarded-for": req.headers["x-forwarded-for"],
-        "x-request-id": req.headers["x-request-id"],
-      },
-      remoteAddress: req.remoteAddress,
-      remotePort: req.remotePort,
-    }),
-    res: (res) => ({
-      statusCode: res.statusCode,
-      headers: res.headers,
-    }),
     err: pino.stdSerializers.err,
     error: pino.stdSerializers.err,
   },
@@ -88,10 +72,10 @@ const prodConfig = {
       const base = baseConfig.formatters.log(obj);
 
       // Add monitoring-specific fields
-      if (obj.requestId) {
+      if (obj.interactionId) {
         base.dd = {
-          trace_id: obj.requestId,
-          span_id: obj.requestId,
+          trace_id: obj.interactionId,
+          span_id: obj.interactionId,
         };
       }
 
@@ -108,98 +92,6 @@ const logger = pino(isDevelopment ? devConfig : prodConfig);
  */
 function createLogger(context = {}) {
   return logger.child(context);
-}
-
-/**
- * Request logger middleware - creates logger with request ID
- */
-function requestLogger(req, res, next) {
-  const requestId = req.id || req.headers["x-request-id"] || `req-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-  req.id = requestId;
-  req.logger = createLogger({ requestId, method: req.method, path: req.path });
-
-  // Basic request log (always)
-  const baseRequestData = {
-    method: req.method,
-    path: req.path,
-    query: req.query,
-    ip: req.ip,
-  };
-
-  // Enhanced request log in debug mode
-  if (isDebug()) {
-    const debugData = {
-      ...baseRequestData,
-      headers: redactSecrets({
-        "user-agent": req.headers["user-agent"],
-        "content-type": req.headers["content-type"],
-        "accept": req.headers["accept"],
-        "origin": req.headers["origin"],
-        "referer": req.headers["referer"],
-      }),
-      userId: req.user?.id || req.session?.userId,
-      sessionExists: !!req.session,
-      bodySize: req.headers["content-length"],
-    };
-    req.logger.debug(debugData, "[DEBUG] Incoming request details");
-  }
-
-  req.logger.info(baseRequestData, "Incoming request");
-
-  // Log response when finished
-  const startTime = Date.now();
-  res.on("finish", () => {
-    const duration = Date.now() - startTime;
-    const baseResponseData = {
-      method: req.method,
-      path: req.path,
-      statusCode: res.statusCode,
-      duration,
-    };
-
-    // Enhanced response log in debug mode
-    if (isDebug()) {
-      const debugData = {
-        ...baseResponseData,
-        contentType: res.get("content-type"),
-        contentLength: res.get("content-length"),
-        cacheControl: res.get("cache-control"),
-        timing: {
-          total: duration,
-          perSecond: duration > 0 ? (1000 / duration).toFixed(2) : "N/A",
-        },
-      };
-      req.logger.debug(debugData, "[DEBUG] Request completed with details");
-    }
-
-    req.logger.info(baseResponseData, "Request completed");
-  });
-
-  next();
-}
-
-/**
- * Error logger - logs errors with context
- */
-function logError(logger, error, context = {}) {
-  const logData = {
-    error: {
-      name: error.name,
-      message: error.message,
-      code: error.code,
-      statusCode: error.statusCode,
-      stack: error.stack,
-    },
-    ...context,
-  };
-
-  if (error.statusCode && error.statusCode < 500) {
-    // Client errors (4xx) - log as warning
-    logger.warn(logData, "Client error");
-  } else {
-    // Server errors (5xx) - log as error
-    logger.error(logData, "Server error");
-  }
 }
 
 /**
@@ -227,6 +119,8 @@ function redactSecrets(obj) {
     "refresh_token",
     "privateKey",
     "private_key",
+    "bot_token",
+    "botToken",
   ];
 
   const redacted = Array.isArray(obj) ? [...obj] : { ...obj };
@@ -260,13 +154,39 @@ function logDebug(logger, data, message) {
   logger.debug(safeData, message);
 }
 
+/**
+ * Log command execution with timing
+ */
+function logCommandExecution(logger, commandName, userId, guildId, startTime) {
+  const duration = Date.now() - startTime;
+
+  const baseData = {
+    command: commandName,
+    userId,
+    guildId,
+    duration,
+  };
+
+  logger.info(baseData, "Command executed");
+
+  // Enhanced debug logging for command execution
+  if (isDebug()) {
+    const debugData = {
+      ...baseData,
+      timing: {
+        total: duration,
+        perSecond: duration > 0 ? (1000 / duration).toFixed(2) : "N/A",
+      },
+    };
+    logDebug(logger, debugData, "[DEBUG] Command execution details");
+  }
+}
+
 module.exports = {
   logger,
   createLogger,
-  requestLogger,
-  logError,
   isDebug,
   logDebug,
   redactSecrets,
+  logCommandExecution,
 };
-
