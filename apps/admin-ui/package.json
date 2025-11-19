@@ -4,7 +4,9 @@
   "scripts": {
     "dev": "next dev -p 3081",
     "build": "next build",
-    "start": "next start -p 3081"
+    "start": "next start -p 3081",
+    "test": "echo \"TODO: add tests for admin-ui\"",
+    "lint": "echo \"TODO: add lint for admin-ui\""
   },
   "dependencies": {
     "chart.js": "^4.5.1",
