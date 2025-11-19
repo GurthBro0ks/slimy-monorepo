@@ -4,6 +4,7 @@ const express = require("express");
 const os = require("os");
 const { requireAuth } = require("../middleware/auth");
 const { summarizeUploads } = require("../services/uploads");
+const { nowISO } = require("../lib/datetime");
 
 const router = express.Router();
 
@@ -59,7 +60,7 @@ router.get("/diagnostics", requireAuth, async (_req, res) => {
         total: uploadsSummary.total,
         today: uploadsSummary.today,
       },
-      generatedAt: new Date().toISOString(),
+      generatedAt: nowISO(),
     };
 
     cache = { at: now, payload };

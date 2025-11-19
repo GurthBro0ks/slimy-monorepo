@@ -3,12 +3,13 @@
 const express = require("express");
 const { COOKIE_NAME, verifySession } = require("../../lib/jwt");
 const { getSession } = require("../../lib/session-store");
+const { nowISO } = require("../lib/datetime");
 
 const router = express.Router();
 
 // Simple ping endpoint for health checks
 router.get("/ping", (_req, res) => {
-  res.json({ ok: true, now: new Date().toISOString() });
+  res.json({ ok: true, now: nowISO() });
 });
 
 // Auth debugging endpoint

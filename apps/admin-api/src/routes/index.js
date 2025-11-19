@@ -1,6 +1,7 @@
 "use strict";
 const express = require("express");
 const router = express.Router();
+const { nowISO } = require("../lib/datetime");
 
 const authRoutes = require("./auth");
 const debugRoutes = require("./debug");
@@ -20,7 +21,7 @@ router.get("/api/health", (_req, res) => {
     ok: true,
     service: "admin-api",
     env: process.env.NODE_ENV || "development",
-    timestamp: new Date().toISOString(),
+    timestamp: nowISO(),
   });
 });
 router.use("/api", debugRoutes);
