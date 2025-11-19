@@ -5,7 +5,7 @@ import { chatStorage, ConversationSummary } from '@/lib/chat/storage';
 import { useAuth } from '@/lib/auth/context';
 import { Button } from '@/components/ui/button';
 import { MessageSquare, Clock, Trash2 } from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
+import { formatRelativeTime } from '@/lib/datetime';
 
 interface MessageListProps {
   onConversationSelect: (conversationId: string) => void;
@@ -131,7 +131,7 @@ export function MessageList({
                 </div>
                 <div className="flex items-center gap-1 mt-1 text-xs text-zinc-600">
                   <Clock className="h-3 w-3" />
-                  <span>{formatDistanceToNow(conversation.updatedAt, { addSuffix: true })}</span>
+                  <span>{formatRelativeTime(conversation.updatedAt)}</span>
                 </div>
               </div>
 

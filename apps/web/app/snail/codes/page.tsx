@@ -9,6 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Callout } from "@/components/ui/callout";
 import { RefreshCw, Search, Flag } from "lucide-react";
 import { ProtectedRoute } from "@/components/auth/protected-route";
+import { formatDate } from "@/lib/datetime";
 
 interface Code {
   code: string;
@@ -214,7 +215,7 @@ export default function CodesPage() {
                             {code.code}
                           </CardTitle>
                           <CardDescription>
-                            Added {new Date(code.ts).toLocaleDateString()}
+                            Added {formatDate(code.ts)}
                             {code.description && ` • ${code.description}`}
                           </CardDescription>
                         </div>
@@ -231,7 +232,7 @@ export default function CodesPage() {
                           )}
                           {code.expires && (
                             <Badge variant="destructive">
-                              Expires {new Date(code.expires).toLocaleDateString()}
+                              Expires {formatDate(code.expires)}
                             </Badge>
                           )}
                           {code.tags?.map((tag) => (

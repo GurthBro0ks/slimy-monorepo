@@ -15,8 +15,8 @@ const {
   listGuildUploads,
   summarizeUploads,
   toPublicUrl,
-  formatDateSlug,
 } = require("../services/uploads");
+const { formatDateSlug, nowISO } = require("../lib/datetime");
 
 const router = express.Router({ mergeParams: true });
 
@@ -148,7 +148,7 @@ router.post(
         const metaPath = path.join(parsed.dir, `${parsed.name}.meta.json`);
         const metadata = {
           uploadedBy: req.uploader || "unknown",
-          uploadedAt: new Date().toISOString(),
+          uploadedAt: nowISO(),
           originalName: file.originalname,
         };
         await fsp.writeFile(metaPath, JSON.stringify(metadata, null, 2));

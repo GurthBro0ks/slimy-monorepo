@@ -18,6 +18,7 @@ import {
   Calendar
 } from "lucide-react";
 import type { StoredClubAnalysis } from "@/lib/club/database";
+import { formatDate, formatDateTime } from "@/lib/datetime";
 
 interface ResultsProps {
   analyses: StoredClubAnalysis[];
@@ -95,12 +96,12 @@ export function Results({ analyses, onExport, onViewDetails, loading }: ResultsP
                 <div className="flex-1">
                   <CardTitle className="flex items-center gap-2">
                     <BarChart3 className="h-5 w-5 text-neon-green" />
-                    {analysis.title || `Analysis ${analysis.createdAt.toLocaleDateString()}`}
+                    {analysis.title || `Analysis ${formatDate(analysis.createdAt)}`}
                   </CardTitle>
                   <CardDescription className="flex items-center gap-4 mt-2">
                     <span className="flex items-center gap-1">
                       <Calendar className="h-4 w-4" />
-                      {new Date(analysis.createdAt).toLocaleString()}
+                      {formatDateTime(analysis.createdAt)}
                     </span>
                     <span className="flex items-center gap-1">
                       <Target className="h-4 w-4" />

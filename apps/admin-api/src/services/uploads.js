@@ -3,6 +3,7 @@
 const path = require("path");
 const fs = require("fs");
 const { promises: fsp } = fs;
+const { formatDateSlug } = require("../lib/datetime");
 
 const UPLOADS_DIR = process.env.UPLOADS_DIR || "/var/lib/slimy/uploads";
 const PUBLIC_PREFIX = "/api/uploads/files";
@@ -14,13 +15,6 @@ function ensureTrailingSlash(input) {
 const NORMALIZED_UPLOADS_ROOT = ensureTrailingSlash(
   path.resolve(UPLOADS_DIR),
 ).replace(/\\/g, "/");
-
-function formatDateSlug(date) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
 
 async function pathExists(targetPath) {
   try {
@@ -164,5 +158,4 @@ module.exports = {
   listGuildUploads,
   summarizeUploads,
   toPublicUrl,
-  formatDateSlug,
 };
