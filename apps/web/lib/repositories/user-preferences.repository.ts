@@ -5,7 +5,7 @@
  */
 
 import { db } from '../db';
-import type { UserPreferences } from '../db';
+import type { UserPreferences } from '@prisma/client';
 
 export interface UpdateUserPreferencesInput {
   theme?: 'light' | 'dark' | 'auto';
