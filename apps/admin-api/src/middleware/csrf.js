@@ -1,6 +1,7 @@
 "use strict";
 
 const config = require("../config");
+const { AuthenticationError, AuthorizationError } = require("../lib/errors");
 
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 
@@ -10,7 +11,7 @@ function requireCsrf(req, res, next) {
   }
 
   if (!req.user?.csrfToken) {
-    return res.status(401).json({ error: "unauthorized" });
+    return next(new AuthenticationError("Authentication required"));
   }
 
   const headerName = config.csrf.headerName;
@@ -18,7 +19,7 @@ function requireCsrf(req, res, next) {
     req.headers?.[headerName] || req.headers?.[headerName.toLowerCase()];
 
   if (!headerValue || headerValue !== req.user.csrfToken) {
-    return res.status(403).json({ error: "invalid-csrf-token" });
+    return next(new AuthorizationError("Invalid or missing CSRF token"));
   }
 
   return next();

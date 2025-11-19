@@ -4,6 +4,7 @@ const os = require("os");
 const express = require("express");
 const { requireAuth } = require("../middleware/auth");
 const { summarizeUploads } = require("../services/uploads");
+const { InternalServerError } = require("../lib/errors");
 
 const router = express.Router();
 
@@ -20,7 +21,7 @@ function buildAdminSnapshot() {
   };
 }
 
-router.get("/", requireAuth, async (req, res) => {
+router.get("/", requireAuth, async (req, res, next) => {
   console.info("[admin-api] /api/diag called", {
     hasUser: Boolean(req.user),
     userId: req.user?.id || null,
@@ -39,7 +40,7 @@ router.get("/", requireAuth, async (req, res) => {
     });
   } catch (err) {
     console.error("[diag] failed to build diagnostics:", err);
-    res.status(500).json({ error: "diag_failed" });
+    next(new InternalServerError("Failed to build diagnostics"));
   }
 });
 

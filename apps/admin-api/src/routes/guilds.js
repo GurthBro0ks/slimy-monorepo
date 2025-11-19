@@ -8,6 +8,7 @@ const { requireAuth } = require("../middleware/auth");
 const { requireCsrf } = require("../middleware/csrf");
 const { requireRole, requireGuildAccess } = require("../middleware/rbac");
 const { validateBody, validateQuery } = require("../middleware/validate");
+const { BadRequestError, NotFoundError } = require("../lib/errors");
 const settingsService = require("../services/settings");
 const personalityService = require("../services/personality");
 const channelService = require("../services/channels");
@@ -264,7 +265,7 @@ router.delete(
     try {
       const correctionId = Number(req.params.correctionId);
       if (!Number.isFinite(correctionId)) {
-        return res.status(400).json({ error: "invalid-correction-id" });
+        throw new BadRequestError("Invalid correction ID");
       }
 
       const success = await correctionsService.deleteCorrectionById(
@@ -272,7 +273,7 @@ router.delete(
         correctionId,
       );
       if (!success) {
-        return res.status(404).json({ error: "not-found" });
+        throw new NotFoundError("Correction not found");
       }
       await recordAudit({
         adminId: req.user.sub,
@@ -296,7 +297,7 @@ router.post(
   async (req, res, next) => {
     try {
       if (!req.file) {
-        return res.status(400).json({ error: "file-required" });
+        throw new BadRequestError("File is required");
       }
 
       const result = await rescanMember(

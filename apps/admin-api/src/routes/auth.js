@@ -6,6 +6,12 @@ const { signSession, setAuthCookie, clearAuthCookie } = require("../../lib/jwt")
 const { storeSession, clearSession, getSession } = require("../../lib/session-store");
 const { resolveRoleLevel } = require("../lib/roles");
 const config = require("../config");
+const {
+  AuthenticationError,
+  StateMismatchError,
+  TokenExchangeError,
+  InternalServerError
+} = require("../lib/errors");
 
 const router = express.Router();
 
@@ -133,6 +139,7 @@ router.get("/callback", async (req, res) => {
       !savedNonce ||
       parsed.nonce !== savedNonce
     ) {
+      console.warn("[auth/callback] state mismatch");
       return res.redirect("/?error=state_mismatch");
     }
 
@@ -150,6 +157,7 @@ router.get("/callback", async (req, res) => {
       body,
     });
     if (!tokenResponse.ok) {
+      console.warn("[auth/callback] token exchange failed", { status: tokenResponse.status });
       return res.redirect("/?error=token_exchange_failed");
     }
     const tokens = await tokenResponse.json();
@@ -373,20 +381,24 @@ router.get("/callback", async (req, res) => {
   }
 });
 
-router.get("/me", (req, res) => {
-  console.info("[admin-api] /api/auth/me called", {
-    hasUser: Boolean(req.user),
-    userId: req.user?.id || null,
-  });
-  if (!req.user) {
-    return res.status(401).json({ error: "unauthorized" });
+router.get("/me", (req, res, next) => {
+  try {
+    console.info("[admin-api] /api/auth/me called", {
+      hasUser: Boolean(req.user),
+      userId: req.user?.id || null,
+    });
+    if (!req.user) {
+      throw new AuthenticationError("Authentication required");
+    }
+    const session = getSession(req.user.id);
+    return res.json({
+      ...req.user,
+      guilds: req.user.guilds || [],
+      sessionGuilds: session?.guilds || [],
+    });
+  } catch (err) {
+    next(err);
   }
-  const session = getSession(req.user.id);
-  return res.json({
-    ...req.user,
-    guilds: req.user.guilds || [],
-    sessionGuilds: session?.guilds || [],
-  });
 });
 
 router.post("/logout", (req, res) => {

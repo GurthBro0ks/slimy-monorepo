@@ -5,7 +5,7 @@ const router = express.Router();
 const { chooseTab, readStats } = require("../../lib/sheets");
 const { cacheStats } = require("../middleware/cache");
 const { stats } = require("../lib/validation/schemas");
-const { apiHandler } = require("../lib/errors");
+const { apiHandler, ConfigurationError, NotFoundError } = require("../lib/errors");
 const config = require("../lib/config");
 
 const SHEET_ID = config.google.statsSheetId;
@@ -13,7 +13,9 @@ const PINNED = config.google.statsBaselineTitle;
 
 if (!SHEET_ID) {
   // Soft-fail route if not configured
-  router.get("/summary", (_req, res) => res.status(500).json({ error: "missing_sheet_id", message: "STATS_SHEET_ID not configured in environment" }));
+  router.get("/summary", (_req, res, next) => {
+    next(new ConfigurationError("Stats sheet ID not configured"));
+  });
   module.exports = router;
 } else {
   router.get("/summary", stats.summary, cacheStats(600), apiHandler(async (req, res) => {
@@ -29,8 +31,7 @@ if (!SHEET_ID) {
 
     const selected = await chooseTab(SHEET_ID, title || PINNED);
     if (!selected) {
-      res.status(404).json({ error: "no_tabs_found" });
-      return;
+      throw new NotFoundError("No stats tabs found");
     }
 
     const stats = await readStats(SHEET_ID, selected);
