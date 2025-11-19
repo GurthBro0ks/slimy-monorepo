@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { apiClient } from "@/lib/api-client";
 import { AuthContextType, AuthState, AuthUser } from "./types";
+import { buildApiUrl, isAdminApiConfigured } from "@/lib/config/adminApi";
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -53,9 +54,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
   };
 
   const login = () => {
-    const adminApiBase = process.env.NEXT_PUBLIC_ADMIN_API_BASE || "";
-    if (adminApiBase) {
-      window.location.href = `${adminApiBase}/api/auth/login`;
+    if (isAdminApiConfigured()) {
+      window.location.href = buildApiUrl('/api/auth/login');
     } else {
       console.error("NEXT_PUBLIC_ADMIN_API_BASE not configured");
     }
@@ -70,10 +70,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
       lastRefresh: 0,
     });
 
-    const adminApiBase = process.env.NEXT_PUBLIC_ADMIN_API_BASE || "";
-    if (adminApiBase) {
+    if (isAdminApiConfigured()) {
       // Redirect to admin API logout endpoint
-      window.location.href = `${adminApiBase}/api/auth/logout`;
+      window.location.href = buildApiUrl('/api/auth/logout');
     } else {
       console.error("NEXT_PUBLIC_ADMIN_API_BASE not configured");
     }
