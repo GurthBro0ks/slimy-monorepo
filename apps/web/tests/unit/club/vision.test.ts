@@ -199,19 +199,29 @@ describe('Club Vision Library', () => {
     it('should return true for valid URLs', async () => {
       global.fetch = vi.fn(() =>
         Promise.resolve({
-          ok: true
+          ok: true,
+          headers: new Headers(),
+          status: 200,
+          statusText: 'OK'
         } as Response)
       );
 
       const result = await validateImageUrl('http://example.com/image.png');
       expect(result).toBe(true);
-      expect(global.fetch).toHaveBeenCalledWith('http://example.com/image.png', { method: 'HEAD' });
+      expect(global.fetch).toHaveBeenCalledWith(
+        'http://example.com/image.png',
+        expect.objectContaining({ method: 'HEAD' })
+      );
     });
 
     it('should return false for invalid URLs', async () => {
       global.fetch = vi.fn(() =>
         Promise.resolve({
-          ok: false
+          ok: false,
+          headers: new Headers(),
+          status: 404,
+          statusText: 'Not Found',
+          text: async () => ''
         } as Response)
       );
 

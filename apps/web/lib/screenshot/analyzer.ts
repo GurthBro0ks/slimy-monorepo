@@ -1,4 +1,5 @@
 import { getOpenAIClient } from '@/lib/openai-client';
+import { httpClient } from '@/lib/http';
 
 export type ScreenshotType =
   | 'game-stats'
@@ -353,15 +354,19 @@ export async function validateImageUrl(url: string): Promise<boolean> {
       return false;
     }
 
-    const response = await fetch(parsed.toString(), { method: 'HEAD' });
-    if (!response.ok) {
+    const result = await httpClient.head(parsed.toString(), {
+      timeout: 5000,
+      retries: 1,
+      enableLogging: false,
+    });
+
+    if (!result.ok) {
       return false;
     }
 
-    const contentType = response.headers.get('content-type');
+    const contentType = result.headers.get('content-type');
     return contentType ? contentType.startsWith('image/') : true;
   } catch (error) {
-    console.error('Failed to validate image URL:', error);
     return false;
   }
 }
