@@ -1,0 +1,1160 @@
+# Slimy-Land Environment Variables Schema
+# Version: 1.0
+# Purpose: Machine-readable reference for environment variable validation
+#
+# This file provides a structured schema for all environment variables used across
+# Slimy applications. It can be used for:
+# - Automated validation of .env files
+# - Documentation generation
+# - IDE autocomplete/hints
+# - Configuration management tools
+#
+# WARNING: This file should NOT contain real secret values. It is a schema definition only.
+
+version: "1.0"
+updated: "2025-11-19"
+
+# Schema for each environment variable entry:
+# - key: Environment variable name
+# - service: Which service(s) use this variable
+# - description: Human-readable description
+# - location: Where it should be configured (nuc1, nuc2, github, local)
+# - sensitive: Whether the value is a secret (true/false)
+# - required: Whether the variable is required for service to function
+# - default: Default value if not specified (optional)
+# - validation: Validation rules (optional)
+# - notes: Additional context or usage notes (optional)
+
+# ==============================================================================
+# ADMIN API ENVIRONMENT VARIABLES
+# ==============================================================================
+
+admin_api:
+  service: "apps/admin-api"
+  port: 3080
+  runtime: "Node.js (Express)"
+
+  variables:
+    # Core Authentication & Security
+    - key: SESSION_SECRET
+      service: admin-api
+      description: "Session encryption key for Express sessions"
+      location: [nuc1, nuc2, github, local]
+      sensitive: true
+      required: true
+      validation:
+        min_length: 32
+        type: string
+      notes: "Generate with: openssl rand -base64 32"
+
+    - key: JWT_SECRET
+      service: admin-api
+      description: "JWT signing key for token-based authentication"
+      location: [nuc1, nuc2, github, local]
+      sensitive: true
+      required: true
+      validation:
+        min_length: 32
+        type: string
+      notes: "Generate with: openssl rand -base64 32"
+
+    - key: COOKIE_DOMAIN
+      service: admin-api
+      description: "Cookie domain for session management"
+      location: [nuc1, nuc2, local]
+      sensitive: false
+      required: false
+      default: null
+      validation:
+        pattern: "^\\.[a-z0-9-]+\\.[a-z]+$"
+      notes: "Example: .slimyai.xyz"
+
+    - key: ADMIN_COOKIE_SECURE
+      service: admin-api
+      description: "Force secure cookies (HTTPS only)"
+      location: [nuc1, nuc2]
+      sensitive: false
+      required: false
+      default: false
+      validation:
+        type: boolean
+
+    - key: ADMIN_COOKIE_SAMESITE
+      service: admin-api
+      description: "SameSite cookie attribute"
+      location: [nuc1, nuc2]
+      sensitive: false
+      required: false
+      default: "Lax"
+      validation:
+        enum: [Strict, Lax, None]
+
+    - key: ADMIN_TOKEN_COOKIE
+      service: admin-api
+      description: "Token cookie name"
+      location: [nuc1, nuc2]
+      sensitive: false
+      required: false
+      default: "admin_token"
+
+    # Server Configuration
+    - key: PORT
+      service: admin-api
+      description: "API server port"
+      location: [nuc1, nuc2, local]
+      sensitive: false
+      required: false
+      default: 3080
+      validation:
+        type: integer
+        min: 1
+        max: 65535
+
+    - key: NODE_ENV
+      service: admin-api
+      description: "Environment mode"
+      location: [nuc1, nuc2, github, local]
+      sensitive: false
+      required: true
+      default: "development"
+      validation:
+        enum: [development, test, production]
+
+    - key: ADMIN_API_SERVICE_NAME
+      service: admin-api
+      description: "Service identifier for logging/monitoring"
+      location: [nuc1, nuc2]
+      sensitive: false
+      required: false
+      default: "slimy-admin-api"
+
+    - key: ADMIN_API_VERSION
+      service: admin-api
+      description: "API version string"
+      location: [nuc1, nuc2]
+      sensitive: false
+      required: false
+      default: "1.0.0"
+
+    - key: TRUST_PROXY
+      service: admin-api
+      description: "Trust proxy headers (required behind Caddy)"
+      location: [nuc1, nuc2]
+      sensitive: false
+      required: false
+      default: false
+      validation:
+        type: boolean
+
+    # CORS & Network Security
+    - key: CORS_ORIGIN
+      service: admin-api
+      description: "Allowed CORS origins (comma-separated URLs)"
+      location: [nuc1, nuc2, local]
+      sensitive: false
+      required: false
+      default: null
+      validation:
+        pattern: "^https?://.*"
+      notes: "Comma-separated list of URLs"
+
+    - key: CORS_ENABLED
+      service: admin-api
+      description: "Enable CORS middleware"
+      location: [nuc1, nuc2, local]
+      sensitive: false
+      required: false
+      default: true
+      validation:
+        type: boolean
+
+    - key: ALLOWED_ORIGIN
+      service: admin-api
+      description: "Alternative allowed origin configuration"
+      location: [nuc1, nuc2]
+      sensitive: false
+      required: false
+
+    - key: ADMIN_ALLOWED_ORIGINS
+      service: admin-api
+      description: "Comma-separated allowed origins for admin routes"
+      location: [nuc1, nuc2]
+      sensitive: false
+      required: false
+
+    - key: ADMIN_BASE_URL
+      service: admin-api
+      description: "Base URL for admin API"
+      location: [nuc1, nuc2]
+      sensitive: false
+      required: false
+      notes: "Example: https://panel.slimyai.xyz"
+
+    # Discord OAuth Integration
+    - key: DISCORD_CLIENT_ID
+      service: admin-api
+      description: "Discord OAuth application ID"
+      location: [nuc1, nuc2, github, local]
+      sensitive: false
+      required: true
+      validation:
+        pattern: "^[0-9]{17,20}$"
+      notes: "Obtain from Discord Developer Portal"
+
+    - key: DISCORD_CLIENT_SECRET
+      service: admin-api
+      description: "Discord OAuth application secret"
+      location: [nuc1, nuc2, github, local]
+      sensitive: true
+      required: true
+      notes: "Obtain from Discord Developer Portal"
+
+    - key: DISCORD_REDIRECT_URI
+      service: admin-api
+      description: "OAuth callback URL"
+      location: [nuc1, nuc2, local]
+      sensitive: false
+      required: true
+      validation:
+        pattern: "^https?://.*"
+      notes: "Example: https://panel.slimyai.xyz/auth/callback"
+
+    - key: DISCORD_OAUTH_SCOPES
+      service: admin-api
+      description: "OAuth scopes"
+      location: [nuc1, nuc2, local]
+      sensitive: false
+      required: false
+      default: "identify guilds"
+
+    - key: DISCORD_BOT_TOKEN
+      service: admin-api
+      description: "Optional Discord bot token for enhanced verification"
+      location: [nuc1, nuc2, github]
+      sensitive: true
+      required: false
+      notes: "Recommended for production"
+
+    # User Permissions & Access Control
+    - key: ADMIN_USER_IDS
+      service: admin-api
+      description: "Comma-separated Discord user IDs with admin permissions"
+      location: [nuc1, nuc2]
+      sensitive: false
+      required: false
+      validation:
+        pattern: "^[0-9]+(,[0-9]+)*$"
+      notes: "Comma-separated Discord snowflake IDs"
+
+    - key: CLUB_USER_IDS
+      service: admin-api
+      description: "Comma-separated Discord user IDs with club permissions"
+      location: [nuc1, nuc2]
+      sensitive: false
+      required: false
+      validation:
+        pattern: "^[0-9]+(,[0-9]+)*$"
+
+    - key: ADMIN_GUILD_IDS
+      service: admin-api
+      description: "Comma-separated allowed Discord guild IDs"
+      location: [nuc1, nuc2]
+      sensitive: false
+      required: false
+      validation:
+        pattern: "^[0-9]+(,[0-9]+)*$"
+
+    - key: ADMIN_OWNER_IDS
+      service: admin-api
+      description: "Comma-separated owner user IDs (highest permissions)"
+      location: [nuc1, nuc2]
+      sensitive: false
+      required: false
+      validation:
+        pattern: "^[0-9]+(,[0-9]+)*$"
+
+    # Backup & Storage
+    - key: UPLOAD_MAX_FILE_SIZE
+      service: admin-api
+      description: "Max upload size in bytes"
+      location: [nuc1, nuc2]
+      sensitive: false
+      required: false
+      default: 10485760
+      validation:
+        type: integer
+        min: 0
+      notes: "Default: 10485760 (10MB)"
+
+    - key: UPLOAD_STORAGE_DIR
+      service: admin-api
+      description: "Upload storage directory"
+      location: [nuc1, nuc2]
+      sensitive: false
+      required: false
+      default: "./uploads"
+
+    - key: BACKUP_ROOT
+      service: admin-api
+      description: "Backup root directory"
+      location: [nuc1, nuc2]
+      sensitive: false
+      required: false
+      default: "/var/backups/slimy"
+
+    - key: BACKUP_MYSQL_DIR
+      service: admin-api
+      description: "MySQL backup directory"
+      location: [nuc1, nuc2]
+      sensitive: false
+      required: false
+
+    - key: BACKUP_DATA_DIR
+      service: admin-api
+      description: "Data backup directory"
+      location: [nuc1, nuc2]
+      sensitive: false
+      required: false
+
+    - key: BACKUP_RETENTION_DAYS
+      service: admin-api
+      description: "Backup retention days"
+      location: [nuc1, nuc2]
+      sensitive: false
+      required: false
+      default: 14
+      validation:
+        type: integer
+        min: 1
+
+    # OpenAI Integration
+    - key: OPENAI_API_KEY
+      service: admin-api
+      description: "OpenAI API key for AI features"
+      location: [nuc1, nuc2, github]
+      sensitive: true
+      required: false
+      validation:
+        pattern: "^sk-[a-zA-Z0-9-_]{32,}$"
+      notes: "Recommended for AI features"
+
+    - key: OPENAI_MODEL
+      service: admin-api
+      description: "OpenAI model to use"
+      location: [nuc1, nuc2]
+      sensitive: false
+      required: false
+      default: "gpt-4o-mini"
+      validation:
+        enum: [gpt-4, gpt-4-turbo, gpt-4o, gpt-4o-mini, gpt-3.5-turbo]
+
+    # Google Sheets Integration
+    - key: STATS_SHEET_ID
+      service: admin-api
+      description: "Google Sheets ID for stats/analytics export"
+      location: [nuc1, nuc2]
+      sensitive: false
+      required: false
+      validation:
+        pattern: "^[a-zA-Z0-9-_]{44}$"
+      notes: "Extract from Google Sheets URL"
+
+    - key: STATS_BASELINE_TITLE
+      service: admin-api
+      description: "Stats baseline title for sheet tabs"
+      location: [nuc1, nuc2]
+      sensitive: false
+      required: false
+
+    - key: GOOGLE_APPLICATION_CREDENTIALS
+      service: admin-api
+      description: "Path to Google service account JSON file"
+      location: [nuc1, nuc2, local]
+      sensitive: false
+      required: false
+      notes: "Path to service account key file"
+
+    - key: GOOGLE_APPLICATION_CREDENTIALS_JSON
+      service: admin-api
+      description: "Google service account credentials as JSON string"
+      location: [nuc1, nuc2, github]
+      sensitive: true
+      required: false
+      notes: "Base64 encode for GitHub secrets"
+
+    # Rate Limiting
+    - key: ADMIN_TASK_LIMIT_WINDOW_MS
+      service: admin-api
+      description: "Rate limit window in milliseconds"
+      location: [nuc1, nuc2]
+      sensitive: false
+      required: false
+      default: 60000
+      validation:
+        type: integer
+        min: 1000
+
+    - key: ADMIN_TASK_LIMIT_MAX
+      service: admin-api
+      description: "Max requests per window"
+      location: [nuc1, nuc2]
+      sensitive: false
+      required: false
+      default: 5
+      validation:
+        type: integer
+        min: 1
+
+    # Security Headers & Monitoring
+    - key: HSTS_MAX_AGE
+      service: admin-api
+      description: "HSTS max age in seconds"
+      location: [nuc1, nuc2]
+      sensitive: false
+      required: false
+      default: 31536000
+      validation:
+        type: integer
+      notes: "Default: 31536000 (1 year)"
+
+    - key: SENTRY_DSN
+      service: admin-api
+      description: "Sentry error tracking DSN"
+      location: [nuc1, nuc2, github]
+      sensitive: true
+      required: false
+      validation:
+        pattern: "^https://[a-f0-9]+@[a-z0-9.]+/[0-9]+$"
+
+    - key: LOG_LEVEL
+      service: admin-api
+      description: "Logging level"
+      location: [nuc1, nuc2, local]
+      sensitive: false
+      required: false
+      default: "info"
+      validation:
+        enum: [error, warn, info, debug, trace]
+
+    # Database
+    - key: DATABASE_URL
+      service: admin-api
+      description: "PostgreSQL connection string"
+      location: [nuc1, nuc2, github, local]
+      sensitive: true
+      required: true
+      validation:
+        pattern: "^postgres(ql)?://.*"
+      notes: "Format: postgresql://user:pass@host:port/db"
+
+    - key: DB_HOST
+      service: admin-api
+      description: "Database host (alternative to DATABASE_URL)"
+      location: [nuc1, nuc2, local]
+      sensitive: false
+      required: false
+
+    - key: DB_PORT
+      service: admin-api
+      description: "Database port"
+      location: [nuc1, nuc2, local]
+      sensitive: false
+      required: false
+      default: 5432
+      validation:
+        type: integer
+
+    - key: DB_NAME
+      service: admin-api
+      description: "Database name"
+      location: [nuc1, nuc2, local]
+      sensitive: false
+      required: false
+
+    - key: DB_USER
+      service: admin-api
+      description: "Database username"
+      location: [nuc1, nuc2, local]
+      sensitive: false
+      required: false
+
+    - key: DB_PASSWORD
+      service: admin-api
+      description: "Database password"
+      location: [nuc1, nuc2, github, local]
+      sensitive: true
+      required: false
+
+    - key: DB_CONNECTION_LIMIT
+      service: admin-api
+      description: "Connection pool size limit"
+      location: [nuc1, nuc2]
+      sensitive: false
+      required: false
+      default: 10
+      validation:
+        type: integer
+        min: 1
+
+    # Redis Cache
+    - key: REDIS_URL
+      service: admin-api
+      description: "Redis connection URL"
+      location: [nuc1, nuc2, github, local]
+      sensitive: true
+      required: false
+      validation:
+        pattern: "^redis(s)?://.*"
+      notes: "Format: redis://host:port or rediss://host:port"
+
+    - key: CDN_URL
+      service: admin-api
+      description: "CDN base URL for static assets"
+      location: [nuc1, nuc2]
+      sensitive: false
+      required: false
+
+    - key: CDN_ENABLED
+      service: admin-api
+      description: "Enable CDN integration"
+      location: [nuc1, nuc2]
+      sensitive: false
+      required: false
+      default: false
+      validation:
+        type: boolean
+
+    - key: STATIC_MAX_AGE
+      service: admin-api
+      description: "Static asset cache TTL"
+      location: [nuc1, nuc2]
+      sensitive: false
+      required: false
+      default: 31536000
+      validation:
+        type: integer
+      notes: "Default: 31536000 (1 year)"
+
+    - key: UPLOADS_MAX_AGE
+      service: admin-api
+      description: "Uploads cache TTL"
+      location: [nuc1, nuc2]
+      sensitive: false
+      required: false
+      default: 86400
+      validation:
+        type: integer
+      notes: "Default: 86400 (1 day)"
+
+    - key: SNELP_CODES_URL
+      service: admin-api
+      description: "Snelp API endpoint for codes/verification"
+      location: [nuc1, nuc2, local]
+      sensitive: false
+      required: false
+      validation:
+        pattern: "^https?://.*"
+
+    - key: ADMIN_AUDIT_DISABLED
+      service: admin-api
+      description: "Disable audit logging"
+      location: [nuc1, nuc2]
+      sensitive: false
+      required: false
+      default: false
+      validation:
+        type: boolean
+
+    - key: ADMIN_REDIRECT_SUCCESS
+      service: admin-api
+      description: "Success redirect URL after authentication"
+      location: [nuc1, nuc2]
+      sensitive: false
+      required: false
+      validation:
+        pattern: "^https?://.*"
+
+    - key: ADMIN_REDIRECT_FAILURE
+      service: admin-api
+      description: "Failure redirect URL after failed authentication"
+      location: [nuc1, nuc2]
+      sensitive: false
+      required: false
+      validation:
+        pattern: "^https?://.*"
+
+# ==============================================================================
+# WEB APPLICATION ENVIRONMENT VARIABLES
+# ==============================================================================
+
+web:
+  service: "apps/web"
+  port: 3000
+  runtime: "Next.js (TypeScript)"
+
+  variables:
+    # Server-Side Variables
+    - key: NODE_ENV
+      service: web
+      description: "Environment mode"
+      location: [nuc1, nuc2, github, local]
+      sensitive: false
+      required: true
+      default: "development"
+      validation:
+        enum: [development, test, production]
+
+    - key: OPENAI_API_KEY
+      service: web
+      description: "OpenAI API key for server-side AI features"
+      location: [nuc1, nuc2, github]
+      sensitive: true
+      required: false
+      validation:
+        pattern: "^sk-[a-zA-Z0-9-_]{32,}$"
+
+    - key: OPENAI_API_BASE
+      service: web
+      description: "OpenAI API base URL"
+      location: [nuc1, nuc2, local]
+      sensitive: false
+      required: false
+      default: "https://api.openai.com/v1"
+      validation:
+        pattern: "^https?://.*"
+
+    - key: MCP_BASE_URL
+      service: web
+      description: "Model Context Protocol integration base URL"
+      location: [nuc1, nuc2]
+      sensitive: false
+      required: false
+      validation:
+        pattern: "^https?://.*"
+
+    - key: MCP_API_KEY
+      service: web
+      description: "MCP API key for server-side requests"
+      location: [nuc1, nuc2, github]
+      sensitive: true
+      required: false
+
+    - key: DOCS_SOURCE_REPO
+      service: web
+      description: "GitHub repo for documentation auto-import"
+      location: [nuc1, nuc2]
+      sensitive: false
+      required: false
+      validation:
+        pattern: "^[a-zA-Z0-9-_]+/[a-zA-Z0-9-_]+$"
+      notes: "Format: owner/repo"
+
+    - key: GITHUB_TOKEN
+      service: web
+      description: "GitHub API token for docs import and API access"
+      location: [nuc1, nuc2, github]
+      sensitive: true
+      required: false
+      validation:
+        pattern: "^(ghp_[a-zA-Z0-9]{36}|github_pat_[a-zA-Z0-9_]{82})$"
+
+    - key: FIRECRAWL_API_KEY
+      service: web
+      description: "Firecrawl API key for web scraping"
+      location: [nuc1, nuc2, github]
+      sensitive: true
+      required: false
+      validation:
+        pattern: "^fc-[a-zA-Z0-9]{32,}$"
+
+    - key: DISCORD_TOKEN
+      service: web
+      description: "Discord bot token for server-side Discord integration"
+      location: [nuc1, nuc2, github]
+      sensitive: true
+      required: false
+      validation:
+        pattern: "^[A-Za-z0-9_-]{59,}$"
+
+    - key: DISCORD_CLIENT_ID
+      service: web
+      description: "Discord application client ID"
+      location: [nuc1, nuc2, local]
+      sensitive: false
+      required: false
+      validation:
+        pattern: "^[0-9]{17,20}$"
+
+    - key: REQUEST_SIGNING_SECRET
+      service: web
+      description: "Secret for request signing/verification"
+      location: [nuc1, nuc2, github]
+      sensitive: true
+      required: false
+      default: "change-me-in-production"
+      validation:
+        min_length: 32
+
+    - key: REDIS_URL
+      service: web
+      description: "Redis connection URL"
+      location: [nuc1, nuc2, github, local]
+      sensitive: true
+      required: false
+      validation:
+        pattern: "^redis(s)?://.*"
+
+    - key: REDIS_HOST
+      service: web
+      description: "Redis host"
+      location: [nuc1, nuc2, local]
+      sensitive: false
+      required: false
+
+    - key: REDIS_PORT
+      service: web
+      description: "Redis port"
+      location: [nuc1, nuc2, local]
+      sensitive: false
+      required: false
+      default: 6379
+      validation:
+        type: integer
+
+    - key: REDIS_PASSWORD
+      service: web
+      description: "Redis password"
+      location: [nuc1, nuc2, github]
+      sensitive: true
+      required: false
+
+    - key: CI
+      service: web
+      description: "CI environment flag"
+      location: [github]
+      sensitive: false
+      required: false
+      validation:
+        type: boolean
+
+    - key: PLAYWRIGHT_DEBUG
+      service: web
+      description: "Playwright debug mode for E2E tests"
+      location: [local, github]
+      sensitive: false
+      required: false
+      validation:
+        type: boolean
+
+    # Client-Side Variables (NEXT_PUBLIC_*)
+    - key: NEXT_PUBLIC_APP_URL
+      service: web
+      description: "Application URL"
+      location: [nuc1, nuc2, local]
+      sensitive: false
+      required: false
+      default: "http://localhost:3000"
+      validation:
+        pattern: "^https?://.*"
+
+    - key: NEXT_PUBLIC_ADMIN_API_BASE
+      service: web
+      description: "Admin API base URL"
+      location: [nuc1, nuc2, local]
+      sensitive: false
+      required: true
+      validation:
+        pattern: "^https?://.*"
+      notes: "REQUIRED - points to admin API"
+
+    - key: NEXT_PUBLIC_SNELP_CODES_URL
+      service: web
+      description: "Snelp codes API URL"
+      location: [nuc1, nuc2, local]
+      sensitive: false
+      required: true
+      validation:
+        pattern: "^https?://.*"
+      notes: "REQUIRED - points to Snelp API"
+
+    - key: NEXT_PUBLIC_PLAUSIBLE_DOMAIN
+      service: web
+      description: "Plausible analytics tracking domain"
+      location: [nuc1, nuc2]
+      sensitive: false
+      required: false
+
+    - key: NEXT_PUBLIC_CDN_DOMAIN
+      service: web
+      description: "CDN domain for images"
+      location: [nuc1, nuc2]
+      sensitive: false
+      required: false
+      notes: "Example: cdn.slimyai.xyz"
+
+    - key: NEXT_PUBLIC_CDN_URL
+      service: web
+      description: "CDN URL path for assets"
+      location: [nuc1, nuc2]
+      sensitive: false
+      required: false
+      validation:
+        pattern: "^https?://.*"
+
+    # Build-Time Variables
+    - key: ANALYZE
+      service: web
+      description: "Enable webpack bundle analyzer"
+      location: [local]
+      sensitive: false
+      required: false
+      validation:
+        type: boolean
+
+# ==============================================================================
+# ADMIN UI ENVIRONMENT VARIABLES
+# ==============================================================================
+
+admin_ui:
+  service: "apps/admin-ui"
+  port: 3081
+  runtime: "Next.js"
+
+  variables:
+    - key: NEXT_PUBLIC_ADMIN_API_BASE
+      service: admin-ui
+      description: "Admin API base URL"
+      location: [nuc1, nuc2, local]
+      sensitive: false
+      required: true
+      default: "http://localhost:3080"
+      validation:
+        pattern: "^https?://.*"
+      notes: "Defaults to localhost in dev, empty for relative proxying in prod"
+
+    - key: NEXT_PUBLIC_BOT_CLIENT_ID
+      service: admin-ui
+      description: "Discord bot client ID"
+      location: [nuc1, nuc2]
+      sensitive: false
+      required: false
+      default: "1415387116564910161"
+      validation:
+        pattern: "^[0-9]{17,20}$"
+
+    - key: NEXT_PUBLIC_BOT_INVITE_SCOPES
+      service: admin-ui
+      description: "Bot invite scopes"
+      location: [nuc1, nuc2]
+      sensitive: false
+      required: false
+      default: "bot applications.commands"
+
+    - key: NEXT_PUBLIC_BOT_PERMISSIONS
+      service: admin-ui
+      description: "Bot permissions bitmask"
+      location: [nuc1, nuc2]
+      sensitive: false
+      required: false
+      default: "274878286848"
+      validation:
+        pattern: "^[0-9]+$"
+
+    - key: NEXT_BUILD_ID
+      service: admin-ui
+      description: "Custom build ID override"
+      location: [nuc1, nuc2]
+      sensitive: false
+      required: false
+
+    - key: NODE_ENV
+      service: admin-ui
+      description: "Environment mode"
+      location: [nuc1, nuc2, local]
+      sensitive: false
+      required: true
+      default: "development"
+      validation:
+        enum: [development, test, production]
+
+# ==============================================================================
+# DISCORD BOT ENVIRONMENT VARIABLES (Planned/Future)
+# ==============================================================================
+
+discord_bot:
+  service: "apps/bot"
+  status: "stub"
+  runtime: "Node.js (Discord.js)"
+
+  variables:
+    - key: DISCORD_BOT_TOKEN
+      service: discord-bot
+      description: "Discord bot token for authentication"
+      location: [nuc1, nuc2, github]
+      sensitive: true
+      required: true
+      validation:
+        pattern: "^[A-Za-z0-9_-]{59,}$"
+      notes: "Obtain from Discord Developer Portal"
+
+    - key: DISCORD_CLIENT_ID
+      service: discord-bot
+      description: "Discord application client ID"
+      location: [nuc1, nuc2]
+      sensitive: false
+      required: true
+      validation:
+        pattern: "^[0-9]{17,20}$"
+
+    - key: DISCORD_CLIENT_SECRET
+      service: discord-bot
+      description: "Discord application client secret"
+      location: [nuc1, nuc2, github]
+      sensitive: true
+      required: false
+
+    - key: BOT_PREFIX
+      service: discord-bot
+      description: "Command prefix for bot commands"
+      location: [nuc1, nuc2]
+      sensitive: false
+      required: false
+      default: "!"
+
+    - key: BOT_OWNER_IDS
+      service: discord-bot
+      description: "Bot owner Discord user IDs"
+      location: [nuc1, nuc2]
+      sensitive: false
+      required: false
+      validation:
+        pattern: "^[0-9]+(,[0-9]+)*$"
+
+# ==============================================================================
+# MINECRAFT / SLIME.CRAFT STATUS (Planned/Future)
+# ==============================================================================
+
+minecraft:
+  service: "minecraft-status"
+  status: "planned"
+
+  variables:
+    - key: MINECRAFT_SERVER_HOST
+      service: minecraft-status
+      description: "Minecraft server hostname or IP"
+      location: [nuc1, nuc2]
+      sensitive: false
+      required: true
+      notes: "Example: mc.slime.chat"
+
+    - key: MINECRAFT_SERVER_PORT
+      service: minecraft-status
+      description: "Minecraft server query port"
+      location: [nuc1, nuc2]
+      sensitive: false
+      required: false
+      default: 25565
+      validation:
+        type: integer
+
+    - key: MINECRAFT_RCON_PASSWORD
+      service: minecraft-status
+      description: "RCON password for server management"
+      location: [nuc1, nuc2, github]
+      sensitive: true
+      required: false
+
+# ==============================================================================
+# INFRASTRUCTURE VARIABLES
+# ==============================================================================
+
+infrastructure:
+  services: ["caddy", "docker", "systemd"]
+
+  variables:
+    # Caddy Reverse Proxy
+    - key: CADDY_ADMIN_PORT
+      service: caddy
+      description: "Caddy admin API port"
+      location: [nuc1, nuc2]
+      sensitive: false
+      required: false
+      default: 2019
+      validation:
+        type: integer
+
+    - key: ACME_EMAIL
+      service: caddy
+      description: "Email for Let's Encrypt certificate registration"
+      location: [nuc1, nuc2]
+      sensitive: false
+      required: true
+      validation:
+        pattern: "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$"
+      notes: "Required for SSL certificate renewal notifications"
+
+    # Auto-Deploy & Git Monitoring
+    - key: DEPLOY_BRANCH
+      service: auto-deploy
+      description: "Git branch to monitor for auto-deploy"
+      location: [nuc1, nuc2]
+      sensitive: false
+      required: false
+      default: "main"
+
+    - key: DEPLOY_REMOTE
+      service: auto-deploy
+      description: "Git remote to pull from"
+      location: [nuc1, nuc2]
+      sensitive: false
+      required: false
+      default: "origin"
+
+    - key: DEPLOY_WEBHOOK_URL
+      service: auto-deploy
+      description: "Webhook URL for deployment notifications"
+      location: [nuc1, nuc2]
+      sensitive: true
+      required: false
+      validation:
+        pattern: "^https?://.*"
+
+    - key: GIT_DIRT_CHECK_INTERVAL
+      service: git-dirt-watcher
+      description: "Interval for git status checking (seconds)"
+      location: [nuc1, nuc2]
+      sensitive: false
+      required: false
+      default: 300
+      validation:
+        type: integer
+        min: 60
+
+    # Docker Compose
+    - key: COMPOSE_PROJECT_NAME
+      service: docker
+      description: "Docker Compose project name"
+      location: [nuc1, nuc2]
+      sensitive: false
+      required: false
+      default: "slimy"
+
+    - key: DOCKER_RESTART_POLICY
+      service: docker
+      description: "Container restart policy"
+      location: [nuc1, nuc2]
+      sensitive: false
+      required: false
+      default: "unless-stopped"
+      validation:
+        enum: [no, always, on-failure, unless-stopped]
+
+# ==============================================================================
+# VALIDATION RULES & METADATA
+# ==============================================================================
+
+validation_rules:
+  secrets:
+    min_length: 32
+    generation_method: "openssl rand -base64 32"
+
+  discord_ids:
+    pattern: "^[0-9]{17,20}$"
+    format: "snowflake"
+
+  urls:
+    pattern: "^https?://[a-zA-Z0-9.-]+(:[0-9]+)?(/.*)?$"
+
+  database_urls:
+    postgresql: "^postgres(ql)?://[^:]+:[^@]+@[^:]+:[0-9]+/[^?]+(\\?.*)?$"
+
+  api_keys:
+    openai: "^sk-[a-zA-Z0-9-_]{32,}$"
+    github: "^(ghp_[a-zA-Z0-9]{36}|github_pat_[a-zA-Z0-9_]{82})$"
+    firecrawl: "^fc-[a-zA-Z0-9]{32,}$"
+
+# ==============================================================================
+# DEPLOYMENT MATRIX
+# ==============================================================================
+
+deployment_locations:
+  nuc1:
+    description: "Primary production deployment"
+    domains: ["slimyai.xyz", "panel.slimyai.xyz", "slime.chat"]
+    services: [admin-api, web, admin-ui]
+
+  nuc2:
+    description: "Secondary/staging deployment or redundant production"
+    domains: ["staging.slimyai.xyz"]
+    services: [admin-api, web, admin-ui]
+
+  github:
+    description: "GitHub Actions CI/CD"
+    usage: ["testing", "builds", "deployments"]
+    required_secrets:
+      - SESSION_SECRET
+      - JWT_SECRET
+      - DISCORD_CLIENT_SECRET
+      - DATABASE_URL
+      - OPENAI_API_KEY
+      - GITHUB_TOKEN
+
+  local:
+    description: "Local development environment"
+    required_minimum:
+      - SESSION_SECRET
+      - JWT_SECRET
+      - DISCORD_CLIENT_ID
+      - DISCORD_CLIENT_SECRET
+      - DATABASE_URL
+
+# ==============================================================================
+# SECURITY NOTES
+# ==============================================================================
+
+security_notes:
+  - "Never commit .env files with real values to git"
+  - "Use .env.example files as templates only"
+  - "Store production secrets in secure vaults (1Password, AWS Secrets Manager, etc.)"
+  - "Use different secrets for each environment (dev/staging/production)"
+  - "Rotate secrets regularly, especially after team member changes"
+  - "Audit access to production environment files"
+  - "Use minimum required permissions for service accounts"
+  - "Enable MFA on all accounts with production access"
+  - "Monitor for leaked secrets using tools like git-secrets or truffleHog"
+  - "Never log or display sensitive values in application output"
+
+# ==============================================================================
+# USAGE EXAMPLES
+# ==============================================================================
+
+usage_examples:
+  validation_cli: |
+    # Validate a .env file against this schema
+    slimy-config validate apps/admin-api/.env.admin.production
+
+    # Check for missing required variables
+    slimy-config check --service admin-api --env production
+
+    # Generate a .env template for a service
+    slimy-config template --service web --output .env.example
+
+    # Diff two environments
+    slimy-config diff .env.staging .env.production
+
+  secret_generation: |
+    # Generate secure random secret (32+ characters)
+    openssl rand -base64 32
+
+    # Generate secure random secret (64 characters)
+    openssl rand -base64 64
+
+    # Generate UUID for service identifiers
+    uuidgen
+
+  docker_compose_usage: |
+    # Load environment from .env.admin.production
+    docker-compose --env-file apps/admin-api/.env.admin.production up -d
+
+    # Check current environment variables
+    docker-compose config
