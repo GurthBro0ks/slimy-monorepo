@@ -1,0 +1,30 @@
+# Git Dirt Watcher - Repository List
+#
+# This file contains a list of repository paths to monitor for uncommitted changes.
+# Each line should contain an absolute path to a git repository.
+#
+# Format:
+#   - One repository path per line
+#   - Paths can be absolute or use ~ for home directory
+#   - Lines starting with # are treated as comments
+#   - Empty lines are ignored
+#
+# Example paths (modify these for your actual repositories):
+
+# Production application repositories
+/opt/slimy/app/slimy-monorepo
+/opt/slimy/app/web-backend
+/opt/slimy/app/api-gateway
+
+# System configuration repositories
+/etc/nginx-configs
+/opt/slimy/infra/kubernetes-manifests
+
+# User repositories (with tilde expansion)
+~/projects/important-project
+~/work/production-scripts
+
+# NUC-specific example paths
+# /opt/slimy/tools/deployment-scripts
+# /opt/slimy/config/env-files
+# /var/lib/docker-compose/production
