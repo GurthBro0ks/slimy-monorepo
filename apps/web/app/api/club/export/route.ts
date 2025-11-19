@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { clubDatabase } from '@/lib/club/database';
+import { caches, shouldBypassCache } from '@/lib/memory-cache';
 
 // TODO: Import MCP client when available
 // import { getMCPClient } from '@/lib/mcp-client';
@@ -20,20 +21,39 @@ export async function POST(request: NextRequest) {
     let analysisData = null;
     if (includeAnalysis) {
       try {
-        const analyses = await clubDatabase.getAnalysesByGuild(guildId, 100, 0); // Get last 100 analyses
-        analysisData = analyses.map(analysis => ({
-          id: analysis.id,
-          title: analysis.title,
-          createdAt: analysis.createdAt.toISOString(),
-          summary: analysis.summary,
-          confidence: analysis.confidence,
-          metrics: analysis.metrics.reduce((acc, metric) => {
-            acc[metric.name] = metric.value;
-            return acc;
-          }, {} as Record<string, any>),
-          insights: [], // Would be extracted from analysis if stored
-          recommendations: [] // Would be extracted from analysis if stored
-        }));
+        // Use cache key based on guildId and data range
+        const cacheKey = `clubExport:${guildId}:${dateRange || 'all'}`;
+        const bypassCache = shouldBypassCache();
+
+        // Try to get from cache first (unless bypassed)
+        if (!bypassCache) {
+          analysisData = caches.mediumLived.get(cacheKey);
+        }
+
+        if (!analysisData) {
+          // Cache miss - fetch and transform data
+          const analyses = await clubDatabase.getAnalysesByGuild(guildId, 100, 0); // Get last 100 analyses
+
+          // Expensive transformation: reduce metrics array to object for each analysis
+          analysisData = analyses.map(analysis => ({
+            id: analysis.id,
+            title: analysis.title,
+            createdAt: analysis.createdAt.toISOString(),
+            summary: analysis.summary,
+            confidence: analysis.confidence,
+            metrics: analysis.metrics.reduce((acc, metric) => {
+              acc[metric.name] = metric.value;
+              return acc;
+            }, {} as Record<string, any>),
+            insights: [], // Would be extracted from analysis if stored
+            recommendations: [] // Would be extracted from analysis if stored
+          }));
+
+          // Store in cache for 2 minutes (mediumLived TTL)
+          if (!bypassCache) {
+            caches.mediumLived.set(cacheKey, analysisData);
+          }
+        }
       } catch (error) {
         console.error('Failed to fetch analysis data:', error);
         // Continue without analysis data
