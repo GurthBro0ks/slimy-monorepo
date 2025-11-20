@@ -5,7 +5,6 @@ import { Message, ChatSession } from '@/types/chat';
 import { PersonalityMode } from '@/lib/personality-modes';
 import { chatStorage } from '@/lib/chat/storage';
 import { useAuth } from '@/lib/auth/context';
-import { httpClient } from '@/lib/http';
 
 const STORAGE_KEY = 'slime-chat-session';
 
@@ -112,39 +111,57 @@ export function useChat(conversationId?: string) {
       updatedAt: Date.now(),
     }));
 
-    // Make HTTP request with automatic retry logic
-    const httpResult = await httpClient.post<Response>('/api/chat/message', {
-      message: content,
-      personalityMode: session.currentMode,
-      conversationHistory: session.messages.filter(msg => msg.id !== placeholderMessage.id),
-      userId: user?.id,
-    }, {
-      retries: 2,
-      retryDelay: 1000,
-      skipJsonParsing: true, // We need the raw Response for streaming
-    });
+    // TODO: migrate to apps/web/lib/http/client.ts for better error handling and retry logic
+    // Retry logic for network/API failures
+    let response;
+    let retryCount = 0;
+    const maxRetries = 2;
 
-    // Handle HTTP errors
-    if (!httpResult.ok) {
-      const error = httpResult.error;
-
-      // Provide user-friendly error messages
-      if (error.code === 'RATE_LIMIT_EXCEEDED') {
-        throw new Error('Too many requests. Please wait a moment and try again.');
+    while (retryCount <= maxRetries) {
+      try {
+        response = await fetch('/api/chat/message', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            message: content,
+            personalityMode: session.currentMode,
+            conversationHistory: session.messages.filter(msg => msg.id !== placeholderMessage.id),
+            userId: user?.id,
+          }),
+        });
+        break; // Success, exit retry loop
+      } catch (networkError) {
+        retryCount++;
+        if (retryCount <= maxRetries) {
+          console.warn(`Network request failed (attempt ${retryCount}/${maxRetries + 1}), retrying...`);
+          await new Promise(resolve => setTimeout(resolve, Math.pow(2, retryCount) * 1000));
+          continue;
+        }
+        throw networkError;
       }
-      if (error.code === 'OPENAI_AUTH_ERROR') {
-        throw new Error('Authentication error. Please contact support.');
-      }
-      if (error.code === 'TIMEOUT_ERROR') {
-        throw new Error('Request timed out. Please try again.');
-      }
-
-      throw new Error(error.message || 'Failed to send message');
     }
 
-    // Get the streaming response
-    const response = httpResult.data as Response;
-    const reader = response.body?.getReader();
+    if (!response!.ok) {
+      const errorData = await response!.json();
+
+      // Don't retry on rate limit or auth errors
+      if (errorData.code === 'RATE_LIMIT_EXCEEDED' || errorData.code === 'OPENAI_AUTH_ERROR') {
+        throw new Error(errorData.error || 'Request failed');
+      }
+
+      // Retry on other errors
+      if (retryCount < maxRetries && errorData.code !== 'INVALID_MESSAGE') {
+        console.warn(`API request failed with ${errorData.code}, retrying...`);
+        // Could implement retry logic here for specific error codes
+      }
+
+      throw new Error(errorData.error || 'Failed to send message');
+    }
+
+    // Handle streaming response
+    const reader = response!.body?.getReader();
     const decoder = new TextDecoder();
 
     if (!reader) {
