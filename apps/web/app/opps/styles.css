@@ -1,0 +1,369 @@
+/**
+ * Local styles for the /opps route.
+ * Kept minimal and isolated to this feature only.
+ */
+
+.opps-container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 2rem;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.opps-header {
+  margin-bottom: 2rem;
+  border-bottom: 2px solid #e5e7eb;
+  padding-bottom: 1rem;
+}
+
+.opps-header h1 {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #111827;
+  margin: 0 0 0.5rem 0;
+}
+
+.opps-subtitle {
+  color: #6b7280;
+  font-size: 0.875rem;
+  margin: 0;
+}
+
+/* Loading and Error States */
+.opps-loading,
+.opps-error {
+  text-align: center;
+  padding: 4rem 2rem;
+  color: #6b7280;
+}
+
+.opps-error {
+  color: #dc2626;
+}
+
+.opps-error h2 {
+  font-size: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+/* Control Panel */
+.opps-controls {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  align-items: center;
+}
+
+.control-group {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.control-group.full-width {
+  flex: 1 1 100%;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.control-label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #374151;
+  margin: 0;
+}
+
+/* Mode Switcher */
+.mode-switcher {
+  display: flex;
+  gap: 0.5rem;
+  background: white;
+  border-radius: 6px;
+  padding: 0.25rem;
+  border: 1px solid #d1d5db;
+}
+
+.mode-button {
+  padding: 0.5rem 1rem;
+  border: none;
+  background: transparent;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #6b7280;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.mode-button:hover {
+  background: #f3f4f6;
+  color: #111827;
+}
+
+.mode-button.active {
+  background: #3b82f6;
+  color: white;
+}
+
+/* Slider */
+.slider {
+  width: 150px;
+  height: 6px;
+  border-radius: 3px;
+  background: #d1d5db;
+  outline: none;
+  cursor: pointer;
+}
+
+.slider::-webkit-slider-thumb {
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #3b82f6;
+  cursor: pointer;
+}
+
+.slider::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #3b82f6;
+  cursor: pointer;
+  border: none;
+}
+
+/* Domain Filters */
+.domain-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.domain-pill {
+  padding: 0.5rem 1rem;
+  border: 2px solid #d1d5db;
+  background: white;
+  border-radius: 20px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #6b7280;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.domain-pill:hover {
+  border-color: #9ca3af;
+  background: #f9fafb;
+}
+
+.domain-pill.active {
+  border-color: #3b82f6;
+  background: #eff6ff;
+  color: #1e40af;
+}
+
+/* Summary */
+.opps-summary {
+  margin-bottom: 1.5rem;
+  padding: 0.75rem 1rem;
+  background: #f0f9ff;
+  border-left: 4px solid #3b82f6;
+  border-radius: 4px;
+}
+
+.opps-summary p {
+  margin: 0;
+  font-size: 0.875rem;
+  color: #1e40af;
+}
+
+.opps-summary .timestamp {
+  color: #6b7280;
+  font-size: 0.8125rem;
+}
+
+/* Empty State */
+.opps-empty {
+  text-align: center;
+  padding: 3rem;
+  color: #6b7280;
+  background: #f9fafb;
+  border-radius: 8px;
+  border: 2px dashed #d1d5db;
+}
+
+/* Grid and Sections */
+.opps-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.domain-section {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 1.5rem;
+}
+
+.domain-header {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #111827;
+  margin: 0 0 1rem 0;
+  padding-bottom: 0.75rem;
+  border-bottom: 2px solid #f3f4f6;
+}
+
+.domain-header .count {
+  color: #6b7280;
+  font-weight: 400;
+  font-size: 1rem;
+}
+
+/* Opportunities List */
+.opportunities-list {
+  display: grid;
+  gap: 1rem;
+}
+
+.opportunity-card {
+  background: #fafafa;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  padding: 1rem;
+  transition: all 0.2s;
+}
+
+.opportunity-card:hover {
+  border-color: #3b82f6;
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.1);
+}
+
+.opp-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: start;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.opp-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #111827;
+  margin: 0;
+  flex: 1;
+}
+
+.risk-badge {
+  padding: 0.25rem 0.75rem;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: white;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.opp-summary {
+  color: #4b5563;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  margin-bottom: 0.75rem;
+}
+
+.opp-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.meta-item {
+  font-size: 0.8125rem;
+  color: #6b7280;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.opp-source {
+  font-size: 0.75rem;
+  color: #9ca3af;
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid #e5e7eb;
+}
+
+/* Debug Panel */
+.opps-debug {
+  margin-top: 3rem;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: #f9fafb;
+}
+
+.opps-debug summary {
+  padding: 1rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #6b7280;
+  cursor: pointer;
+  user-select: none;
+}
+
+.opps-debug summary:hover {
+  background: #f3f4f6;
+}
+
+.debug-json {
+  margin: 0;
+  padding: 1rem;
+  background: #1f2937;
+  color: #10b981;
+  font-size: 0.75rem;
+  line-height: 1.5;
+  overflow-x: auto;
+  border-radius: 0 0 6px 6px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .opps-container {
+    padding: 1rem;
+  }
+
+  .opps-controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .control-group {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .mode-switcher {
+    width: 100%;
+  }
+
+  .mode-button {
+    flex: 1;
+  }
+
+  .slider {
+    width: 100%;
+  }
+
+  .opp-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
