@@ -1,0 +1,19 @@
+{
+  "name": "@slimy/opps-core",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Core library for opportunity radar engine - types, scoring, and AI contracts",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "typescript": "^5",
+    "vitest": "^4.0.7"
+  }
+}
