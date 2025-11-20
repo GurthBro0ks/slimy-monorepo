@@ -18,7 +18,7 @@ const { requireCsrf } = require("../middleware/csrf");
 const { getSession } = require("../../lib/session-store");
 const metrics = require("../lib/monitoring/metrics");
 const { queueManager } = require("../lib/queues");
-const database = require("../../../lib/database");
+const database = require("../../lib/database");
 const { chat } = require("../lib/validation/schemas");
 const { apiHandler } = require("../lib/errors");
 

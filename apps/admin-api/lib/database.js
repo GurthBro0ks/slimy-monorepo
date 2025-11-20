@@ -56,4 +56,26 @@ async function tx(fn) {
   }
 }
 
-module.exports = { pool, getPool: () => pool, query, one, tx };
+function isConfigured() {
+  return !!cfg.host;
+}
+
+async function initialize() {
+  // Verify database connection by running a simple query
+  // If database is not available, log a warning and continue in read-only mode
+  try {
+    const conn = await pool.getConnection();
+    conn.release();
+    return true;
+  } catch (e) {
+    console.warn(`[admin-api] Database connection failed: ${e.message}`);
+    console.warn('[admin-api] Continuing in read-only mode without database');
+    return false;
+  }
+}
+
+async function close() {
+  await pool.end();
+}
+
+module.exports = { pool, getPool: () => pool, query, one, tx, isConfigured, initialize, close };

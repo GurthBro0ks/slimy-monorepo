@@ -189,7 +189,7 @@ describe("Chat Routes", () => {
   describe("GET /api/chat/:guildId/history", () => {
     beforeEach(() => {
       // Reset mocks
-      const database = require("../../../lib/database");
+      const database = require("../../lib/database");
       database.isConfigured.mockReturnValue(true);
       database.getChatMessages.mockResolvedValue([
         {
@@ -313,7 +313,7 @@ describe("Chat Routes", () => {
     });
 
     it("should return empty messages when database not configured", () => {
-      const database = require("../../../lib/database");
+      const database = require("../../lib/database");
       database.isConfigured.mockReturnValue(false);
 
       return request(app)
@@ -327,7 +327,7 @@ describe("Chat Routes", () => {
     });
 
     it("should handle database errors", () => {
-      const database = require("../../../lib/database");
+      const database = require("../../lib/database");
       database.getChatMessages.mockRejectedValue(new Error("Database error"));
 
       return request(app)
@@ -368,7 +368,7 @@ describe("Chat Routes", () => {
       const chatRoutes = require("./chat");
 
       // Test the getColorForRole function indirectly through message formatting
-      const database = require("../../../lib/database");
+      const database = require("../../lib/database");
       database.getChatMessages.mockResolvedValue([
         {
           message_id: "msg-1",
@@ -429,7 +429,7 @@ describe("Chat Routes", () => {
     });
 
     it("should return default color for unknown role", () => {
-      const database = require("../../../lib/database");
+      const database = require("../../lib/database");
       database.getChatMessages.mockResolvedValue([
         {
           message_id: "msg-1",
