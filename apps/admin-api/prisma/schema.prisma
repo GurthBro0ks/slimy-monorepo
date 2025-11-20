@@ -20,6 +20,12 @@ model User {
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
+  // User profile fields
+  displayName String?  @map("display_name")
+  avatarUrl   String?  @map("avatar_url")
+  timezone    String?
+  preferences Json?    // Theme, default models, etc.
+
   // Relations
   sessions      Session[]
   userGuilds    UserGuild[]
@@ -29,9 +35,8 @@ model User {
   clubAnalyses  ClubAnalysis[]
   screenshotAnalyses ScreenshotAnalysis[]
   screenshotComparisons ScreenshotComparison[]
-  clubScreenshots ClubScreenshot[]
-  clubScreenshotAnalyses ClubScreenshotAnalysis[]
   auditLogs     AuditLog[]
+  savedPrompts  SavedPrompt[]
 
   // Performance indexes
   @@index([createdAt])
@@ -75,7 +80,6 @@ model Guild {
   stats         Stat[]
   chatMessages  ChatMessage[]
   clubAnalyses  ClubAnalysis[]
-  clubScreenshots ClubScreenshot[]
 
   // Performance indexes
   @@index([createdAt])
@@ -453,49 +457,23 @@ model AuditLog {
   @@map("audit_logs")
 }
 
-// Club screenshots for vision analysis
-model ClubScreenshot {
-  id               Int      @id @default(autoincrement())
-  guildId          String   @map("guild_id")
-  uploaderUserId   String?  @map("uploader_user_id")
-  originalFilename String   @map("original_filename")
-  storagePath      String   @map("storage_path") // e.g. /data/screenshots/...
-  createdAt        DateTime @default(now()) @map("created_at")
+// User saved prompts/macros
+model SavedPrompt {
+  id        Int      @id @default(autoincrement())
+  userId    String   @map("user_id")
+  title     String
+  content   String   @db.Text // The actual prompt text
+  tags      String?  // Comma-separated tags
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   // Relations
-  guild    Guild                    @relation(fields: [guildId], references: [id], onDelete: Cascade)
-  uploader User?                    @relation(fields: [uploaderUserId], references: [id], onDelete: SetNull)
-  analyses ClubScreenshotAnalysis[]
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   // Performance indexes
-  @@index([guildId])
-  @@index([uploaderUserId])
-  @@index([createdAt])
-  @@index([guildId, createdAt])
-
-  @@map("club_screenshots")
-}
-
-// Vision analysis results for club screenshots
-model ClubScreenshotAnalysis {
-  id           Int      @id @default(autoincrement())
-  screenshotId Int      @map("screenshot_id")
-  userId       String   @map("user_id") // User who triggered the analysis
-  model        String   // e.g. "gpt-4-vision-preview"
-  rawResponse  Json     @map("raw_response") // Raw AI response
-  summary      String?  // AI-generated summary
-  createdAt    DateTime @default(now()) @map("created_at")
-
-  // Relations
-  screenshot ClubScreenshot @relation(fields: [screenshotId], references: [id], onDelete: Cascade)
-  user       User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  // Performance indexes
-  @@index([screenshotId])
   @@index([userId])
-  @@index([model])
   @@index([createdAt])
-  @@index([screenshotId, createdAt])
+  @@index([userId, createdAt])
 
-  @@map("club_screenshot_analyses")
+  @@map("saved_prompts")
 }

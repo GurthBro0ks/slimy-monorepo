@@ -4,9 +4,10 @@ import { useChat } from '@/hooks/use-chat';
 import { MessageBubble } from './message-bubble';
 import { MessageInput } from './message-input';
 import { PersonalitySelector } from './personality-selector';
+import { SavedPromptsSelector } from './saved-prompts-selector';
 import { Button } from '@/components/ui/button';
 import { Trash2, Loader2 } from 'lucide-react';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Callout } from '@/components/ui/callout';
 
 export function ChatInterface() {
@@ -21,11 +22,16 @@ export function ChatInterface() {
   } = useChat();
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [inputValue, setInputValue] = useState('');
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  const handleSelectPrompt = (content: string) => {
+    setInputValue(content);
+  };
 
   return (
     <div className="flex h-[calc(100vh-200px)] flex-col gap-4">
@@ -39,16 +45,22 @@ export function ChatInterface() {
             disabled={isLoading}
           />
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={clearConversation}
-          disabled={isLoading || messages.length === 0}
-          className="border-red-500/30 text-red-500 hover:bg-red-500/10"
-        >
-          <Trash2 className="mr-2 h-4 w-4" />
-          Clear Chat
-        </Button>
+        <div className="flex gap-2">
+          <SavedPromptsSelector
+            onSelectPrompt={handleSelectPrompt}
+            disabled={isLoading}
+          />
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={clearConversation}
+            disabled={isLoading || messages.length === 0}
+            className="border-red-500/30 text-red-500 hover:bg-red-500/10"
+          >
+            <Trash2 className="mr-2 h-4 w-4" />
+            Clear Chat
+          </Button>
+        </div>
       </div>
 
       {/* Messages Container */}
@@ -90,7 +102,12 @@ export function ChatInterface() {
       )}
 
       {/* Message Input */}
-      <MessageInput onSend={sendMessage} disabled={isLoading} />
+      <MessageInput
+        onSend={sendMessage}
+        disabled={isLoading}
+        value={inputValue}
+        onValueChange={setInputValue}
+      />
     </div>
   );
 }
