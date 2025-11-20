@@ -1,3 +1,19 @@
+/**
+ * Authentication Context for RBAC (Role-Based Access Control)
+ *
+ * This context provides authentication state and role information for the
+ * application. It automatically fetches user data on mount and provides
+ * helpers for login, logout, and session refresh.
+ *
+ * Role Hierarchy (lowest to highest):
+ * - user: Basic authenticated user
+ * - mod: Moderator with elevated permissions
+ * - admin: Administrator with full access
+ *
+ * This is v1 of the RBAC system and can be extended with additional features
+ * like permission-based access control, resource-specific permissions, etc.
+ */
+
 "use client";
 
 import React, { createContext, useContext, useEffect, useState, ReactNode } from "react";

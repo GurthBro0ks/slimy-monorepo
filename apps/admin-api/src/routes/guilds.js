@@ -8,7 +8,9 @@ const { requireAuth } = require("../middleware/auth");
 const { requireCsrf } = require("../middleware/csrf");
 const { requireRole, requireGuildAccess } = require("../middleware/rbac");
 const { validateBody, validateQuery } = require("../middleware/validate");
-const { guilds: guildValidation } = require("../lib/validation/schemas");
+// New RBAC middleware for role-based access control
+const { requireUser } = require("../lib/session");
+const { requireRole: requireRoleV2 } = require("../middleware/permissions");
 const settingsService = require("../services/settings");
 const personalityService = require("../services/personality");
 const channelService = require("../services/channels");
@@ -111,6 +113,8 @@ router.put(
   "/:guildId/settings",
   requireGuildAccess,
   requireRole("editor"),
+  requireUser, // New session validation
+  requireRoleV2("admin"), // New RBAC: only admins can update settings
   requireCsrf,
   validateBody(settingsSchema),
   async (req, res, next) => {
@@ -261,10 +265,12 @@ router.delete(
   requireGuildAccess,
   requireRole("editor"),
   requireCsrf,
-  guildValidation.deleteCorrection,
   async (req, res, next) => {
     try {
       const correctionId = Number(req.params.correctionId);
+      if (!Number.isFinite(correctionId)) {
+        return res.status(400).json({ error: "invalid-correction-id" });
+      }
 
       const success = await correctionsService.deleteCorrectionById(
         req.params.guildId,
@@ -292,18 +298,10 @@ router.post(
   requireRole("editor"),
   requireCsrf,
   upload.single("file"),
-  guildValidation.rescanUser,
   async (req, res, next) => {
     try {
       if (!req.file) {
-        return res.status(400).json({
-          ok: false,
-          error: {
-            code: "INVALID_REQUEST",
-            message: "File is required",
-            details: [{ field: "file", message: "No file uploaded" }],
-          },
-        });
+        return res.status(400).json({ error: "file-required" });
       }
 
       const result = await rescanMember(
