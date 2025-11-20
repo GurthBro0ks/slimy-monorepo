@@ -450,50 +450,47 @@ model AuditLog {
   @@map("audit_logs")
 }
 
-// Seasons: time-bound periods for club events and stats aggregation
-model Season {
-  id        Int      @id @default(autoincrement())
-  guildId   String   @map("guild_id")
-  name      String   // e.g., "Winter 2025", "Q1 2025"
-  startDate DateTime @map("start_date")
-  endDate   DateTime @map("end_date")
-  isActive  Boolean  @default(true) @map("is_active")
-  createdAt DateTime @default(now()) @map("created_at")
-
-  // Relations
-  memberStats SeasonMemberStats[]
+// Agent Task Management
+model AgentTask {
+  id          Int      @id @default(autoincrement())
+  agentName   String   @map("agent_name") // e.g. "claude-code", "autocodex", "snail-analytics"
+  status      String   @default("pending") // "pending" | "running" | "completed" | "failed"
+  input       Json
+  output      Json?
+  error       String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  triggeredBy String?  @map("triggered_by") // user or system id
+  tags        String?  // comma-separated tags
 
   // Performance indexes
-  @@index([guildId])
-  @@index([isActive])
-  @@index([startDate])
-  @@index([endDate])
-  @@index([guildId, isActive])
-  @@index([guildId, startDate])
+  @@index([agentName])
+  @@index([status])
+  @@index([createdAt])
+  @@index([updatedAt])
+  @@index([agentName, status])
+  @@index([agentName, createdAt])
+  @@index([status, createdAt])
+  @@index([triggeredBy])
 
-  @@map("seasons")
+  @@map("agent_tasks")
 }
 
-// Aggregated member statistics for a season
-// This is an abstraction for future seasonal events / rewards
-// Aggregation is idempotent and can be re-run
-model SeasonMemberStats {
-  id                 Int     @id @default(autoincrement())
-  seasonId           Int     @map("season_id")
-  memberKey          String  @map("member_key") // Unique identifier for the member
-  totalPowerGain     BigInt  @default(0) @map("total_power_gain") // Power progression during season
-  bestTier           String? @map("best_tier") // Highest tier achieved
-  participationCount Int     @default(0) @map("participation_count") // Number of snapshots member appeared in
-
-  // Relations
-  season Season @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+// Agent Definitions/Registry
+model AgentDefinition {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique // Agent name identifier
+  description String   // Human-readable description
+  capabilities Json    // JSON array of supported task types/capabilities
+  config      Json?    // Optional configuration (model names, cost hints, etc.)
+  enabled     Boolean  @default(true)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
 
   // Performance indexes
-  @@index([seasonId])
-  @@index([memberKey])
-  @@index([seasonId, memberKey])
-  @@index([seasonId, totalPowerGain])
+  @@index([name])
+  @@index([enabled])
+  @@index([createdAt])
 
-  @@unique([seasonId, memberKey])
-  @@map("season_member_stats")
+  @@map("agent_definitions")
 }
