@@ -5,11 +5,13 @@
   "type": "commonjs",
   "main": "server.js",
   "scripts": {
-    "dev": "node server.js",
     "start": "node server.js",
+    "dev": "node server.js",
     "build": "node -e \"console.log('admin-api runs directly from source; no build artifacts generated yet.')\"",
-    "test": "echo \"TODO: add tests for admin-api\"",
-    "lint": "echo \"TODO: add lint for admin-api\""
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:ui": "vitest --ui",
+    "test:coverage": "vitest run --coverage"
   },
   "engines": {
     "node": ">=20"
@@ -31,8 +33,13 @@
     "multer": "^1.4.5-lts.2",
     "mysql2": "^3.15.3",
     "node-fetch": "^3.3.2",
+    "redis": "^4.7.1",
     "sharp": "^0.33.4",
     "undici": "^7.16.0",
     "zod": "^3.25.6"
+  },
+  "devDependencies": {
+    "@vitest/ui": "^4.0.9",
+    "vitest": "^4.0.9"
   }
 }
