@@ -1,0 +1,27 @@
+{
+  "name": "@slimy-monorepo/test-fixtures",
+  "version": "0.1.0",
+  "description": "Reusable test data and fixture library for snails, guilds, users, and minecraft stats",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "echo \"No tests yet\" && exit 0"
+  },
+  "keywords": [
+    "test",
+    "fixtures",
+    "factory",
+    "testing"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "typescript": "^5.3.3"
+  },
+  "peerDependencies": {},
+  "files": [
+    "dist",
+    "src"
+  ]
+}
