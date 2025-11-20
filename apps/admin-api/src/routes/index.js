@@ -13,7 +13,7 @@ const botRoutes = require("./bot");
 const statsRoutes = require("./stats");
 const snailRoutes = require("./snail");
 const chatRoutes = require("./chat");
-const statusRoutes = require("./status");
+const { getPrometheusMetrics } = require("../lib/metrics");
 
 router.get("/api/", (_req, res) => res.json({ ok: true }));
 router.get("/api/health", (_req, res) => {
@@ -24,7 +24,17 @@ router.get("/api/health", (_req, res) => {
     timestamp: new Date().toISOString(),
   });
 });
-router.use("/api", statusRoutes);
+
+// Prometheus metrics endpoint
+router.get("/metrics", async (_req, res) => {
+  try {
+    res.set("Content-Type", "text/plain; version=0.0.4; charset=utf-8");
+    const metrics = await getPrometheusMetrics();
+    res.send(metrics);
+  } catch (err) {
+    res.status(500).send("Error collecting metrics");
+  }
+});
 router.use("/api", debugRoutes);
 router.use("/api/auth", authRoutes);
 router.use("/api/guilds/:guildId/snail", snailRoutes);
