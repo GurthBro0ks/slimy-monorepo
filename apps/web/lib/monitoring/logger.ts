@@ -2,12 +2,31 @@
  * Structured Logging System
  *
  * Provides structured JSON logging with support for multiple transports,
- * log levels, and contextual information
+ * log levels, and contextual information.
+ *
+ * NOTE: File logging is only available in Node.js environment.
+ * In browser environment, only console logging is available.
  */
 
-import { writeFileSync, mkdirSync, existsSync } from 'fs';
-import { join } from 'path';
 import type { LogLevel, LogEntry, JSONObject } from '../types/common';
+
+// Check if we're in a Node.js environment
+const isNode = typeof process !== 'undefined' && process.versions != null && process.versions.node != null;
+
+// Dynamically import Node.js modules only in Node.js environment
+let writeFileSync: any, mkdirSync: any, existsSync: any, join: any;
+if (isNode && typeof window === 'undefined') {
+  try {
+    const fs = require('fs');
+    const path = require('path');
+    writeFileSync = fs.writeFileSync;
+    mkdirSync = fs.mkdirSync;
+    existsSync = fs.existsSync;
+    join = path.join;
+  } catch (e) {
+    // Node modules not available
+  }
+}
 
 /**
  * Logger configuration
@@ -72,31 +91,43 @@ class ConsoleTransport implements LogTransport {
 
 /**
  * File transport (JSONL format)
+ * Only works in Node.js environment
  */
 class FileTransport implements LogTransport {
   private logDirectory: string;
 
   constructor(logDirectory: string) {
     this.logDirectory = logDirectory;
-    this.ensureLogDirectory();
+    if (isNode && typeof window === 'undefined' && existsSync && mkdirSync) {
+      this.ensureLogDirectory();
+    }
   }
 
   private ensureLogDirectory(): void {
+    if (!existsSync || !mkdirSync) return;
     if (!existsSync(this.logDirectory)) {
       mkdirSync(this.logDirectory, { recursive: true });
     }
   }
 
   private getLogFilePath(level: LogLevel): string {
+    if (!join) return '';
     const date = new Date().toISOString().split('T')[0];
     return join(this.logDirectory, `${level}-${date}.jsonl`);
   }
 
   log(entry: LogEntry): void {
+    // Only write to file in Node.js environment
+    if (!isNode || typeof window !== 'undefined' || !writeFileSync) {
+      return;
+    }
+
     try {
       const logLine = JSON.stringify(entry) + '\n';
       const logFile = this.getLogFilePath(entry.level);
-      writeFileSync(logFile, logLine, { flag: 'a' });
+      if (logFile) {
+        writeFileSync(logFile, logLine, { flag: 'a' });
+      }
     } catch (error) {
       console.error('Failed to write log to file:', error);
     }
@@ -112,12 +143,18 @@ export class Logger {
   private context: JSONObject;
 
   constructor(config?: Partial<LoggerConfig>, initialContext?: JSONObject) {
+    // Determine default values based on environment
+    const isBrowser = typeof window !== 'undefined';
+    const nodeEnv = typeof process !== 'undefined' ? process.env.NODE_ENV : 'development';
+    const logLevel = typeof process !== 'undefined' ? (process.env.LOG_LEVEL as LogLevel) : 'info';
+
     this.config = {
-      level: (process.env.LOG_LEVEL as LogLevel) || 'info',
+      level: logLevel || 'info',
       enableConsole: true,
-      enableFile: process.env.NODE_ENV === 'production',
+      // Only enable file logging in Node.js production environment
+      enableFile: !isBrowser && isNode && nodeEnv === 'production',
       logDirectory: 'logs',
-      prettyPrint: process.env.NODE_ENV !== 'production',
+      prettyPrint: nodeEnv !== 'production',
       includeTimestamp: true,
       includeStackTrace: true,
       ...config,
