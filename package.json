@@ -3,7 +3,8 @@
   "private": true,
   "workspaces": [
     "apps/*",
-    "packages/*"
+    "packages/*",
+    "experimental/*"
   ],
   "scripts": {
     "lint": "pnpm -r run lint || echo \"TODO: lint\"",
