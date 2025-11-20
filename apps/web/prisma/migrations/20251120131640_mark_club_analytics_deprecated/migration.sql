@@ -1,0 +1,21 @@
+-- Deprecation: Club Analytics Models
+--
+-- NOTE: As of Phase 2.1 (Database Consolidation), the following models
+-- are deprecated and should no longer be used by web app code:
+-- - ClubAnalysis
+-- - ClubAnalysisImage
+-- - ClubMetric
+-- - AuditLog
+--
+-- These models are being moved to admin-api as the canonical source of truth.
+--
+-- Migration Plan:
+-- 1. Existing data should be migrated to admin-api database
+-- 2. Web app should read/write via admin-api endpoints (/api/club-analytics/*)
+-- 3. These models will be removed in a future migration
+--
+-- No SQL changes required at this time - existing tables remain for data.
+-- Code changes needed - update web app to use admin-api endpoints.
+
+-- Architectural Decision: Phase 2.1
+-- Database Consolidation: Single Postgres DB with canonical models in admin-api

@@ -1,0 +1,13 @@
+-- RenameModel: `Conversation` -> `GuildConversation`
+-- RenameModel: `ChatMessage` -> `GuildChatMessage`
+--
+-- NOTE: These are Prisma model renames only. The database tables
+-- (conversations and chat_messages) remain unchanged due to @@map() directives.
+-- This is a schema clarity improvement to distinguish guild communication
+-- from AI chat systems.
+--
+-- Architectural Decision: Phase 2.1
+-- - Guild Chat (admin-api): GuildConversation + GuildChatMessage
+-- - AI Chat (web): ChatConversation + ChatMessage
+--
+-- No SQL changes required - table names unchanged.
