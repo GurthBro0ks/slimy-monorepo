@@ -5,6 +5,7 @@ const morgan = require("morgan");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
 const { readAuth } = require("./middleware/auth");
+const { metricsMiddleware, errorLoggingMiddleware } = require("./middleware/metrics");
 const routes = require("./routes");
 const { UPLOADS_DIR } = require("./services/uploads");
 
@@ -30,6 +31,9 @@ app.use((_, res, next) => {
   next();
 });
 
+// Metrics tracking middleware
+app.use(metricsMiddleware);
+
 app.use(readAuth);
 app.use("/", routes);
 app.use(
@@ -40,5 +44,8 @@ app.use(
     },
   }),
 );
+
+// Error logging middleware (must be after routes)
+app.use(errorLoggingMiddleware);
 
 module.exports = app;
