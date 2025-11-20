@@ -17,6 +17,7 @@ model User {
   username    String?
   globalName  String?  @map("global_name")
   avatar      String?
+  role        String   @default("user") // Role-based access control: "user", "mod", "admin"
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
