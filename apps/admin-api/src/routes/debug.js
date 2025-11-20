@@ -3,6 +3,7 @@
 const express = require("express");
 const { COOKIE_NAME, verifySession } = require("../../lib/jwt");
 const { getSession } = require("../../lib/session-store");
+const { requireAuth } = require("../middleware/auth");
 
 const router = express.Router();
 
@@ -11,44 +12,27 @@ router.get("/ping", (_req, res) => {
   res.json({ ok: true, now: new Date().toISOString() });
 });
 
-// Auth debugging endpoint
-router.get("/auth/debug", (req, res) => {
-  const token = req.cookies?.[COOKIE_NAME];
+// Auth debugging endpoint - REQUIRES AUTHENTICATION
+// This endpoint exposes session data and MUST be protected
+router.get("/auth/debug", requireAuth, (req, res) => {
+  // User is already authenticated and available on req.user
+  const user = req.user;
 
-  if (!token) {
-    return res.json({ cookie: false, message: "No auth cookie found" });
-  }
+  // Guilds are stored in session store, not JWT (to keep JWT under 4KB)
+  const sessionData = getSession(user.id);
+  const guilds = Array.isArray(sessionData?.guilds) ? sessionData.guilds : [];
 
-  try {
-    const jwtSession = verifySession(token);
-    const user = jwtSession?.user;
-
-    if (!user) {
-      return res.json({ cookie: true, badToken: true, message: "Cookie present but invalid session" });
-    }
-
-    // Guilds are stored in session store, not JWT (to keep JWT under 4KB)
-    const sessionData = getSession(user.id);
-    const guilds = Array.isArray(sessionData?.guilds) ? sessionData.guilds : [];
-
-    return res.json({
-      cookie: true,
-      user: {
-        id: user.id,
-        username: user.username,
-        globalName: user.globalName,
-        role: user.role || "member",
-      },
-      guildCount: guilds.length,
-    });
-  } catch (err) {
-    return res.json({
-      cookie: true,
-      badToken: true,
-      error: err.message,
-      message: "Failed to verify session token",
-    });
-  }
+  return res.json({
+    ok: true,
+    authenticated: true,
+    user: {
+      id: user.id,
+      username: user.username,
+      globalName: user.globalName,
+      role: user.role || "member",
+    },
+    guildCount: guilds.length,
+  });
 });
 
 module.exports = router;
