@@ -1,0 +1,17 @@
+{
+  "name": "@slimy/opps-runtime",
+  "version": "0.0.0",
+  "private": true,
+  "main": "src/index.ts",
+  "scripts": {
+    "build": "echo \"TODO: build opps-runtime\"",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@slimy/opps-core": "workspace:*"
+  },
+  "devDependencies": {
+    "vitest": "*"
+  }
+}
