@@ -1,4 +1,5 @@
 import { getOpenAIClient } from '@/lib/openai-client';
+import { httpClient } from '@/lib/http';
 
 export interface ClubAnalysisResult {
   id: string;
@@ -136,13 +137,10 @@ export async function analyzeClubScreenshots(
  * Validate if an image URL is accessible
  */
 export async function validateImageUrl(imageUrl: string): Promise<boolean> {
-  try {
-    const response = await fetch(imageUrl, { method: 'HEAD' });
-    return response.ok;
-  } catch (error) {
-    console.error('Error validating image URL:', error);
-    return false;
-  }
+  return httpClient.validateUrl(imageUrl, {
+    timeout: 5000,
+    retries: 1,
+  });
 }
 
 /**
