@@ -1,17 +1,12 @@
-FROM node:18-alpine
+FROM node:22-slim
 
 WORKDIR /app
 
-# NOTE: Build context is monorepo root.
-# Host node_modules are excluded via .dockerignore to prevent overlay2 conflicts
-# (see: https://github.com/moby/buildkit/issues/1666)
+# NOTE: Build context is now monorepo root
 COPY apps/admin-api/package*.json ./
 
-RUN npm install
+RUN npm install --omit=dev
 
-# This COPY excludes node_modules due to .dockerignore patterns
 COPY apps/admin-api ./
 
-EXPOSE 3080
-
-CMD ["npm", "start"]
+CMD ["node", "server.js"]
