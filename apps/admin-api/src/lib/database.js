@@ -2,16 +2,52 @@ const { PrismaClient } = require('@prisma/client');
 const metrics = require('./monitoring/metrics');
 const config = require('./config');
 
+/**
+ * Database operation modes
+ * @enum {string}
+ */
+const DatabaseMode = {
+  /** Database is not configured (no DATABASE_URL) */
+  NOT_CONFIGURED: 'NOT_CONFIGURED',
+  /** Database is configured but not connected */
+  DISCONNECTED: 'DISCONNECTED',
+  /** Database is fully connected and operational */
+  CONNECTED: 'CONNECTED',
+  /** Database connection failed, running in degraded mode */
+  DEGRADED: 'DEGRADED',
+};
+
+/**
+ * @typedef {Object} DatabaseStatus
+ * @property {DatabaseMode} mode - Current database mode
+ * @property {boolean} isAvailable - Whether database operations are available
+ * @property {string|null} error - Last error message if any
+ * @property {Date|null} lastConnectAttempt - Timestamp of last connection attempt
+ */
+
 class Database {
   constructor() {
     this.prisma = null;
     this.isInitialized = false;
+    /** @type {DatabaseMode} */
+    this.mode = DatabaseMode.NOT_CONFIGURED;
+    /** @type {string|null} */
+    this.lastError = null;
+    /** @type {Date|null} */
+    this.lastConnectAttempt = null;
   }
 
+  /**
+   * Initialize database connection
+   * @returns {Promise<boolean>} True if connected, false if failed
+   */
   async initialize() {
     if (this.isInitialized) {
       return true;
     }
+
+    this.lastConnectAttempt = new Date();
+    this.mode = DatabaseMode.DISCONNECTED;
 
     try {
       this.prisma = new PrismaClient({
@@ -39,32 +75,91 @@ class Database {
       await this.prisma.$connect();
       metrics.recordDatabaseConnection(1); // Increment connection count
       this.isInitialized = true;
+      this.mode = DatabaseMode.CONNECTED;
+      this.lastError = null;
 
-      console.log('[database] Connected to PostgreSQL database');
+      console.log('[database] Connected to PostgreSQL database (mode: CONNECTED)');
       return true;
     } catch (err) {
-      console.error('[database] Initialization failed:', err.message || err);
+      this.lastError = err.message || String(err);
+      this.mode = DatabaseMode.DEGRADED;
+      console.error('[database] Initialization failed - running in DEGRADED mode:', this.lastError);
+      console.warn('[database] Some features may be unavailable or read-only');
       return false;
     }
   }
 
+  /**
+   * Check if database URL is configured
+   * @returns {boolean}
+   */
   isConfigured() {
-    return Boolean(config.database.url);
+    const configured = Boolean(config.database.url);
+    if (!configured && this.mode === DatabaseMode.NOT_CONFIGURED) {
+      // Already in correct state
+    } else if (!configured) {
+      this.mode = DatabaseMode.NOT_CONFIGURED;
+    }
+    return configured;
   }
 
-  getClient() {
+  /**
+   * Check if database is available for operations
+   * @returns {boolean}
+   */
+  isAvailable() {
+    return this.mode === DatabaseMode.CONNECTED;
+  }
+
+  /**
+   * Get current database status
+   * @returns {DatabaseStatus}
+   */
+  getStatus() {
+    return {
+      mode: this.mode,
+      isAvailable: this.isAvailable(),
+      error: this.lastError,
+      lastConnectAttempt: this.lastConnectAttempt,
+    };
+  }
+
+  /**
+   * Get Prisma client with safety checks
+   * @param {Object} options
+   * @param {boolean} options.throwIfUnavailable - Throw error if DB unavailable (default: true)
+   * @returns {PrismaClient|null}
+   * @throws {Error} If database not initialized and throwIfUnavailable is true
+   */
+  getClient(options = { throwIfUnavailable: true }) {
+    const { throwIfUnavailable = true } = options;
+
     if (!this.isInitialized || !this.prisma) {
-      throw new Error('Database not initialized. Call initialize() first.');
+      if (throwIfUnavailable) {
+        const error = new Error(
+          `Database not available (mode: ${this.mode}). ` +
+          (this.lastError ? `Last error: ${this.lastError}` : 'Not initialized.')
+        );
+        error.code = 'DB_UNAVAILABLE';
+        error.mode = this.mode;
+        throw error;
+      }
+      return null;
     }
     return this.prisma;
   }
 
+  /**
+   * Close database connection
+   */
   async close() {
     if (this.prisma) {
       await this.prisma.$disconnect();
       metrics.recordDatabaseConnection(-1); // Decrement connection count
       this.prisma = null;
       this.isInitialized = false;
+      this.mode = DatabaseMode.DISCONNECTED;
+      console.log('[database] Disconnected (mode: DISCONNECTED)');
     }
   }
 
@@ -658,4 +753,8 @@ class Database {
   }
 }
 
-module.exports = new Database();
+const databaseInstance = new Database();
+
+module.exports = databaseInstance;
+module.exports.Database = Database;
+module.exports.DatabaseMode = DatabaseMode;

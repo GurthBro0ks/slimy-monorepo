@@ -133,6 +133,15 @@ class ConfigurationError extends AppError {
 }
 
 /**
+ * Database Errors (503)
+ */
+class DatabaseError extends AppError {
+  constructor(message = "Database unavailable", details = null) {
+    super("DATABASE_UNAVAILABLE", message, 503, details);
+  }
+}
+
+/**
  * Internal Server Errors (500)
  */
 class InternalServerError extends AppError {
@@ -246,6 +255,7 @@ module.exports = {
   UserFetchError,
   GuildFetchError,
   ConfigurationError,
+  DatabaseError,
   InternalServerError,
   isOperationalError,
   formatErrorResponse,
