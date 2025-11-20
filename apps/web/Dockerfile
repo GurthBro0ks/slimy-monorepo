@@ -16,7 +16,6 @@ COPY apps/web/package.json ./apps/web/
 COPY apps/web/prisma ./apps/web/prisma
 # Copy other workspace package.json files for dependency resolution (needed for pnpm workspace)
 COPY apps/admin-api/package.json ./apps/admin-api/
-COPY apps/admin-api/vendor ./apps/admin-api/vendor
 COPY apps/admin-ui/package.json ./apps/admin-ui/
 COPY apps/bot/package.json ./apps/bot/
 
@@ -25,14 +24,8 @@ RUN pnpm install --frozen-lockfile --prod=false
 
 FROM base AS builder
 WORKDIR /app
-
-# Enable pnpm in this stage
-RUN corepack enable && corepack prepare pnpm@10.22.0 --activate
-
 COPY --from=deps /app/node_modules ./node_modules
 COPY apps/web ./apps/web
-COPY packages ./packages
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 
 ARG NEXT_PUBLIC_ADMIN_API_BASE
 ARG NEXT_PUBLIC_SNELP_CODES_URL
@@ -43,13 +36,9 @@ ENV NEXT_PUBLIC_SNELP_CODES_URL=$NEXT_PUBLIC_SNELP_CODES_URL
 ENV NEXT_PUBLIC_PLAUSIBLE_DOMAIN=$NEXT_PUBLIC_PLAUSIBLE_DOMAIN
 
 # Generate Prisma client and build the web app
-RUN pnpm install --frozen-lockfile --prefer-offline 2>&1 | tail -20 || true
-
-# Generate Prisma client before building
-RUN pnpm --filter @slimy/web run db:generate
-
-# Build the app
-RUN pnpm --filter @slimy/web build
+WORKDIR /app/apps/web
+RUN pnpm exec prisma generate
+RUN pnpm build
 
 FROM node:22-slim AS runner
 WORKDIR /app
@@ -60,12 +49,9 @@ RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
 # Copy built artifacts from apps/web in the builder stage
-# Next.js 16+ with monorepo generates nested structure in .next/standalone/apps/web/
-# We need to run the server from that nested location since that's where the symlinks are set up
-COPY --from=builder /app/apps/web/public ./apps/web/public
-COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/standalone/apps/web ./apps/web/
-COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/standalone/node_modules ./node_modules
-COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/static ./apps/web/.next/static
+COPY --from=builder /app/apps/web/public ./public
+COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/static ./.next/static
 
 USER nextjs
 
@@ -74,5 +60,4 @@ EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
-# Run server from the nested location where symlinks are correct
-CMD ["node", "apps/web/server.js"]
+CMD ["node", "server.js"]
