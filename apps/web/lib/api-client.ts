@@ -7,29 +7,16 @@
  * - Request caching
  * - Comprehensive error handling
  * - Request logging
- * 
+ *
  * This client wraps AdminApiClient with additional features.
  * AdminApiClient is the single source of truth for proxy logic.
  */
 
+import type { ApiError, ApiSuccess, ApiResponse } from '@slimy/shared-http';
 import { adminApiClient, type ApiResponse as AdminApiResponse } from './api/admin-client';
 
-export interface ApiError {
-  ok: false;
-  code: string;
-  message: string;
-  status?: number;
-  details?: unknown;
-}
-
-export interface ApiSuccess<T = unknown> {
-  ok: true;
-  data: T;
-  status: number;
-  headers: Headers;
-}
-
-export type ApiResponse<T = unknown> = ApiSuccess<T> | ApiError;
+// Re-export types for backward compatibility
+export type { ApiError, ApiSuccess, ApiResponse };
 
 export interface RequestConfig {
   timeout?: number;
