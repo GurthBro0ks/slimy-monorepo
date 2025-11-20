@@ -30,6 +30,8 @@ model User {
   screenshotAnalyses ScreenshotAnalysis[]
   screenshotComparisons ScreenshotComparison[]
   auditLogs     AuditLog[]
+  notifications Notification[]
+  notificationPreference NotificationPreference?
 
   // Performance indexes
   @@index([createdAt])
@@ -450,47 +452,43 @@ model AuditLog {
   @@map("audit_logs")
 }
 
-// Agent Task Management
-model AgentTask {
-  id          Int      @id @default(autoincrement())
-  agentName   String   @map("agent_name") // e.g. "claude-code", "autocodex", "snail-analytics"
-  status      String   @default("pending") // "pending" | "running" | "completed" | "failed"
-  input       Json
-  output      Json?
-  error       String?
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
-  triggeredBy String?  @map("triggered_by") // user or system id
-  tags        String?  // comma-separated tags
+// Notifications for users
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  type      String   // e.g. "weekly_digest", "club_update", "system"
+  title     String
+  body      String
+  read      Boolean  @default(false)
+  meta      Json?    // Extra info (links, payload)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   // Performance indexes
-  @@index([agentName])
-  @@index([status])
+  @@index([userId])
+  @@index([type])
+  @@index([read])
   @@index([createdAt])
-  @@index([updatedAt])
-  @@index([agentName, status])
-  @@index([agentName, createdAt])
-  @@index([status, createdAt])
-  @@index([triggeredBy])
+  @@index([userId, read])
+  @@index([userId, createdAt])
+  @@index([userId, type])
 
-  @@map("agent_tasks")
+  @@map("notifications")
 }
 
-// Agent Definitions/Registry
-model AgentDefinition {
-  id          Int      @id @default(autoincrement())
-  name        String   @unique // Agent name identifier
-  description String   // Human-readable description
-  capabilities Json    // JSON array of supported task types/capabilities
-  config      Json?    // Optional configuration (model names, cost hints, etc.)
-  enabled     Boolean  @default(true)
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+// User notification preferences
+model NotificationPreference {
+  id            String  @id @default(cuid())
+  userId        String  @unique @map("user_id")
+  emailOptIn    Boolean @default(false) @map("email_opt_in")
+  discordDMOptIn Boolean @default(false) @map("discord_dm_opt_in")
+  weeklyDigest  Boolean @default(true) @map("weekly_digest")
+  channels      Json?   // JSON object for channel-specific preferences
 
-  // Performance indexes
-  @@index([name])
-  @@index([enabled])
-  @@index([createdAt])
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@map("agent_definitions")
+  @@map("notification_preferences")
 }
