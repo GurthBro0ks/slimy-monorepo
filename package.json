@@ -6,13 +6,19 @@
     "packages/*"
   ],
   "scripts": {
-    "bootstrap": "tsx tools/bootstrap.ts",
     "lint": "pnpm -r run lint || echo \"TODO: lint\"",
     "build": "pnpm -r run build",
-    "test": "pnpm -r run test || echo \"TODO: wire tests\""
+    "test": "pnpm -r run test || echo \"TODO: wire tests\"",
+    "bootstrap": "ts-node tools/bootstrap.ts"
   },
   "devDependencies": {
+    "@prisma/client": "^6.1.0",
+    "@types/node": "^22.10.2",
     "dotenv": "^16.6.1",
-    "tsx": "^4.20.6"
+    "ts-node": "^10.9.2",
+    "typescript": "^5.7.2"
+  },
+  "prisma": {
+    "schema": "apps/admin-api/prisma/schema.prisma"
   }
 }
