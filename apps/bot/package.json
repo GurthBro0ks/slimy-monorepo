@@ -1,9 +1,22 @@
 {
   "name": "@slimy/bot",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "private": true,
+  "type": "commonjs",
+  "main": "src/index.js",
   "scripts": {
-    "build": "echo \"TODO: build bot\"",
-    "test": "echo \"TODO: test bot\""
+    "start": "node src/index.js",
+    "dev": "node src/index.js",
+    "deploy-commands": "node src/deploy-commands.js",
+    "build": "echo 'Bot runs directly from source; no build artifacts generated yet.'",
+    "test": "echo 'TODO: test bot'"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "discord.js": "^14.16.3",
+    "dotenv": "^16.6.1",
+    "mysql2": "^3.15.3"
   }
 }
