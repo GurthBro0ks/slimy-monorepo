@@ -64,10 +64,7 @@ model Guild {
   id        String   @id @default(cuid())
   discordId String   @unique @map("discord_id")
   name      String
-  iconUrl   String?  @map("icon_url")    // Guild icon URL from Discord
-  ownerId   String?  @map("owner_id")    // Discord user ID of guild owner
   settings  Json?    // JSON object for guild-specific settings
-  config    Json?    // Per-guild configuration & feature flags
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
@@ -81,7 +78,6 @@ model Guild {
   @@index([createdAt])
   @@index([updatedAt])
   @@index([discordId, createdAt])
-  @@index([ownerId])
 
   @@map("guilds")
 }
@@ -419,23 +415,18 @@ model ScreenshotRecommendation {
 }
 
 // Audit logs for event sourcing and compliance
-// Supports both HTTP request auditing and event bus events
 model AuditLog {
   id            String   @id @default(cuid())
   userId        String?  @map("user_id") // User who performed the action (null for system actions)
-  guildId       String?  @map("guild_id") // Guild context for the event
   action        String   // Action performed (e.g., 'login', 'chat_message', 'create_conversation')
-  eventType     String?  @map("event_type") // Event type for event bus (e.g., 'CHAT_MESSAGE_CREATED')
-  resourceType  String?  @map("resource_type") // Type of resource (e.g., 'user', 'chat', 'guild')
-  resourceId    String?  @map("resource_id") // ID of the affected resource
-  payload       Json?    // Event payload / additional details about the action
-  details       Json?    // Additional details about the action (legacy field)
+  resourceType  String   @map("resource_type") // Type of resource (e.g., 'user', 'chat', 'guild')
+  resourceId    String   @map("resource_id") // ID of the affected resource
+  details       Json?    // Additional details about the action
   ipAddress     String?  @map("ip_address") // IP address of the user
   userAgent     String?  @map("user_agent") // User agent string
   sessionId     String?  @map("session_id") // Session ID for tracking
   requestId     String?  @map("request_id") // Request ID for correlation
   timestamp     DateTime @default(now())
-  createdAt     DateTime @default(now()) @map("created_at") // Alias for timestamp
   success       Boolean  @default(true) // Whether the action was successful
   errorMessage  String?  @map("error_message") // Error message if action failed
 
@@ -444,19 +435,13 @@ model AuditLog {
 
   // Performance indexes
   @@index([userId])
-  @@index([guildId])
   @@index([action])
-  @@index([eventType])
   @@index([resourceType])
   @@index([resourceId])
   @@index([timestamp])
-  @@index([createdAt])
   @@index([success])
   @@index([userId, timestamp])
-  @@index([guildId, timestamp])
   @@index([action, timestamp])
-  @@index([eventType, timestamp])
-  @@index([eventType, createdAt])
   @@index([resourceType, timestamp])
   @@index([userId, action, timestamp])
   @@index([resourceType, resourceId])
@@ -465,91 +450,50 @@ model AuditLog {
   @@map("audit_logs")
 }
 
-// Club Analytics v2: Snapshot system for tracking club state over time
-// Captures the full state of a guild's club at a specific point in time
-model ClubSnapshot {
-  id            String   @id @default(cuid())
-  guildId       String   @map("guild_id")
-  snapshotDate  DateTime @map("snapshot_date") // When this snapshot was taken
-  totalMembers  Int      @map("total_members") // Total member count at snapshot time
-  totalPower    BigInt   @map("total_power") // Sum of all member power
-  metadata      Json?    // Additional metadata (e.g., club rank, league info)
-  createdAt     DateTime @default(now()) @map("created_at")
+// Seasons: time-bound periods for club events and stats aggregation
+model Season {
+  id        Int      @id @default(autoincrement())
+  guildId   String   @map("guild_id")
+  name      String   // e.g., "Winter 2025", "Q1 2025"
+  startDate DateTime @map("start_date")
+  endDate   DateTime @map("end_date")
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
 
   // Relations
-  memberSnapshots ClubMemberSnapshot[]
+  memberStats SeasonMemberStats[]
 
   // Performance indexes
   @@index([guildId])
-  @@index([snapshotDate])
-  @@index([guildId, snapshotDate])
-  @@index([createdAt])
+  @@index([isActive])
+  @@index([startDate])
+  @@index([endDate])
+  @@index([guildId, isActive])
+  @@index([guildId, startDate])
 
-  @@map("club_snapshots")
+  @@map("seasons")
 }
 
-// Individual member state within a club snapshot
-model ClubMemberSnapshot {
-  id            String   @id @default(cuid())
-  snapshotId    String   @map("snapshot_id")
-  memberKey     String   @map("member_key") // Unique identifier for the member (e.g., userId or username)
-  displayName   String?  @map("display_name")
-  totalPower    BigInt   @map("total_power")
-  rank          Int?     // Member's rank within the club
-  simBalance    BigInt?  @map("sim_balance") // Optional: SIM token balance
-  metadata      Json?    // Additional member data
-  createdAt     DateTime @default(now()) @map("created_at")
+// Aggregated member statistics for a season
+// This is an abstraction for future seasonal events / rewards
+// Aggregation is idempotent and can be re-run
+model SeasonMemberStats {
+  id                 Int     @id @default(autoincrement())
+  seasonId           Int     @map("season_id")
+  memberKey          String  @map("member_key") // Unique identifier for the member
+  totalPowerGain     BigInt  @default(0) @map("total_power_gain") // Power progression during season
+  bestTier           String? @map("best_tier") // Highest tier achieved
+  participationCount Int     @default(0) @map("participation_count") // Number of snapshots member appeared in
 
   // Relations
-  snapshot ClubSnapshot @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
+  season Season @relation(fields: [seasonId], references: [id], onDelete: Cascade)
 
   // Performance indexes
-  @@index([snapshotId])
+  @@index([seasonId])
   @@index([memberKey])
-  @@index([snapshotId, memberKey])
-  @@index([totalPower])
-  @@index([rank])
+  @@index([seasonId, memberKey])
+  @@index([seasonId, totalPowerGain])
 
-  @@map("club_member_snapshots")
-}
-
-// Club Analytics v2: Weekly delta calculations and tier assignments
-// This model stores computed weekly changes for each member
-// Thresholds for tiers are hard-coded in the service and can be moved to config later
-model ClubWeeklyDelta {
-  id          String   @id @default(cuid())
-  guildId     String   @map("guild_id")
-  memberKey   String   @map("member_key")
-  weekStart   DateTime @map("week_start") // ISO week start (Monday)
-  weekEnd     DateTime @map("week_end") // ISO week end (Sunday)
-
-  // Current snapshot data
-  currentPower    BigInt   @map("current_power")
-  currentSimBalance BigInt? @map("current_sim_balance")
-
-  // Delta calculations
-  powerDelta      BigInt   @map("power_delta") // Change in power during the week
-  simDelta        BigInt?  @map("sim_delta") // Change in SIM balance
-
-  // Derived metrics
-  tier        String?  // Tier based on power (e.g., "I", "II", "III")
-  badges      Json     @default("[]") // Array of badge strings (e.g., ["top_gainer", "consistent"])
-
-  // Metadata
-  displayName String?  @map("display_name")
-  rank        Int?     // Current rank
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
-
-  // Performance indexes
-  @@index([guildId])
-  @@index([memberKey])
-  @@index([weekStart])
-  @@index([guildId, weekStart])
-  @@index([guildId, memberKey, weekStart])
-  @@index([tier])
-  @@index([powerDelta])
-
-  @@unique([guildId, memberKey, weekStart])
-  @@map("club_weekly_deltas")
+  @@unique([seasonId, memberKey])
+  @@map("season_member_stats")
 }
