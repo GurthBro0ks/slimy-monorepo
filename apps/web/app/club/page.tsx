@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Callout } from "@/components/ui/callout";
-import { CardGridSkeleton } from "@/components/ui/card-skeleton";
 import { Upload, BarChart3, Users, FileSpreadsheet, Loader2, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ProtectedRoute } from "@/components/auth/protected-route";
@@ -170,125 +169,121 @@ export default function ClubPage() {
             </Button>
           </div>
 
-          {isLoadingResults ? (
-            <CardGridSkeleton count={3} />
-          ) : (
-            <div className="grid gap-6 lg:grid-cols-3">
-              {/* Upload Screenshots Card */}
-              <Card className="rounded-2xl border border-emerald-500/30 bg-zinc-900/40 shadow-sm hover:bg-zinc-900/60 transition-colors">
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <Upload className="h-10 w-10 text-neon-green mb-2" />
-                    {isAnalyzing && <Loader2 className="h-5 w-5 animate-spin text-emerald-500" />}
-                    {isUploading && !isAnalyzing && <CheckCircle className="h-5 w-5 text-emerald-500" />}
-                  </div>
-                  <CardTitle>Upload & Analyze</CardTitle>
-                  <CardDescription>
-                    Upload club screenshots for AI-powered analysis
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <label className="block">
-                      <input
-                        type="file"
-                        multiple
-                        accept="image/*"
-                        onChange={handleFileUpload}
-                        disabled={isUploading || isAnalyzing}
-                        className="block w-full text-sm text-gray-400
-                          file:mr-4 file:py-2 file:px-4
-                          file:rounded-lg file:border-0
-                          file:text-sm file:font-semibold
-                          file:bg-emerald-500 file:text-white
-                          hover:file:bg-emerald-600
-                          file:cursor-pointer cursor-pointer
-                          disabled:opacity-50 disabled:cursor-not-allowed"
-                      />
-                    </label>
+          <div className="grid gap-6 lg:grid-cols-3">
+            {/* Upload Screenshots Card */}
+            <Card className="rounded-2xl border border-emerald-500/30 bg-zinc-900/40 shadow-sm hover:bg-zinc-900/60 transition-colors">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <Upload className="h-10 w-10 text-neon-green mb-2" />
+                  {isAnalyzing && <Loader2 className="h-5 w-5 animate-spin text-emerald-500" />}
+                  {isUploading && !isAnalyzing && <CheckCircle className="h-5 w-5 text-emerald-500" />}
+                </div>
+                <CardTitle>Upload & Analyze</CardTitle>
+                <CardDescription>
+                  Upload club screenshots for AI-powered analysis
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <label className="block">
+                    <input
+                      type="file"
+                      multiple
+                      accept="image/*"
+                      onChange={handleFileUpload}
+                      disabled={isUploading || isAnalyzing}
+                      className="block w-full text-sm text-gray-400
+                        file:mr-4 file:py-2 file:px-4
+                        file:rounded-lg file:border-0
+                        file:text-sm file:font-semibold
+                        file:bg-emerald-500 file:text-white
+                        hover:file:bg-emerald-600
+                        file:cursor-pointer cursor-pointer
+                        disabled:opacity-50 disabled:cursor-not-allowed"
+                    />
+                  </label>
 
-                    {(isUploading || isAnalyzing) && (
-                      <div className="text-sm">
-                        {isUploading && <p className="text-emerald-500">📤 Uploading files...</p>}
-                        {isAnalyzing && <p className="text-blue-500">🤖 Analyzing with AI...</p>}
-                      </div>
-                    )}
-
-                    {uploadedFiles.length > 0 && (
-                      <div className="text-sm text-muted-foreground">
-                        <p className="font-semibold mb-1">Recent uploads:</p>
-                        <ul className="list-disc list-inside space-y-1 max-h-20 overflow-y-auto">
-                          {uploadedFiles.slice(-5).map((file, index) => (
-                            <li key={index} className="truncate">{file}</li>
-                          ))}
-                        </ul>
-                        {uploadedFiles.length > 5 && (
-                          <p className="text-xs mt-1">...and {uploadedFiles.length - 5} more</p>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Analytics Overview Card */}
-              <Card className="rounded-2xl border border-emerald-500/30 bg-zinc-900/40 shadow-sm">
-                <CardHeader>
-                  <BarChart3 className="h-10 w-10 text-neon-green mb-2" />
-                  <CardTitle>Analytics Overview</CardTitle>
-                  <CardDescription>
-                    AI-powered insights and performance metrics
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Total Analyses:</span>
-                      <span className="font-semibold text-neon-green">{analyses.length}</span>
+                  {(isUploading || isAnalyzing) && (
+                    <div className="text-sm">
+                      {isUploading && <p className="text-emerald-500">📤 Uploading files...</p>}
+                      {isAnalyzing && <p className="text-blue-500">🤖 Analyzing with AI...</p>}
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Avg Confidence:</span>
-                      <span className="font-semibold text-neon-green">
-                        {analyses.length > 0
-                          ? `${Math.round(analyses.reduce((sum, a) => sum + a.confidence, 0) / analyses.length * 100)}%`
-                          : 'N/A'
-                        }
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Latest:</span>
-                      <span className="font-semibold text-neon-green">
-                        {analyses.length > 0
-                          ? new Date(analyses[0].createdAt).toLocaleDateString()
-                          : 'None'
-                        }
-                      </span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+                  )}
 
-              {/* Quick Actions Card */}
-              <Card className="rounded-2xl border border-emerald-500/30 bg-zinc-900/40 shadow-sm">
-                <CardHeader>
-                  <Users className="h-10 w-10 text-neon-green mb-2" />
-                  <CardTitle>Quick Actions</CardTitle>
-                  <CardDescription>
-                    Common analytics tasks and tools
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2 text-sm text-muted-foreground">
-                    <p>• 📊 Performance tracking</p>
-                    <p>• 👥 Member analytics</p>
-                    <p>• 📈 Trend analysis</p>
-                    <p>• 📋 Export reports</p>
-                    <p className="text-emerald-500 font-semibold mt-4">✓ AI Analysis Active</p>
+                  {uploadedFiles.length > 0 && (
+                    <div className="text-sm text-muted-foreground">
+                      <p className="font-semibold mb-1">Recent uploads:</p>
+                      <ul className="list-disc list-inside space-y-1 max-h-20 overflow-y-auto">
+                        {uploadedFiles.slice(-5).map((file, index) => (
+                          <li key={index} className="truncate">{file}</li>
+                        ))}
+                      </ul>
+                      {uploadedFiles.length > 5 && (
+                        <p className="text-xs mt-1">...and {uploadedFiles.length - 5} more</p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Analytics Overview Card */}
+            <Card className="rounded-2xl border border-emerald-500/30 bg-zinc-900/40 shadow-sm">
+              <CardHeader>
+                <BarChart3 className="h-10 w-10 text-neon-green mb-2" />
+                <CardTitle>Analytics Overview</CardTitle>
+                <CardDescription>
+                  AI-powered insights and performance metrics
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Total Analyses:</span>
+                    <span className="font-semibold text-neon-green">{analyses.length}</span>
                   </div>
-                </CardContent>
-              </Card>
-            </div>
-          )}
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Avg Confidence:</span>
+                    <span className="font-semibold text-neon-green">
+                      {analyses.length > 0
+                        ? `${(analyses.reduce((sum, a) => sum + a.confidence, 0) / analyses.length * 100).toFixed(1)}%`
+                        : 'N/A'
+                      }
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Latest:</span>
+                    <span className="font-semibold text-neon-green">
+                      {analyses.length > 0
+                        ? new Date(analyses[0].createdAt).toLocaleDateString()
+                        : 'None'
+                      }
+                    </span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Quick Actions Card */}
+            <Card className="rounded-2xl border border-emerald-500/30 bg-zinc-900/40 shadow-sm">
+              <CardHeader>
+                <Users className="h-10 w-10 text-neon-green mb-2" />
+                <CardTitle>Quick Actions</CardTitle>
+                <CardDescription>
+                  Common analytics tasks and tools
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2 text-sm text-muted-foreground">
+                  <p>• 📊 Performance tracking</p>
+                  <p>• 👥 Member analytics</p>
+                  <p>• 📈 Trend analysis</p>
+                  <p>• 📋 Export reports</p>
+                  <p className="text-emerald-500 font-semibold mt-4">✓ AI Analysis Active</p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
 
           {/* Analysis Results Section */}
           <div className="mt-8">

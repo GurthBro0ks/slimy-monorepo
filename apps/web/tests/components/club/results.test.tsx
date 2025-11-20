@@ -277,4 +277,99 @@ describe('Results Component', () => {
 
     expect(screen.getByText(/Analysis \d{1,2}\/\d{1,2}\/\d{4}/)).toBeInTheDocument();
   });
+
+  it('should handle NaN and null metric values gracefully', () => {
+    const analysisWithInvalidMetrics: StoredClubAnalysis = {
+      ...mockAnalyses[0],
+      metrics: [
+        {
+          id: 'metric-nan',
+          name: 'invalidScore',
+          value: NaN,
+          unit: 'score',
+          category: 'performance'
+        },
+        {
+          id: 'metric-null',
+          name: 'nullValue',
+          value: null,
+          unit: 'count',
+          category: 'membership'
+        },
+        {
+          id: 'metric-undefined',
+          name: 'undefinedValue',
+          value: undefined,
+          unit: 'percentage',
+          category: 'activity'
+        }
+      ]
+    };
+
+    render(<Results analyses={[analysisWithInvalidMetrics]} />);
+
+    // Should display N/A for invalid values
+    const naTexts = screen.getAllByText('N/A');
+    expect(naTexts.length).toBeGreaterThanOrEqual(3);
+  });
+
+  it('should format percentages with 1 decimal place', () => {
+    const analysisWithPercentage: StoredClubAnalysis = {
+      ...mockAnalyses[0],
+      metrics: [
+        {
+          id: 'metric-pct',
+          name: 'winRate',
+          value: 0.8567,
+          unit: 'percentage',
+          category: 'performance'
+        }
+      ]
+    };
+
+    render(<Results analyses={[analysisWithPercentage]} />);
+
+    // 0.8567 * 100 = 85.67, rounded to 1 decimal = 85.7%
+    expect(screen.getByText('85.7%')).toBeInTheDocument();
+  });
+
+  it('should format counts as integers', () => {
+    const analysisWithCount: StoredClubAnalysis = {
+      ...mockAnalyses[0],
+      metrics: [
+        {
+          id: 'metric-count',
+          name: 'totalMembers',
+          value: 1234.567,
+          unit: 'count',
+          category: 'membership'
+        }
+      ]
+    };
+
+    render(<Results analyses={[analysisWithCount]} />);
+
+    // Should round to integer: 1,235
+    expect(screen.getByText('1,235')).toBeInTheDocument();
+  });
+
+  it('should format scores with 1 decimal place', () => {
+    const analysisWithScore: StoredClubAnalysis = {
+      ...mockAnalyses[0],
+      metrics: [
+        {
+          id: 'metric-score',
+          name: 'performanceScore',
+          value: 7.8888,
+          unit: 'score',
+          category: 'performance'
+        }
+      ]
+    };
+
+    render(<Results analyses={[analysisWithScore]} />);
+
+    // Should display with 1 decimal place: 7.9
+    expect(screen.getByText('7.9')).toBeInTheDocument();
+  });
 });

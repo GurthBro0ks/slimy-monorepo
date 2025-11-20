@@ -267,6 +267,32 @@ describe('Club Vision Library', () => {
       const emptyConfidence = calculateConfidence(emptyAnalysis);
       expect(emptyConfidence).toBe(0); // No components present
     });
+
+    it('should return normalized confidence with 2 decimal places', () => {
+      // Test that confidence is rounded to 2 decimal places
+      const threeComponentAnalysis = {
+        summary: 'Good summary here',
+        metrics: { totalMembers: 10 },
+        insights: ['Good insight'],
+        recommendations: []
+      };
+
+      const confidence = calculateConfidence(threeComponentAnalysis);
+      expect(confidence).toBe(0.75); // 3/4 = 0.75
+      // Verify it's a number, not a string
+      expect(typeof confidence).toBe('number');
+    });
+
+    it('should handle edge cases without NaN', () => {
+      // Null/undefined analysis
+      const nullConfidence = calculateConfidence(null);
+      expect(nullConfidence).toBe(0);
+      expect(isNaN(nullConfidence)).toBe(false);
+
+      const undefinedConfidence = calculateConfidence(undefined);
+      expect(undefinedConfidence).toBe(0);
+      expect(isNaN(undefinedConfidence)).toBe(false);
+    });
   });
 
   describe('Message structure', () => {

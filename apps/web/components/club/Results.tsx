@@ -72,10 +72,16 @@ export function Results({ analyses, onExport, onViewDetails, loading }: ResultsP
   };
 
   const formatMetricValue = (value: any, unit?: string) => {
+    // Handle null/undefined/NaN values
+    if (value == null || (typeof value === 'number' && isNaN(value))) {
+      return 'N/A';
+    }
+
     if (typeof value === 'number') {
+      // Standardize rounding: 1 decimal place for percentages, integers for counts, 1 decimal for scores
       if (unit === 'percentage') return `${(value * 100).toFixed(1)}%`;
-      if (unit === 'count') return value.toLocaleString();
-      return value.toFixed(2);
+      if (unit === 'count') return Math.round(value).toLocaleString();
+      return value.toFixed(1);
     }
     return String(value);
   };
@@ -179,7 +185,7 @@ export function Results({ analyses, onExport, onViewDetails, loading }: ResultsP
                     {analysis.metrics.length} metrics • Analysis complete
                   </span>
                   <span className={`font-medium ${getConfidenceColor(analysis.confidence)}`}>
-                    {Math.round(analysis.confidence * 100)}% confidence
+                    {(analysis.confidence * 100).toFixed(1)}% confidence
                   </span>
                 </div>
               </div>

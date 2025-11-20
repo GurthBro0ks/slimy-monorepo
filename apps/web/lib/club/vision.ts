@@ -154,8 +154,14 @@ export function generateAnalysisId(): string {
 
 /**
  * Calculate confidence score based on analysis completeness
+ * Returns a normalized score between 0 and 1 (rounded to 2 decimal places)
  */
 export function calculateConfidence(analysis: any): number {
+  // Handle null/undefined analysis
+  if (!analysis || typeof analysis !== 'object') {
+    return 0;
+  }
+
   let score = 0;
   let maxScore = 4;
 
@@ -164,5 +170,6 @@ export function calculateConfidence(analysis: any): number {
   if (analysis.insights && Array.isArray(analysis.insights) && analysis.insights.length > 0) score += 1;
   if (analysis.recommendations && Array.isArray(analysis.recommendations) && analysis.recommendations.length > 0) score += 1;
 
-  return score / maxScore;
+  // Normalize to 2 decimal places for consistency
+  return Number((score / maxScore).toFixed(2));
 }

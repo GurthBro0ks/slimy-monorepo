@@ -247,6 +247,28 @@ describe('/api/club/analyze', () => {
       expect(data.summary.invalidImages).toBe(1);
       expect(data.warnings).toContain('1 image(s) could not be accessed');
     });
+
+    it('should handle zero results without divide-by-zero error', async () => {
+      // Simulate all analyses failing to store
+      (analyzeClubScreenshots as any).mockResolvedValue([]);
+
+      const mockRequest = {
+        json: () => Promise.resolve({
+          imageUrls: ['http://example.com/image1.png', 'http://example.com/image2.png'],
+          guildId: 'guild-123',
+          userId: 'user-456'
+        }),
+      } as any;
+
+      const response = await POST(mockRequest);
+      const data = await response.json();
+
+      expect(data.success).toBe(true);
+      expect(data.summary.averageConfidence).toBe(0);
+      expect(data.summary.analyzedImages).toBe(0);
+      // Ensure no NaN values
+      expect(isNaN(data.summary.averageConfidence)).toBe(false);
+    });
   });
 
   describe('GET /api/club/analyze', () => {
