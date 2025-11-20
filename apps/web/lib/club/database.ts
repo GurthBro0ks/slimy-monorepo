@@ -1,4 +1,10 @@
 import { ClubAnalysisResult } from './vision';
+import {
+  createClubAnalysis,
+  getClubAnalyses,
+  getClubAnalysis,
+  type ClubAnalysis,
+} from '@/lib/api/clubAnalytics';
 
 // Types for database operations
 export interface StoredClubAnalysis {
@@ -30,19 +36,25 @@ export interface StoredClubMetric {
   category: string;
 }
 
-// Database client - placeholder for now
-// TODO: Integrate with actual database connection
+/**
+ * Club Database Client
+ *
+ * Provides persistence layer for club analysis data.
+ * All data is stored in admin-api (canonical source), not in web's local Prisma.
+ * This class acts as a bridge between web components and admin-api.
+ */
 class ClubDatabaseClient {
-  private isConnected = false;
+  private isConnected = true;
 
   async connect(): Promise<void> {
-    if (this.isConnected) return;
-
-    // TODO: Initialize database connection
-    // For now, we'll use local storage or in-memory storage
-    this.isConnected = true;
+    // Connection is implicit through admin-api client
+    // No explicit connection needed
   }
 
+  /**
+   * Store a new analysis to admin-api
+   * Called after AI analysis is completed
+   */
   async storeAnalysis(
     guildId: string,
     userId: string,
@@ -51,69 +63,112 @@ class ClubDatabaseClient {
   ): Promise<StoredClubAnalysis> {
     await this.connect();
 
-    // TODO: Implement actual database storage
-    // For now, return a mock stored analysis
-    const storedAnalysis: StoredClubAnalysis = {
-      id: analysisResult.id,
-      guildId,
-      userId,
-      title: `Club Analysis ${new Date().toLocaleDateString()}`,
-      summary: analysisResult.analysis.summary,
-      confidence: analysisResult.confidence,
-      createdAt: analysisResult.timestamp,
-      updatedAt: new Date(),
-      images: imageUrls.map((url, index) => ({
-        id: `img_${analysisResult.id}_${index}`,
-        imageUrl: url,
-        originalName: `screenshot_${index + 1}.png`,
-        fileSize: 1024000, // Mock file size
-        uploadedAt: new Date()
-      })),
-      metrics: Object.entries(analysisResult.analysis.metrics).map(([key, value], index) => ({
-        id: `metric_${analysisResult.id}_${index}`,
-        name: key,
-        value,
-        category: this.categorizeMetric(key)
-      }))
-    };
+    try {
+      // Convert analysis result to admin-api format
+      const response = await createClubAnalysis({
+        guildId,
+        userId,
+        title: `Club Analysis ${new Date().toLocaleDateString()}`,
+        summary: analysisResult.analysis.summary,
+        confidence: analysisResult.confidence,
+        imageUrls: imageUrls || [],
+        metrics: Object.entries(analysisResult.analysis.metrics).map(([key, value]) => ({
+          name: key,
+          value,
+          category: this.categorizeMetric(key),
+        })),
+      });
 
-    console.log('Stored analysis:', storedAnalysis);
-    return storedAnalysis;
+      if (!response.ok) {
+        throw new Error(`Failed to store analysis: ${response.message}`);
+      }
+
+      // Fetch the full analysis data with relations
+      const analysis = await this.getAnalysisById(response.data.analysis.id);
+      if (!analysis) {
+        throw new Error('Analysis created but could not retrieve it');
+      }
+
+      console.log('Analysis stored in admin-api:', analysis.id);
+      return analysis;
+    } catch (error) {
+      console.error('Failed to store analysis in admin-api:', error);
+      throw error;
+    }
   }
 
-  async getAnalysesByGuild(guildId: string, limit = 10, offset = 0): Promise<StoredClubAnalysis[]> {
+  /**
+   * Retrieve all analyses for a guild from admin-api
+   */
+  async getAnalysesByGuild(
+    guildId: string,
+    limit = 10,
+    offset = 0
+  ): Promise<StoredClubAnalysis[]> {
     await this.connect();
 
-    // TODO: Implement actual database query
-    // Return empty array for now
-    return [];
+    try {
+      const response = await getClubAnalyses(guildId, { limit, offset });
+
+      if (!response.ok) {
+        console.error('Failed to retrieve analyses:', response.message);
+        return [];
+      }
+
+      return response.data.analyses as StoredClubAnalysis[];
+    } catch (error) {
+      console.error('Error retrieving analyses from admin-api:', error);
+      return [];
+    }
   }
 
+  /**
+   * Retrieve a specific analysis by ID from admin-api
+   */
   async getAnalysisById(id: string): Promise<StoredClubAnalysis | null> {
     await this.connect();
 
-    // TODO: Implement actual database query
-    return null;
+    try {
+      const response = await getClubAnalysis(id);
+
+      if (!response.ok) {
+        console.error('Analysis not found:', id);
+        return null;
+      }
+
+      return response.data.analysis as StoredClubAnalysis;
+    } catch (error) {
+      console.error('Error retrieving analysis from admin-api:', error);
+      return null;
+    }
   }
 
+  /**
+   * Delete an analysis from admin-api (not implemented yet)
+   * Will be added in Phase 3
+   */
   async deleteAnalysis(id: string): Promise<boolean> {
     await this.connect();
 
-    // TODO: Implement actual database deletion
-    return true;
+    // TODO: Implement DELETE endpoint in admin-api
+    console.warn('deleteAnalysis not yet implemented');
+    return false;
   }
 
+  /**
+   * Categorize a metric based on its name
+   */
   private categorizeMetric(metricName: string): string {
-    const categories = {
+    const categories: Record<string, string> = {
       totalMembers: 'membership',
       activeMembers: 'activity',
       performanceScore: 'performance',
       averageScore: 'performance',
       winRate: 'performance',
-      participationRate: 'activity'
+      participationRate: 'activity',
     };
 
-    return categories[metricName as keyof typeof categories] || 'general';
+    return categories[metricName] || 'general';
   }
 }
 

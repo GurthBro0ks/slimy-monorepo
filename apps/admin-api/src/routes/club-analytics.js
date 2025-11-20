@@ -216,4 +216,241 @@ router.get("/history", apiHandler(async (req, res) => {
   };
 }, { routeName: "club-analytics/history" }));
 
+/**
+ * POST /api/club-analytics/analysis
+ *
+ * Store AI-generated club analysis (from screenshot analysis)
+ *
+ * Body: {
+ *   guildId: string,
+ *   userId: string,
+ *   title?: string,
+ *   summary: string,
+ *   confidence: number (0-1),
+ *   imageUrls: string[],
+ *   metrics: Array<{
+ *     name: string,
+ *     value: any,
+ *     unit?: string,
+ *     category: string
+ *   }>
+ * }
+ */
+router.post("/analysis", apiHandler(async (req, res) => {
+  const { guildId, userId, title, summary, confidence, imageUrls = [], metrics = [] } = req.body;
+
+  // Validate required fields
+  if (!guildId) {
+    return res.status(400).json({
+      error: "missing_guild_id",
+      message: "guildId is required"
+    });
+  }
+
+  if (!userId) {
+    return res.status(400).json({
+      error: "missing_user_id",
+      message: "userId is required"
+    });
+  }
+
+  if (!summary) {
+    return res.status(400).json({
+      error: "missing_summary",
+      message: "summary is required"
+    });
+  }
+
+  if (typeof confidence !== 'number' || confidence < 0 || confidence > 1) {
+    return res.status(400).json({
+      error: "invalid_confidence",
+      message: "confidence must be a number between 0 and 1"
+    });
+  }
+
+  const prisma = database.getClient();
+
+  // Create analysis with images and metrics in a transaction
+  const analysis = await prisma.$transaction(async (tx) => {
+    // Create the analysis
+    const clubAnalysis = await tx.clubAnalysis.create({
+      data: {
+        guildId,
+        userId,
+        title,
+        summary,
+        confidence,
+      },
+      include: {
+        images: true,
+        metrics: true,
+      },
+    });
+
+    // Create associated images
+    if (imageUrls && imageUrls.length > 0) {
+      const imageData = imageUrls.map((url, index) => ({
+        analysisId: clubAnalysis.id,
+        imageUrl: url,
+        originalName: `screenshot_${index + 1}.png`,
+        fileSize: 1024000, // Default file size estimate
+        uploadedAt: new Date(),
+      }));
+
+      await tx.clubAnalysisImage.createMany({
+        data: imageData,
+      });
+    }
+
+    // Create associated metrics
+    if (metrics && metrics.length > 0) {
+      const metricData = metrics.map(m => ({
+        analysisId: clubAnalysis.id,
+        name: m.name,
+        value: m.value,
+        unit: m.unit,
+        category: m.category || 'general',
+      }));
+
+      await tx.clubMetric.createMany({
+        data: metricData,
+      });
+    }
+
+    // Refetch with relations
+    return await tx.clubAnalysis.findUnique({
+      where: { id: clubAnalysis.id },
+      include: {
+        images: true,
+        metrics: true,
+      },
+    });
+  });
+
+  return {
+    ok: true,
+    analysis: {
+      id: analysis.id,
+      guildId: analysis.guildId,
+      userId: analysis.userId,
+      title: analysis.title,
+      summary: analysis.summary,
+      confidence: analysis.confidence,
+      createdAt: analysis.createdAt,
+      updatedAt: analysis.updatedAt,
+      imageCount: analysis.images.length,
+      metricCount: analysis.metrics.length,
+    },
+  };
+}, { routeName: "club-analytics/analysis-create" }));
+
+/**
+ * GET /api/club-analytics/analyses?guildId=...&limit=10&offset=0
+ *
+ * Get AI-generated analyses for a guild
+ */
+router.get("/analyses", apiHandler(async (req, res) => {
+  const guildId = (req.query.guildId || "").toString().trim();
+  const limit = Math.min(parseInt(req.query.limit || "10", 10), 50);
+  const offset = Math.max(parseInt(req.query.offset || "0", 10), 0);
+
+  if (!guildId) {
+    return res.status(400).json({
+      error: "missing_guild_id",
+      message: "guildId query parameter is required"
+    });
+  }
+
+  const prisma = database.getClient();
+
+  // Get analyses with pagination
+  const [analyses, total] = await Promise.all([
+    prisma.clubAnalysis.findMany({
+      where: { guildId },
+      orderBy: { createdAt: 'desc' },
+      skip: offset,
+      take: limit,
+      include: {
+        images: true,
+        metrics: true,
+      },
+    }),
+    prisma.clubAnalysis.count({ where: { guildId } }),
+  ]);
+
+  return {
+    ok: true,
+    guildId,
+    analyses: analyses.map(a => ({
+      id: a.id,
+      guildId: a.guildId,
+      userId: a.userId,
+      title: a.title,
+      summary: a.summary,
+      confidence: a.confidence,
+      createdAt: a.createdAt,
+      updatedAt: a.updatedAt,
+      imageCount: a.images.length,
+      metricCount: a.metrics.length,
+      images: a.images,
+      metrics: a.metrics,
+    })),
+    pagination: {
+      total,
+      limit,
+      offset,
+      hasMore: offset + limit < total,
+    },
+  };
+}, { routeName: "club-analytics/analyses-list" }));
+
+/**
+ * GET /api/club-analytics/analyses/:analysisId
+ *
+ * Get a specific analysis by ID
+ */
+router.get("/analyses/:analysisId", apiHandler(async (req, res) => {
+  const { analysisId } = req.params;
+
+  if (!analysisId) {
+    return res.status(400).json({
+      error: "missing_analysis_id",
+      message: "analysisId is required"
+    });
+  }
+
+  const prisma = database.getClient();
+
+  const analysis = await prisma.clubAnalysis.findUnique({
+    where: { id: analysisId },
+    include: {
+      images: true,
+      metrics: true,
+    },
+  });
+
+  if (!analysis) {
+    return res.status(404).json({
+      error: "analysis_not_found",
+      message: `Analysis ${analysisId} not found`
+    });
+  }
+
+  return {
+    ok: true,
+    analysis: {
+      id: analysis.id,
+      guildId: analysis.guildId,
+      userId: analysis.userId,
+      title: analysis.title,
+      summary: analysis.summary,
+      confidence: analysis.confidence,
+      createdAt: analysis.createdAt,
+      updatedAt: analysis.updatedAt,
+      images: analysis.images,
+      metrics: analysis.metrics,
+    },
+  };
+}, { routeName: "club-analytics/analysis-get" }));
+
 module.exports = router;
