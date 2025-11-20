@@ -58,6 +58,54 @@ This repository is the future home for all Slimy.ai applications and shared pack
 - `pnpm build` - Build all packages
 - `pnpm test` - Run tests across all packages
 
+## Bootstrap
+
+The bootstrap script initializes the database and ensures an admin user exists. It's safe to run multiple times (idempotent).
+
+### Prerequisites
+
+1. Ensure `DATABASE_URL` is set in your environment (`.env` file or shell)
+2. Apply Prisma migrations: `cd apps/admin-api && npx prisma migrate deploy`
+3. (Optional) Set `INITIAL_ADMIN_DISCORD_ID` to your Discord user ID in `.env`
+
+### Usage
+
+```bash
+pnpm bootstrap
+```
+
+### What it does
+
+- Connects to the database and verifies the connection
+- Creates or updates an admin user based on `INITIAL_ADMIN_DISCORD_ID` (or uses a placeholder)
+- Creates a "System Administration" guild and assigns the admin user to it with `["admin", "owner"]` roles
+- Displays database statistics (user count, guild count, sessions, messages)
+- Prints environment configuration status
+- Suggests next steps for getting started
+
+### Environment Variables
+
+**Required:**
+- `DATABASE_URL` - PostgreSQL connection string
+- `DISCORD_CLIENT_ID` - Discord OAuth client ID
+- `DISCORD_CLIENT_SECRET` - Discord OAuth client secret
+- `JWT_SECRET` - Secret for JWT token signing
+
+**Optional:**
+- `INITIAL_ADMIN_DISCORD_ID` - Discord ID of the initial admin user
+- `INITIAL_ADMIN_USERNAME` - Username for the admin user (default: "admin")
+- `SYSTEM_GUILD_DISCORD_ID` - Discord ID for the system guild (default: "SYSTEM_GUILD_000")
+- `OPENAI_API_KEY` - OpenAI API key for AI features
+- `NEXT_PUBLIC_APP_URL` - Public URL of the application
+
+### Safety
+
+The bootstrap script is designed to be safe:
+- **Idempotent**: Can be run multiple times without adverse effects
+- **Non-destructive**: Never deletes data
+- **Upsert operations**: Creates or updates records as needed
+- **Error handling**: Exits cleanly on errors with descriptive messages
+
 ## Structure
 
 - `apps/` holds runnable Slimy.ai applications (web, admin, bot, etc.).
