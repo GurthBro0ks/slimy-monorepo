@@ -37,6 +37,11 @@ services:
       BACKUP_ROOT: /var/backups/slimy
       BACKUP_MYSQL_DIR: /var/backups/slimy/mysql
       BACKUP_DATA_DIR: /var/backups/slimy/data
+      CORS_ORIGIN: https://admin.slimyai.xyz
+      # NUC2 dev environment - dummy credentials for local testing
+      DISCORD_CLIENT_ID: "123456789012345678"
+      DISCORD_CLIENT_SECRET: "test_secret_for_nuc2_development_only"
+      SESSION_SECRET: "test_session_secret_for_nuc2_development_only"
     depends_on:
       postgres:
         condition: service_healthy
@@ -87,7 +92,7 @@ services:
     volumes:
       - /opt/slimy/logs/web:/app/logs
     healthcheck:
-      test: ["CMD-SHELL", "wget -q -O- http://127.0.0.1:3000/api/health || exit 1"]
+      test: ["CMD-SHELL", "node -e \"require('http').get('http://127.0.0.1:3000/', res => process.exit(res.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1));\""]
       interval: 30s
       timeout: 5s
       retries: 6

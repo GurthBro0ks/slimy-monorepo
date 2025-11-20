@@ -5,7 +5,7 @@
  */
 
 import { db } from '../db';
-import type { ClubAnalysis, ClubAnalysisImage, ClubMetric } from '../db';
+import type { ClubAnalysis, ClubAnalysisImage, ClubMetric } from '@prisma/client';
 
 export interface CreateClubAnalysisInput {
   guildId: string;
