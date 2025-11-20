@@ -14,6 +14,7 @@
 
 import type { ApiError, ApiSuccess, ApiResponse } from '@slimy/shared-http';
 import { adminApiClient, type ApiResponse as AdminApiResponse } from './api/admin-client';
+import { getAdminApiBase } from './config/adminApi';
 
 // Re-export types for backward compatibility
 export type { ApiError, ApiSuccess, ApiResponse };
@@ -50,7 +51,7 @@ export class ApiClient {
   private adminClient = adminApiClient;
 
   constructor(baseUrl?: string) {
-    this.baseUrl = baseUrl || process.env.NEXT_PUBLIC_ADMIN_API_BASE || '';
+    this.baseUrl = baseUrl || getAdminApiBase();
     this.defaultTimeout = 10000; // 10 seconds
 
     this.retryConfig = {

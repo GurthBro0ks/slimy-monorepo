@@ -3,9 +3,10 @@
 import { useEffect, useState, useRef } from "react";
 import { io } from "socket.io-client";
 import { useSession } from "../lib/session";
+import { getAdminApiBase } from "../lib/config";
 
-const API_BASE = typeof window !== "undefined" 
-  ? (process.env.NEXT_PUBLIC_ADMIN_API_BASE || "")
+const API_BASE = typeof window !== "undefined"
+  ? getAdminApiBase()
   : "";
 
 export default function SlimeChatBar({ guildId }) {

@@ -1,25 +1,9 @@
-/**
- * Authentication Context for RBAC (Role-Based Access Control)
- *
- * This context provides authentication state and role information for the
- * application. It automatically fetches user data on mount and provides
- * helpers for login, logout, and session refresh.
- *
- * Role Hierarchy (lowest to highest):
- * - user: Basic authenticated user
- * - mod: Moderator with elevated permissions
- * - admin: Administrator with full access
- *
- * This is v1 of the RBAC system and can be extended with additional features
- * like permission-based access control, resource-specific permissions, etc.
- */
-
 "use client";
 
 import React, { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { apiClient } from "@/lib/api-client";
 import { AuthContextType, AuthState, AuthUser } from "./types";
-import { recordLogin } from "@/lib/analytics";
+import { buildApiUrl, isAdminApiConfigured } from "@/lib/config/adminApi";
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -44,35 +28,18 @@ export function AuthProvider({ children }: AuthProviderProps) {
       });
 
       if (response.ok && response.data) {
-        // Track successful login only on initial authentication (not on refresh)
-        const wasLoggedOut = !state.user;
-
         setState({
           user: response.data,
           loading: false,
           error: null,
           lastRefresh: Date.now(),
         });
-
-        // Record login success event only on first login, not on refresh
-        if (wasLoggedOut) {
-          recordLogin(true, {
-            userId: response.data.id,
-            method: "oauth",
-            provider: "discord",
-          });
-        }
       } else {
         setState({
           user: null,
           loading: false,
           error: "Failed to authenticate",
           lastRefresh: 0,
-        });
-
-        // Record login failure
-        recordLogin(false, {
-          reason: "authentication_failed",
         });
       }
     } catch (error) {
@@ -87,9 +54,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
   };
 
   const login = () => {
-    const adminApiBase = process.env.NEXT_PUBLIC_ADMIN_API_BASE || "";
-    if (adminApiBase) {
-      window.location.href = `${adminApiBase}/api/auth/login`;
+    if (isAdminApiConfigured()) {
+      window.location.href = buildApiUrl('/api/auth/login');
     } else {
       console.error("NEXT_PUBLIC_ADMIN_API_BASE not configured");
     }
@@ -104,10 +70,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
       lastRefresh: 0,
     });
 
-    const adminApiBase = process.env.NEXT_PUBLIC_ADMIN_API_BASE || "";
-    if (adminApiBase) {
+    if (isAdminApiConfigured()) {
       // Redirect to admin API logout endpoint
-      window.location.href = `${adminApiBase}/api/auth/logout`;
+      window.location.href = buildApiUrl('/api/auth/logout');
     } else {
       console.error("NEXT_PUBLIC_ADMIN_API_BASE not configured");
     }
