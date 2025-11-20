@@ -1,92 +1,113 @@
 "use strict";
 
-const { logger, isDebug, logDebug } = require("../lib/logger");
+require("dotenv").config();
+const { Client, Collection, Events, GatewayIntentBits } = require("discord.js");
+const fs = require("fs");
+const path = require("path");
+const database = require("./lib/database");
 
-/**
- * Discord Bot Entry Point
- * Demonstrates safe debug mode initialization
- */
-
-async function main() {
-  logger.info({
-    nodeEnv: process.env.NODE_ENV,
-    debugMode: isDebug(),
-  }, "Starting Discord bot");
-
-  // Debug: Log startup configuration (with secrets redacted)
-  if (isDebug()) {
-    logDebug(logger, {
-      env: {
-        NODE_ENV: process.env.NODE_ENV,
-        DEBUG_MODE: process.env.DEBUG_MODE,
-        LOG_LEVEL: process.env.LOG_LEVEL,
-        BOT_SERVICE_NAME: process.env.BOT_SERVICE_NAME,
-        // Never log the actual token, even in debug mode
-        hasBotToken: !!process.env.DISCORD_BOT_TOKEN,
-      },
-      process: {
-        nodeVersion: process.version,
-        platform: process.platform,
-        pid: process.pid,
-      },
-    }, "[DEBUG] Bot startup configuration");
-  }
-
-  // TODO: Initialize Discord client and command handlers
-  logger.info("Bot initialization complete (placeholder)");
+// Validate environment variables
+if (!process.env.DISCORD_TOKEN) {
+  console.error("❌ DISCORD_TOKEN is not set in environment variables");
+  process.exit(1);
 }
 
-// Handle errors
-process.on("unhandledRejection", (error) => {
-  logger.error({
-    error: {
-      name: error.name,
-      message: error.message,
-      stack: error.stack,
-    },
-  }, "Unhandled promise rejection");
-
-  if (isDebug()) {
-    logDebug(logger, {
-      errorType: error.constructor.name,
-      cause: error.cause,
-    }, "[DEBUG] Unhandled rejection details");
-  }
-
-  process.exit(1);
+// Create Discord client
+const client = new Client({
+  intents: [
+    GatewayIntentBits.Guilds,
+  ],
 });
 
-process.on("uncaughtException", (error) => {
-  logger.error({
-    error: {
-      name: error.name,
-      message: error.message,
-      stack: error.stack,
-    },
-  }, "Uncaught exception");
+// Load commands
+client.commands = new Collection();
+const commandsPath = path.join(__dirname, "commands");
 
-  if (isDebug()) {
-    logDebug(logger, {
-      errorType: error.constructor.name,
-      cause: error.cause,
-    }, "[DEBUG] Uncaught exception details");
+if (fs.existsSync(commandsPath)) {
+  const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith(".js"));
+
+  for (const file of commandFiles) {
+    const filePath = path.join(commandsPath, file);
+    const command = require(filePath);
+
+    if ("data" in command && "execute" in command) {
+      client.commands.set(command.data.name, command);
+      console.log(`✅ Loaded command: ${command.data.name}`);
+    } else {
+      console.warn(`⚠️  Skipping ${file}: missing 'data' or 'execute' property`);
+    }
   }
-
-  process.exit(1);
-});
-
-// Start the bot
-if (require.main === module) {
-  main().catch((error) => {
-    logger.error({
-      error: {
-        name: error.name,
-        message: error.message,
-        stack: error.stack,
-      },
-    }, "Bot startup failed");
-    process.exit(1);
-  });
+} else {
+  console.warn(`⚠️  Commands directory not found at: ${commandsPath}`);
 }
 
-module.exports = { main };
+// Event: Bot is ready
+client.once(Events.ClientReady, async (readyClient) => {
+  console.log(`✅ Logged in as ${readyClient.user.tag}`);
+  console.log(`📊 Serving ${readyClient.guilds.cache.size} guild(s)`);
+
+  // Initialize database connection
+  try {
+    await database.initialize();
+  } catch (error) {
+    console.error("⚠️  Failed to initialize database:", error.message);
+    console.log("Bot will continue running, but database-dependent commands may fail.");
+  }
+});
+
+// Event: Handle slash command interactions
+client.on(Events.InteractionCreate, async (interaction) => {
+  if (!interaction.isChatInputCommand()) return;
+
+  const command = client.commands.get(interaction.commandName);
+
+  if (!command) {
+    console.error(`❌ No command matching ${interaction.commandName} was found.`);
+    return;
+  }
+
+  try {
+    console.log(`🔹 Executing command: /${interaction.commandName} in guild: ${interaction.guildId || "DM"}`);
+    await command.execute(interaction);
+  } catch (error) {
+    console.error(`❌ Error executing command ${interaction.commandName}:`, error);
+
+    const errorMessage = "❌ There was an error while executing this command!";
+
+    try {
+      if (interaction.replied || interaction.deferred) {
+        await interaction.followUp({ content: errorMessage, ephemeral: true });
+      } else {
+        await interaction.reply({ content: errorMessage, ephemeral: true });
+      }
+    } catch (replyError) {
+      console.error("Failed to send error message to user:", replyError);
+    }
+  }
+});
+
+// Event: Handle errors
+client.on(Events.Error, (error) => {
+  console.error("Discord client error:", error);
+});
+
+// Graceful shutdown
+process.on("SIGINT", async () => {
+  console.log("\n⏹️  Shutting down bot...");
+  await database.close();
+  client.destroy();
+  process.exit(0);
+});
+
+process.on("SIGTERM", async () => {
+  console.log("\n⏹️  Shutting down bot...");
+  await database.close();
+  client.destroy();
+  process.exit(0);
+});
+
+// Login to Discord
+client.login(process.env.DISCORD_TOKEN).catch((error) => {
+  console.error("❌ Failed to login to Discord:", error);
+  process.exit(1);
+});
