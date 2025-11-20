@@ -87,3 +87,93 @@ export function getRateLimitResetTime(key: string, windowMs: number): number {
   }
   return now + windowMs;
 }
+
+/**
+ * Rate limit configuration
+ */
+export interface RateLimitConfig {
+  key?: string; // Optional custom key (defaults to IP)
+  limit: number; // Number of requests allowed
+  windowMs: number; // Time window in milliseconds
+}
+
+/**
+ * Rate limit result
+ */
+export interface RateLimitResult {
+  allowed: boolean;
+  limit: number;
+  remaining: number;
+  resetTime: number;
+}
+
+/**
+ * Extract IP address from request headers
+ */
+function getIpAddress(request: Request): string {
+  const headers = request.headers;
+
+  // Try various headers for IP address
+  const forwardedFor = headers.get('x-forwarded-for');
+  if (forwardedFor) {
+    // x-forwarded-for can contain multiple IPs, take the first one
+    return forwardedFor.split(',')[0].trim();
+  }
+
+  const realIp = headers.get('x-real-ip');
+  if (realIp) {
+    return realIp;
+  }
+
+  // Fallback to a default value (not ideal but prevents errors)
+  return 'unknown';
+}
+
+/**
+ * Generic rate limiter for Next.js API routes
+ *
+ * Usage:
+ * ```ts
+ * const result = rateLimit(request, { limit: 100, windowMs: 60000 });
+ * if (!result.allowed) {
+ *   return new Response('Rate limit exceeded', { status: 429 });
+ * }
+ * ```
+ */
+export function rateLimit(
+  request: Request,
+  config: RateLimitConfig
+): RateLimitResult {
+  const { key, limit, windowMs } = config;
+
+  // Use custom key or fallback to IP address
+  const rateLimitKey = key || `ip:${getIpAddress(request)}`;
+
+  // Check if rate limited
+  const limited = isRateLimited(rateLimitKey, limit, windowMs);
+  const resetTime = getRateLimitResetTime(rateLimitKey, windowMs);
+
+  // Calculate remaining requests
+  const now = Date.now();
+  const filePath = join(RATE_LIMIT_DIR, `${rateLimitKey}.json`);
+  let remaining = limit;
+
+  if (existsSync(filePath)) {
+    try {
+      const content = readFileSync(filePath, "utf-8");
+      const entry: RateLimitEntry = JSON.parse(content);
+      if (entry.resetTime > now) {
+        remaining = Math.max(0, limit - entry.count);
+      }
+    } catch (e) {
+      // Ignore
+    }
+  }
+
+  return {
+    allowed: !limited,
+    limit,
+    remaining,
+    resetTime,
+  };
+}
