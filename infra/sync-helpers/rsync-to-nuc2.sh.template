@@ -1,0 +1,96 @@
+#!/bin/bash
+#
+# rsync-to-nuc2.sh.template
+# Template script for syncing monorepo to NUC2 using rsync
+#
+# ⚠️  WARNING: GIT IS THE SOURCE OF TRUTH ⚠️
+# This script should only be used for:
+#   - Initial seeding of the repository on a new NUC
+#   - Emergency cases where git is unavailable
+#
+# For normal operation, use git to sync changes:
+#   - On laptop: git commit && git push
+#   - On NUC: ./infra/sync-helpers/pull-from-github.sh
+#
+# SETUP INSTRUCTIONS:
+# 1. Copy this file to rsync-to-nuc2.sh (remove .template extension)
+# 2. Replace the placeholders below with your actual values:
+#    - REMOTE_USER: Your SSH username on the NUC
+#    - REMOTE_HOST: The hostname or IP address of NUC2
+#    - REMOTE_PATH: The destination path on the NUC
+#    - LOCAL_PATH: The local path to your monorepo (usually current directory)
+# 3. Make the script executable: chmod +x rsync-to-nuc2.sh
+# 4. Add rsync-to-nuc2.sh to .gitignore to avoid committing credentials
+#
+
+set -e  # Exit on error
+
+# ============================================================================
+# CONFIGURATION - REPLACE THESE PLACEHOLDERS WITH YOUR ACTUAL VALUES
+# ============================================================================
+
+# SSH user on the NUC
+REMOTE_USER="your-username"  # e.g., "slimy" or "admin"
+
+# Hostname or IP address of NUC2
+REMOTE_HOST="slimy-nuc2"  # e.g., "slimy-nuc2.local" or "192.168.1.101"
+
+# Destination path on the NUC (parent directory where monorepo should live)
+REMOTE_PATH="/home/your-username/projects"  # e.g., "/home/slimy/projects"
+
+# Local monorepo path (usually the current directory)
+LOCAL_PATH="$(pwd)"
+
+# ============================================================================
+# RSYNC EXECUTION
+# ============================================================================
+
+echo "========================================="
+echo "Syncing to NUC2 via rsync"
+echo "========================================="
+echo ""
+echo "⚠️  WARNING: This bypasses git! Use only for initial setup."
+echo ""
+echo "Source:      $LOCAL_PATH"
+echo "Destination: $REMOTE_USER@$REMOTE_HOST:$REMOTE_PATH"
+echo ""
+read -p "Continue? (y/N) " -n 1 -r
+echo ""
+
+if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+    echo "Aborted."
+    exit 1
+fi
+
+# Rsync with common exclusions
+# -a: archive mode (preserves permissions, timestamps, etc.)
+# -v: verbose
+# -z: compress during transfer
+# -P: show progress and keep partially transferred files
+# --delete: delete files on destination that don't exist in source (use with caution!)
+# --exclude: skip these directories/files
+
+rsync -avzP \
+    --exclude='node_modules/' \
+    --exclude='.next/' \
+    --exclude='dist/' \
+    --exclude='build/' \
+    --exclude='.git/' \
+    --exclude='.env' \
+    --exclude='.env.local' \
+    --exclude='*.log' \
+    --exclude='.DS_Store' \
+    "$LOCAL_PATH/" \
+    "$REMOTE_USER@$REMOTE_HOST:$REMOTE_PATH/$(basename "$LOCAL_PATH")"
+
+echo ""
+echo "========================================="
+echo "Sync complete!"
+echo "========================================="
+echo ""
+echo "Next steps on NUC2:"
+echo "  1. SSH into the NUC: ssh $REMOTE_USER@$REMOTE_HOST"
+echo "  2. Navigate to the project: cd $REMOTE_PATH/$(basename "$LOCAL_PATH")"
+echo "  3. Set up git remote if needed"
+echo "  4. Use git for future syncs: ./infra/sync-helpers/pull-from-github.sh"
+echo ""
