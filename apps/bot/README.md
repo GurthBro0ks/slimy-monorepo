@@ -1,177 +1,322 @@
-# Slimy Discord Bot
+# @slimy/bot
 
-Discord bot for club management and tier tracking.
+Conversational bot service for Slimy.ai (Discord/Telegram/Multi-platform)
 
-## Features
+## Purpose
 
-- **`/tier`** - Show tier breakdown for club members based on their total power
+The bot app serves as the primary conversational interface for Slimy.ai users, providing:
+- Discord bot integration for guild management
+- Real-time snail game interactions
+- Command routing and event handling
+- Integration with admin-api for data persistence
+- Multi-platform support (future)
 
-## Setup
+## Current Status
 
-### 1. Install Dependencies
+⚠️ **SCAFFOLDING ONLY** - This package is currently a placeholder. Implementation is pending.
 
-```bash
-cd apps/bot
-npm install
-```
+## Proposed Tech Stack
 
-### 2. Configure Environment Variables
+### Core Framework
+- **Discord.js** (or **discord.js v14+**) for Discord bot functionality
+- **Node.js 20+** for runtime
+- **TypeScript** for type safety
 
-Copy `.env.example` to `.env` and fill in your values:
+### State & Caching
+- **Redis** for distributed state management
+- **Event-driven architecture** for command handling
+- **WebSocket** for real-time communication
 
-```bash
-cp .env.example .env
-```
+### Database & Backend Integration
+- Integrates with **Admin API** for data operations
+- Uses shared packages for domain logic
 
-Required environment variables:
+### Deployment
+- Docker containerized service
+- Systemd service for production
+- Auto-restart and logging
 
-- `DISCORD_TOKEN` - Your Discord bot token from [Discord Developer Portal](https://discord.com/developers/applications)
-- `DISCORD_CLIENT_ID` - Your Discord application's client ID
-- `DB_HOST` - MySQL database host
-- `DB_PORT` - MySQL database port (default: 3306)
-- `DB_USER` - MySQL database user
-- `DB_PASSWORD` - MySQL database password
-- `DB_NAME` - MySQL database name
-
-### 3. Deploy Commands
-
-Register the slash commands with Discord:
-
-```bash
-npm run deploy-commands
-```
-
-**Note:** Global commands can take up to 1 hour to update. For faster testing during development, you can modify `src/deploy-commands.js` to use guild-specific commands.
-
-### 4. Start the Bot
-
-```bash
-npm start
-```
-
-For development with auto-restart:
-
-```bash
-npm run dev
-```
-
-## Commands
-
-### `/tier`
-
-Shows a tier breakdown for club members based on their total power from the `club_latest` database table.
-
-**Tier Thresholds:**
-- **Tier I**: ≥ 10 billion total power
-- **Tier II**: ≥ 1 billion total power
-- **Tier III**: < 1 billion total power
-
-**Output:**
-- Total member count
-- Number of members in each tier
-- Top 5 members per tier (for Tiers I and II)
-- Formatted power values (e.g., "10.5B", "1.2M")
-
-**Example Usage:**
-```
-/tier
-```
-
-**Example Output:**
-```
-📊 Tier Breakdown for My Guild
-
-Total Members: 45
-
-🏆 Tier I (10.00B+): 3 members
-  • Player1: 15.2B
-  • Player2: 12.8B
-  • Player3: 10.5B
-
-🥈 Tier II (1.00B+): 12 members
-  • Player4: 8.5B
-  • Player5: 6.2B
-  • Player6: 4.1B
-  • Player7: 2.9B
-  • Player8: 1.3B
-  ...and 7 more
-
-🥉 Tier III (<1.00B): 30 members
-```
-
-## Project Structure
+## Proposed Directory Structure
 
 ```
 apps/bot/
 ├── src/
-│   ├── index.js              # Main bot entry point
-│   ├── deploy-commands.js    # Command registration script
-│   ├── commands/             # Slash command definitions
-│   │   └── tier.js           # /tier command
-│   └── lib/
-│       └── database.js       # Database connection helper
-├── .env.example              # Environment variable template
-├── package.json              # Dependencies and scripts
+│   ├── index.ts              # Bot entry point
+│   ├── client.ts             # Discord client setup
+│   ├── commands/             # Command handlers
+│   │   ├── ping.ts
+│   │   ├── snail/            # Snail-related commands
+│   │   ├── guild/            # Guild management commands
+│   │   └── admin/            # Admin-only commands
+│   ├── events/               # Event listeners
+│   │   ├── ready.ts
+│   │   ├── messageCreate.ts
+│   │   └── interactionCreate.ts
+│   ├── middleware/           # Command middleware
+│   │   ├── auth.ts           # Permission checking
+│   │   ├── rateLimit.ts      # Rate limiting
+│   │   └── logging.ts        # Command logging
+│   ├── services/             # Business logic
+│   │   ├── snailService.ts   # Snail game logic
+│   │   ├── guildService.ts   # Guild management
+│   │   └── apiClient.ts      # Admin API client
+│   ├── lib/                  # Utilities
+│   │   ├── logger.ts
+│   │   ├── cache.ts
+│   │   └── validators.ts
+│   └── types/                # TypeScript types
+│       ├── commands.ts
+│       └── events.ts
+├── config/                   # Configuration files
+│   └── commands.json         # Command definitions
+├── tests/                    # Test suites
+│   ├── unit/
+│   └── integration/
+├── package.json
+├── tsconfig.json
 └── README.md                 # This file
 ```
 
-## Database Schema
+## Proposed Features
 
-The bot expects a MySQL database with a `club_latest` table:
+### Command System
+- **Slash Commands**: Modern Discord interaction model
+- **Prefix Commands**: Traditional `!command` syntax (optional)
+- **Command Aliases**: Multiple names for same command
+- **Auto-complete**: Suggestions for command parameters
 
-```sql
-CREATE TABLE club_latest (
-  guild_id VARCHAR(255) NOT NULL,
-  member_key VARCHAR(255) NOT NULL,
-  total_power BIGINT NOT NULL,
-  -- other columns...
-  PRIMARY KEY (guild_id, member_key)
-);
+### Snail Game Integration
+- `/snail status` - Check snail stats
+- `/snail feed` - Feed your snail
+- `/snail battle` - Battle mechanics
+- `/snail inventory` - View items
+
+### Guild Management
+- `/guild info` - Guild statistics
+- `/guild settings` - Configure bot behavior
+- `/guild members` - Member management
+
+### Admin Commands
+- `/admin broadcast` - Send announcements
+- `/admin stats` - Bot-wide statistics
+- `/admin reload` - Reload commands without restart
+
+### Event Handling
+- **Message Events**: React to messages
+- **Member Events**: Join/leave tracking
+- **Guild Events**: Server updates
+- **Custom Events**: Game-specific events
+
+## Dependencies on Shared Packages
+
+### Required
+- `@slimy/shared-snail` - Core snail domain logic and game mechanics
+- `@slimy/shared-db` - Database client (if direct DB access needed)
+- `@slimy/shared-codes` - Error codes and enums
+- `@slimy/shared-config` - Configuration management
+- `@slimy/shared-types` - Shared TypeScript types
+
+### Optional
+- `@slimy/shared-auth` - If OAuth or token validation needed
+- `@slimy/shared-utils` - Common utility functions
+
+## Environment Variables
+
+Proposed environment variables:
+
+```env
+# Discord Bot
+DISCORD_BOT_TOKEN="your-bot-token"
+DISCORD_CLIENT_ID="your-client-id"
+DISCORD_GUILD_ID="your-test-guild-id"  # For development
+
+# Admin API Integration
+ADMIN_API_BASE_URL="http://localhost:3080"
+ADMIN_API_KEY="your-api-key"
+
+# Redis
+REDIS_URL="redis://localhost:6379"
+REDIS_PASSWORD=""
+
+# Bot Configuration
+BOT_PREFIX="!"
+BOT_OWNER_ID="discord-user-id"
+COMMAND_COOLDOWN_MS="3000"
+
+# Logging
+LOG_LEVEL="info"  # debug, info, warn, error
+LOG_FILE="/var/log/slimy/bot.log"
+
+# Environment
+NODE_ENV="development"  # development, production
 ```
 
-## Adding New Commands
+## Proposed Scripts
 
-1. Create a new file in `src/commands/` (e.g., `mycommand.js`)
-2. Export an object with `data` (SlashCommandBuilder) and `execute` (async function)
-3. Run `npm run deploy-commands` to register the new command
-4. Restart the bot
-
-**Example:**
-
-```javascript
-const { SlashCommandBuilder } = require("discord.js");
-
-module.exports = {
-  data: new SlashCommandBuilder()
-    .setName("mycommand")
-    .setDescription("Description of my command"),
-
-  async execute(interaction) {
-    await interaction.reply("Hello from my command!");
-  },
-};
+```json
+{
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "test": "vitest",
+    "lint": "eslint src/",
+    "lint:fix": "eslint src/ --fix",
+    "deploy-commands": "tsx scripts/deploy-commands.ts",
+    "clean": "rm -rf dist/"
+  }
+}
 ```
 
-## Troubleshooting
+## Deployment
 
-### Commands not appearing in Discord
+### Docker
+The bot will be containerized for production deployment:
 
-1. Make sure you ran `npm run deploy-commands`
-2. Global commands can take up to 1 hour to update
-3. Try using guild-specific commands for faster testing (modify `deploy-commands.js`)
+```dockerfile
+FROM node:20-alpine
+WORKDIR /app
+COPY package.json pnpm-lock.yaml ./
+RUN pnpm install --frozen-lockfile --prod
+COPY dist/ ./dist/
+CMD ["node", "dist/index.js"]
+```
 
-### Database connection errors
+### Systemd Service
+For bare-metal deployment:
 
-1. Verify your `.env` file has correct database credentials
-2. Ensure the MySQL database is running and accessible
-3. Check that the `club_latest` table exists
+```ini
+[Unit]
+Description=Slimy.ai Discord Bot
+After=network.target redis.service
 
-### Bot not responding
+[Service]
+Type=simple
+User=slimy
+WorkingDirectory=/opt/slimy/bot
+ExecStart=/usr/bin/node dist/index.js
+Restart=always
+RestartSec=10
 
-1. Check that the bot is online in Discord
-2. Verify the bot has appropriate permissions in your server
-3. Check console logs for error messages
+[Install]
+WantedBy=multi-user.target
+```
+
+## What Needs to Be Wired
+
+### Implementation Tasks
+1. **Discord Client Setup**: Initialize Discord.js client with proper intents
+2. **Command Handler**: Implement slash command registration and handling
+3. **Event System**: Set up event listeners for Discord events
+4. **Admin API Client**: Create HTTP client for backend communication
+5. **Redis Integration**: Implement state management and caching
+6. **Error Handling**: Graceful error handling and logging
+7. **Testing**: Unit and integration tests for commands and events
+
+### Integration Tasks
+1. **Shared Packages**: Wire up `@slimy/shared-snail` for game logic
+2. **Configuration**: Use `@slimy/shared-config` for env management
+3. **Types**: Import shared types from `@slimy/shared-types`
+4. **Database**: Determine if direct DB access or API-only
+
+### Infrastructure Tasks
+1. **Docker Compose**: Add bot service to compose files
+2. **Health Checks**: Implement health endpoint for monitoring
+3. **Logging**: Set up structured logging with rotation
+4. **Monitoring**: Add Prometheus metrics for bot status
+
+### Documentation Tasks
+1. **Command Documentation**: Document all available commands
+2. **Architecture Docs**: Explain command flow and event handling
+3. **Deployment Guide**: Step-by-step deployment instructions
+4. **Development Guide**: Local development setup
+
+## Multi-Platform Support (Future)
+
+While Discord is the primary platform, the architecture should support:
+
+### Telegram
+- **node-telegram-bot-api** or **telegraf**
+- Shared command logic with Discord
+- Platform-specific adapters
+
+### Slack
+- **@slack/bolt** for Slack bot framework
+- Similar command structure
+- Different interaction model
+
+### Web Chat (Custom)
+- WebSocket-based chat interface
+- Integration with admin-ui
+- Shared backend with other platforms
+
+### Abstraction Layer
+Create a platform-agnostic command system:
+
+```typescript
+interface BotPlatform {
+  sendMessage(channelId: string, message: string): Promise<void>;
+  registerCommand(command: Command): void;
+  on(event: string, handler: Function): void;
+}
+
+class DiscordPlatform implements BotPlatform { /* ... */ }
+class TelegramPlatform implements BotPlatform { /* ... */ }
+```
+
+## Performance Targets
+
+- **Command Response Time**: < 500ms for simple commands
+- **API Call Latency**: < 200ms to admin-api
+- **Memory Usage**: < 200MB under normal load
+- **Uptime**: > 99.9% availability
+
+## Security Considerations
+
+1. **Permission Checks**: Validate user roles before executing commands
+2. **Rate Limiting**: Prevent spam and abuse
+3. **Input Validation**: Sanitize all user inputs
+4. **API Key Management**: Secure storage of Discord token
+5. **Error Messages**: Don't leak sensitive information in errors
+
+## Related Services
+
+- **Admin API** (`apps/admin-api`): Backend data source
+- **Admin UI** (`apps/admin-ui`): Web dashboard for bot management
+- **Web** (`apps/web`): Customer portal
+
+## Getting Started (When Implemented)
+
+```bash
+# Install dependencies
+pnpm install
+
+# Copy environment template
+cp .env.example .env
+
+# Edit .env with your Discord bot token
+# Get your token from: https://discord.com/developers/applications
+
+# Register slash commands
+pnpm deploy-commands
+
+# Start development server
+pnpm dev
+```
+
+## Next Steps for Implementation
+
+1. Initialize package with Discord.js and TypeScript
+2. Set up basic bot client and event handlers
+3. Implement slash command registration
+4. Create command handler framework
+5. Integrate with admin-api for data operations
+6. Add Redis for state management
+7. Write tests for command logic
+8. Containerize for production deployment
+9. Add monitoring and logging
+10. Document all commands and features
 
 ## License
 
-Private - Part of Slimy monorepo
+Proprietary - Slimy.ai
