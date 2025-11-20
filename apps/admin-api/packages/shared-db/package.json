@@ -1,0 +1,16 @@
+{
+  "name": "@slimy/shared-db",
+  "version": "1.0.0",
+  "description": "Shared database utilities and Prisma client",
+  "main": "index.js",
+  "types": "index.d.ts",
+  "scripts": {
+    "build": "tsc"
+  },
+  "dependencies": {
+    "@prisma/client": "workspace:*"
+  },
+  "keywords": ["database", "prisma", "shared", "slimy"],
+  "author": "Slimy.ai",
+  "license": "MIT"
+}
