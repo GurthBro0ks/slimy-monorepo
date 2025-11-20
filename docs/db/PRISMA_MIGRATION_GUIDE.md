@@ -1,37 +1,126 @@
 # Prisma Database Migration Guide
 
-**Status**: Phase 1-2 Complete - Schema & Infrastructure Ready
-**Last Updated**: 2025-11-20
-**Target**: Replace MySQL guild settings with Prisma while maintaining backwards compatibility
+**Status**: Phase 1-2 Complete + Phase 2.1 In Progress
+**Last Updated**: 2025-11-20 (Phase 2.1 - Database Consolidation)
+**Target**: Single canonical Prisma schema across web + admin-api with backwards compatibility
 
 ## Overview
 
-This document outlines the incremental migration from MySQL and JSON file storage to Prisma/PostgreSQL in apps/admin-api. The migration uses a **dual-write pattern** with feature flags to ensure zero downtime and easy rollback.
+This document outlines the incremental migration from:
+1. MySQL → PostgreSQL/Prisma (admin-api)
+2. Multiple separate Prisma schemas → Single canonical schema (Phase 2.1)
+3. Isolated features → Integrated features via admin-api endpoints
 
-## Current State (After Phase 1-2)
+The migration uses a **dual-write pattern** with feature flags for zero downtime.
+
+## Current State (After Phase 2.1 - Database Consolidation)
 
 ### ✅ Completed
+
+**Phase 1-2 (MySQL → Prisma):**
 - PostgreSQL database configured (docker-compose in `apps/admin-api/infra/docker/`)
-- Prisma schema extended with missing models:
-  - `GuildSettings` - Guild configuration (sheet_id, view_mode, uploads, etc.)
-  - `GuildPersonality` - AI personality settings (system_prompt, temperature, tone)
+- Prisma schema extended with guild settings models:
+  - `GuildSettings` - Guild configuration
+  - `GuildPersonality` - AI personality settings
   - `Correction` - Club analytics corrections
-- Migration created: `prisma/migrations/20251120122933_add_guild_settings_personality_correction/`
-- Database package.json scripts added:
-  - `prisma:generate` - Generate Prisma client
-  - `prisma:migrate` - Run migrations
-  - `db:reset` - Reset test database
-- Test infrastructure created:
-  - `tests/utils/setupTestDb.ts` - Test database setup/teardown
-  - `tests/utils/factories.ts` - Test data factories
-- Feature flag system implemented: `src/lib/config/featureFlags.ts`
-- GuildSettings repository created: `src/repositories/guildSettings.ts` (dual-write pattern)
-- Server entry point updated for Prisma initialization
+- Feature flag system: `src/lib/config/featureFlags.ts`
+- Test infrastructure: `tests/utils/setupTestDb.ts`, `tests/utils/factories.ts`
+
+**Phase 2.1 (Database & Schema Consolidation):**
+- ✅ Single PostgreSQL instance for both web + admin-api (DATABASE_URL shared)
+- ✅ Chat models renamed for clarity:
+  - `Conversation` → `GuildConversation` (guild communication)
+  - `ChatMessage` → `GuildChatMessage` (guild communication)
+  - Web keeps `ChatConversation` + `ChatMessage` (AI chat)
+- ✅ Canonical models in admin-api:
+  - ClubAnalysis* (from web, now canonical in admin-api)
+  - AuditLog (from web, now canonical in admin-api)
+- ✅ Web models marked as deprecated with migration comments
+- ✅ Prisma migrations created for schema changes:
+  - `20251120131627_rename_chat_models_for_clarity`
+  - `20251120131640_mark_club_analytics_deprecated`
 
 ### ⏳ In Progress / Pending
-- Full test suite validation
-- Migration documentation updates
-- Example integration test
+
+**Phase 2.2-2.4:**
+- Club analytics data migration (web → admin-api)
+- Web to call admin-api /api/club-analytics/* instead of local Prisma
+- Audit log integration (web events → admin-api)
+- Session consolidation (optional)
+
+## Schema Consolidation Architecture (Phase 2.1)
+
+As of Phase 2.1, the database architecture is being consolidated to a single canonical schema:
+
+### Database Connection Strategy
+- **Single Postgres Instance per Environment**: Both web + admin-api use the same DATABASE_URL
+- **Single Schema**: Both apps write to schema=public
+- **Canonical Models in admin-api**: Guild management, club analytics, audit logs
+- **Web-Local Models**: AI chat, user preferences, game features
+
+### Canonical Models (Admin-API is source of truth)
+
+**Core:**
+- User, Session, Guild, UserGuild
+
+**Guild Communication:**
+- `GuildConversation` (renamed from `Conversation` for clarity)
+- `GuildChatMessage` (renamed from `ChatMessage` for clarity)
+
+**Club Analytics (moved from web):**
+- ClubAnalysis, ClubAnalysisImage, ClubMetric
+
+**Audit Trail:**
+- AuditLog (comprehensive version with requestId, sessionId, etc.)
+
+**Configuration:**
+- GuildSettings, GuildPersonality, Correction
+
+**Screenshots:**
+- ScreenshotAnalysis, ScreenshotData, ScreenshotTag, ScreenshotComparison, etc.
+
+**Webhooks:**
+- Webhook, WebhookDelivery
+
+### Web App Models (remain in web database, separate from admin-api)
+
+**AI Chat (NOT guild communication):**
+- `ChatConversation`, `ChatMessage` (AI conversations with roles: user/assistant/system)
+
+**User Settings:**
+- UserPreferences, GuildFeatureFlags
+
+**Game Features:**
+- CodeReport, UserSession
+
+### Migration Path
+
+**Web to Admin-API Integration:**
+```
+Old (Isolated):
+Web App → Local ClubAnalysis table → Local PostgreSQL
+
+New (Integrated):
+Web App → HTTP Request → /api/club-analytics/* → Admin-API → Shared PostgreSQL
+```
+
+### Deprecation Timeline
+
+**Current (Phase 2.1):**
+- ClubAnalysis*, AuditLog marked as deprecated in web schema
+- Models remain in web database for backwards compatibility
+- Prisma migrations document the consolidation strategy
+
+**Phase 2.2-2.3:**
+- Data migration script (web ClubAnalysis → admin-api)
+- Web calls admin-api endpoints instead of local Prisma
+- Code updated to remove direct web schema references
+
+**Phase 2.4 Cleanup:**
+- Remove deprecated models from web schema
+- Full consolidation to admin-api as canonical source
+
+---
 
 ## Architecture: Dual-Write Pattern
 
