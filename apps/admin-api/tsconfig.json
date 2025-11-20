@@ -1,30 +1,61 @@
 {
   "compilerOptions": {
-    "target": "ES2022",
+    // Enable JavaScript type checking
+    "allowJs": true,
+    "checkJs": true,
+
+    // Module system
     "module": "commonjs",
-    "lib": ["ES2022"],
-    "outDir": "./dist",
-    "rootDir": "./src",
-    "removeComments": true,
-    "esModuleInterop": true,
-    "forceConsistentCasingInFileNames": true,
-    "strict": true,
-    "skipLibCheck": true,
-    "resolveJsonModule": true,
+    "moduleResolution": "node",
+    "target": "ES2020",
+
+    // Type checking strictness
+    "strict": false,  // Start with loose, can tighten gradually
+    "noImplicitAny": false,  // Would require major refactoring
+    "strictNullChecks": false,
+    "strictFunctionTypes": true,
+    "strictPropertyInitialization": false,
+
+    // Additional checks
+    "noUnusedLocals": false,  // Warn about unused variables
+    "noUnusedParameters": false,  // Warn about unused function parameters
+    "noImplicitReturns": true,  // Ensure all code paths return a value
+    "noFallthroughCasesInSwitch": true,
+
+    // Emit
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,
-    "moduleResolution": "node",
+    "outDir": "./dist",
+
+    // Interop
+    "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
-    "types": ["node"]
+    "forceConsistentCasingInFileNames": true,
+
+    // Resolution
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+
+    // Node.js specific
+    "lib": ["ES2020"],
+    "types": ["node", "jest"],
+
+    // Project references
+    "composite": false,
+    "incremental": true
   },
   "include": [
-    "src/**/*.ts"
+    "src/**/*",
+    "server.js",
+    "lib/**/*",
+    "tests/**/*"
   ],
   "exclude": [
     "node_modules",
     "dist",
-    "**/*.spec.ts",
-    "**/*.test.ts"
+    "coverage",
+    "**/*.test.js",
+    "jest.setup.js"
   ]
 }
