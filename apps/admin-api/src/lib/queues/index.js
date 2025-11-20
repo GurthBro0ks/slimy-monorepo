@@ -11,6 +11,7 @@
  * - chat: Chat bot interactions and message processing
  * - database: Database operations and data processing
  * - audit: Event sourcing and audit trail logging
+ * - screenshot: Screenshot analysis using GPT-4 Vision
  */
 
 const { Queue, Worker, QueueScheduler } = require('bullmq');
@@ -26,6 +27,7 @@ const {
   processDeleteConversation,
 } = require('./database-processor');
 const { processLogEvent } = require('./audit-processor');
+const { processScreenshotAnalysis } = require('./screenshot-processor');
 
 class QueueManager {
   constructor() {
@@ -83,6 +85,7 @@ class QueueManager {
       { name: 'chat', concurrency: 5 },
       { name: 'database', concurrency: 10 },
       { name: 'audit', concurrency: 2 },
+      { name: 'screenshot', concurrency: 3 },
     ];
 
     for (const { name, concurrency } of queueConfigs) {
@@ -171,9 +174,31 @@ class QueueManager {
       concurrency: 2,
     });
 
+    // Screenshot analysis queue worker
+    const screenshotWorker = new Worker('screenshot', async (job) => {
+      const startTime = Date.now();
+      try {
+        const result = await this._processScreenshotJob(job);
+        const duration = Date.now() - startTime;
+        metrics.recordJobDuration('screenshot', duration);
+        metrics.recordJobCompleted('screenshot');
+        return result;
+      } catch (error) {
+        const duration = Date.now() - startTime;
+        metrics.recordJobDuration('screenshot', duration);
+        metrics.recordJobFailed('screenshot');
+        logger.error(`[queues] Screenshot job ${job.id} failed:`, error);
+        throw error;
+      }
+    }, {
+      connection: this.redis,
+      concurrency: 3,
+    });
+
     this.workers.set('chat', chatWorker);
     this.workers.set('database', databaseWorker);
     this.workers.set('audit', auditWorker);
+    this.workers.set('screenshot', screenshotWorker);
 
     logger.info('[queues] Initialized job workers');
   }
@@ -182,7 +207,7 @@ class QueueManager {
    * Initialize queue schedulers for job reliability
    */
   async _initializeSchedulers() {
-    const queueNames = ['chat', 'database', 'audit'];
+    const queueNames = ['chat', 'database', 'audit', 'screenshot'];
 
     for (const queueName of queueNames) {
       const scheduler = new QueueScheduler(queueName, {
@@ -271,6 +296,20 @@ class QueueManager {
   }
 
   /**
+   * Process screenshot analysis jobs
+   */
+  async _processScreenshotJob(job) {
+    const { type, data } = job.data;
+
+    switch (type) {
+      case 'analyze_screenshots':
+        return await this._processScreenshotAnalysis(data);
+      default:
+        throw new Error(`Unknown screenshot job type: ${type}`);
+    }
+  }
+
+  /**
    * Process chat bot interaction job
    */
   async _processChatBotInteraction(data) {
@@ -310,6 +349,13 @@ class QueueManager {
    */
   async _processLogEvent(data) {
     return await processLogEvent(data);
+  }
+
+  /**
+   * Process screenshot analysis job
+   */
+  async _processScreenshotAnalysis(data) {
+    return await processScreenshotAnalysis(data);
   }
 
   /**
