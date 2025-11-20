@@ -4,6 +4,7 @@ const { requireRole, requireGuildMember, requireAuth } = require("../middleware/
 const { requireCsrf } = require("../middleware/csrf");
 const { cacheGuildData, cacheStats, getAPICache } = require("../middleware/cache");
 const { personality } = require("../lib/validation/schemas");
+const { recordAudit } = require("../services/audit");
 const {
   PRESETS,
   getGuildPersona,
@@ -54,6 +55,21 @@ router.put("/:guildId/personality", requireCsrf, requireGuildMember("guildId"), 
     const cache = getAPICache();
     await cache.invalidate(`api:*guild_${guildId}*personality*`);
 
+    // Record audit log for personality update
+    await recordAudit({
+      adminId: req.user?.sub || req.user?.id,
+      action: "guild.personality.update",
+      guildId: guildId,
+      payload: {
+        tone: updated.tone,
+        temperature: updated.temperature,
+        top_p: updated.top_p,
+        hasSystemPrompt: !!updated.system_prompt,
+      },
+    }).catch(err => {
+      console.error("[personality] audit log failed:", err);
+    });
+
     return res.json({ ok: true, personality: updated });
   } catch (e) {
     console.error("[personality PUT] server_error", { guildId, err: e && e.message });
@@ -78,6 +94,20 @@ router.post("/:guildId/personality/reset", requireCsrf, requireGuildMember("guil
     // Invalidate cache for this guild's personality
     const cache = getAPICache();
     await cache.invalidate(`api:*guild_${guildId}*personality*`);
+
+    // Record audit log for personality reset
+    await recordAudit({
+      adminId: req.user?.sub || req.user?.id,
+      action: "guild.personality.reset",
+      guildId: guildId,
+      payload: {
+        preset: preset || "default",
+        tone: saved.tone,
+        temperature: saved.temperature,
+      },
+    }).catch(err => {
+      console.error("[personality] audit log failed:", err);
+    });
 
     return res.json({ ok: true, personality: saved });
   } catch (e) {

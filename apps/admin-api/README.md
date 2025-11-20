@@ -61,12 +61,21 @@ admin-api/
 ├── src/
 │   ├── app.js                 # Express app setup
 │   ├── config.js              # Environment configuration
+│   ├── services/
+│   │   └── audit.js           # Audit logging service
+│   ├── lib/
+│   │   └── queues/
+│   │       └── audit-processor.js  # Async audit event processing
 │   ├── middleware/
 │   │   └── auth.js            # Authentication middleware
 │   └── routes/
 │       ├── index.js           # Route registry
 │       ├── auth.js            # OAuth flow: login, callback, logout, /me
-│       └── guilds.js          # Guild management endpoints
+│       ├── guilds.js          # Guild management endpoints
+│       ├── guild-settings.js  # Guild settings (with audit logging)
+│       ├── guild-channels.js  # Channel configuration (with audit logging)
+│       ├── personality.js     # Personality config (with audit logging)
+│       └── bot.js             # Bot operations (with audit logging)
 └── server.js                  # Entry point
 ```
 
@@ -205,6 +214,21 @@ router.get('/protected', requireAuth, (req, res) => {
 });
 ```
 
+## Audit Logging
+
+Comprehensive audit logging is implemented for all critical administrative actions. See **[AUDIT_LOGGING.md](./AUDIT_LOGGING.md)** for:
+- Instrumented routes and event types
+- Event payload schemas
+- Querying and reporting
+- Retention and compliance
+- Testing and troubleshooting
+
+**Phase 3.2** added audit logging for:
+- Guild settings updates
+- Channel configuration changes
+- Personality updates and resets
+- Bot rescan operations
+
 ## Security Notes
 
 - All cookies have `httpOnly: true` (not accessible via JavaScript)
@@ -213,6 +237,7 @@ router.get('/protected', requireAuth, (req, res) => {
 - JWT signed with `SESSION_SECRET`
 - CORS restricted to `ALLOWED_ORIGIN`
 - Helmet.js security headers enabled
+- Audit logging enabled by default (disable with `ADMIN_AUDIT_DISABLED=true`)
 
 ## TODO
 

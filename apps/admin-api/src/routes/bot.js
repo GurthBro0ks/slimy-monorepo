@@ -3,6 +3,7 @@
 const express = require("express");
 const { requireAuth } = require("../middleware/auth");
 const { requireCsrf } = require("../middleware/csrf");
+const { recordAudit } = require("../services/audit");
 
 const router = express.Router();
 
@@ -29,12 +30,51 @@ router.post("/rescan", requireAuth, requireCsrf, async (req, res) => {
       : await response.text();
 
     if (!response.ok) {
+      // Record audit log for failed rescan attempt
+      await recordAudit({
+        adminId: req.user?.sub || req.user?.id,
+        action: "bot.rescan",
+        guildId: req.body?.guildId || null,
+        payload: {
+          status: "failed",
+          statusCode: response.status,
+        },
+      }).catch(err => {
+        console.error("[bot] audit log failed:", err);
+      });
+
       return res.status(response.status).send(payload);
     }
+
+    // Record audit log for successful rescan
+    await recordAudit({
+      adminId: req.user?.sub || req.user?.id,
+      action: "bot.rescan",
+      guildId: req.body?.guildId || null,
+      payload: {
+        status: "success",
+      },
+    }).catch(err => {
+      console.error("[bot] audit log failed:", err);
+    });
 
     return res.status(200).send(payload);
   } catch (err) {
     console.error("[bot] rescan proxy error:", err);
+
+    // Record audit log for error
+    await recordAudit({
+      adminId: req.user?.sub || req.user?.id,
+      action: "bot.rescan",
+      guildId: req.body?.guildId || null,
+      payload: {
+        status: "error",
+        error: err.message,
+      },
+    }).catch(auditErr => {
+      console.error("[bot] audit log failed:", auditErr);
+    });
+
     return res.status(502).json({ error: "bot_unreachable" });
   }
 });
