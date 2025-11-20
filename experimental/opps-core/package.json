@@ -1,0 +1,15 @@
+{
+  "name": "@slimy/opps-core",
+  "version": "0.0.0",
+  "private": true,
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "build": "echo \"opps-core is TS-only, no build needed\"",
+    "test": "vitest"
+  },
+  "devDependencies": {
+    "typescript": "^5",
+    "vitest": "^4.0.7"
+  }
+}
