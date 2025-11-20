@@ -13,8 +13,7 @@ const botRoutes = require("./bot");
 const statsRoutes = require("./stats");
 const snailRoutes = require("./snail");
 const chatRoutes = require("./chat");
-const profileRoutes = require("./profile");
-const savedPromptsRoutes = require("./savedPrompts");
+const webhooksRoutes = require("./webhooks");
 
 router.get("/api/", (_req, res) => res.json({ ok: true }));
 router.get("/api/health", (_req, res) => {
@@ -36,7 +35,6 @@ router.use("/api/diag", diagRoutes);
 router.use("/api/bot", botRoutes);
 router.use("/api/stats", statsRoutes);
 router.use("/api/chat", chatRoutes);
-router.use("/api/profile", profileRoutes);
-router.use("/api/saved-prompts", savedPromptsRoutes);
+router.use("/api/webhooks", webhooksRoutes);
 
 module.exports = router;
