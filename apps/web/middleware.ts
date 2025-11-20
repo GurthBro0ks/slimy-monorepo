@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { buildApiUrl, isAdminApiConfigured } from "./lib/config/adminApi";
 
 /**
  * Centralized Authentication Middleware
@@ -62,9 +63,8 @@ export function middleware(request: NextRequest) {
 
   if (!sessionCookie || !sessionCookie.value) {
     // No valid session cookie, redirect to login
-    const adminApiBase = process.env.NEXT_PUBLIC_ADMIN_API_BASE;
-    if (adminApiBase) {
-      const loginUrl = `${adminApiBase}/api/auth/login?redirect=${encodeURIComponent(request.url)}`;
+    if (isAdminApiConfigured()) {
+      const loginUrl = buildApiUrl(`/api/auth/login?redirect=${encodeURIComponent(request.url)}`);
       return NextResponse.redirect(loginUrl);
     } else {
       // Fallback to home page if admin API base is not configured

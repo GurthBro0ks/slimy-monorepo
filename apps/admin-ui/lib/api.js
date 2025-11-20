@@ -2,8 +2,9 @@
 
 import { useCallback } from "react";
 import { useSession } from "./session";
+import { getAdminApiBase } from "./config";
 
-const API_BASE = process.env.NEXT_PUBLIC_ADMIN_API_BASE || "";
+const API_BASE = getAdminApiBase();
 
 export function fmtDuration(value) {
   const seconds = Number.isFinite(value)
