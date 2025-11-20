@@ -1,0 +1,15 @@
+{
+  "name": "@slimy/admin-ui-copy",
+  "version": "1.0.0",
+  "description": "Copy (tooltips, labels, onboarding) for the slimy.ai Admin Panel",
+  "main": "tooltips.json",
+  "private": true,
+  "keywords": [
+    "copy",
+    "tooltips",
+    "i18n",
+    "admin-ui"
+  ],
+  "author": "slimy.ai team",
+  "license": "UNLICENSED"
+}
