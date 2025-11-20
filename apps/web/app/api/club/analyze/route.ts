@@ -80,7 +80,9 @@ export async function POST(request: NextRequest) {
         invalidImages: invalidUrls.length,
         analyzedImages: results.length,
         storedResults: storedResults.length,
-        averageConfidence: results.reduce((sum, r) => sum + r.confidence, 0) / results.length
+        averageConfidence: results.length > 0
+          ? Number((results.reduce((sum, r) => sum + r.confidence, 0) / results.length).toFixed(2))
+          : 0
       },
       warnings: invalidUrls.length > 0 ? [`${invalidUrls.length} image(s) could not be accessed`] : []
     });
