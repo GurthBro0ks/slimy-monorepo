@@ -1,5 +1,17 @@
 "use strict";
 
+/**
+ * Guild Routes - v1
+ *
+ * Handles guild management operations including:
+ * - CRUD operations for guilds
+ * - Syncing guilds from Discord API
+ * - Guild-specific settings, personality, channels, etc.
+ *
+ * This is the initial version of the guild sync system and can be extended
+ * with additional Discord data (members, roles, channels, etc.) in the future.
+ */
+
 const express = require("express");
 const multer = require("multer");
 const { z } = require("zod");
@@ -19,6 +31,9 @@ const usageService = require("../services/usage");
 const healthService = require("../services/health");
 const { rescanMember } = require("../services/rescan");
 const { recordAudit } = require("../services/audit");
+const guildService = require("../services/guild.service");
+const { syncGuildsToDb } = require("../lib/discord/guildClient");
+const { logger } = require("../lib/logger");
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -90,9 +105,211 @@ const usageQuerySchema = z.object({
 
 router.use(requireAuth);
 
-router.get("/", (req, res) => {
-  res.json({ guilds: req.user.guilds || [] });
+// ============================================================================
+// Base Guild CRUD Operations
+// ============================================================================
+
+/**
+ * GET /api/guilds
+ * List all guilds with pagination and search
+ */
+router.get("/", async (req, res, next) => {
+  try {
+    const limit = parseInt(req.query.limit) || 50;
+    const offset = parseInt(req.query.offset) || 0;
+    const search = req.query.search || undefined;
+    const includeMembers = req.query.includeMembers === "true";
+
+    const result = await guildService.listGuilds({
+      limit,
+      offset,
+      search,
+      includeMembers,
+    });
+
+    res.json(result);
+  } catch (error) {
+    logger.error({ error: error.message }, "Failed to list guilds");
+    next(error);
+  }
 });
+
+/**
+ * POST /api/guilds
+ * Create a new guild
+ */
+router.post("/", requireCsrf, async (req, res, next) => {
+  try {
+    const { discordId, name, settings } = req.body;
+
+    if (!discordId || !name) {
+      return res.status(400).json({
+        error: "Validation error",
+        message: "discordId and name are required",
+      });
+    }
+
+    const guild = await guildService.createGuild({
+      discordId,
+      name,
+      settings: settings || {},
+    });
+
+    await recordAudit({
+      adminId: req.user.sub,
+      action: "guild.create",
+      guildId: guild.id,
+      payload: { discordId, name },
+    });
+
+    res.status(201).json(guild);
+  } catch (error) {
+    if (error.message.includes("already exists")) {
+      return res.status(409).json({
+        error: "Conflict",
+        message: error.message,
+      });
+    }
+    logger.error({ error: error.message }, "Failed to create guild");
+    next(error);
+  }
+});
+
+/**
+ * POST /api/guilds/sync
+ * Sync guilds from Discord API to database
+ */
+router.post("/sync", requireCsrf, async (req, res, next) => {
+  try {
+    const token = process.env.DISCORD_BOT_TOKEN;
+
+    if (!token) {
+      return res.status(503).json({
+        error: "Service Unavailable",
+        message: "Discord bot token not configured. Guild sync is unavailable.",
+      });
+    }
+
+    logger.info({ userId: req.user?.sub }, "Starting guild sync");
+
+    const result = await syncGuildsToDb();
+
+    await recordAudit({
+      adminId: req.user?.sub,
+      action: "guild.sync",
+      guildId: null,
+      payload: {
+        syncedCount: result.syncedCount,
+        total: result.total,
+        errorCount: result.errors.length,
+      },
+    });
+
+    res.json({
+      success: true,
+      syncedCount: result.syncedCount,
+      total: result.total,
+      errors: result.errors,
+    });
+  } catch (error) {
+    logger.error({ error: error.message }, "Guild sync failed");
+    res.status(500).json({
+      error: "Internal Server Error",
+      message: error.message,
+    });
+  }
+});
+
+/**
+ * GET /api/guilds/:guildId
+ * Get a single guild by ID
+ */
+router.get("/:guildId", requireGuildAccess, async (req, res, next) => {
+  try {
+    const guild = await guildService.getGuildById(req.params.guildId);
+    res.json(guild);
+  } catch (error) {
+    if (error.message === "Guild not found") {
+      return res.status(404).json({
+        error: "Not Found",
+        message: error.message,
+      });
+    }
+    logger.error({ error: error.message, guildId: req.params.guildId }, "Failed to fetch guild");
+    next(error);
+  }
+});
+
+/**
+ * PATCH /api/guilds/:guildId
+ * Update a guild's settings
+ */
+router.patch("/:guildId", requireGuildAccess, requireCsrf, async (req, res, next) => {
+  try {
+    const { name, settings } = req.body;
+
+    if (!name && !settings) {
+      return res.status(400).json({
+        error: "Validation error",
+        message: "At least one field (name or settings) must be provided",
+      });
+    }
+
+    const guild = await guildService.updateGuild(req.params.guildId, {
+      name,
+      settings,
+    });
+
+    await recordAudit({
+      adminId: req.user.sub,
+      action: "guild.update",
+      guildId: req.params.guildId,
+      payload: { name, settings },
+    });
+
+    res.json(guild);
+  } catch (error) {
+    if (error.message === "Guild not found") {
+      return res.status(404).json({
+        error: "Not Found",
+        message: error.message,
+      });
+    }
+    logger.error({ error: error.message, guildId: req.params.guildId }, "Failed to update guild");
+    next(error);
+  }
+});
+
+/**
+ * DELETE /api/guilds/:guildId
+ * Delete a guild
+ */
+router.delete("/:guildId", requireGuildAccess, requireRole("admin"), requireCsrf, async (req, res, next) => {
+  try {
+    await guildService.deleteGuild(req.params.guildId);
+
+    await recordAudit({
+      adminId: req.user.sub,
+      action: "guild.delete",
+      guildId: req.params.guildId,
+    });
+
+    res.json({ success: true });
+  } catch (error) {
+    if (error.message === "Guild not found") {
+      return res.status(404).json({
+        error: "Not Found",
+        message: error.message,
+      });
+    }
+    logger.error({ error: error.message, guildId: req.params.guildId }, "Failed to delete guild");
+    next(error);
+  }
+});
+
+// ============================================================================
+// Guild-Specific Operations (Settings, Personality, etc.)
+// ============================================================================
 
 router.get(
   "/:guildId/settings",

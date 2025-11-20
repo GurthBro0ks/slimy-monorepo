@@ -9,7 +9,7 @@ class GuildService {
    * Create a new guild
    */
   async createGuild(guildData) {
-    const { discordId, name, settings = {} } = guildData;
+    const { discordId, name, iconUrl, ownerId, settings = {} } = guildData;
 
     if (!discordId || !name) {
       throw new Error("Missing required fields: discordId and name");
@@ -20,6 +20,8 @@ class GuildService {
         data: {
           discordId,
           name,
+          iconUrl: iconUrl || null,
+          ownerId: ownerId || null,
           settings,
         },
       });
@@ -188,9 +190,9 @@ class GuildService {
    * Update guild
    */
   async updateGuild(id, updates) {
-    const { name, settings } = updates;
+    const { name, iconUrl, ownerId, settings } = updates;
 
-    if (!name && !settings) {
+    if (!name && !iconUrl && !ownerId && !settings) {
       throw new Error("No valid fields to update");
     }
 
@@ -198,8 +200,10 @@ class GuildService {
       const guild = await database.getClient().guild.update({
         where: { id },
         data: {
-          ...(name && { name }),
-          ...(settings && { settings }),
+          ...(name !== undefined && { name }),
+          ...(iconUrl !== undefined && { iconUrl }),
+          ...(ownerId !== undefined && { ownerId }),
+          ...(settings !== undefined && { settings }),
           updatedAt: new Date(),
         },
         include: {
@@ -581,6 +585,8 @@ class GuildService {
       id: guild.id,
       discordId: guild.discordId,
       name: guild.name,
+      iconUrl: guild.iconUrl || null,
+      ownerId: guild.ownerId || null,
       settings: guild.settings || {},
       memberCount: guild._count?.userGuilds || 0,
       messageCount: guild._count?.chatMessages || 0,
