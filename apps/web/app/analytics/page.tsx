@@ -1,5 +1,6 @@
 import { Metadata } from 'next';
 import { LazyAnalyticsDashboard } from '@/components/lazy';
+import { SlimyErrorBoundary } from '@/components/slimy-error-boundary';
 
 export const metadata: Metadata = {
   title: 'Analytics Dashboard | Slimy.ai',
@@ -9,7 +10,9 @@ export const metadata: Metadata = {
 export default function AnalyticsPage() {
   return (
     <div className="container mx-auto py-8 px-4">
-      <LazyAnalyticsDashboard />
+      <SlimyErrorBoundary componentName="Analytics Dashboard">
+        <LazyAnalyticsDashboard />
+      </SlimyErrorBoundary>
     </div>
   );
 }
