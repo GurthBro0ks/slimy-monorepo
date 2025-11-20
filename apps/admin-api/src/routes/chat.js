@@ -21,6 +21,7 @@ const { queueManager } = require("../lib/queues");
 const database = require("../../lib/database");
 const { chat } = require("../lib/validation/schemas");
 const { apiHandler } = require("../lib/errors");
+const { logger, logError } = require("../lib/logger");
 
 // Special room ID for admin-only global chat
 const ADMIN_ROOM_ID = "admin-global";
@@ -53,9 +54,16 @@ router.use(requireAuth);
 router.post("/bot", requireCsrf, requireRole("member"), express.json(), chat.bot, apiHandler(async (req, res) => {
   const { prompt, guildId } = req.body;
   const userId = req.user.id;
+  const commandLogger = logger.child({
+    command: "chat.bot",
+    guildId,
+    userId,
+    requestId: req.requestId || req.id
+  });
 
   // Basic validation (more detailed validation happens in the job processor)
   if (!prompt || typeof prompt !== 'string' || prompt.trim().length === 0) {
+    commandLogger.warn("Missing or empty prompt for chat bot interaction");
     const error = new Error("missing_prompt");
     error.code = "missing_prompt";
     throw error;
@@ -63,11 +71,20 @@ router.post("/bot", requireCsrf, requireRole("member"), express.json(), chat.bot
 
   // Check if queues are available
   if (!queueManager.isInitialized) {
-    res.status(503).json({ error: "queues_unavailable" });
+    commandLogger.error("Chat queues unavailable");
+    res.status(503).json({
+      error: "queues_unavailable",
+      message: "Chat service is temporarily unavailable. Please try again in a moment.",
+    });
     return;
   }
 
   try {
+    commandLogger.info({
+      promptLength: prompt.trim().length,
+      hasGuildId: Boolean(guildId),
+    }, "Submitting chat bot interaction job");
+
     // Submit job to chat queue
     const job = await queueManager.addJob('chat', 'chat_bot_interaction', {
       prompt: prompt.trim(),
@@ -78,6 +95,10 @@ router.post("/bot", requireCsrf, requireRole("member"), express.json(), chat.bot
 
     metrics.recordChatMessage();
 
+    commandLogger.info({
+      jobId: job.id,
+    }, "Chat bot interaction job submitted successfully");
+
     return {
       ok: true,
       jobId: job.id,
@@ -86,14 +107,21 @@ router.post("/bot", requireCsrf, requireRole("member"), express.json(), chat.bot
     };
 
   } catch (error) {
-    console.error('[chat/bot] Failed to submit chat job:', error);
+    logError(commandLogger, error, {
+      command: "chat.bot",
+      guildId,
+      userId,
+    });
     throw error;
   }
 }, {
   routeName: "chat/bot",
   errorMapper: (error, req, res) => {
     if (error.code === "missing_prompt") {
-      res.status(400).json({ error: "missing_prompt" });
+      res.status(400).json({
+        error: "missing_prompt",
+        message: "Please provide a message to send to the bot.",
+      });
       return false; // Don't continue with default error handling
     }
     // Let default error handling take over
@@ -127,29 +155,57 @@ router.post("/bot", requireCsrf, requireRole("member"), express.json(), chat.bot
 router.get("/jobs/:jobId", requireRole("member"), apiHandler(async (req, res) => {
   const { jobId } = req.params;
   const userId = req.user.id;
+  const commandLogger = logger.child({
+    command: "chat.jobs.status",
+    jobId,
+    userId,
+    requestId: req.id
+  });
 
   // Check if queues are available
   if (!queueManager.isInitialized) {
-    res.status(503).json({ error: "queues_unavailable" });
+    commandLogger.error("Chat queues unavailable");
+    res.status(503).json({
+      error: "queues_unavailable",
+      message: "Chat service is temporarily unavailable. Please try again in a moment.",
+    });
     return;
   }
 
   try {
+    commandLogger.info("Checking chat job status");
+
     const chatQueue = queueManager.getQueue('chat');
     const job = await chatQueue.getJob(jobId);
 
     if (!job) {
-      res.status(404).json({ error: "job_not_found" });
+      commandLogger.warn("Job not found");
+      res.status(404).json({
+        error: "job_not_found",
+        message: "Chat job not found. It may have expired or never existed.",
+      });
       return;
     }
 
     // Check job ownership (stored in job data)
     if (job.data.userId !== userId) {
-      res.status(403).json({ error: "job_access_denied" });
+      commandLogger.warn({
+        jobUserId: job.data.userId,
+        requestUserId: userId,
+      }, "Job access denied - ownership mismatch");
+      res.status(403).json({
+        error: "job_access_denied",
+        message: "You don't have permission to access this job.",
+      });
       return;
     }
 
     const state = await job.getState();
+
+    commandLogger.info({
+      status: state,
+      createdAt: job.opts.timestamp,
+    }, "Chat job status retrieved");
 
     const response = {
       ok: true,
@@ -161,9 +217,16 @@ router.get("/jobs/:jobId", requireRole("member"), apiHandler(async (req, res) =>
     if (state === 'completed') {
       response.result = job.returnvalue;
       response.completedAt = job.finishedOn;
+      commandLogger.info({
+        completedAt: job.finishedOn,
+      }, "Chat job completed successfully");
     } else if (state === 'failed') {
       response.error = job.failedReason;
       response.failedAt = job.finishedOn;
+      commandLogger.warn({
+        failedReason: job.failedReason,
+        failedAt: job.finishedOn,
+      }, "Chat job failed");
     } else if (state === 'active') {
       // Get progress if available
       const progress = job.progress;
@@ -175,7 +238,11 @@ router.get("/jobs/:jobId", requireRole("member"), apiHandler(async (req, res) =>
     return response;
 
   } catch (error) {
-    console.error('[chat/jobs] Failed to get job status:', error);
+    logError(commandLogger, error, {
+      command: "chat.jobs.status",
+      jobId,
+      userId,
+    });
     throw error;
   }
 }, { routeName: "chat/jobs" }));
@@ -205,29 +272,57 @@ router.get("/jobs/:jobId", requireRole("member"), apiHandler(async (req, res) =>
 router.get("/db-jobs/:jobId", apiHandler(async (req, res) => {
   const { jobId } = req.params;
   const userId = req.user.id;
+  const commandLogger = logger.child({
+    command: "chat.db-jobs.status",
+    jobId,
+    userId,
+    requestId: req.id
+  });
 
   // Check if queues are available
   if (!queueManager.isInitialized) {
-    res.status(503).json({ error: "queues_unavailable" });
+    commandLogger.error("Database queues unavailable");
+    res.status(503).json({
+      error: "queues_unavailable",
+      message: "Database service is temporarily unavailable. Please try again in a moment.",
+    });
     return;
   }
 
   try {
+    commandLogger.info("Checking database job status");
+
     const databaseQueue = queueManager.getQueue('database');
     const job = await databaseQueue.getJob(jobId);
 
     if (!job) {
-      res.status(404).json({ error: "job_not_found" });
+      commandLogger.warn("Database job not found");
+      res.status(404).json({
+        error: "job_not_found",
+        message: "Database job not found. It may have expired or never existed.",
+      });
       return;
     }
 
     // Check job ownership (stored in job data)
     if (job.data.userId !== userId) {
-      res.status(403).json({ error: "job_access_denied" });
+      commandLogger.warn({
+        jobUserId: job.data.userId,
+        requestUserId: userId,
+      }, "Database job access denied - ownership mismatch");
+      res.status(403).json({
+        error: "job_access_denied",
+        message: "You don't have permission to access this job.",
+      });
       return;
     }
 
     const state = await job.getState();
+
+    commandLogger.info({
+      status: state,
+      jobType: job.name,
+    }, "Database job status retrieved");
 
     const response = {
       ok: true,
@@ -240,15 +335,27 @@ router.get("/db-jobs/:jobId", apiHandler(async (req, res) => {
     if (state === 'completed') {
       response.result = job.returnvalue;
       response.completedAt = job.finishedOn;
+      commandLogger.info({
+        jobType: job.name,
+        completedAt: job.finishedOn,
+      }, "Database job completed successfully");
     } else if (state === 'failed') {
       response.error = job.failedReason;
       response.failedAt = job.finishedOn;
+      commandLogger.warn({
+        jobType: job.name,
+        failedReason: job.failedReason,
+      }, "Database job failed");
     }
 
     return response;
 
   } catch (error) {
-    console.error('[chat/db-jobs] Failed to get job status:', error);
+    logError(commandLogger, error, {
+      command: "chat.db-jobs.status",
+      jobId,
+      userId,
+    });
     throw error;
   }
 }, { routeName: "chat/db-jobs" }));
