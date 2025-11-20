@@ -5,19 +5,19 @@
   "type": "commonjs",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
-    "dev": "node server.js",
-    "build": "node -e \"console.log('admin-api runs directly from source; no build artifacts generated yet.')\"",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "test:ui": "vitest --ui",
-    "test:coverage": "vitest run --coverage"
+    "start": "ts-node src/index.ts",
+    "dev": "ts-node src/index.ts",
+    "build": "tsc"
   },
   "engines": {
     "node": ">=20"
   },
   "dependencies": {
     "@slimy/core": "file:vendor/slimy-core",
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/morgan": "^1.9.9",
+    "@types/node": "^18.19.0",
     "axios": "^1.12.2",
     "compression": "^1.8.1",
     "cookie-parser": "^1.4.7",
@@ -33,13 +33,10 @@
     "multer": "^1.4.5-lts.2",
     "mysql2": "^3.15.3",
     "node-fetch": "^3.3.2",
-    "redis": "^4.7.1",
     "sharp": "^0.33.4",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3",
     "undici": "^7.16.0",
     "zod": "^3.25.6"
-  },
-  "devDependencies": {
-    "@vitest/ui": "^4.0.9",
-    "vitest": "^4.0.9"
   }
 }

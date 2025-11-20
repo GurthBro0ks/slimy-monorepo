@@ -1,4 +1,4 @@
-FROM node:22-slim
+FROM node:18-alpine
 
 WORKDIR /app
 
@@ -7,9 +7,11 @@ WORKDIR /app
 # (see: https://github.com/moby/buildkit/issues/1666)
 COPY apps/admin-api/package*.json ./
 
-RUN npm install --omit=dev
+RUN npm install
 
 # This COPY excludes node_modules due to .dockerignore patterns
 COPY apps/admin-api ./
 
-CMD ["node", "server.js"]
+EXPOSE 3080
+
+CMD ["npm", "start"]
