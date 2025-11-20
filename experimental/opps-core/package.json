@@ -1,0 +1,16 @@
+{
+  "name": "@slimy/opps-core",
+  "version": "0.1.0",
+  "description": "Core types and utilities for Opportunity Radar",
+  "main": "src/index.ts",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.3"
+  }
+}
