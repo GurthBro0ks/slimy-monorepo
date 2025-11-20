@@ -30,6 +30,8 @@ export default function SlimeChatPage() {
   const [open, setOpen] = useState(true);
   const [error, setError] = useState("");
   const [adminOnly, setAdminOnly] = useState(false);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+  const [historyLoaded, setHistoryLoaded] = useState(false);
   const listRef = useRef(null);
 
   const isAdmin = user?.role === "admin";
@@ -45,6 +47,37 @@ export default function SlimeChatPage() {
       router.replace("/snail");
     }
   }, [loading, user, router]);
+
+  // Fetch chat history when guildId changes
+  useEffect(() => {
+    if (!guildId) return;
+
+    const fetchHistory = async () => {
+      setLoadingHistory(true);
+      setHistoryLoaded(false);
+      try {
+        const response = await fetch(`/api/chat/${guildId}/history?limit=100`, {
+          credentials: "include",
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.ok && Array.isArray(data.messages)) {
+            setMessages(data.messages);
+            setHistoryLoaded(true);
+          }
+        } else {
+          console.error("Failed to fetch chat history:", response.status);
+        }
+      } catch (err) {
+        console.error("Error fetching chat history:", err);
+      } finally {
+        setLoadingHistory(false);
+      }
+    };
+
+    fetchHistory();
+  }, [guildId]);
 
   useEffect(() => {
     const socket = getSocket();
@@ -168,10 +201,13 @@ export default function SlimeChatPage() {
                 minHeight: 0,
               }}
             >
-              {messages.filter((msg) => msg.guildId === guildId || !msg.guildId).map((msg, index) => (
+              {loadingHistory && (
+                <div style={{ opacity: 0.6, textAlign: "center" }}>Loading chat history...</div>
+              )}
+              {!loadingHistory && messages.filter((msg) => msg.guildId === guildId || !msg.guildId).map((msg, index) => (
                 <ChatBubble key={msg.messageId || `${msg.ts}-${index}`} message={msg} mine={msg.from?.id === user?.id} />
               ))}
-              {messages.length === 0 && (
+              {!loadingHistory && messages.length === 0 && (
                 <div style={{ opacity: 0.6, textAlign: "center" }}>No messages yet. Say hi!</div>
               )}
             </div>
