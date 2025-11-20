@@ -11,6 +11,8 @@
     "lint": "eslint",
     "docs:import": "tsx scripts/import-docs.ts",
     "docs:check": "tsx scripts/import-docs.ts --dry-run",
+    "docs:extract": "tsx scripts/extract-tsdoc.ts",
+    "docs:extract:md": "tsx scripts/extract-tsdoc.ts --format=md",
     "test": "vitest",
     "test:coverage": "vitest --coverage",
     "test:e2e": "playwright test",
