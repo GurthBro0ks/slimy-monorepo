@@ -12,9 +12,15 @@ const DOCS_DIR = join(process.cwd(), "content/docs");
 
 export async function generateStaticParams() {
   return [
+    // User documentation
     { slug: "getting-started" },
     { slug: "snail-tools" },
     { slug: "club-analytics" },
+    // Developer documentation
+    { slug: "architecture" },
+    { slug: "api" },
+    { slug: "agents" },
+    { slug: "testing" },
   ];
 }
 

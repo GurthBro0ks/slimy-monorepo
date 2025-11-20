@@ -1,0 +1,664 @@
+---
+title: Testing Guide
+description: Testing strategies, frameworks, and best practices
+---
+
+# Testing Guide
+
+Comprehensive testing guide for the Slimy.ai web application.
+
+## Testing Stack
+
+### Unit & Integration Tests
+
+**Framework:** Vitest
+
+- **Fast:** Native ESM support, instant HMR
+- **Compatible:** Jest-compatible API
+- **Modern:** First-class TypeScript support
+
+### End-to-End Tests
+
+**Framework:** Playwright
+
+- **Cross-browser:** Chromium, Firefox, WebKit
+- **Reliable:** Auto-waiting, retry logic
+- **Visual:** Screenshots and videos on failure
+
+### Testing Libraries
+
+- `@testing-library/react` - Component testing utilities
+- `@testing-library/user-event` - User interaction simulation
+- `@testing-library/jest-dom` - Custom matchers
+
+---
+
+## Quick Start
+
+### Run All Tests
+
+```bash
+# Unit and integration tests
+pnpm test
+
+# Watch mode
+pnpm test --watch
+
+# Coverage report
+pnpm test:coverage
+
+# E2E tests
+pnpm test:e2e
+
+# E2E with UI
+pnpm test:e2e:ui
+```
+
+---
+
+## Unit Testing
+
+### Configuration
+
+**File:** `vitest.config.ts`
+
+```typescript
+{
+  environment: "jsdom",
+  globals: true,
+  setupFiles: ["./tests/setup.ts"],
+  coverage: {
+    provider: "v8",
+    thresholds: {
+      branches: 60,
+      functions: 60,
+      lines: 60,
+      statements: 60
+    }
+  }
+}
+```
+
+### Test Structure
+
+**Location:** `tests/unit/`
+
+```
+tests/unit/
+├── api/              # API utilities tests
+├── components/       # Component tests
+├── lib/             # Library function tests
+└── utils/           # Utility function tests
+```
+
+### Example: Testing a Component
+
+```typescript
+// tests/components/Button.test.tsx
+import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { Button } from '@/components/ui/button';
+
+describe('Button', () => {
+  it('renders with text', () => {
+    render(<Button>Click me</Button>);
+    expect(screen.getByText('Click me')).toBeInTheDocument();
+  });
+
+  it('handles click events', async () => {
+    const handleClick = vi.fn();
+    render(<Button onClick={handleClick}>Click</Button>);
+
+    await userEvent.click(screen.getByText('Click'));
+    expect(handleClick).toHaveBeenCalledTimes(1);
+  });
+
+  it('can be disabled', () => {
+    render(<Button disabled>Click</Button>);
+    expect(screen.getByRole('button')).toBeDisabled();
+  });
+});
+```
+
+### Example: Testing an API Route
+
+```typescript
+// tests/api/codes.test.ts
+import { GET } from '@/app/api/codes/route';
+import { NextRequest } from 'next/server';
+
+describe('GET /api/codes', () => {
+  it('returns codes successfully', async () => {
+    const request = new NextRequest('http://localhost/api/codes');
+    const response = await GET(request);
+
+    expect(response.status).toBe(200);
+    const data = await response.json();
+    expect(data).toHaveProperty('codes');
+    expect(Array.isArray(data.codes)).toBe(true);
+  });
+
+  it('handles scope parameter', async () => {
+    const request = new NextRequest('http://localhost/api/codes?scope=active');
+    const response = await GET(request);
+
+    const data = await response.json();
+    expect(data.codes.every(c => !c.expiresAt || new Date(c.expiresAt) > new Date())).toBe(true);
+  });
+});
+```
+
+### Example: Testing a Utility Function
+
+```typescript
+// tests/unit/lib/aggregator.test.ts
+import { aggregateCodes } from '@/lib/aggregator';
+
+describe('aggregateCodes', () => {
+  it('deduplicates codes from multiple sources', () => {
+    const snelpCodes = ['CODE1', 'CODE2'];
+    const redditCodes = ['CODE2', 'CODE3'];
+
+    const result = aggregateCodes(snelpCodes, redditCodes);
+
+    expect(result).toEqual(['CODE1', 'CODE2', 'CODE3']);
+  });
+
+  it('handles empty sources', () => {
+    const result = aggregateCodes([], []);
+    expect(result).toEqual([]);
+  });
+});
+```
+
+---
+
+## Integration Testing
+
+### API Integration Tests
+
+**Location:** `tests/api/`
+
+Test API routes with real (or mocked) dependencies:
+
+```typescript
+// tests/api/auth.test.ts
+import { GET } from '@/app/api/auth/me/route';
+import { mockSession } from '@/tests/mocks/auth';
+
+describe('GET /api/auth/me', () => {
+  beforeEach(() => {
+    vi.mock('next-auth', () => ({
+      getServerSession: () => mockSession
+    }));
+  });
+
+  it('returns user data for authenticated users', async () => {
+    const request = new NextRequest('http://localhost/api/auth/me');
+    const response = await GET(request);
+
+    const data = await response.json();
+    expect(data.user).toHaveProperty('id');
+    expect(data.role).toBeDefined();
+  });
+});
+```
+
+---
+
+## E2E Testing
+
+### Configuration
+
+**File:** `playwright.config.ts`
+
+```typescript
+{
+  testDir: './tests/e2e',
+  fullyParallel: true,
+  retries: process.env.CI ? 2 : 0,
+  use: {
+    baseURL: 'http://localhost:3000',
+    trace: 'on-first-retry',
+    screenshot: 'only-on-failure',
+    video: 'retain-on-failure'
+  }
+}
+```
+
+### Test Structure
+
+**Location:** `tests/e2e/`
+
+```
+tests/e2e/
+├── auth.spec.ts        # Authentication flows
+├── codes.spec.ts       # Codes functionality
+├── chat.spec.ts        # Chat features
+└── navigation.spec.ts  # Navigation and routing
+```
+
+### Example: E2E Test
+
+```typescript
+// tests/e2e/codes.spec.ts
+import { test, expect } from '@playwright/test';
+
+test.describe('Codes Page', () => {
+  test('displays active codes', async ({ page }) => {
+    await page.goto('/snail/codes');
+
+    // Wait for codes to load
+    await page.waitForSelector('[data-testid="code-item"]');
+
+    // Check that codes are displayed
+    const codes = await page.$$('[data-testid="code-item"]');
+    expect(codes.length).toBeGreaterThan(0);
+  });
+
+  test('copy all button works', async ({ page }) => {
+    await page.goto('/snail/codes');
+
+    // Click copy all button
+    await page.click('[data-testid="copy-all-button"]');
+
+    // Check for success message
+    await expect(page.locator('text=Copied')).toBeVisible();
+  });
+
+  test('filters codes by scope', async ({ page }) => {
+    await page.goto('/snail/codes');
+
+    // Click "Past 7 Days" filter
+    await page.click('[data-testid="filter-past7"]');
+
+    // Verify URL updated
+    expect(page.url()).toContain('scope=past7');
+
+    // Codes should still be visible
+    await expect(page.locator('[data-testid="code-item"]')).toBeVisible();
+  });
+});
+```
+
+---
+
+## Coverage
+
+### Running Coverage
+
+```bash
+# Generate coverage report
+pnpm test:coverage
+
+# View HTML report
+open coverage/index.html
+```
+
+### Coverage Thresholds
+
+Current thresholds (60% for all metrics):
+- **Branches:** 60%
+- **Functions:** 60%
+- **Lines:** 60%
+- **Statements:** 60%
+
+**Goal:** Increase to 80% for critical paths.
+
+### Coverage Exclusions
+
+- `node_modules/`
+- `.next/` build output
+- `**/*.config.*` configuration files
+- `**/*.d.ts` type definitions
+- `public/` static assets
+
+---
+
+## Testing Best Practices
+
+### 1. Arrange, Act, Assert (AAA)
+
+```typescript
+it('adds two numbers', () => {
+  // Arrange
+  const a = 5;
+  const b = 3;
+
+  // Act
+  const result = add(a, b);
+
+  // Assert
+  expect(result).toBe(8);
+});
+```
+
+### 2. Test Behavior, Not Implementation
+
+```typescript
+// ✅ Good - tests behavior
+it('shows error when email is invalid', async () => {
+  render(<LoginForm />);
+  await userEvent.type(screen.getByLabelText('Email'), 'invalid-email');
+  await userEvent.click(screen.getByText('Submit'));
+
+  expect(screen.getByText('Invalid email')).toBeVisible();
+});
+
+// ❌ Bad - tests implementation
+it('sets emailError state on invalid input', () => {
+  const { result } = renderHook(() => useForm());
+  result.current.setEmail('invalid');
+
+  expect(result.current.emailError).toBe('Invalid email');
+});
+```
+
+### 3. Use Data-Testid Sparingly
+
+Prefer accessible queries:
+
+```typescript
+// ✅ Preferred
+screen.getByRole('button', { name: 'Submit' })
+screen.getByLabelText('Email')
+screen.getByText('Welcome')
+
+// ⚠️ Use when necessary
+screen.getByTestId('complex-custom-component')
+```
+
+### 4. Mock External Dependencies
+
+```typescript
+// Mock API calls
+vi.mock('@/lib/api-client', () => ({
+  fetchCodes: vi.fn(() => Promise.resolve(['CODE1', 'CODE2']))
+}));
+
+// Mock environment variables
+vi.stubEnv('NEXT_PUBLIC_API_BASE', 'http://test-api.com');
+```
+
+### 5. Clean Up After Tests
+
+```typescript
+afterEach(() => {
+  vi.clearAllMocks();
+  vi.unstubAllEnvs();
+});
+```
+
+---
+
+## Testing Patterns
+
+### Testing Async Components (Next.js 14+)
+
+```typescript
+// app/example/page.tsx (Server Component)
+export default async function Page() {
+  const data = await fetchData();
+  return <div>{data.title}</div>;
+}
+
+// tests/components/Page.test.tsx
+import { render, screen } from '@testing-library/react';
+import Page from '@/app/example/page';
+
+it('renders data from server', async () => {
+  const PageElement = await Page();
+  render(PageElement);
+
+  expect(screen.getByText(/expected title/i)).toBeInTheDocument();
+});
+```
+
+### Testing API Route Handlers
+
+```typescript
+import { POST } from '@/app/api/example/route';
+
+it('handles POST request', async () => {
+  const body = { name: 'Test' };
+  const request = new NextRequest('http://localhost/api/example', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+
+  const response = await POST(request);
+  expect(response.status).toBe(200);
+});
+```
+
+### Testing with Database
+
+```typescript
+import { prisma } from '@/lib/prisma';
+
+beforeAll(async () => {
+  // Setup test database
+  await prisma.$connect();
+});
+
+afterAll(async () => {
+  // Cleanup
+  await prisma.$disconnect();
+});
+
+afterEach(async () => {
+  // Clear data between tests
+  await prisma.user.deleteMany();
+});
+```
+
+---
+
+## Continuous Integration
+
+### GitHub Actions
+
+**Location:** `.github/workflows/test.yml`
+
+```yaml
+name: Tests
+
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v2
+      - name: Install dependencies
+        run: pnpm install
+      - name: Run unit tests
+        run: pnpm test
+      - name: Run E2E tests
+        run: pnpm test:e2e
+      - name: Upload coverage
+        uses: codecov/codecov-action@v3
+```
+
+---
+
+## Performance Testing
+
+### Lighthouse CI
+
+**Configuration:** `lighthouserc.json`
+
+```bash
+# Run Lighthouse audit
+pnpm lighthouse
+
+# Mobile preset
+pnpm lighthouse:mobile
+```
+
+**Thresholds:**
+- Performance: ≥ 90
+- Accessibility: ≥ 95
+- Best Practices: ≥ 90
+- SEO: ≥ 90
+
+---
+
+## Debugging Tests
+
+### Debug Vitest Tests
+
+```bash
+# Run specific test file
+pnpm test tests/unit/api-client.test.ts
+
+# Run tests matching pattern
+pnpm test -t "should fetch codes"
+
+# Debug with UI
+pnpm test --ui
+```
+
+### Debug Playwright Tests
+
+```bash
+# Run with UI mode
+pnpm test:e2e:ui
+
+# Debug specific test
+pnpm test:e2e --debug codes.spec.ts
+
+# Generate trace
+pnpm test:e2e --trace on
+```
+
+### View Test Artifacts
+
+```bash
+# Playwright test results
+playwright show-report
+
+# Coverage report
+open coverage/index.html
+```
+
+---
+
+## Mocking Strategies
+
+### Mock Modules
+
+```typescript
+vi.mock('@/lib/openai-client', () => ({
+  createCompletion: vi.fn(() =>
+    Promise.resolve({ text: 'Mocked response' })
+  )
+}));
+```
+
+### Mock Fetch
+
+```typescript
+global.fetch = vi.fn(() =>
+  Promise.resolve({
+    json: () => Promise.resolve({ data: 'test' }),
+  })
+) as any;
+```
+
+### Mock Next.js Router
+
+```typescript
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({
+    push: vi.fn(),
+    pathname: '/test',
+  }),
+  useSearchParams: () => new URLSearchParams(),
+}));
+```
+
+---
+
+## Test Data Management
+
+### Fixtures
+
+**Location:** `tests/fixtures/`
+
+```typescript
+// tests/fixtures/codes.ts
+export const mockCodes = [
+  {
+    code: 'TEST123',
+    source: 'snelp',
+    expiresAt: null,
+    addedAt: '2025-01-15T00:00:00Z'
+  },
+  // ... more test data
+];
+```
+
+### Factories
+
+```typescript
+// tests/factories/user.ts
+export const createMockUser = (overrides = {}) => ({
+  id: 'user-123',
+  username: 'testuser',
+  email: 'test@example.com',
+  role: 'user',
+  ...overrides,
+});
+```
+
+---
+
+## Troubleshooting
+
+### Common Issues
+
+**Issue:** Tests pass locally but fail in CI
+
+**Solution:**
+- Check environment variables
+- Verify database state
+- Check for race conditions
+- Use `--retries` flag
+
+**Issue:** Flaky E2E tests
+
+**Solution:**
+- Add explicit waits
+- Use `waitForSelector` instead of `setTimeout`
+- Increase timeout for slow operations
+- Check for network request timing
+
+**Issue:** Low coverage
+
+**Solution:**
+- Add tests for edge cases
+- Test error paths
+- Cover async error handling
+- Test all conditional branches
+
+---
+
+## Resources
+
+- [Vitest Documentation](https://vitest.dev/)
+- [Playwright Documentation](https://playwright.dev/)
+- [Testing Library](https://testing-library.com/)
+- [Next.js Testing Guide](https://nextjs.org/docs/testing)
+
+---
+
+## TODO
+
+- [ ] Add visual regression testing (Percy/Chromatic)
+- [ ] Implement contract testing for API
+- [ ] Add mutation testing
+- [ ] Create test data seeding script
+- [ ] Add performance benchmarks
+- [ ] Increase coverage to 80%

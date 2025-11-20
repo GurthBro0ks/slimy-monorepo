@@ -1,0 +1,528 @@
+---
+title: API Reference
+description: API endpoints and integration guide for Slimy.ai
+---
+
+# API Reference
+
+The Slimy.ai web app provides a set of API routes that proxy requests to the Admin API and provide client-facing functionality.
+
+## Authentication
+
+### `GET /api/auth/me`
+
+Get the current authenticated user's information and role.
+
+**Response:**
+```json
+{
+  "user": {
+    "id": "string",
+    "username": "string",
+    "discriminator": "string",
+    "avatar": "string"
+  },
+  "role": "admin" | "club" | "user",
+  "guildId": "string"
+}
+```
+
+**Access:** Public (returns user role based on Discord OAuth)
+
+---
+
+## Codes System
+
+### `GET /api/codes`
+
+Fetch aggregated codes from Snelp and Reddit.
+
+**Query Parameters:**
+- `scope` (optional): `active` | `past7` | `all` (default: `active`)
+
+**Response:**
+```json
+{
+  "codes": [
+    {
+      "code": "string",
+      "source": "snelp" | "reddit",
+      "expiresAt": "ISO8601 string" | null,
+      "addedAt": "ISO8601 string"
+    }
+  ],
+  "updatedAt": "ISO8601 string"
+}
+```
+
+**Caching:** 60s server-side cache
+
+### `GET /api/codes/health`
+
+Health check for codes aggregator.
+
+**Response:**
+```json
+{
+  "status": "healthy" | "degraded" | "down",
+  "sources": {
+    "snelp": { "status": "up" | "down", "lastCheck": "ISO8601 string" },
+    "reddit": { "status": "up" | "down", "lastCheck": "ISO8601 string" }
+  }
+}
+```
+
+### `POST /api/codes/report`
+
+Report an invalid or expired code.
+
+**Body:**
+```json
+{
+  "code": "string",
+  "reason": "expired" | "invalid" | "duplicate"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Code reported successfully"
+}
+```
+
+### `GET /api/local-codes`
+
+Fetch locally stored codes (fallback).
+
+**Response:**
+```json
+{
+  "codes": ["CODE1", "CODE2", "..."]
+}
+```
+
+---
+
+## Chat System
+
+### `GET /api/chat/conversations`
+
+List all chat conversations for the current user.
+
+**Query Parameters:**
+- `limit` (optional): Number of conversations to return (default: 50)
+- `offset` (optional): Pagination offset (default: 0)
+
+**Response:**
+```json
+{
+  "conversations": [
+    {
+      "id": "string",
+      "title": "string",
+      "lastMessage": "string",
+      "lastMessageAt": "ISO8601 string",
+      "unreadCount": number
+    }
+  ]
+}
+```
+
+### `POST /api/chat/conversations`
+
+Create a new chat conversation.
+
+**Body:**
+```json
+{
+  "title": "string" (optional),
+  "initialMessage": "string"
+}
+```
+
+### `GET /api/chat/messages`
+
+Get messages for a specific conversation.
+
+**Query Parameters:**
+- `conversationId`: Conversation ID (required)
+- `limit` (optional): Number of messages (default: 50)
+- `before` (optional): Message ID to paginate before
+
+**Response:**
+```json
+{
+  "messages": [
+    {
+      "id": "string",
+      "content": "string",
+      "role": "user" | "assistant" | "system",
+      "createdAt": "ISO8601 string"
+    }
+  ]
+}
+```
+
+### `POST /api/chat/message`
+
+Send a message in a conversation.
+
+**Body:**
+```json
+{
+  "conversationId": "string",
+  "content": "string"
+}
+```
+
+**Response:**
+```json
+{
+  "message": {
+    "id": "string",
+    "content": "string",
+    "role": "user",
+    "createdAt": "ISO8601 string"
+  },
+  "botResponse": {
+    "id": "string",
+    "content": "string",
+    "role": "assistant",
+    "createdAt": "ISO8601 string"
+  }
+}
+```
+
+### `POST /api/chat/bot`
+
+Interact with the chat bot (direct endpoint).
+
+**Body:**
+```json
+{
+  "message": "string",
+  "context": "string" (optional)
+}
+```
+
+### `GET /api/chat/users`
+
+Get chat users and online status.
+
+**Response:**
+```json
+{
+  "users": [
+    {
+      "id": "string",
+      "username": "string",
+      "online": boolean,
+      "lastSeen": "ISO8601 string"
+    }
+  ]
+}
+```
+
+---
+
+## Club Analytics
+
+### `POST /api/club/upload`
+
+Upload a screenshot for analysis.
+
+**Body:** `multipart/form-data`
+- `file`: Image file (PNG, JPG, JPEG)
+- `type`: `screenshot` | `other`
+
+**Response:**
+```json
+{
+  "id": "string",
+  "url": "string",
+  "analysis": { /* analyzed data */ }
+}
+```
+
+### `POST /api/club/analyze`
+
+Analyze club activity data.
+
+**Body:**
+```json
+{
+  "data": {
+    "members": number,
+    "activityScores": number[]
+  }
+}
+```
+
+**Response:**
+```json
+{
+  "insights": {
+    "averageActivity": number,
+    "topPerformers": string[],
+    "trends": { /* trend data */ }
+  }
+}
+```
+
+### `GET /api/club/export`
+
+Export club analytics data.
+
+**Query Parameters:**
+- `format`: `csv` | `json` | `xlsx`
+- `dateRange`: `7d` | `30d` | `90d` | `all`
+
+**Response:** File download
+
+---
+
+## Snail Tools
+
+### `GET /api/snail/history`
+
+Get snail game history for a user.
+
+**Query Parameters:**
+- `userId`: User ID (optional, defaults to current user)
+- `limit`: Number of entries (default: 100)
+
+**Response:**
+```json
+{
+  "history": [
+    {
+      "id": "string",
+      "action": "string",
+      "timestamp": "ISO8601 string",
+      "data": { /* action-specific data */ }
+    }
+  ]
+}
+```
+
+---
+
+## Statistics & Analytics
+
+### `GET /api/stats`
+
+Get public statistics.
+
+**Response:**
+```json
+{
+  "stats": {
+    "totalGuilds": number,
+    "totalUsers": number,
+    "totalCodes": number,
+    "activeUsers24h": number
+  }
+}
+```
+
+### `GET /api/stats/events/stream`
+
+Server-sent events stream for real-time stats.
+
+**Headers:**
+- `Accept: text/event-stream`
+
+**Response:** SSE stream with periodic updates
+
+---
+
+## Health & Diagnostics
+
+### `GET /api/health`
+
+Application health check.
+
+**Response:**
+```json
+{
+  "status": "healthy" | "degraded" | "down",
+  "timestamp": "ISO8601 string",
+  "uptime": number,
+  "version": "string"
+}
+```
+
+### `GET /api/diag`
+
+Detailed diagnostics (admin only).
+
+**Response:**
+```json
+{
+  "database": { "status": "up" | "down", "latency": number },
+  "redis": { "status": "up" | "down", "latency": number },
+  "adminApi": { "status": "up" | "down", "latency": number }
+}
+```
+
+**Access:** Admin only
+
+---
+
+## User Preferences
+
+### `GET /api/user/preferences`
+
+Get user preferences.
+
+**Response:**
+```json
+{
+  "theme": "dark" | "light" | "auto",
+  "notifications": boolean,
+  "language": "en" | "es" | "fr"
+}
+```
+
+### `PUT /api/user/preferences`
+
+Update user preferences.
+
+**Body:**
+```json
+{
+  "theme": "dark" | "light" | "auto",
+  "notifications": boolean,
+  "language": "en" | "es" | "fr"
+}
+```
+
+---
+
+## Screenshots
+
+### `POST /api/screenshot`
+
+Upload and analyze a game screenshot.
+
+**Body:** `multipart/form-data`
+- `file`: Image file
+
+**Response:**
+```json
+{
+  "url": "string",
+  "analysis": {
+    "detectedElements": string[],
+    "confidence": number,
+    "metadata": { /* extracted game data */ }
+  }
+}
+```
+
+---
+
+## Web Vitals
+
+### `POST /api/web-vitals`
+
+Report web vitals metrics.
+
+**Body:**
+```json
+{
+  "metric": "CLS" | "FID" | "FCP" | "LCP" | "TTFB",
+  "value": number,
+  "id": "string",
+  "navigationType": "navigate" | "reload" | "back-forward"
+}
+```
+
+**Response:**
+```json
+{
+  "received": true
+}
+```
+
+---
+
+## Admin Endpoints
+
+### `GET /api/guilds`
+
+List all guilds (admin only).
+
+**Response:**
+```json
+{
+  "guilds": [
+    {
+      "id": "string",
+      "name": "string",
+      "icon": "string",
+      "memberCount": number
+    }
+  ]
+}
+```
+
+**Access:** Admin only
+
+---
+
+## Rate Limiting
+
+Most endpoints implement rate limiting:
+- **Default:** 60 requests per minute per IP
+- **Auth endpoints:** 10 requests per minute per IP
+- **Upload endpoints:** 10 requests per minute per user
+
+Rate limit headers:
+- `X-RateLimit-Limit`: Request limit
+- `X-RateLimit-Remaining`: Remaining requests
+- `X-RateLimit-Reset`: Reset timestamp
+
+---
+
+## Error Responses
+
+All endpoints return errors in a consistent format:
+
+```json
+{
+  "error": {
+    "code": "ERROR_CODE",
+    "message": "Human-readable error message",
+    "details": { /* optional additional details */ }
+  }
+}
+```
+
+**Common Error Codes:**
+- `UNAUTHORIZED` (401): Authentication required
+- `FORBIDDEN` (403): Insufficient permissions
+- `NOT_FOUND` (404): Resource not found
+- `VALIDATION_ERROR` (400): Invalid request data
+- `RATE_LIMITED` (429): Too many requests
+- `INTERNAL_ERROR` (500): Server error
+
+---
+
+## TypeScript Types
+
+For type-safe API calls, see:
+- `lib/api/types.ts` - Request/response types
+- `lib/api/client.ts` - API client utilities
+
+---
+
+## TODO
+
+- [ ] Add OpenAPI/Swagger specification
+- [ ] Implement API versioning
+- [ ] Add webhook support
+- [ ] Implement GraphQL endpoint
+- [ ] Add request/response examples for all endpoints
