@@ -18,10 +18,24 @@ const { rescanMember } = require("../services/rescan");
 const { recordAudit } = require("../services/audit");
 const { logger, logError } = require("../lib/logger");
 
+const ALLOWED_IMAGE_TYPES = new Set([
+  "image/jpeg",
+  "image/jpg",
+  "image/png",
+  "image/webp",
+]);
+
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: {
-    fileSize: 6 * 1024 * 1024,
+    fileSize: 6 * 1024 * 1024, // 6MB
+  },
+  fileFilter: (_req, file, cb) => {
+    if (ALLOWED_IMAGE_TYPES.has(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error("unsupported_image_type"));
+    }
   },
 });
 
@@ -404,7 +418,23 @@ router.post(
   requireGuildAccess,
   requireRole("editor"),
   requireCsrf,
-  upload.single("file"),
+  (req, res, next) => {
+    upload.single("file")(req, res, (err) => {
+      if (err) {
+        if (err.code === "LIMIT_FILE_SIZE") {
+          return res.status(413).json({ error: "file_too_large" });
+        }
+        if (err.message === "unsupported_image_type") {
+          return res.status(400).json({
+            error: "unsupported_image_type",
+            message: "Only image files (JPEG, PNG, WebP) are allowed"
+          });
+        }
+        return res.status(400).json({ error: err.message || "upload_failed" });
+      }
+      next();
+    });
+  },
   async (req, res, next) => {
     try {
       if (!req.file) {

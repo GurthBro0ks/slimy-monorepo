@@ -9,6 +9,12 @@ import {
   type ScreenshotType,
   isValidScreenshotType
 } from '@/lib/screenshot/analyzer';
+import {
+  validateFiles,
+  FileValidationError,
+  sanitizeFilename,
+  getSafeExtension
+} from '@/lib/upload/validation';
 
 // TODO: Import database client when implemented
 // import { screenshotDatabase } from '@/lib/screenshot/database';
@@ -45,6 +51,26 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Validate uploaded files (size and MIME type)
+    if (screenshots.length > 0) {
+      try {
+        validateFiles(screenshots);
+      } catch (error) {
+        if (error instanceof FileValidationError) {
+          console.warn('[screenshot] File validation failed:', error.message);
+          return NextResponse.json(
+            {
+              error: error.code,
+              message: error.message,
+              details: error.details
+            },
+            { status: 413 } // 413 Payload Too Large for file size errors
+          );
+        }
+        throw error;
+      }
+    }
+
     const allImageUrls: string[] = [...imageUrls];
 
     // Handle file uploads
@@ -54,10 +80,10 @@ export async function POST(request: NextRequest) {
       await mkdir(uploadDir, { recursive: true });
 
       for (const file of screenshots) {
-        // Generate unique filename
+        // Generate unique filename with safe extension
         const timestamp = Date.now();
         const randomId = Math.random().toString(36).substr(2, 9);
-        const extension = file.name.split('.').pop() || 'png';
+        const extension = getSafeExtension(file.name);
         const filename = `${timestamp}_${randomId}.${extension}`;
         const filepath = join(uploadDir, filename);
 

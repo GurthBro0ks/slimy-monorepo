@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { analyzeClubScreenshots } from '@/lib/club/vision';
+import {
+  validateFiles,
+  FileValidationError,
+  getSafeExtension
+} from '@/lib/upload/validation';
 
 export async function POST(request: NextRequest) {
   try {
@@ -24,6 +29,24 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Validate uploaded files (size and MIME type)
+    try {
+      validateFiles(screenshots);
+    } catch (error) {
+      if (error instanceof FileValidationError) {
+        console.warn('[club/upload] File validation failed:', error.message);
+        return NextResponse.json(
+          {
+            error: error.code,
+            message: error.message,
+            details: error.details
+          },
+          { status: 413 } // 413 Payload Too Large for file size errors
+        );
+      }
+      throw error;
+    }
+
     // Create guild-specific upload directory
     const uploadDir = join(process.cwd(), 'public', 'uploads', 'club', guildId);
     await mkdir(uploadDir, { recursive: true });
@@ -33,10 +56,10 @@ export async function POST(request: NextRequest) {
     const imageUrls = [];
 
     for (const file of screenshots) {
-      // Generate unique filename
+      // Generate unique filename with safe extension
       const timestamp = Date.now();
       const randomId = Math.random().toString(36).substr(2, 9);
-      const extension = file.name.split('.').pop() || 'png';
+      const extension = getSafeExtension(file.name);
       const filename = `${timestamp}_${randomId}.${extension}`;
       const filepath = join(uploadDir, filename);
 
