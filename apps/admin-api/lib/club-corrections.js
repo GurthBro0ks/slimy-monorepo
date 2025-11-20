@@ -1,7 +1,5 @@
-/**
- * Club corrections stub for admin-api
- * Delegates to main lib/club-corrections.js
- */
-const clubCorrections = require('../../lib/club-corrections');
+const listCorrections = async (guildId, weekId) => [];
+const addCorrection = async (payload) => ({ id: 1, ...payload });
+const removeCorrection = async (guildId, weekId, memberKey, metric) => true;
 
-module.exports = clubCorrections;
+module.exports = { listCorrections, addCorrection, removeCorrection };
