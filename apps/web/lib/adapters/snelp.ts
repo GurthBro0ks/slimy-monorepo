@@ -4,6 +4,7 @@
  */
 
 import { Code, SourceMetadata } from "../types/codes";
+import { Result } from "../types/common";
 
 const SNELP_URL = "https://snelp.com/codes";
 const TRUST_WEIGHT = 0.65;
@@ -68,24 +69,18 @@ function extractCodesFromMarkdown(markdown: string): Code[] {
 
 /**
  * Fetch codes from Snelp using Firecrawl
+ * @returns Result containing codes and metadata, or an error
  */
-export async function fetchSnelpCodes(): Promise<{
+export async function fetchSnelpCodes(): Promise<Result<{
   codes: Code[];
   metadata: SourceMetadata;
-}> {
+}>> {
   const apiKey = process.env.FIRECRAWL_API_KEY;
 
   if (!apiKey) {
-    console.warn("Firecrawl API key not configured");
     return {
-      codes: [],
-      metadata: {
-        source: "snelp",
-        status: "not_configured",
-        lastFetch: new Date().toISOString(),
-        itemCount: 0,
-        error: "Missing FIRECRAWL_API_KEY",
-      },
+      ok: false,
+      error: new Error("Missing FIRECRAWL_API_KEY"),
     };
   }
 
@@ -105,51 +100,46 @@ export async function fetchSnelpCodes(): Promise<{
     });
 
     if (response.status === 429) {
-      console.warn("Firecrawl rate limited");
       return {
-        codes: [],
-        metadata: {
-          source: "snelp",
-          status: "degraded",
-          lastFetch: new Date().toISOString(),
-          itemCount: 0,
-          error: "Rate limited",
-        },
+        ok: false,
+        error: new Error("Rate limited by Firecrawl API"),
       };
     }
 
     if (!response.ok) {
-      throw new Error(`Firecrawl API error: ${response.status}`);
+      return {
+        ok: false,
+        error: new Error(`Firecrawl API error: ${response.status}`),
+      };
     }
 
     const data: FirecrawlResponse = await response.json();
-    
+
     if (!data.success || !data.data?.markdown) {
-      throw new Error("Failed to scrape Snelp");
+      return {
+        ok: false,
+        error: new Error("Failed to scrape Snelp - invalid response"),
+      };
     }
 
     const codes = extractCodesFromMarkdown(data.data.markdown);
 
     return {
-      codes,
-      metadata: {
-        source: "snelp",
-        status: "ok",
-        lastFetch: new Date().toISOString(),
-        itemCount: codes.length,
+      ok: true,
+      data: {
+        codes,
+        metadata: {
+          source: "snelp",
+          status: "ok",
+          lastFetch: new Date().toISOString(),
+          itemCount: codes.length,
+        },
       },
     };
   } catch (error) {
-    console.error("Failed to fetch Snelp codes:", error);
     return {
-      codes: [],
-      metadata: {
-        source: "snelp",
-        status: "failed",
-        lastFetch: new Date().toISOString(),
-        itemCount: 0,
-        error: error instanceof Error ? error.message : "Unknown error",
-      },
+      ok: false,
+      error: error instanceof Error ? error : new Error("Unknown error fetching Snelp codes"),
     };
   }
 }

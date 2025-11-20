@@ -169,11 +169,40 @@ export interface QueryOptions {
 }
 
 /**
- * Async result type
+ * Result type for service layer operations
+ * Provides explicit success/failure handling without exceptions
+ *
+ * @example
+ * ```typescript
+ * async function getUser(id: string): Promise<Result<User>> {
+ *   try {
+ *     const user = await db.user.findUnique({ where: { id } });
+ *     if (!user) {
+ *       return { ok: false, error: new Error('User not found') };
+ *     }
+ *     return { ok: true, data: user };
+ *   } catch (err) {
+ *     return { ok: false, error: err as Error };
+ *   }
+ * }
+ *
+ * // Usage
+ * const result = await getUser('123');
+ * if (result.ok) {
+ *   console.log(result.data.name);
+ * } else {
+ *   console.error(result.error.message);
+ * }
+ * ```
  */
-export type AsyncResult<T, E = Error> =
-  | { ok: true; value: T }
+export type Result<T, E = Error> =
+  | { ok: true; data: T }
   | { ok: false; error: E };
+
+/**
+ * Async result type (alias for Result, kept for backward compatibility)
+ */
+export type AsyncResult<T, E = Error> = Result<T, E>;
 
 /**
  * Optional type helper
