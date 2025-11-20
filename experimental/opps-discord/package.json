@@ -1,0 +1,24 @@
+{
+  "name": "@slimy/opps-discord",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Discord integration stubs for opps-api (not wired into bot yet)",
+  "type": "module",
+  "main": "./src/apiClient.js",
+  "types": "./src/apiClient.ts",
+  "scripts": {
+    "build": "tsc",
+    "type-check": "tsc --noEmit",
+    "lint": "echo 'TODO: add linting'"
+  },
+  "keywords": [
+    "discord",
+    "opps-api",
+    "radar",
+    "experimental"
+  ],
+  "dependencies": {},
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  }
+}
