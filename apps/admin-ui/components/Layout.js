@@ -225,6 +225,29 @@ export default function Layout({ guildId, children, title, hideSidebar = false }
                       </a>
                     </Link>
                   )}
+                  {isAdmin && (
+                    <Link href="/diag" legacyBehavior>
+                      <a
+                        onClick={closeMenu}
+                        style={{
+                          padding: "10px 12px",
+                          borderRadius: 8,
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 8,
+                          fontWeight: 600,
+                          background: router.asPath.startsWith("/diag")
+                            ? "rgba(56, 189, 248, 0.15)"
+                            : "transparent",
+                          border: router.asPath.startsWith("/diag")
+                            ? "1px solid rgba(56, 189, 248, 0.4)"
+                            : "1px solid transparent",
+                        }}
+                      >
+                        🔍 System Diagnostics
+                      </a>
+                    </Link>
+                  )}
                 </nav>
               </div>
             </aside>
