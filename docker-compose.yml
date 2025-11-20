@@ -1,0 +1,14 @@
+version: '3.8'
+
+services:
+  admin-api:
+    build:
+      context: ./apps/admin-api
+      dockerfile: Dockerfile
+    ports:
+      - "3080:3080"
+    environment:
+      - NODE_ENV=development
+      - PORT=3080
+      - HOST=0.0.0.0
+    restart: unless-stopped
