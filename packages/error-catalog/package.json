@@ -1,0 +1,28 @@
+{
+  "name": "@slimy/error-catalog",
+  "version": "1.0.0",
+  "description": "Centralized error code catalog for Slimy.ai services",
+  "private": true,
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "echo \"TODO: add tests for error-catalog\"",
+    "type-check": "tsc --noEmit"
+  },
+  "keywords": [
+    "error-codes",
+    "error-handling",
+    "slimy"
+  ],
+  "author": "Slimy.ai Platform Team",
+  "license": "UNLICENSED",
+  "devDependencies": {
+    "typescript": "^5"
+  }
+}
