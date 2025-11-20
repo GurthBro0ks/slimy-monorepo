@@ -6,6 +6,7 @@ import { Image, BarChart3, Code, HelpCircle, Calculator, Clock } from "lucide-re
 import { LazySnailTimeline } from "@/components/lazy";
 import { Suspense } from "react";
 import { LoadingFallback } from "@/lib/lazy";
+import { SlimyErrorBoundary } from "@/components/slimy-error-boundary";
 
 export default function SnailPage() {
   const tools = [
@@ -21,7 +22,7 @@ export default function SnailPage() {
       title: "Analyze Screenshot",
       description: "Upload Super Snail screenshots for AI-powered analysis",
       href: "/snail/analyze",
-      available: false,
+      available: true,
     },
     {
       icon: BarChart3,
@@ -64,7 +65,9 @@ export default function SnailPage() {
             </h2>
             <Card className="p-6 h-[500px] overflow-y-auto rounded-2xl border border-emerald-500/30 bg-zinc-900/40 shadow-sm">
               <Suspense fallback={<LoadingFallback height="400px" />}>
-                <LazySnailTimeline />
+                <SlimyErrorBoundary componentName="Snail Timeline">
+                  <LazySnailTimeline />
+                </SlimyErrorBoundary>
               </Suspense>
             </Card>
           </div>
