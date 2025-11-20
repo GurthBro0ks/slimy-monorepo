@@ -168,9 +168,8 @@ const personalityTestSchema = z.object({
 }).strict();
 
 // Snail validation schemas
-const snailUploadSchema = z.object({
-  guildId: guildIdSchema,
-  prompt: z.string().max(1000, "Prompt too long").optional(),
+const snailAnalyzeBodySchema = z.object({
+  prompt: z.string().trim().max(1000, "Prompt too long (max 1000 characters)").optional(),
 }).strict();
 
 const snailCalcSchema = z.object({
@@ -199,6 +198,28 @@ const snailSettingsSchema = z.object({
 
 const snailSettingsUpdateSchema = z.object({
   settings: snailSettingsSchema,
+}).strict();
+
+// Rescan user validation schema
+const rescanUserSchema = z.object({
+  member: z.string().min(1, "Member identifier is required").optional(),
+  memberInput: z.string().min(1, "Member input is required").optional(),
+  metric: z.enum(["total", "sim"], {
+    errorMap: () => ({ message: "Metric must be 'total' or 'sim'" })
+  }).optional(),
+  weekId: z.string().max(50, "Week ID too long").optional(),
+}).strict().refine(
+  (data) => data.member || data.memberInput,
+  {
+    message: "Either 'member' or 'memberInput' must be provided",
+    path: ["member"]
+  }
+);
+
+// Correction ID parameter validation
+const correctionIdParamsSchema = z.object({
+  guildId: guildIdSchema,
+  correctionId: z.string().regex(/^\d+$/, "Correction ID must be a positive integer"),
 }).strict();
 
 // Stats validation schemas
@@ -339,12 +360,15 @@ const validateFileUploads = async (req, res, next) => {
     }
 
     return res.status(400).json({
-      error: "File validation failed",
-      message: error.message,
-      details: error.errors?.map(err => ({
-        field: err.path.join('.'),
-        message: err.message,
-      })) || [{ message: error.message }],
+      ok: false,
+      error: {
+        code: "INVALID_REQUEST",
+        message: "File validation failed",
+        details: error.errors?.map(err => ({
+          field: err.path.join('.'),
+          message: err.message,
+        })) || [{ message: error.message }],
+      },
     });
   }
 };
@@ -371,12 +395,18 @@ const validateRequest = (schema) => {
       next();
     } catch (error) {
       if (error instanceof z.ZodError) {
+        const fieldErrors = error.errors.map(err => ({
+          field: err.path.join('.') || 'unknown',
+          message: err.message,
+        }));
+
         return res.status(400).json({
-          error: "Validation failed",
-          details: error.errors.map(err => ({
-            field: err.path.join('.'),
-            message: err.message,
-          })),
+          ok: false,
+          error: {
+            code: "INVALID_REQUEST",
+            message: "Request validation failed",
+            details: fieldErrors,
+          },
         });
       }
 
@@ -431,6 +461,8 @@ module.exports = {
     bulkUpdateMembers: validateRequest({ params: z.object({ id: z.string() }), body: bulkMembersUpdateSchema }),
     bulkRemoveMembers: validateRequest({ params: z.object({ id: z.string() }), body: bulkMembersRemoveSchema }),
     userGuilds: validateRequest({ params: z.object({ userId: userIdSchema }) }),
+    rescanUser: validateRequest({ params: z.object({ guildId: guildIdSchema }), body: rescanUserSchema }),
+    deleteCorrection: validateRequest({ params: correctionIdParamsSchema }),
   },
 
   personality: {
@@ -442,7 +474,7 @@ module.exports = {
   },
 
   snail: {
-    upload: validateRequest({ params: z.object({ guildId: guildIdSchema }), body: snailUploadSchema }),
+    analyze: validateRequest({ params: z.object({ guildId: guildIdSchema }), body: snailAnalyzeBodySchema }),
     settings: validateRequest({ params: z.object({ guildId: guildIdSchema }), body: snailSettingsUpdateSchema }),
     calc: validateRequest({ params: z.object({ guildId: guildIdSchema }), body: snailCalcSchema }),
     codes: validateRequest({ params: z.object({ guildId: guildIdSchema }), query: snailCodesQuerySchema }),
