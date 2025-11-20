@@ -16,8 +16,7 @@ const usageService = require("../services/usage");
 const healthService = require("../services/health");
 const { rescanMember } = require("../services/rescan");
 const { recordAudit } = require("../services/audit");
-const guildClient = require("../../lib/discord/guild-client");
-const guildService = require("../services/guild.service");
+const { logger, logError } = require("../lib/logger");
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -89,142 +88,39 @@ const usageQuerySchema = z.object({
 
 router.use(requireAuth);
 
-// GET /api/guilds - List linked guilds
 router.get("/", (req, res) => {
   res.json({ guilds: req.user.guilds || [] });
-});
-
-// GET /api/guilds/sync - Fetch guilds from Discord API
-router.get("/sync", async (req, res, next) => {
-  try {
-    const botToken = process.env.DISCORD_BOT_TOKEN;
-
-    if (!botToken) {
-      return res.status(503).json({
-        error: "discord-not-configured",
-        message: "Discord bot token not configured",
-      });
-    }
-
-    const useCache = req.query.refresh !== "true";
-    const guilds = await guildClient.fetchGuilds(botToken, {
-      useCache,
-      userId: req.user.sub,
-    });
-
-    await recordAudit({
-      adminId: req.user.sub,
-      action: "guilds.sync",
-      payload: { guildCount: guilds.length, useCache },
-    });
-
-    res.json({
-      guilds: guilds.map(g => ({
-        id: g.id,
-        name: g.name,
-        icon: g.icon,
-        owner: g.owner,
-        permissions: g.permissions,
-        features: g.features,
-      })),
-      cached: useCache,
-      timestamp: new Date().toISOString(),
-    });
-  } catch (err) {
-    next(err);
-  }
-});
-
-// POST /api/guilds/:id - Create or update guild from Discord
-router.post("/:id", requireRole("editor"), requireCsrf, async (req, res, next) => {
-  try {
-    const discordId = req.params.id;
-    const botToken = process.env.DISCORD_BOT_TOKEN;
-
-    if (!botToken) {
-      return res.status(503).json({
-        error: "discord-not-configured",
-        message: "Discord bot token not configured",
-      });
-    }
-
-    // Fetch guild details from Discord
-    const discordGuild = await guildClient.fetchGuild(botToken, discordId, {
-      userId: req.user.sub,
-    });
-
-    // Check if guild already exists
-    let guild;
-    try {
-      guild = await guildService.getGuildByDiscordId(discordId);
-
-      // Update existing guild
-      guild = await guildService.updateGuild(guild.id, {
-        name: discordGuild.name,
-        settings: {
-          ...(guild.settings || {}),
-          icon: discordGuild.icon,
-          features: discordGuild.features,
-          lastSyncedAt: new Date().toISOString(),
-        },
-      });
-
-      await recordAudit({
-        adminId: req.user.sub,
-        action: "guild.update",
-        guildId: guild.id,
-        payload: { discordId, source: "discord-sync" },
-      });
-
-      res.json({
-        guild,
-        created: false,
-        syncedAt: new Date().toISOString(),
-      });
-    } catch (err) {
-      if (err.message === "Guild not found") {
-        // Create new guild
-        guild = await guildService.createGuild({
-          discordId,
-          name: discordGuild.name,
-          settings: {
-            icon: discordGuild.icon,
-            features: discordGuild.features,
-            lastSyncedAt: new Date().toISOString(),
-          },
-        });
-
-        await recordAudit({
-          adminId: req.user.sub,
-          action: "guild.create",
-          guildId: guild.id,
-          payload: { discordId, source: "discord-sync" },
-        });
-
-        res.status(201).json({
-          guild,
-          created: true,
-          syncedAt: new Date().toISOString(),
-        });
-      } else {
-        throw err;
-      }
-    }
-  } catch (err) {
-    next(err);
-  }
 });
 
 router.get(
   "/:guildId/settings",
   requireGuildAccess,
   async (req, res, next) => {
+    const guildId = req.params.guildId;
+    const userId = req.user.sub;
+    const commandLogger = logger.child({
+      command: "club.settings.get",
+      guildId,
+      userId,
+      requestId: req.id
+    });
+
     try {
+      commandLogger.info("Fetching guild settings");
       const result = await settingsService.getSettings(req.params.guildId, {
         includeTest: req.query.test === "true",
       });
+      commandLogger.info({
+        hasSheetUrl: Boolean(result.sheetUrl),
+        weekWindowDays: result.weekWindowDays,
+      }, "Guild settings retrieved successfully");
       res.json(result);
     } catch (err) {
+      logError(commandLogger, err, {
+        command: "club.settings.get",
+        guildId,
+        userId,
+      });
       next(err);
     }
   },
@@ -237,7 +133,19 @@ router.put(
   requireCsrf,
   validateBody(settingsSchema),
   async (req, res, next) => {
+    const guildId = req.params.guildId;
+    const userId = req.user.sub;
+    const commandLogger = logger.child({
+      command: "club.settings.update",
+      guildId,
+      userId,
+      requestId: req.id
+    });
+
     try {
+      commandLogger.info({
+        updates: Object.keys(req.validated.body),
+      }, "Updating guild settings");
       const result = await settingsService.updateSettings(
         req.params.guildId,
         req.validated.body,
@@ -248,8 +156,16 @@ router.put(
         guildId: req.params.guildId,
         payload: req.validated.body,
       });
+      commandLogger.info({
+        updatedFields: Object.keys(req.validated.body),
+      }, "Guild settings updated successfully");
       res.json(result);
     } catch (err) {
+      logError(commandLogger, err, {
+        command: "club.settings.update",
+        guildId,
+        userId,
+      });
       next(err);
     }
   },
@@ -341,13 +257,36 @@ router.get(
   requireGuildAccess,
   validateQuery(correctionsQuerySchema),
   async (req, res, next) => {
+    const guildId = req.params.guildId;
+    const userId = req.user.sub;
+    const weekId = req.validated?.query?.weekId;
+    const commandLogger = logger.child({
+      command: "club.corrections.list",
+      guildId,
+      userId,
+      weekId,
+      requestId: req.id
+    });
+
     try {
+      commandLogger.info({
+        weekId: weekId || "all",
+      }, "Fetching guild corrections");
       const corrections = await correctionsService.listCorrections(
         req.params.guildId,
-        req.validated?.query?.weekId,
+        weekId,
       );
+      commandLogger.info({
+        count: corrections.length,
+        weekId: weekId || "all",
+      }, "Guild corrections retrieved successfully");
       res.json({ corrections });
     } catch (err) {
+      logError(commandLogger, err, {
+        command: "club.corrections.list",
+        guildId,
+        userId,
+      });
       next(err);
     }
   },
@@ -360,7 +299,21 @@ router.post(
   requireCsrf,
   validateBody(correctionSchema),
   async (req, res, next) => {
+    const guildId = req.params.guildId;
+    const userId = req.user.sub;
+    const commandLogger = logger.child({
+      command: "club.corrections.create",
+      guildId,
+      userId,
+      requestId: req.id
+    });
+
     try {
+      commandLogger.info({
+        metric: req.validated.body.metric,
+        weekId: req.validated.body.weekId,
+        memberKey: req.validated.body.memberKey,
+      }, "Creating guild correction");
       const result = await correctionsService.createCorrection(
         req.params.guildId,
         req.validated.body,
@@ -372,8 +325,17 @@ router.post(
         guildId: req.params.guildId,
         payload: req.validated.body,
       });
+      commandLogger.info({
+        correctionId: result.id,
+        metric: req.validated.body.metric,
+      }, "Guild correction created successfully");
       res.status(201).json(result);
     } catch (err) {
+      logError(commandLogger, err, {
+        command: "club.corrections.create",
+        guildId,
+        userId,
+      });
       next(err);
     }
   },
@@ -385,17 +347,34 @@ router.delete(
   requireRole("editor"),
   requireCsrf,
   async (req, res, next) => {
+    const guildId = req.params.guildId;
+    const userId = req.user.sub;
+    const correctionId = Number(req.params.correctionId);
+    const commandLogger = logger.child({
+      command: "club.corrections.delete",
+      guildId,
+      userId,
+      correctionId,
+      requestId: req.id
+    });
+
     try {
-      const correctionId = Number(req.params.correctionId);
       if (!Number.isFinite(correctionId)) {
+        commandLogger.warn("Invalid correction ID provided");
         return res.status(400).json({ error: "invalid-correction-id" });
       }
 
+      commandLogger.info({
+        correctionId,
+      }, "Deleting guild correction");
       const success = await correctionsService.deleteCorrectionById(
         req.params.guildId,
         correctionId,
       );
       if (!success) {
+        commandLogger.warn({
+          correctionId,
+        }, "Correction not found for deletion");
         return res.status(404).json({ error: "not-found" });
       }
       await recordAudit({
@@ -404,8 +383,17 @@ router.delete(
         guildId: req.params.guildId,
         payload: { id: correctionId },
       });
+      commandLogger.info({
+        correctionId,
+      }, "Guild correction deleted successfully");
       return res.status(204).end();
     } catch (err) {
+      logError(commandLogger, err, {
+        command: "club.corrections.delete",
+        guildId,
+        userId,
+        correctionId,
+      });
       next(err);
     }
   },
@@ -455,14 +443,37 @@ router.get(
   requireGuildAccess,
   validateQuery(usageQuerySchema),
   async (req, res, next) => {
+    const guildId = req.params.guildId;
+    const userId = req.user.sub;
+    const commandLogger = logger.child({
+      command: "club.usage.get",
+      guildId,
+      userId,
+      requestId: req.id
+    });
+
     try {
-      const result = await usageService.getUsage(req.params.guildId, {
+      const params = {
         window: req.validated?.query?.window,
         startDate: req.validated?.query?.startDate,
         endDate: req.validated?.query?.endDate,
-      });
+      };
+      commandLogger.info({
+        window: params.window || "default",
+        hasDateRange: Boolean(params.startDate && params.endDate),
+      }, "Fetching guild usage statistics");
+      const result = await usageService.getUsage(req.params.guildId, params);
+      commandLogger.info({
+        totalRequests: result.totalRequests || 0,
+        window: params.window || "default",
+      }, "Guild usage statistics retrieved successfully");
       res.json(result);
     } catch (err) {
+      logError(commandLogger, err, {
+        command: "club.usage.get",
+        guildId,
+        userId,
+      });
       next(err);
     }
   },
