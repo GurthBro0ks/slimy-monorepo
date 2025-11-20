@@ -1,0 +1,22 @@
+{
+  "name": "@slimy/opps-runtime",
+  "version": "0.0.1",
+  "private": true,
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "build": "echo 'TODO: build opps-runtime'",
+    "test": "jest",
+    "test:history": "jest tests/history.test.ts"
+  },
+  "dependencies": {
+    "@slimy/opps-core": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/jest": "^29.5.0",
+    "@types/node": "^20.0.0",
+    "jest": "^29.5.0",
+    "ts-jest": "^29.1.0",
+    "typescript": "^5.0.0"
+  }
+}
