@@ -5,6 +5,7 @@ const { verifySession, COOKIE_NAME } = require("../lib/jwt");
 const { getSession } = require("../lib/session-store");
 const metrics = require("./lib/metrics");
 const { askChatBot } = require("./services/chat-bot");
+const database = require("../../lib/database");
 
 const ROLE_COLORS = {
   member: "#3b82f6",
@@ -151,6 +152,30 @@ function initSocket(server) {
           io.emit("chat:message", message);
         }
 
+        // Persist message to database
+        if (database.isConfigured()) {
+          try {
+            // Ensure user exists and get their database ID
+            const dbUser = await database.ensureUserRecord(
+              socket.user.id,
+              socket.user.globalName || socket.user.username
+            );
+
+            // Find guild by Discord ID to get database ID
+            const dbGuild = await database.findGuildByDiscordId(guildId);
+
+            await database.createChatMessage({
+              userId: dbUser.id,
+              guildId: dbGuild?.id || null,
+              text: text,
+              adminOnly: adminOnly,
+            });
+          } catch (dbErr) {
+            console.error("[chat] Failed to persist message to database:", dbErr);
+            // Continue even if database save fails - don't break the live chat
+          }
+        }
+
         if (typeof respond === "function") {
           respond({ ok: true });
         }
@@ -172,6 +197,26 @@ function initSocket(server) {
               botMessage.messageId = `${messageId}-bot`;
               metrics.recordChatMessage();
               io.emit("chat:message", botMessage);
+
+              // Persist bot message to database
+              if (database.isConfigured()) {
+                try {
+                  // First ensure bot user exists in database and get their DB ID
+                  const botUser = await database.ensureUserRecord("bot", "slimy.ai");
+
+                  // Find guild by Discord ID to get database ID
+                  const dbGuild = await database.findGuildByDiscordId(guildId);
+
+                  await database.createChatMessage({
+                    userId: botUser.id,
+                    guildId: dbGuild?.id || null,
+                    text: reply,
+                    adminOnly: false,
+                  });
+                } catch (dbErr) {
+                  console.error("[chat] Failed to persist bot message to database:", dbErr);
+                }
+              }
             }
           } catch (err) {
             console.error("[chat] bot reply failed", err);

@@ -319,23 +319,35 @@ router.get("/:guildId/history", chat.history, apiHandler(async (req, res) => {
     return { ok: true, messages: [] };
   }
 
-  const includeAdminOnly = guildId === ADMIN_ROOM_ID || isAdmin;
-  const messages = await database.getChatMessages(guildId, limit, includeAdminOnly);
+  // Convert Discord guild ID to database guild ID
+  let dbGuildId = null;
+  if (guildId !== ADMIN_ROOM_ID) {
+    const dbGuild = await database.findGuildByDiscordId(guildId);
+    if (!dbGuild) {
+      // Guild not found in database, return empty history
+      return { ok: true, messages: [] };
+    }
+    dbGuildId = dbGuild.id;
+  }
 
-  const formatted = messages.map((msg) => ({
-    messageId: msg.message_id,
-    guildId: msg.guild_id,
-    userId: msg.user_id,
-    username: msg.global_name || msg.username,
+  const includeAdminOnly = guildId === ADMIN_ROOM_ID || isAdmin;
+  const messages = await database.getChatMessages(dbGuildId, limit, includeAdminOnly);
+
+  // Messages are returned in descending order, reverse to get chronological order
+  const formatted = messages.reverse().map((msg) => ({
+    messageId: msg.id,
+    guildId: guildId, // Use the original Discord guild ID from the request
+    userId: msg.user?.discordId || "Unknown",
+    username: msg.user?.globalName || msg.user?.username || "Unknown",
     from: {
-      id: msg.user_id,
-      name: msg.global_name || msg.username,
-      role: msg.user_role,
-      color: getColorForRole(msg.user_role),
+      id: msg.user?.discordId || "Unknown",
+      name: msg.user?.globalName || msg.user?.username || "Unknown",
+      role: msg.user?.discordId === "bot" ? "bot" : "member",
+      color: getColorForRole(msg.user?.discordId === "bot" ? "bot" : "member"),
     },
     text: msg.text,
-    adminOnly: Boolean(msg.admin_only),
-    ts: msg.created_at.toISOString(),
+    adminOnly: Boolean(msg.adminOnly),
+    ts: msg.createdAt.toISOString(),
   }));
 
   return { ok: true, messages: formatted };
