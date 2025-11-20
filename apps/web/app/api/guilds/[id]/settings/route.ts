@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getGuildFlags, updateGuildFlags, isExperimentEnabled } from "@/lib/feature-flags";
+import { sendAuditEvent, AuditActions, ResourceTypes } from "@/lib/api/auditLog";
 
 export const runtime = "nodejs";
 
@@ -42,12 +43,17 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id: guildId } = await params;
+
   try {
-    const { id: guildId } = await params;
     const body: { publicStatsEnabled?: boolean } = await request.json();
 
     // TODO: Implement server-side role verification (must be admin)
     // For now, assume admin role for simplicity
+
+    // Capture old values for audit trail
+    const oldFlags = getGuildFlags(guildId);
+    const oldPublicStats = oldFlags.experiments.publicStats;
 
     const updates: any = {};
     if (typeof body.publicStatsEnabled === "boolean") {
@@ -56,6 +62,20 @@ export async function PATCH(
 
     const updatedFlags = updateGuildFlags(guildId, updates);
 
+    // Log the settings update to audit log (non-blocking)
+    sendAuditEvent({
+      action: AuditActions.GUILD_SETTINGS_UPDATE,
+      resourceType: ResourceTypes.GUILD,
+      resourceId: guildId,
+      details: {
+        changed: ['publicStatsEnabled'],
+        before: { publicStatsEnabled: oldPublicStats },
+        after: { publicStatsEnabled: updatedFlags.experiments.publicStats },
+      },
+    }).catch(err => {
+      console.error('[Audit] Failed to log guild settings update:', err);
+    });
+
     return NextResponse.json({
       ok: true,
       publicStatsEnabled: updatedFlags.experiments.publicStats,
@@ -63,6 +83,18 @@ export async function PATCH(
     });
   } catch (error) {
     console.error("Failed to update guild settings:", error);
+
+    // Log the failed attempt to audit log (non-blocking)
+    sendAuditEvent({
+      action: AuditActions.GUILD_SETTINGS_UPDATE,
+      resourceType: ResourceTypes.GUILD,
+      resourceId: guildId,
+      success: false,
+      errorMessage: error instanceof Error ? error.message : 'Unknown error',
+    }).catch(err => {
+      console.error('[Audit] Failed to log failed guild settings update:', err);
+    });
+
     return NextResponse.json(
       {
         ok: false,
