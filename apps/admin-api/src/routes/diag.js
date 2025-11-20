@@ -4,6 +4,7 @@ const os = require("os");
 const express = require("express");
 const { requireAuth } = require("../middleware/auth");
 const { summarizeUploads } = require("../services/uploads");
+const database = require("../lib/database");
 
 const router = express.Router();
 
@@ -32,9 +33,19 @@ router.get("/", requireAuth, async (req, res) => {
       byGuild: {},
     }));
 
+    // Get database status
+    const dbStatus = database.getStatus();
+
     res.json({
       ok: true,
       admin: buildAdminSnapshot(),
+      database: {
+        mode: dbStatus.mode,
+        available: dbStatus.isAvailable,
+        configured: database.isConfigured(),
+        lastError: dbStatus.error,
+        lastConnectAttempt: dbStatus.lastConnectAttempt,
+      },
       uploads,
     });
   } catch (err) {
