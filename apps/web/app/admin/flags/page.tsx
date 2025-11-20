@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Callout } from "@/components/ui/callout";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface GuildFlags {
   guildId: string;
@@ -129,7 +130,12 @@ export default function FlagsAdminPage() {
           </Callout>
         )}
 
-        {flags && (
+        {loading ? (
+          <div className="space-y-6">
+            <Skeleton className="h-48 w-full rounded-2xl" />
+            <Skeleton className="h-64 w-full rounded-2xl" />
+          </div>
+        ) : flags ? (
           <>
             <Card className="mb-6">
               <CardHeader>
@@ -220,7 +226,7 @@ export default function FlagsAdminPage() {
               Last updated: {new Date(flags.updatedAt).toLocaleString()}
             </div>
           </>
-        )}
+        ) : null}
       </div>
     </div>
   );
