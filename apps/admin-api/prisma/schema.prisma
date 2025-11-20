@@ -21,15 +21,15 @@ model User {
   updatedAt   DateTime @updatedAt @map("updated_at")
 
   // Relations
-  sessions      Session[]
-  userGuilds    UserGuild[]
-  conversations Conversation[]
-  stats         Stat[]
-  chatMessages  ChatMessage[]
-  clubAnalyses  ClubAnalysis[]
+  sessions         Session[]
+  userGuilds       UserGuild[]
+  guildConversations GuildConversation[] @relation("guild_conversations")
+  guildChatMessages GuildChatMessage[] @relation("guild_chat_messages")
+  stats            Stat[]
+  clubAnalyses     ClubAnalysis[]
   screenshotAnalyses ScreenshotAnalysis[]
   screenshotComparisons ScreenshotComparison[]
-  auditLogs     AuditLog[]
+  auditLogs        AuditLog[]
 
   // Performance indexes
   @@index([createdAt])
@@ -69,11 +69,11 @@ model Guild {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   // Relations
-  userGuilds    UserGuild[]
-  stats         Stat[]
-  chatMessages  ChatMessage[]
-  clubAnalyses  ClubAnalysis[]
-  guildSettings GuildSettings?
+  userGuilds       UserGuild[]
+  stats            Stat[]
+  guildChatMessages GuildChatMessage[]
+  clubAnalyses     ClubAnalysis[]
+  guildSettings    GuildSettings?
   guildPersonality GuildPersonality?
 
   // Performance indexes
@@ -104,8 +104,10 @@ model UserGuild {
   @@map("user_guilds")
 }
 
-// Chat conversations
-model Conversation {
+// Guild Chat Conversations (Discord-style guild communication)
+// NOTE: This is for guild member communications, NOT AI conversations.
+// For AI chat, see web app's AiChatConversation model.
+model GuildConversation {
   id        String   @id @default(cuid())
   userId    String   @map("user_id")
   title     String?
@@ -113,14 +115,17 @@ model Conversation {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   // Relations
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  messages ChatMessage[]
+  user User @relation("guild_conversations", fields: [userId], references: [id], onDelete: Cascade)
+  messages GuildChatMessage[]
 
   @@map("conversations")
 }
 
-// Individual chat messages
-model ChatMessage {
+// Guild Chat Messages (Discord-style guild communication)
+// NOTE: This is for guild member communications, NOT AI chat messages.
+// For AI messages, see web app's ChatMessage model (stored in web database).
+// This model represents text messages within guild conversations.
+model GuildChatMessage {
   id             String   @id @default(cuid())
   conversationId String?  @map("conversation_id")
   userId         String   @map("user_id")
@@ -130,9 +135,9 @@ model ChatMessage {
   createdAt      DateTime @default(now()) @map("created_at")
 
   // Relations
-  conversation Conversation? @relation(fields: [conversationId], references: [id], onDelete: SetNull)
-  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  guild        Guild?        @relation(fields: [guildId], references: [id], onDelete: SetNull)
+  conversation GuildConversation? @relation(fields: [conversationId], references: [id], onDelete: SetNull)
+  user         User               @relation("guild_chat_messages", fields: [userId], references: [id], onDelete: Cascade)
+  guild        Guild?             @relation(fields: [guildId], references: [id], onDelete: SetNull)
 
   // Performance indexes
   @@index([userId])
