@@ -1,23 +1,28 @@
 /**
  * HTTP Client Module
  *
- * Centralized HTTP utilities for the application
+ * Exports the typed HTTP client and related utilities
  */
 
 export {
+  // Classes
   HttpClient,
   HttpError,
-  httpClient,
+
+  // Functions
+  createHttpClient,
+  getHttpClient,
   httpGet,
   httpPost,
   httpPut,
   httpPatch,
   httpDelete,
-  isHttpSuccess,
-  isHttpError,
-  unwrapHttp,
+  httpStream,
+
+  // Types
+  type HttpClientConfig,
   type HttpRequestOptions,
-  type HttpResponse,
-  type HttpErrorResponse,
   type HttpResult,
+  type HttpSuccess,
+  type HttpFailure,
 } from './client';
