@@ -29,9 +29,9 @@ model User {
   clubAnalyses  ClubAnalysis[]
   screenshotAnalyses ScreenshotAnalysis[]
   screenshotComparisons ScreenshotComparison[]
+  clubScreenshots ClubScreenshot[]
+  clubScreenshotAnalyses ClubScreenshotAnalysis[]
   auditLogs     AuditLog[]
-  notifications Notification[]
-  notificationPreference NotificationPreference?
 
   // Performance indexes
   @@index([createdAt])
@@ -75,6 +75,7 @@ model Guild {
   stats         Stat[]
   chatMessages  ChatMessage[]
   clubAnalyses  ClubAnalysis[]
+  clubScreenshots ClubScreenshot[]
 
   // Performance indexes
   @@index([createdAt])
@@ -452,43 +453,49 @@ model AuditLog {
   @@map("audit_logs")
 }
 
-// Notifications for users
-model Notification {
-  id        String   @id @default(cuid())
-  userId    String   @map("user_id")
-  type      String   // e.g. "weekly_digest", "club_update", "system"
-  title     String
-  body      String
-  read      Boolean  @default(false)
-  meta      Json?    // Extra info (links, payload)
-  createdAt DateTime @default(now()) @map("created_at")
+// Club screenshots for vision analysis
+model ClubScreenshot {
+  id               Int      @id @default(autoincrement())
+  guildId          String   @map("guild_id")
+  uploaderUserId   String?  @map("uploader_user_id")
+  originalFilename String   @map("original_filename")
+  storagePath      String   @map("storage_path") // e.g. /data/screenshots/...
+  createdAt        DateTime @default(now()) @map("created_at")
 
   // Relations
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  guild    Guild                    @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  uploader User?                    @relation(fields: [uploaderUserId], references: [id], onDelete: SetNull)
+  analyses ClubScreenshotAnalysis[]
 
   // Performance indexes
-  @@index([userId])
-  @@index([type])
-  @@index([read])
+  @@index([guildId])
+  @@index([uploaderUserId])
   @@index([createdAt])
-  @@index([userId, read])
-  @@index([userId, createdAt])
-  @@index([userId, type])
+  @@index([guildId, createdAt])
 
-  @@map("notifications")
+  @@map("club_screenshots")
 }
 
-// User notification preferences
-model NotificationPreference {
-  id            String  @id @default(cuid())
-  userId        String  @unique @map("user_id")
-  emailOptIn    Boolean @default(false) @map("email_opt_in")
-  discordDMOptIn Boolean @default(false) @map("discord_dm_opt_in")
-  weeklyDigest  Boolean @default(true) @map("weekly_digest")
-  channels      Json?   // JSON object for channel-specific preferences
+// Vision analysis results for club screenshots
+model ClubScreenshotAnalysis {
+  id           Int      @id @default(autoincrement())
+  screenshotId Int      @map("screenshot_id")
+  userId       String   @map("user_id") // User who triggered the analysis
+  model        String   // e.g. "gpt-4-vision-preview"
+  rawResponse  Json     @map("raw_response") // Raw AI response
+  summary      String?  // AI-generated summary
+  createdAt    DateTime @default(now()) @map("created_at")
 
   // Relations
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  screenshot ClubScreenshot @relation(fields: [screenshotId], references: [id], onDelete: Cascade)
+  user       User           @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@map("notification_preferences")
+  // Performance indexes
+  @@index([screenshotId])
+  @@index([userId])
+  @@index([model])
+  @@index([createdAt])
+  @@index([screenshotId, createdAt])
+
+  @@map("club_screenshot_analyses")
 }
