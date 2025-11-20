@@ -1,4 +1,4 @@
-const { PrismaClient } = require('@prisma/client');
+const { PrismaClient } = require('../../../node_modules/.prisma/client-admin-api');
 const metrics = require('./monitoring/metrics');
 const config = require('./config');
 
