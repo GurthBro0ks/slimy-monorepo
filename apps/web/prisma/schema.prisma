@@ -10,7 +10,19 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Club Analysis
+// DEPRECATED: Club Analysis models moved to admin-api
+//
+// NOTE: As of Phase 2.1 (Database Consolidation), club analytics are canonically
+// stored in admin-api's Prisma schema. These web app models are deprecated.
+//
+// Migration Plan:
+// 1. Existing data should be migrated to admin-api database
+// 2. Web app should read/write club analytics via admin-api endpoints (/api/club-analytics/*)
+// 3. These models will be removed in a future migration
+//
+// For new code, use the admin-api endpoints instead of querying these models directly.
+
+// Club Analysis (DEPRECATED - use admin-api instead)
 model ClubAnalysis {
   id          String   @id @default(cuid())
   guildId     String
@@ -31,7 +43,7 @@ model ClubAnalysis {
   @@map("club_analyses")
 }
 
-// Club Analysis Images
+// Club Analysis Images (DEPRECATED - use admin-api instead)
 model ClubAnalysisImage {
   id           String   @id @default(cuid())
   analysisId   String
@@ -47,7 +59,7 @@ model ClubAnalysisImage {
   @@map("club_analysis_images")
 }
 
-// Club Metrics
+// Club Metrics (DEPRECATED - use admin-api instead)
 model ClubMetric {
   id         String   @id @default(cuid())
   analysisId String
@@ -80,7 +92,9 @@ model UserPreferences {
   @@map("user_preferences")
 }
 
-// Chat Conversations
+// AI Chat Conversations (OpenAI-style AI conversations)
+// NOTE: This is for user interactions with AI, NOT guild communications.
+// For guild chat, see admin-api's GuildConversation model.
 model ChatConversation {
   id        String   @id @default(cuid())
   userId    String
@@ -97,7 +111,10 @@ model ChatConversation {
   @@map("chat_conversations")
 }
 
-// Chat Messages
+// AI Chat Messages (OpenAI-style AI conversations)
+// NOTE: This is for user-to-AI messages, NOT guild communications.
+// For guild messages, see admin-api's GuildChatMessage model.
+// This model represents individual messages with role (user/assistant/system).
 model ChatMessage {
   id             String   @id @default(cuid())
   conversationId String
@@ -147,7 +164,21 @@ model CodeReport {
   @@map("code_reports")
 }
 
-// Audit Logs (for persistence)
+// DEPRECATED: Audit Logs (for persistence)
+//
+// NOTE: As of Phase 2.1 (Database Consolidation), audit logs are canonically
+// stored in admin-api's Prisma schema. This web app model is deprecated.
+//
+// The admin-api version includes additional fields (requestId, sessionId, tracing info)
+// and is the single source of truth for all system audits.
+//
+// Migration Plan:
+// 1. Existing web audit logs should be migrated to admin-api
+// 2. Web app should submit audit events via admin-api endpoints (/api/audit-log/*)
+// 3. This model will be removed in a future migration
+//
+// For new code, use admin-api audit log submission endpoints instead of querying this model.
+
 model AuditLog {
   id         String   @id @default(cuid())
   userId     String
