@@ -1,0 +1,15 @@
+{
+  "name": "@slimy/opps-runtime",
+  "version": "0.1.0",
+  "description": "Runtime components for experimental opportunities system",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "test": "vitest"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "typescript": "^5.3.3",
+    "vitest": "^1.0.0"
+  }
+}
