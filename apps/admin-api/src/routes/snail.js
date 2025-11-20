@@ -18,7 +18,7 @@ const path = require("path");
 const fs = require("fs");
 const fsp = require("fs/promises");
 const mime = require("mime-types");
-const { analyzeSnailDataUrl } = require("../../lib/snail-vision");
+const { analyzeSnailDataUrl } = require("../../../lib/snail-vision");
 const { readJson, writeJson } = require("../lib/store");
 const { UPLOADS_DIR } = require("../services/uploads");
 const metrics = require("../lib/monitoring/metrics");
@@ -31,7 +31,6 @@ const { requireCsrf } = require("../middleware/csrf");
 const { cacheGuildData, cacheStats } = require("../middleware/cache");
 const { snail, validateFileUploads } = require("../lib/validation/schemas");
 const { apiHandler } = require("../lib/errors");
-const { logger, logError } = require("../lib/logger");
 
 const router = express.Router({ mergeParams: true });
 
@@ -119,7 +118,7 @@ router.post(
   "/analyze",
   requireCsrf,
   express.json(),
-  snail.analyze,
+  snail.upload,
   (req, res, next) => {
     upload.array("images", MAX_FILES)(req, res, (err) => {
       if (err) {
@@ -135,31 +134,17 @@ router.post(
   },
   validateFileUploads,
   async (req, res) => {
-    const guildId = String(req.params.guildId);
-    const userId = req.user.id;
-    const commandLogger = logger.child({
-      command: "snail.analyze",
-      guildId,
-      userId,
-      requestId: req.id
-    });
-
     if (!process.env.OPENAI_API_KEY) {
-      commandLogger.warn("Vision API unavailable - missing API key");
       return res.status(503).json({ error: "vision_unavailable" });
     }
     const files = req.files || [];
     if (!files.length) {
-      commandLogger.warn("No images provided for analysis");
       return res.status(400).json({ error: "missing_images" });
     }
     try {
+      const guildId = String(req.params.guildId);
+      const userId = req.user.id;
       const prompt = String(req.body?.prompt || "").trim();
-
-      commandLogger.info({
-        fileCount: files.length,
-        hasPrompt: Boolean(prompt),
-      }, "Starting snail screenshot analysis");
 
       const analyses = [];
       for (const file of files) {
@@ -199,10 +184,23 @@ router.post(
 
       metrics.recordImages(files.length);
 
-      commandLogger.info({
-        fileCount: files.length,
-        analysesCompleted: analyses.length,
-      }, "Snail analysis completed successfully");
+      // Publish event to event bus for snapshot creation
+      try {
+        const eventBus = require('../lib/eventBus');
+        await eventBus.publish({
+          type: 'CLUB_SNAPSHOT_CREATED',
+          payload: {
+            snapshotId: `${guildId}_${userId}_${Date.now()}`,
+            guildId,
+            userId,
+            imageCount: files.length,
+            prompt,
+            timestamp: payload.uploadedAt,
+          },
+        });
+      } catch (error) {
+        console.error('[snail/analyze] Failed to publish CLUB_SNAPSHOT_CREATED event:', error);
+      }
 
       res.json({
         ok: true,
@@ -214,16 +212,8 @@ router.post(
         savedAt: payload.uploadedAt,
       });
     } catch (err) {
-      logError(commandLogger, err, {
-        command: "snail.analyze",
-        guildId,
-        userId,
-        fileCount: files.length,
-      });
-      res.status(500).json({
-        error: "server_error",
-        message: "We couldn't analyze your screenshots right now. Please try again later.",
-      });
+      console.error("[snail/analyze] failed");
+      res.status(500).json({ error: "server_error" });
     }
   },
 );
@@ -244,42 +234,18 @@ router.post(
  *   - 500: server_error - Internal server error
  */
 router.get("/stats", snail.stats, cacheGuildData(300, 600), async (req, res) => {
-  const guildId = String(req.params.guildId);
-  const userId = req.user.id;
-  const commandLogger = logger.child({
-    command: "snail.stats",
-    guildId,
-    userId,
-    requestId: req.id
-  });
-
   try {
-    commandLogger.info("Fetching user's latest snail stats");
-
+    const guildId = String(req.params.guildId);
+    const userId = req.user.id;
     const target = path.join(DATA_ROOT, guildId, userId, "latest.json");
     const record = await readJson(target, null);
-
     if (!record) {
-      commandLogger.info("No stats found for user");
       return res.json({ ok: true, empty: true });
     }
-
-    commandLogger.info({
-      hasRecord: true,
-      uploadedAt: record.uploadedAt,
-    }, "Snail stats retrieved successfully");
-
     return res.json({ ok: true, record });
   } catch (err) {
-    logError(commandLogger, err, {
-      command: "snail.stats",
-      guildId,
-      userId,
-    });
-    return res.status(500).json({
-      error: "server_error",
-      message: "We couldn't retrieve your stats right now. Please try again later.",
-    });
+    console.error("[snail/stats] failed", err);
+    return res.status(500).json({ error: "server_error" });
   }
 });
 
@@ -355,21 +321,11 @@ router.post("/calc", requireCsrf, express.json(), snail.calc, (req, res) => {
  */
 router.get("/codes", snail.codes, cacheGuildData(1800, 3600), async (req, res) => {
   const guildId = String(req.params.guildId);
-  const userId = req.user.id;
+  const userId = req.user?.id;
   const scope = ["active", "past7", "all"].includes(req.query.scope)
     ? req.query.scope
     : "active";
-  const commandLogger = logger.child({
-    command: "snail.codes",
-    guildId,
-    userId,
-    scope,
-    requestId: req.id
-  });
-
   try {
-    commandLogger.info("Fetching snail codes from remote API");
-
     const url = new URL(SNELP_CODES_URL);
     url.searchParams.set("guildId", guildId);
     url.searchParams.set("scope", scope);
@@ -378,30 +334,56 @@ router.get("/codes", snail.codes, cacheGuildData(1800, 3600), async (req, res) =
     });
     if (response.ok) {
       const data = await response.json();
-      commandLogger.info({
-        source: "remote",
-        codeCount: data.codes?.length || 0,
-      }, "Snail codes retrieved successfully from remote API");
+
+      // Publish event to event bus for successful codes lookup
+      try {
+        const eventBus = require('../lib/eventBus');
+        await eventBus.publish({
+          type: 'CODES_LOOKUP_PERFORMED',
+          payload: {
+            guildId,
+            userId,
+            source: 'remote',
+            sourceCount: data.codes?.length || 0,
+            scope,
+          },
+        });
+      } catch (error) {
+        console.error('[snail/codes] Failed to publish CODES_LOOKUP_PERFORMED event:', error);
+      }
+
       return res.json({ ok: true, source: "remote", ...data });
     }
-    const errorText = await response.text();
-    commandLogger.warn({
-      status: response.status,
-      error: errorText,
-    }, "Remote API failed, falling back to local cache");
+    console.warn(
+      "[snail/codes] Remote source failed:",
+      response.status,
+      await response.text(),
+    );
     throw new Error(`remote_failed_${response.status}`);
   } catch (err) {
-    commandLogger.warn({
-      error: err.message,
-    }, "Using local fallback for snail codes");
+    console.warn("[snail/codes] falling back to local store:", err.message);
     const fallback = await readJson(
       path.join(CODES_ROOT, `${guildId}.json`),
       { codes: [] },
     );
-    commandLogger.info({
-      source: "local",
-      codeCount: fallback.codes?.length || 0,
-    }, "Snail codes retrieved from local cache");
+
+    // Publish event to event bus for fallback codes lookup
+    try {
+      const eventBus = require('../lib/eventBus');
+      await eventBus.publish({
+        type: 'CODES_LOOKUP_PERFORMED',
+        payload: {
+          guildId,
+          userId,
+          source: 'local',
+          sourceCount: fallback.codes?.length || 0,
+          scope,
+        },
+      });
+    } catch (error) {
+      console.error('[snail/codes] Failed to publish CODES_LOOKUP_PERFORMED event:', error);
+    }
+
     return res.json({ ok: true, source: "local", ...fallback });
   }
 });
