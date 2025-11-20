@@ -29,6 +29,7 @@
     "@next/mdx": "^16.0.1",
     "@prisma/client": "^6.19.0",
     "@radix-ui/react-tooltip": "^1.2.8",
+    "@slimy/shared-http": "workspace:*",
     "date-fns": "^4.1.0",
     "gray-matter": "^4.0.3",
     "next": "16.0.1",
@@ -74,8 +75,8 @@
     "tailwindcss-animate": "^1.0.7",
     "tsx": "^4.20.6",
     "typescript": "^5",
-    "vitest": "^4.0.7",
     "vite-tsconfig-paths": "^5.1.1",
+    "vitest": "^4.0.7",
     "webpack-bundle-analyzer": "^4.9.0"
   }
 }
