@@ -1,131 +1,138 @@
-# Slimy.ai – Executive Overview
+# Slimy.ai – Executive Summary
 
-## What Is Slimy.ai?
+## What is Slimy.ai?
 
-**Slimy.ai** (tagline: "Panel of Power") is a community platform for players of *Super Snail*, a popular mobile adventure game. Think of it as a Swiss Army knife for snail enthusiasts: it helps players discover secret promotional codes, track their game progress, analyze club performance through AI-powered screenshot reading, and chat with a personality-driven AI assistant. The platform combines a public-facing web dashboard, behind-the-scenes admin tools, and plans for a Discord bot that brings these features directly into the game's community servers.
+**Slimy.ai** is an AI-powered platform that helps players of the mobile game *Super Snail* manage their progress, analyze their clubs, and stay up-to-date with the latest game codes and strategies. Think of it as a smart assistant that lives both on Discord (where gaming communities chat) and on the web (where players can access detailed dashboards and tools). When players take screenshots of their game progress, Slimy can analyze them using AI vision technology to extract statistics, suggest improvements, and track growth over time.
 
-The name "Slimy" comes from the snail theme of Super Snail—players nurture and evolve their snail companions through various adventures. What started as scattered tools (a web app here, a code scraper there) has evolved into a unified system where thousands of players can level up faster, discover hidden rewards, and manage their guilds with data-driven insights. It's a passion project "fueled by ADHD, driven by feet, motivated by ducks" (yes, really—it's in the codebase).
+Beyond individual player tools, Slimy.ai serves as a hub for Discord communities. Server administrators can install the Slimy bot to provide their members with instant access to secret codes, AI chat assistance, and analytics. The web dashboard lets club leaders monitor their team's performance, compare stats across members, and export data to Google Sheets for deeper analysis. All of this is powered by modern AI technology, including GPT-4 Vision for understanding game screenshots and conversational AI for answering player questions.
 
-The heart of the platform is **aggregation and automation**: instead of players hunting across Reddit threads, Discord servers, and gaming wikis for the latest codes, Slimy.ai does the heavy lifting. It scrapes multiple sources every few minutes, deduplicates codes, scores their reliability, and presents them in one clean interface with a "Copy All" button. For guild leaders, it goes further—upload screenshots of club stats, and OpenAI's vision AI extracts metrics automatically, saving hours of manual spreadsheet work.
+At its core, Slimy.ai bridges the gap between casual mobile gaming and serious data-driven optimization. Whether you're a solo player looking for the latest codes or a competitive club tracking every member's contribution, Slimy provides the tools to play smarter, not harder.
 
 ---
 
-## How It All Fits Together
-
-Here's the architecture in picture form:
+## How Information Flows
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                         PLAYERS                                  │
-│  (Super Snail gamers on web browsers & Discord)                 │
-└────────────────┬────────────────────────────────────────────────┘
-                 │
-                 ↓
-         ┌───────────────────┐
-         │   DISCORD BOT     │  ← Coming soon: commands, notifications
-         │   (planned)       │     posts codes to channels
-         └───────────────────┘
-                 │
-                 ↓
-┌────────────────────────────────────────────────────────────────┐
-│              SLIMY WEB DASHBOARD (Next.js)                     │
-│  • Secret Codes feed (from 4+ sources)                         │
-│  • Snail Timeline (event history)                              │
-│  • Club Analytics (upload screenshots → AI reads stats)        │
-│  • Slime Chat (AI conversations with personality modes)        │
-│  • Login with Discord (OAuth)                                  │
-└────────────┬───────────────────────────────────────────────────┘
-             │
-             ↓
-    ┌────────────────────┐
-    │   ADMIN API        │  ← Express.js backend
-    │  (Node.js server)  │     • Authenticates users via Discord
-    │                    │     • Manages guild permissions
-    │                    │     • Processes screenshot uploads
-    │                    │     • Proxies to external APIs
-    └────────┬───────────┘
-             │
-             ├──────────────┐
-             ↓              ↓
-      ┌──────────┐    ┌─────────────────────┐
-      │ DATABASE │    │  EXTERNAL SERVICES  │
-      │ (Postgres)│   │  • Discord API      │
-      │           │    │  • OpenAI (GPT-4V) │
-      │ Stores:   │    │  • Reddit           │
-      │ • Users   │    │  • Firecrawl        │
-      │ • Codes   │    │  • PocketGamer      │
-      │ • Chats   │    │  • SuperSnail.wiki  │
-      │ • Clubs   │    └─────────────────────┘
-      └───────────┘
+┌──────────────────────────────────────────────────────────────┐
+│                         USERS                                 │
+│  (Super Snail players on Discord & Web browsers)             │
+└────────────────┬──────────────────────┬──────────────────────┘
+                 │                      │
+                 ▼                      ▼
+      ┌──────────────────┐   ┌──────────────────────┐
+      │  Discord Bot     │   │  Web Dashboard       │
+      │                  │   │  (slimy.ai)          │
+      │  • Chat commands │   │  • Snail tools       │
+      │  • Secret codes  │   │  • Club analytics    │
+      │  • AI assistant  │   │  • Screenshot upload │
+      └────────┬─────────┘   └──────────┬───────────┘
+               │                        │
+               └────────────┬───────────┘
+                            ▼
+                ┌────────────────────────┐
+                │   Slimy Services       │
+                │                        │
+                │  • Admin API           │
+                │  • Authentication      │
+                │  • Image processing    │
+                │  • AI vision analysis  │
+                └──────────┬─────────────┘
+                           │
+          ┌────────────────┼────────────────┐
+          ▼                ▼                ▼
+   ┌────────────┐   ┌────────────┐  ┌─────────────┐
+   │ Database   │   │ File       │  │ External    │
+   │            │   │ Storage    │  │ Services    │
+   │ • Users    │   │            │  │             │
+   │ • Guilds   │   │ • Screen-  │  │ • OpenAI    │
+   │ • Stats    │   │   shots    │  │ • Reddit    │
+   │ • Chat     │   │ • Variants │  │ • Snelp API │
+   │   history  │   │            │  │ • Google    │
+   │ • Codes    │   │            │  │   Sheets    │
+   └────────────┘   └────────────┘  └─────────────┘
 ```
 
-**The flow**: A player visits the Slimy.ai website → logs in with their Discord account → sees personalized dashboards (admin tools if they're a moderator, regular snail tools otherwise). Behind the scenes, the Admin API talks to Discord to verify who you are, fetches secret codes from Reddit/wikis/scrapers every 10–15 minutes, and uses OpenAI's vision AI to "read" uploaded club screenshots. All data lives in a PostgreSQL database. Eventually, a Discord bot will bring features like code notifications directly into game community servers.
+**In plain terms:** Players interact through Discord or the web. Their requests go to Slimy's backend services, which handle authentication (making sure you are who you say you are), process images, run AI analysis, and store everything in a database. External services like OpenAI provide the "brains" for understanding screenshots, while Reddit and other APIs supply fresh game codes.
 
 ---
 
 ## Why This Exists / What It's Good At
 
-**The Problem**: Super Snail players face three headaches:
+**The Problem:** Mobile games like *Super Snail* have deep progression systems with hundreds of stats, items, and strategies. Players manually track their progress in spreadsheets, scour Reddit for secret codes, and struggle to compare their club's performance. Game screenshots contain valuable data, but extracting it by hand is tedious and error-prone.
 
-1. **Code hunting is exhausting**: Promotional codes (redeemable for in-game currency) appear sporadically across Reddit, Discord, gaming blogs, and wikis. Players waste time checking 5+ sources manually.
-2. **Club management is tedious**: Guild leaders screenshot member stats, then manually transcribe numbers into spreadsheets. It's error-prone and time-consuming.
-3. **Information is scattered**: No central hub for tips, guides, progress tracking, or community tools.
+**The Solution:** Slimy.ai automates the boring parts and amplifies the fun parts:
 
-**The Solution**: Slimy.ai automates the busy work.
+- **AI Vision:** Upload a screenshot, get instant stats extraction and personalized recommendations
+- **Real-time Code Aggregation:** Never miss a secret code again—Slimy pulls them from multiple sources automatically
+- **Club Intelligence:** See your team's progress at a glance with AI-generated insights and trend analysis
+- **Discord Integration:** Access tools where your community already lives, without switching apps
+- **Data Portability:** Export everything to Google Sheets for custom analysis
 
-- **Code Aggregator**: Fetches codes from 4+ sources (Reddit, Snelp, PocketGamer, wikis), deduplicates them, and shows everything in one feed. Trust scoring prevents fake codes from cluttering the list.
-- **AI Screenshot Analysis**: Upload a club stats screenshot → GPT-4 Vision extracts numbers → auto-populates Google Sheets. What took 30 minutes now takes 30 seconds.
-- **Unified Dashboard**: One login (via Discord) gives you codes, analytics, AI chat, and event timelines—no more tab juggling.
-
-**What it's good at**:
-- Saving players hours per week (especially guild officers)
-- Providing *always-up-to-date* data (caches refresh every 10–60 minutes)
-- Being nerdy-friendly but accessible (clean UI, no jargon)
-- Respecting user privacy (no game account passwords needed—just Discord OAuth)
+**What Makes It Special:**
+- **GPT-4 Vision Integration:** Truly understands game UI, not just OCR text recognition
+- **Community-First Design:** Built for Discord servers, not just individual players
+- **Privacy-Conscious:** Role-based access controls and audit logging keep data secure
+- **Open Development:** Monorepo structure makes it easy for contributors to understand and extend
 
 ---
 
 ## Architecture in Plain English
 
-Imagine Slimy.ai as a three-layer cake:
+### The Three Layers
 
-### Layer 1: The Front Door (Web Dashboard)
-This is what players see—a Next.js web app (modern JavaScript framework) with pages like `/snail/codes` (code feed), `/club` (analytics), and `/chat` (AI assistant). It's styled with a fun snail theme, has dark mode, and works on phones. When you click "Login," it hands you off to Discord's official login page, then brings you back with access to your stuff.
+**1. User Layer (What You See)**
+- **Discord Bot:** Responds to slash commands like `/codes` or `/analyze`
+- **Web Portal:** Modern website with dashboards, galleries, and interactive tools
+- **Authentication:** Log in once with Discord, access everything seamlessly
 
-### Layer 2: The Brain (Admin API)
-This Express.js server (think of it as a traffic cop) sits between the web dashboard and the rest of the internet. It:
-- **Authenticates** you by asking Discord "Is this person who they say they are?"
-- **Aggregates** codes by asking Reddit, Firecrawl (a web scraper), and wikis for the latest promo codes, then combines and cleans the results
-- **Processes** uploaded screenshots using OpenAI's GPT-4 Vision (an AI that can "read" images)
-- **Protects** sensitive operations (like admin tools) by checking your Discord role before allowing access
+**2. Service Layer (The Engine)**
+- **Admin API:** Handles uploading screenshots, managing Discord server settings, and user permissions
+- **Image Processing:** Automatically generates thumbnails and optimized versions of screenshots
+- **AI Analysis:** Sends images to OpenAI GPT-4 Vision with carefully crafted prompts to extract game data
+- **Code Aggregation:** Polls Reddit and the Snelp API every hour for new secret codes
+- **Caching:** Stores frequently-accessed data (like codes) in Redis for instant responses
 
-### Layer 3: The Memory (Database + External Services)
-- **PostgreSQL database**: Stores user preferences, chat histories, club analyses, and audit logs. It's the filing cabinet.
-- **External APIs**: Discord (for user info), OpenAI (for AI smarts), Reddit (for community posts), Firecrawl (for web scraping), Google Sheets (for club data exports).
+**3. Storage Layer (Where Data Lives)**
+- **PostgreSQL Database:** Stores user profiles, Discord server configurations, chat history, club stats, and analysis results
+- **File System:** Holds uploaded screenshots in multiple sizes (original, XL, thumbnail)
+- **Redis Cache:** Temporary storage for data that changes frequently (60-second cache for codes)
+- **Google Sheets:** Optional export destination for players who want to analyze data their own way
 
-### Deployment (How It Runs)
-Everything lives in **Docker containers** (isolated mini-computers) on two NUC machines (small servers). A reverse proxy called **Caddy** handles web traffic, encrypts connections (HTTPS), and routes requests to the right service. If one server goes down, the other takes over—like having a backup generator.
+### How the Pieces Talk
 
-### The Tech Stack (for the curious)
-- **Frontend**: Next.js 16 (React framework), TypeScript (safer JavaScript), Tailwind CSS (styling)
-- **Backend**: Node.js 22, Express.js, Prisma (database toolkit)
-- **AI**: OpenAI GPT-4 Vision for screenshot analysis, ChatGPT for conversational AI
-- **Infrastructure**: Docker, Caddy (reverse proxy), PostgreSQL 16, systemd (Linux service manager)
-- **Auth**: Discord OAuth2 (players log in with their Discord accounts—no passwords to remember)
+When you upload a screenshot:
+1. **Web/Discord → Admin API:** Your image is sent via secure HTTPS
+2. **Admin API → Database:** Creates a record of who uploaded what, when
+3. **Admin API → File Storage:** Saves the original and generates optimized versions
+4. **Admin API → OpenAI:** Sends the image with a prompt like "Extract all stats from this Super Snail screenshot"
+5. **OpenAI → Admin API:** Returns structured data (numbers, categories, recommendations)
+6. **Admin API → Database:** Stores the extracted stats, tags, and insights
+7. **Database → Web/Discord:** You see your stats in a nice dashboard or chat message
+
+### Technology Choices
+
+**Why Node.js/TypeScript:** Fast development, huge ecosystem, same language on frontend and backend
+**Why Next.js:** Server-side rendering for SEO, great developer experience, easy deployment
+**Why PostgreSQL:** Mature, reliable, handles complex queries for analytics
+**Why Docker:** Consistent environments from development to production, easy scaling
+**Why Monorepo:** Shared code between services, atomic changes across the platform
+
+### Deployment
+
+Everything runs in **Docker containers** on a single server:
+- **Caddy** reverse proxy handles incoming traffic and automatic HTTPS certificates
+- **Web app** serves the public-facing website (port 3000)
+- **Admin API** handles backend logic (port 3080)
+- **PostgreSQL** stores all persistent data
+- **Redis** speeds up frequently-accessed content
+- **Systemd** keeps services running 24/7 and restarts them if they crash
+
+**Security:** Discord OAuth ensures only authorized users can access their data. Role-based permissions control who can manage guilds or view analytics. All communication uses encrypted HTTPS. Audit logs track every action for compliance.
 
 ---
 
-## Current Status
+## The Bottom Line
 
-- ✅ **Web Dashboard**: Live, with codes aggregator, AI chat, timeline viewer
-- ✅ **Admin API**: Functional, handling auth, uploads, guild management
-- ✅ **Code Aggregation**: Scraping 4 sources (Snelp, Reddit, PocketGamer, wiki) every 10–15 minutes
-- ✅ **Screenshot AI**: OpenAI integration working, processes club stats images
-- ⏳ **Discord Bot**: Scaffolding in place, not yet deployed
-- ⏳ **Tier Calculator & Stats Tracking**: UI placeholders built, data pipelines in progress
+**Slimy.ai** turns a mobile game into a data-driven experience. It's like having a personal analyst, code hunter, and Discord moderator rolled into one AI-powered platform. Whether you're a casual player checking codes or a competitive club tracking every stat, Slimy handles the tedious work so you can focus on playing.
 
-**In short**: Slimy.ai is a production-ready tool that's already helping Super Snail players save time and level up smarter, with more features on the way.
-
----
-
-*Questions? Check the main [README](../README.md) or explore [project structure docs](./STRUCTURE.md) for technical deep-dives.*
+Built with modern web technologies and AI, it's designed to grow with the community—new tools, games, and features can be added to the monorepo without disrupting existing services. The result is a platform that's powerful for serious players but approachable for everyone.
