@@ -67,6 +67,7 @@ model Guild {
   iconUrl   String?  @map("icon_url")    // Guild icon URL from Discord
   ownerId   String?  @map("owner_id")    // Discord user ID of guild owner
   settings  Json?    // JSON object for guild-specific settings
+  config    Json?    // Per-guild configuration & feature flags
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
