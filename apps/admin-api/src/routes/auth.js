@@ -10,6 +10,9 @@ const config = require("../config");
 
 const router = express.Router();
 
+// Import Discord OAuth routes
+const discordRoutes = require("./auth/discord");
+
 const DISCORD = {
   API: "https://discord.com/api/v10",
   TOKEN_URL: "https://discord.com/api/oauth2/token",
@@ -411,5 +414,8 @@ router.post("/logout", (req, res) => {
   clearAuthCookie(res);
   res.json({ ok: true });
 });
+
+// Mount Discord OAuth routes
+router.use("/", discordRoutes);
 
 module.exports = router;
