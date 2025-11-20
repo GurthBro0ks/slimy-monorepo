@@ -1,0 +1,23 @@
+{
+  "name": "@slimy/opps-runtime",
+  "version": "0.1.0",
+  "description": "Runtime collectors and radar snapshot builder for Opportunity Radar",
+  "main": "src/radar.ts",
+  "type": "module",
+  "exports": {
+    ".": "./src/radar.ts",
+    "./collectors/foundMoney": "./src/collectors/foundMoney.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@slimy/opps-core": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.3",
+    "vitest": "^1.0.4"
+  }
+}
