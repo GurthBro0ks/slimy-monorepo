@@ -1,184 +1,163 @@
 /**
- * Typed HTTP Client Wrapper
+ * General-Purpose HTTP Client
  *
- * A well-typed HTTP client wrapper with unified error handling, logging,
- * and safe usage for both browser and Node.js/Next.js server environments.
+ * A well-typed, safe wrapper around the Fetch API with:
+ * - Unified error handling (HttpError)
+ * - Automatic retries with exponential backoff
+ * - Integrated structured logging
+ * - Safe JSON parsing
+ * - Timeout support
+ * - Environment-safe (browser + Node/Next.js server)
  *
- * Features:
- * - Result type pattern for consistent error handling
- * - Automatic retry with exponential backoff
- * - Configurable timeouts via AbortController
- * - Safe JSON parsing with detailed error messages
- * - Structured logging integration
- * - Environment-safe (browser + Node.js)
- * - TypeScript strict mode compatible
+ * Usage:
+ *   import { httpClient, HttpError, isHttpError } from '@/lib/http/client';
+ *
+ *   try {
+ *     const data = await httpClient.get<MyType>('/api/endpoint');
+ *   } catch (error) {
+ *     if (isHttpError(error)) {
+ *       console.error(`HTTP ${error.status}: ${error.message}`);
+ *     }
+ *   }
  */
 
-import { AppError, ErrorCode } from '@/lib/errors';
-import { getLogger, type Logger } from '@/lib/monitoring/logger';
-import type { HTTPMethod } from '@/lib/types/common';
-
-// ============================================================================
-// Types
-// ============================================================================
+import { getLogger, Logger } from '../monitoring/logger';
 
 /**
- * HTTP client configuration options
+ * HTTP methods
+ */
+export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'HEAD' | 'OPTIONS';
+
+/**
+ * HTTP client configuration
  */
 export interface HttpClientConfig {
-  /** Base URL to prepend to all requests */
   baseUrl?: string;
-  /** Default timeout in milliseconds (default: 30000) */
   timeout?: number;
-  /** Maximum retry attempts for failed requests (default: 0) */
   retries?: number;
-  /** Base delay in ms for exponential backoff (default: 1000) */
-  retryDelay?: number;
-  /** Default headers to include in all requests */
-  headers?: HeadersInit;
-  /** Logger instance for structured logging */
+  retryableStatusCodes?: number[];
+  headers?: Record<string, string>;
   logger?: Logger;
 }
 
 /**
- * Per-request options (extends RequestInit but excludes body/method)
+ * Request options
  */
-export interface HttpRequestOptions extends Omit<RequestInit, 'body' | 'method'> {
-  /** Override default timeout for this request */
+export interface HttpOptions extends Omit<RequestInit, 'body' | 'method'> {
   timeout?: number;
-  /** Override default retries for this request */
   retries?: number;
-  /** Override default retry delay for this request */
-  retryDelay?: number;
-  /** Skip JSON parsing and return raw Response */
-  skipJsonParsing?: boolean;
-  /** Skip logging errors (useful for expected failures) */
-  skipErrorLogging?: boolean;
-  /** Override base URL for this request */
-  baseUrl?: string;
+  retryableStatusCodes?: number[];
+  parseJson?: boolean; // default true
+  body?: unknown; // Will be JSON.stringify'd if object
 }
 
 /**
- * HTTP-specific error class
+ * HTTP Error class
+ *
+ * Thrown when HTTP requests fail. Includes status code, error code,
+ * and contextual information for debugging.
  */
-export class HttpError extends AppError {
-  readonly url: string;
-  readonly method: string;
-  readonly isNetworkError: boolean;
-  readonly requestDetails?: {
-    headers?: Record<string, string>;
-    timeout?: number;
-  };
+export class HttpError extends Error {
+  readonly name = 'HttpError';
 
-  constructor(params: {
-    message: string;
-    code: string;
-    url: string;
-    method: string;
-    status?: number;
-    details?: unknown;
-    isNetworkError?: boolean;
-    requestDetails?: {
-      headers?: Record<string, string>;
-      timeout?: number;
-    };
-  }) {
-    super(params.message, params.code, params.status || 500, params.details);
-    this.name = 'HttpError';
-    this.url = params.url;
-    this.method = params.method;
-    this.isNetworkError = params.isNetworkError || false;
-    this.requestDetails = params.requestDetails;
+  constructor(
+    message: string,
+    public readonly status: number | null,
+    public readonly code: string,
+    public readonly url: string,
+    public readonly method: string,
+    public readonly isNetworkError: boolean = false,
+    public readonly details?: unknown
+  ) {
+    super(message);
+    Error.captureStackTrace(this, HttpError);
   }
 
-  override toJSON() {
+  /**
+   * Convert to JSON for logging/serialization
+   */
+  toJSON() {
     return {
-      ...super.toJSON(),
+      name: this.name,
+      message: this.message,
+      status: this.status,
+      code: this.code,
       url: this.url,
       method: this.method,
       isNetworkError: this.isNetworkError,
+      details: this.details,
     };
   }
 }
 
 /**
- * Success result
+ * Type guard for HttpError
  */
-export interface HttpSuccess<T> {
-  ok: true;
-  data: T;
-  status: number;
-  headers: Headers;
+export function isHttpError(error: unknown): error is HttpError {
+  return error instanceof HttpError;
 }
 
 /**
- * Error result
- */
-export interface HttpFailure {
-  ok: false;
-  error: HttpError;
-}
-
-/**
- * HTTP result type (discriminated union)
- */
-export type HttpResult<T> = HttpSuccess<T> | HttpFailure;
-
-// ============================================================================
-// HTTP Client Class
-// ============================================================================
-
-/**
- * HTTP Client with unified error handling and logging
+ * HTTP Client
  */
 export class HttpClient {
-  private config: Required<Omit<HttpClientConfig, 'baseUrl' | 'headers' | 'logger'>> & {
-    baseUrl?: string;
-    headers?: HeadersInit;
-    logger?: Logger;
-  };
+  private config: Required<HttpClientConfig>;
   private logger: Logger;
 
   constructor(config: HttpClientConfig = {}) {
     this.config = {
-      baseUrl: config.baseUrl,
-      timeout: config.timeout ?? 30000,
-      retries: config.retries ?? 0,
-      retryDelay: config.retryDelay ?? 1000,
-      headers: config.headers,
-      logger: config.logger,
+      baseUrl: config.baseUrl || '',
+      timeout: config.timeout ?? 30000, // 30 seconds default
+      retries: config.retries ?? 2,
+      retryableStatusCodes: config.retryableStatusCodes ?? [408, 429, 500, 502, 503, 504],
+      headers: config.headers || {},
+      logger: config.logger || getLogger({ module: 'HttpClient' }),
     };
-
-    this.logger = config.logger || getLogger({ component: 'HttpClient' });
+    this.logger = this.config.logger;
   }
 
   /**
-   * Build full URL from base URL and path
+   * Build full URL from base + path
    */
-  private buildUrl(url: string, baseUrl?: string): string {
-    const base = baseUrl ?? this.config.baseUrl;
-
-    // If no base URL or url is already absolute, return as-is
-    if (!base || url.startsWith('http://') || url.startsWith('https://')) {
-      return url;
+  private buildUrl(url: string): string {
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      return url; // Already absolute
     }
 
-    // Normalize slashes
-    const normalizedBase = base.endsWith('/') ? base.slice(0, -1) : base;
+    if (!this.config.baseUrl) {
+      return url; // No base URL, return as-is
+    }
+
     const normalizedPath = url.startsWith('/') ? url : `/${url}`;
+    const normalizedBase = this.config.baseUrl.endsWith('/')
+      ? this.config.baseUrl.slice(0, -1)
+      : this.config.baseUrl;
 
     return `${normalizedBase}${normalizedPath}`;
   }
 
   /**
-   * Merge headers with defaults
+   * Merge headers
    */
-  private mergeHeaders(customHeaders?: HeadersInit): Headers {
-    const headers = new Headers(this.config.headers);
+  private buildHeaders(options?: HttpOptions): HeadersInit {
+    const headers = new Headers();
 
-    if (customHeaders) {
-      const custom = new Headers(customHeaders);
-      custom.forEach((value, key) => {
+    // Add default headers
+    Object.entries(this.config.headers).forEach(([key, value]) => {
+      headers.set(key, value);
+    });
+
+    // Add JSON content-type if body is an object
+    if (options?.body && typeof options.body === 'object') {
+      if (!headers.has('Content-Type')) {
+        headers.set('Content-Type', 'application/json');
+      }
+    }
+
+    // Add/override with request-specific headers
+    if (options?.headers) {
+      const reqHeaders = new Headers(options.headers);
+      reqHeaders.forEach((value, key) => {
         headers.set(key, value);
       });
     }
@@ -187,563 +166,339 @@ export class HttpClient {
   }
 
   /**
-   * Create HttpError from various error types
+   * Prepare request body
    */
-  private createHttpError(
-    error: unknown,
-    url: string,
-    method: string,
-    status?: number
-  ): HttpError {
-    // Handle AbortError (timeout)
-    if (error instanceof Error && error.name === 'AbortError') {
-      return new HttpError({
-        message: 'Request timed out',
-        code: ErrorCode.NETWORK_ERROR,
-        url,
-        method,
-        status: 408,
-        isNetworkError: true,
-        details: { reason: 'timeout' },
-      });
+  private prepareBody(body: unknown): string | FormData | undefined {
+    if (!body) {
+      return undefined;
     }
 
-    // Handle network errors (fetch failures)
-    if (error instanceof TypeError) {
-      return new HttpError({
-        message: `Network request failed: ${error.message}`,
-        code: ErrorCode.NETWORK_ERROR,
-        url,
-        method,
-        status: null,
-        isNetworkError: true,
-        details: { originalError: error.message },
-      });
+    if (typeof body === 'string') {
+      return body;
     }
 
-    // Handle generic errors
-    if (error instanceof Error) {
-      return new HttpError({
-        message: error.message,
-        code: ErrorCode.EXTERNAL_SERVICE_ERROR,
-        url,
-        method,
-        status: status || null,
-        details: { originalError: error.name },
-      });
+    if (body instanceof FormData) {
+      return body;
     }
 
-    // Unknown error type
-    return new HttpError({
-      message: 'An unknown error occurred',
-      code: ErrorCode.UNKNOWN_ERROR,
-      url,
-      method,
-      status: status || null,
-      details: { error: String(error) },
-    });
+    // Assume JSON serializable
+    return JSON.stringify(body);
   }
 
   /**
-   * Parse response body safely
+   * Calculate retry delay with exponential backoff
    */
-  private async parseResponseBody<T>(
+  private calculateRetryDelay(attempt: number, baseDelay: number = 1000): number {
+    const maxDelay = 30000; // 30 seconds
+    const delay = baseDelay * Math.pow(2, attempt);
+    return Math.min(delay, maxDelay);
+  }
+
+  /**
+   * Sleep for specified milliseconds
+   */
+  private delay(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  /**
+   * Check if error is retryable
+   */
+  private isRetryableError(error: HttpError, retryableStatusCodes: number[]): boolean {
+    // Network errors are retryable
+    if (error.isNetworkError) {
+      return true;
+    }
+
+    // Check if status is in retryable list
+    if (error.status && retryableStatusCodes.includes(error.status)) {
+      return true;
+    }
+
+    return false;
+  }
+
+  /**
+   * Parse response body
+   */
+  private async parseResponse<T>(
     response: Response,
-    url: string,
-    method: string
+    parseJson: boolean = true,
+    method: HttpMethod = 'GET'
   ): Promise<T> {
     const contentType = response.headers.get('content-type') || '';
 
-    // Handle JSON responses
-    if (contentType.includes('application/json')) {
-      try {
-        return await response.json();
-      } catch (error) {
-        throw new HttpError({
-          message: 'Failed to parse JSON response',
-          code: 'JSON_PARSE_ERROR',
-          url,
-          method,
-          status: response.status,
-          details: {
-            contentType,
-            error: error instanceof Error ? error.message : String(error),
-          },
-        });
-      }
+    // If not JSON or parseJson disabled, return text
+    if (!parseJson || !contentType.includes('application/json')) {
+      const text = await response.text();
+      return text as unknown as T;
     }
 
-    // Handle text responses
-    if (contentType.includes('text/')) {
-      return (await response.text()) as T;
-    }
-
-    // Default: try JSON, fallback to text
+    // Parse JSON safely
     try {
-      return await response.json();
-    } catch {
-      return (await response.text()) as T;
-    }
-  }
-
-  /**
-   * Execute a fetch request with retry logic
-   */
-  private async executeWithRetry(
-    url: string,
-    method: string,
-    init: RequestInit,
-    options: {
-      retries: number;
-      retryDelay: number;
-      timeout: number;
-      skipErrorLogging?: boolean;
-    }
-  ): Promise<Response> {
-    let lastError: unknown;
-    const maxAttempts = options.retries + 1;
-
-    for (let attempt = 0; attempt < maxAttempts; attempt++) {
-      const controller = new AbortController();
-      const timeoutId = options.timeout > 0
-        ? setTimeout(() => controller.abort(), options.timeout)
-        : null;
-
-      try {
-        const response = await fetch(url, {
-          ...init,
-          signal: controller.signal,
-        });
-
-        if (timeoutId) {
-          clearTimeout(timeoutId);
-        }
-
-        return response;
-      } catch (error) {
-        if (timeoutId) {
-          clearTimeout(timeoutId);
-        }
-
-        lastError = error;
-
-        // Don't retry on abort (timeout) - it's a final error
-        if (error instanceof Error && error.name === 'AbortError') {
-          throw error;
-        }
-
-        // Only retry network errors, not application errors
-        const isRetryable = error instanceof TypeError;
-
-        if (isRetryable && attempt < options.retries) {
-          const delay = options.retryDelay * Math.pow(2, attempt);
-
-          if (!options.skipErrorLogging) {
-            this.logger.warn(
-              `HTTP request failed, retrying (${attempt + 1}/${options.retries})`,
-              {
-                url,
-                method,
-                attempt: attempt + 1,
-                maxRetries: options.retries,
-                delayMs: delay,
-                error: error instanceof Error ? error.message : String(error),
-              }
-            );
-          }
-
-          await new Promise(resolve => setTimeout(resolve, delay));
-          continue;
-        }
-
-        throw error;
+      const text = await response.text();
+      if (!text.trim()) {
+        return undefined as unknown as T;
       }
+      return JSON.parse(text) as T;
+    } catch (error) {
+      throw new HttpError(
+        'Failed to parse JSON response',
+        response.status,
+        'JSON_PARSE_ERROR',
+        response.url,
+        method,
+        false,
+        { parseError: error instanceof Error ? error.message : String(error) }
+      );
     }
-
-    throw lastError;
   }
 
   /**
    * Core request method
    */
-  async request<TResponse = unknown>(
-    method: HTTPMethod,
+  async request<T>(
+    method: HttpMethod,
     url: string,
-    options: HttpRequestOptions = {}
-  ): Promise<HttpResult<TResponse>> {
-    const startTime = Date.now();
-    const fullUrl = this.buildUrl(url, options.baseUrl);
-    const headers = this.mergeHeaders(options.headers);
+    options: HttpOptions = {}
+  ): Promise<T> {
+    const fullUrl = this.buildUrl(url);
+    const timeout = options.timeout ?? this.config.timeout;
+    const retries = options.retries ?? this.config.retries;
+    const retryableStatusCodes = options.retryableStatusCodes ?? this.config.retryableStatusCodes;
+    const parseJson = options.parseJson ?? true;
 
-    // Extract our custom options
-    const {
-      timeout = this.config.timeout,
-      retries = this.config.retries,
-      retryDelay = this.config.retryDelay,
-      skipJsonParsing = false,
-      skipErrorLogging = false,
-      baseUrl: _baseUrl,
-      ...fetchOptions
-    } = options;
+    const headers = this.buildHeaders(options);
+    const body = this.prepareBody(options.body);
 
-    // Set default Content-Type for requests with body
-    if (!headers.has('Content-Type') && (method === 'POST' || method === 'PUT' || method === 'PATCH')) {
-      headers.set('Content-Type', 'application/json');
-    }
+    // Extract fetch options (excluding our custom options)
+    const { timeout: _, retries: __, retryableStatusCodes: ___, parseJson: ____, body: _____, ...fetchOptions } = options;
 
-    try {
-      const response = await this.executeWithRetry(
-        fullUrl,
-        method,
-        {
+    let lastError: HttpError | null = null;
+
+    // Retry loop
+    for (let attempt = 0; attempt <= retries; attempt++) {
+      const controller = new AbortController();
+      let timeoutId: NodeJS.Timeout | null = null;
+
+      try {
+        // Set timeout
+        if (timeout > 0) {
+          timeoutId = setTimeout(() => controller.abort(), timeout);
+        }
+
+        // Log request (debug level)
+        this.logger.debug(`${method} ${fullUrl}`, {
+          attempt: attempt + 1,
+          maxAttempts: retries + 1,
+        });
+
+        // Make request
+        const response = await fetch(fullUrl, {
           ...fetchOptions,
           method,
           headers,
-        },
-        {
-          retries,
-          retryDelay,
-          timeout,
-          skipErrorLogging,
-        }
-      );
-
-      const duration = Date.now() - startTime;
-
-      // Handle non-2xx responses
-      if (!response.ok) {
-        let errorData: unknown;
-        let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
-
-        // Try to extract error details from response body
-        try {
-          const contentType = response.headers.get('content-type') || '';
-          if (contentType.includes('application/json')) {
-            errorData = await response.json();
-            errorMessage = (errorData as { message?: string })?.message || errorMessage;
-          } else {
-            const text = await response.text();
-            if (text) {
-              errorData = text;
-              errorMessage = text.length > 100 ? text.substring(0, 100) + '...' : text;
-            }
-          }
-        } catch {
-          // Ignore parsing errors for error responses
-        }
-
-        const error = new HttpError({
-          message: errorMessage,
-          code: this.mapStatusToErrorCode(response.status),
-          url: fullUrl,
-          method,
-          status: response.status,
-          details: errorData,
+          body,
+          signal: controller.signal,
         });
 
-        if (!skipErrorLogging) {
-          this.logger.error(
-            `HTTP request failed: ${method} ${fullUrl}`,
-            error,
-            {
-              status: response.status,
-              duration,
-            }
+        // Clear timeout
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+        }
+
+        // Handle non-2xx responses
+        if (!response.ok) {
+          let errorDetails: unknown;
+          try {
+            errorDetails = await this.parseResponse(response, parseJson, method);
+          } catch {
+            errorDetails = await response.text();
+          }
+
+          const errorMessage =
+            typeof errorDetails === 'object' && errorDetails !== null && 'message' in errorDetails
+              ? String((errorDetails as { message: unknown }).message)
+              : `HTTP ${response.status}: ${response.statusText}`;
+
+          const errorCode =
+            typeof errorDetails === 'object' && errorDetails !== null && 'code' in errorDetails
+              ? String((errorDetails as { code: unknown }).code)
+              : `HTTP_${response.status}`;
+
+          lastError = new HttpError(
+            errorMessage,
+            response.status,
+            errorCode,
+            fullUrl,
+            method,
+            false, // Not a network error
+            errorDetails
+          );
+
+          // Log error
+          this.logger.error('HTTP request failed', undefined, {
+            method,
+            url: fullUrl,
+            status: response.status,
+            code: errorCode,
+            attempt: attempt + 1,
+            willRetry: attempt < retries && this.isRetryableError(lastError, retryableStatusCodes),
+          });
+
+          // Check if we should retry
+          if (attempt < retries && this.isRetryableError(lastError, retryableStatusCodes)) {
+            const delay = this.calculateRetryDelay(attempt);
+            this.logger.debug(`Retrying after ${delay}ms`, { attempt, delay });
+            await this.delay(delay);
+            continue;
+          }
+
+          // No more retries, throw error
+          throw lastError;
+        }
+
+        // Success! Parse and return response
+        const data = await this.parseResponse<T>(response, parseJson, method);
+        return data;
+
+      } catch (error) {
+        // Clear timeout
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+        }
+
+        // If it's already an HttpError we threw, re-throw it
+        if (error instanceof HttpError) {
+          throw error;
+        }
+
+        // Handle abort/timeout
+        if (error instanceof Error && error.name === 'AbortError') {
+          lastError = new HttpError(
+            'Request timeout',
+            null,
+            'TIMEOUT',
+            fullUrl,
+            method,
+            true,
+            { timeout }
+          );
+        }
+        // Handle network errors
+        else if (error instanceof Error) {
+          lastError = new HttpError(
+            error.message || 'Network request failed',
+            null,
+            'NETWORK_ERROR',
+            fullUrl,
+            method,
+            true,
+            { originalError: error.name }
+          );
+        }
+        // Handle unknown errors
+        else {
+          lastError = new HttpError(
+            'Unknown error occurred',
+            null,
+            'UNKNOWN_ERROR',
+            fullUrl,
+            method,
+            true,
+            { error: String(error) }
           );
         }
 
-        return {
-          ok: false,
-          error,
-        };
-      }
+        // Log error
+        this.logger.error('HTTP request error', error instanceof Error ? error : undefined, {
+          method,
+          url: fullUrl,
+          code: lastError.code,
+          attempt: attempt + 1,
+          willRetry: attempt < retries && this.isRetryableError(lastError, retryableStatusCodes),
+        });
 
-      // Handle successful response
-      if (skipJsonParsing) {
-        return {
-          ok: true,
-          data: response as unknown as TResponse,
-          status: response.status,
-          headers: response.headers,
-        };
-      }
-
-      const data = await this.parseResponseBody<TResponse>(response, fullUrl, method);
-
-      this.logger.debug(
-        `HTTP request succeeded: ${method} ${fullUrl}`,
-        {
-          status: response.status,
-          duration,
+        // Check if we should retry
+        if (attempt < retries && this.isRetryableError(lastError, retryableStatusCodes)) {
+          const delay = this.calculateRetryDelay(attempt);
+          this.logger.debug(`Retrying after ${delay}ms`, { attempt, delay });
+          await this.delay(delay);
+          continue;
         }
-      );
 
-      return {
-        ok: true,
-        data,
-        status: response.status,
-        headers: response.headers,
-      };
-    } catch (error) {
-      const duration = Date.now() - startTime;
-      const httpError = this.createHttpError(error, fullUrl, method);
-
-      if (!skipErrorLogging) {
-        this.logger.error(
-          `HTTP request error: ${method} ${fullUrl}`,
-          httpError,
-          {
-            duration,
-            isNetworkError: httpError.isNetworkError,
-          }
-        );
+        // No more retries, throw error
+        throw lastError;
       }
-
-      return {
-        ok: false,
-        error: httpError,
-      };
     }
-  }
 
-  /**
-   * Map HTTP status codes to error codes
-   */
-  private mapStatusToErrorCode(status: number): string {
-    if (status === 401) return ErrorCode.UNAUTHORIZED;
-    if (status === 403) return ErrorCode.FORBIDDEN;
-    if (status === 404) return ErrorCode.NOT_FOUND;
-    if (status === 409) return ErrorCode.CONFLICT;
-    if (status === 429) return ErrorCode.RATE_LIMIT_EXCEEDED;
-    if (status >= 400 && status < 500) return ErrorCode.VALIDATION_ERROR;
-    if (status >= 500) return ErrorCode.EXTERNAL_SERVICE_ERROR;
-    return ErrorCode.UNKNOWN_ERROR;
+    // Should never reach here, but TypeScript doesn't know that
+    throw lastError || new HttpError(
+      'Request failed after all retries',
+      null,
+      'MAX_RETRIES_EXCEEDED',
+      fullUrl,
+      method,
+      false
+    );
   }
 
   /**
    * GET request
    */
-  async get<TResponse = unknown>(
-    url: string,
-    options?: HttpRequestOptions
-  ): Promise<HttpResult<TResponse>> {
-    return this.request<TResponse>('GET', url, options);
+  async get<T>(url: string, options?: Omit<HttpOptions, 'body'>): Promise<T> {
+    return this.request<T>('GET', url, options);
   }
 
   /**
    * POST request
    */
-  async post<TBody = unknown, TResponse = unknown>(
+  async post<T, TBody = unknown>(
     url: string,
     body?: TBody,
-    options?: HttpRequestOptions
-  ): Promise<HttpResult<TResponse>> {
-    return this.request<TResponse>('POST', url, {
-      ...options,
-      body: body !== undefined ? JSON.stringify(body) : undefined,
-    });
+    options?: Omit<HttpOptions, 'body'>
+  ): Promise<T> {
+    return this.request<T>('POST', url, { ...options, body });
   }
 
   /**
    * PUT request
    */
-  async put<TBody = unknown, TResponse = unknown>(
+  async put<T, TBody = unknown>(
     url: string,
     body?: TBody,
-    options?: HttpRequestOptions
-  ): Promise<HttpResult<TResponse>> {
-    return this.request<TResponse>('PUT', url, {
-      ...options,
-      body: body !== undefined ? JSON.stringify(body) : undefined,
-    });
+    options?: Omit<HttpOptions, 'body'>
+  ): Promise<T> {
+    return this.request<T>('PUT', url, { ...options, body });
   }
 
   /**
    * PATCH request
    */
-  async patch<TBody = unknown, TResponse = unknown>(
+  async patch<T, TBody = unknown>(
     url: string,
     body?: TBody,
-    options?: HttpRequestOptions
-  ): Promise<HttpResult<TResponse>> {
-    return this.request<TResponse>('PATCH', url, {
-      ...options,
-      body: body !== undefined ? JSON.stringify(body) : undefined,
-    });
+    options?: Omit<HttpOptions, 'body'>
+  ): Promise<T> {
+    return this.request<T>('PATCH', url, { ...options, body });
   }
 
   /**
    * DELETE request
    */
-  async delete<TResponse = unknown>(
-    url: string,
-    options?: HttpRequestOptions
-  ): Promise<HttpResult<TResponse>> {
-    return this.request<TResponse>('DELETE', url, options);
-  }
-
-  /**
-   * Stream request - returns raw Response for streaming scenarios
-   * Throws errors instead of returning Result type
-   */
-  async stream(
-    method: HTTPMethod,
-    url: string,
-    options: HttpRequestOptions = {}
-  ): Promise<Response> {
-    const fullUrl = this.buildUrl(url, options.baseUrl);
-    const headers = this.mergeHeaders(options.headers);
-
-    const {
-      timeout = this.config.timeout,
-      retries = 0, // No retries for streams by default
-      retryDelay = this.config.retryDelay,
-      skipErrorLogging = false,
-      baseUrl: _baseUrl,
-      skipJsonParsing: _skipJsonParsing,
-      ...fetchOptions
-    } = options;
-
-    try {
-      const response = await this.executeWithRetry(
-        fullUrl,
-        method,
-        {
-          ...fetchOptions,
-          method,
-          headers,
-        },
-        {
-          retries,
-          retryDelay,
-          timeout,
-          skipErrorLogging,
-        }
-      );
-
-      if (!response.ok) {
-        const error = new HttpError({
-          message: `Stream request failed: ${response.status} ${response.statusText}`,
-          code: this.mapStatusToErrorCode(response.status),
-          url: fullUrl,
-          method,
-          status: response.status,
-        });
-
-        if (!skipErrorLogging) {
-          this.logger.error(`Stream request failed: ${method} ${fullUrl}`, error);
-        }
-
-        throw error;
-      }
-
-      return response;
-    } catch (error) {
-      const httpError = this.createHttpError(error, fullUrl, method);
-
-      if (!skipErrorLogging) {
-        this.logger.error(`Stream request error: ${method} ${fullUrl}`, httpError);
-      }
-
-      throw httpError;
-    }
+  async delete<T>(url: string, options?: Omit<HttpOptions, 'body'>): Promise<T> {
+    return this.request<T>('DELETE', url, options);
   }
 }
 
-// ============================================================================
-// Default Singleton Instance
-// ============================================================================
-
-let defaultClient: HttpClient | null = null;
+/**
+ * Default HTTP client instance
+ */
+export const httpClient = new HttpClient();
 
 /**
- * Get or create the default HTTP client instance
+ * Create a configured HTTP client
  */
-function getDefaultClient(): HttpClient {
-  if (!defaultClient) {
-    defaultClient = new HttpClient();
-  }
-  return defaultClient;
-}
-
-/**
- * Create a new HTTP client with custom configuration
- */
-export function createHttpClient(config?: HttpClientConfig): HttpClient {
+export function createHttpClient(config: HttpClientConfig): HttpClient {
   return new HttpClient(config);
-}
-
-/**
- * Get the default HTTP client instance
- */
-export function getHttpClient(): HttpClient {
-  return getDefaultClient();
-}
-
-// ============================================================================
-// Convenience Functions
-// ============================================================================
-
-/**
- * Convenience function for GET requests using default client
- */
-export function httpGet<TResponse = unknown>(
-  url: string,
-  options?: HttpRequestOptions
-): Promise<HttpResult<TResponse>> {
-  return getDefaultClient().get<TResponse>(url, options);
-}
-
-/**
- * Convenience function for POST requests using default client
- */
-export function httpPost<TBody = unknown, TResponse = unknown>(
-  url: string,
-  body?: TBody,
-  options?: HttpRequestOptions
-): Promise<HttpResult<TResponse>> {
-  return getDefaultClient().post<TBody, TResponse>(url, body, options);
-}
-
-/**
- * Convenience function for PUT requests using default client
- */
-export function httpPut<TBody = unknown, TResponse = unknown>(
-  url: string,
-  body?: TBody,
-  options?: HttpRequestOptions
-): Promise<HttpResult<TResponse>> {
-  return getDefaultClient().put<TBody, TResponse>(url, body, options);
-}
-
-/**
- * Convenience function for PATCH requests using default client
- */
-export function httpPatch<TBody = unknown, TResponse = unknown>(
-  url: string,
-  body?: TBody,
-  options?: HttpRequestOptions
-): Promise<HttpResult<TResponse>> {
-  return getDefaultClient().patch<TBody, TResponse>(url, body, options);
-}
-
-/**
- * Convenience function for DELETE requests using default client
- */
-export function httpDelete<TResponse = unknown>(
-  url: string,
-  options?: HttpRequestOptions
-): Promise<HttpResult<TResponse>> {
-  return getDefaultClient().delete<TResponse>(url, options);
-}
-
-/**
- * Convenience function for streaming requests using default client
- */
-export function httpStream(
-  method: HTTPMethod,
-  url: string,
-  options?: HttpRequestOptions
-): Promise<Response> {
-  return getDefaultClient().stream(method, url, options);
 }
