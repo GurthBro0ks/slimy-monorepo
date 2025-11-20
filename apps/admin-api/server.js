@@ -5,9 +5,9 @@ const path = require("path");
 
 const dotenv = require("dotenv");
 
-const database = require("./lib/database");
+const database = require("../lib/database");
 const { applyDatabaseUrl } = require("./src/utils/apply-db-url");
-const logger = require("./lib/logger");
+const logger = require("../lib/logger");
 
 function loadEnv() {
   const explicitEnvPath =
@@ -46,14 +46,18 @@ async function start() {
     await database.initialize();
   }
 
-  // Initialize event system (pub/sub + audit log)
-  try {
-    const { bootstrapEventSystem } = require('./src/events/bootstrap');
-    await bootstrapEventSystem();
-    logger.info('[admin-api] Event system initialized');
-  } catch (err) {
-    logger.warn('[admin-api] Failed to initialize event system:', { err: err?.message || err });
-    // Don't fail startup if event system fails - it's non-critical
+  // Initialize queue infrastructure if Redis is configured
+  if (process.env.REDIS_URL) {
+    logger.info("[admin-api] Initializing queue infrastructure...");
+    const { queueManager } = require("./src/lib/queues");
+    const queueInitialized = await queueManager.initialize();
+    if (queueInitialized) {
+      logger.info("[admin-api] Queue infrastructure ready (screenshot analysis, chat, database, audit)");
+    } else {
+      logger.warn("[admin-api] Queue infrastructure failed to initialize; background jobs will be disabled");
+    }
+  } else {
+    logger.info("[admin-api] REDIS_URL not configured; background job queues disabled (using synchronous processing)");
   }
 
   const app = require("./src/app");
@@ -64,12 +68,33 @@ async function start() {
     logger.info(`[admin-api] Listening on http://${host}:${port}`);
   });
 
-  process.on("SIGINT", () => {
-    logger.info("[admin-api] Caught SIGINT, shutting down");
-    server.close(() => {
-      database.close().finally(() => process.exit(0));
+  // Graceful shutdown handler
+  const shutdown = async () => {
+    logger.info("[admin-api] Caught SIGINT, shutting down gracefully");
+
+    server.close(async () => {
+      // Close queue infrastructure if initialized
+      if (process.env.REDIS_URL) {
+        try {
+          const { queueManager } = require("./src/lib/queues");
+          if (queueManager.isInitialized) {
+            logger.info("[admin-api] Closing queue infrastructure...");
+            await queueManager.close();
+          }
+        } catch (err) {
+          logger.error("[admin-api] Error closing queue infrastructure", { err: err?.message || err });
+        }
+      }
+
+      // Close database connection
+      await database.close();
+
+      process.exit(0);
     });
-  });
+  };
+
+  process.on("SIGINT", shutdown);
+  process.on("SIGTERM", shutdown);
 
   process.on("unhandledRejection", (err) => {
     logger.error("[admin-api] Unhandled rejection", { err: err?.message || err });
