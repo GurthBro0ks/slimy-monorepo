@@ -13,7 +13,7 @@ const botRoutes = require("./bot");
 const statsRoutes = require("./stats");
 const snailRoutes = require("./snail");
 const chatRoutes = require("./chat");
-const slimecraftUpdatesRoutes = require("./slimecraft-updates");
+const clubAnalyticsRoutes = require("./club-analytics");
 
 router.get("/api/", (_req, res) => res.json({ ok: true }));
 router.get("/api/health", (_req, res) => {
@@ -35,6 +35,6 @@ router.use("/api/diag", diagRoutes);
 router.use("/api/bot", botRoutes);
 router.use("/api/stats", statsRoutes);
 router.use("/api/chat", chatRoutes);
-router.use("/api/slimecraft/updates", slimecraftUpdatesRoutes);
+router.use("/api/club-analytics", clubAnalyticsRoutes);
 
 module.exports = router;
