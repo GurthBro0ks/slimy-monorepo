@@ -450,35 +450,40 @@ model AuditLog {
   @@map("audit_logs")
 }
 
-// Club Analytics v1: Club power snapshots
-// Stores periodic snapshots of club member power levels for tracking and analysis
+// Club Analytics v2: Snapshot system for tracking club state over time
+// Captures the full state of a guild's club at a specific point in time
 model ClubSnapshot {
-  id          Int      @id @default(autoincrement())
-  guildId     String   @map("guild_id") // Discord guild ID
-  capturedAt  DateTime @default(now()) @map("captured_at") // When this snapshot was taken
-  metadata    Json?    // Optional metadata (notes, source, etc.)
-  createdAt   DateTime @default(now()) @map("created_at")
+  id            String   @id @default(cuid())
+  guildId       String   @map("guild_id")
+  snapshotDate  DateTime @map("snapshot_date") // When this snapshot was taken
+  totalMembers  Int      @map("total_members") // Total member count at snapshot time
+  totalPower    BigInt   @map("total_power") // Sum of all member power
+  metadata      Json?    // Additional metadata (e.g., club rank, league info)
+  createdAt     DateTime @default(now()) @map("created_at")
 
   // Relations
-  members ClubMemberSnapshot[]
+  memberSnapshots ClubMemberSnapshot[]
 
   // Performance indexes
   @@index([guildId])
-  @@index([capturedAt])
-  @@index([guildId, capturedAt])
+  @@index([snapshotDate])
+  @@index([guildId, snapshotDate])
   @@index([createdAt])
 
   @@map("club_snapshots")
 }
 
-// Individual member power data within a club snapshot
+// Individual member state within a club snapshot
 model ClubMemberSnapshot {
-  id         Int    @id @default(autoincrement())
-  snapshotId Int    @map("snapshot_id")
-  memberKey  String @map("member_key") // Discord user ID or "Name#1234" - flexible identifier
-  totalPower BigInt @map("total_power") // Total power level
-  simPower   BigInt @default(0) @map("sim_power") // Sim power level
-  rank       Int?   // Optional rank within club
+  id            String   @id @default(cuid())
+  snapshotId    String   @map("snapshot_id")
+  memberKey     String   @map("member_key") // Unique identifier for the member (e.g., userId or username)
+  displayName   String?  @map("display_name")
+  totalPower    BigInt   @map("total_power")
+  rank          Int?     // Member's rank within the club
+  simBalance    BigInt?  @map("sim_balance") // Optional: SIM token balance
+  metadata      Json?    // Additional member data
+  createdAt     DateTime @default(now()) @map("created_at")
 
   // Relations
   snapshot ClubSnapshot @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
@@ -487,8 +492,49 @@ model ClubMemberSnapshot {
   @@index([snapshotId])
   @@index([memberKey])
   @@index([snapshotId, memberKey])
-  @@index([snapshotId, rank])
   @@index([totalPower])
+  @@index([rank])
 
   @@map("club_member_snapshots")
+}
+
+// Club Analytics v2: Weekly delta calculations and tier assignments
+// This model stores computed weekly changes for each member
+// Thresholds for tiers are hard-coded in the service and can be moved to config later
+model ClubWeeklyDelta {
+  id          String   @id @default(cuid())
+  guildId     String   @map("guild_id")
+  memberKey   String   @map("member_key")
+  weekStart   DateTime @map("week_start") // ISO week start (Monday)
+  weekEnd     DateTime @map("week_end") // ISO week end (Sunday)
+
+  // Current snapshot data
+  currentPower    BigInt   @map("current_power")
+  currentSimBalance BigInt? @map("current_sim_balance")
+
+  // Delta calculations
+  powerDelta      BigInt   @map("power_delta") // Change in power during the week
+  simDelta        BigInt?  @map("sim_delta") // Change in SIM balance
+
+  // Derived metrics
+  tier        String?  // Tier based on power (e.g., "I", "II", "III")
+  badges      Json     @default("[]") // Array of badge strings (e.g., ["top_gainer", "consistent"])
+
+  // Metadata
+  displayName String?  @map("display_name")
+  rank        Int?     // Current rank
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // Performance indexes
+  @@index([guildId])
+  @@index([memberKey])
+  @@index([weekStart])
+  @@index([guildId, weekStart])
+  @@index([guildId, memberKey, weekStart])
+  @@index([tier])
+  @@index([powerDelta])
+
+  @@unique([guildId, memberKey, weekStart])
+  @@map("club_weekly_deltas")
 }
