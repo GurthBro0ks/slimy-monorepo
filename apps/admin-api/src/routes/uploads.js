@@ -17,6 +17,7 @@ const {
   toPublicUrl,
   formatDateSlug,
 } = require("../services/uploads");
+const metrics = require("../lib/metrics");
 
 const router = express.Router({ mergeParams: true });
 
@@ -142,6 +143,9 @@ router.post(
       const processed = [];
       for (const file of req.files || []) {
         const variants = await buildVariants(file.path);
+
+        // Record image processing metric (1 image = 3 variants)
+        metrics.recordImages(1);
 
         // Save metadata alongside the file
         const parsed = path.parse(variants.original);
