@@ -4,9 +4,59 @@ This repository is the future home for all Slimy.ai applications and shared pack
 
 ## Getting Started
 
-- Install pnpm if you have not already.
-- Run `pnpm install` once dependencies are added in future commits.
-- Use the root scripts (`pnpm lint`, `pnpm build`, `pnpm test`) as orchestration entry points once real logic is wired up.
+### Prerequisites
+
+- Install [pnpm](https://pnpm.io/) if you have not already
+- PostgreSQL database (local or remote)
+- Discord OAuth application credentials
+
+### Initial Setup
+
+1. **Install dependencies**
+   ```bash
+   pnpm install
+   ```
+
+2. **Configure environment**
+   ```bash
+   # Copy the example env file
+   cp apps/admin-api/.env.example apps/admin-api/.env
+
+   # Edit .env and set your values (DATABASE_URL, DISCORD_CLIENT_ID, etc.)
+   ```
+
+3. **Bootstrap the database**
+   ```bash
+   pnpm bootstrap
+   ```
+
+   This script will:
+   - Validate environment variables
+   - Run database migrations for all apps
+   - Seed initial data
+   - Display Discord OAuth invite URL
+   - Show admin configuration instructions
+
+4. **Get Discord User ID for admin access**
+   - Enable Developer Mode in Discord: Settings > Advanced > Developer Mode
+   - Right-click on your user and select "Copy User ID"
+   - Add it to `ADMIN_USER_IDS` in `.env`
+
+5. **Start the services**
+   ```bash
+   # Start admin API
+   cd apps/admin-api && pnpm start
+
+   # In another terminal, start admin UI
+   cd apps/admin-ui && pnpm dev
+   ```
+
+### Development Scripts
+
+- `pnpm bootstrap` - Initialize/update database and display configuration
+- `pnpm lint` - Run linting across all packages
+- `pnpm build` - Build all packages
+- `pnpm test` - Run tests across all packages
 
 ## Structure
 
