@@ -1,0 +1,22 @@
+{
+  "name": "@slimy/shared-logging",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Shared logging utilities for slimy-monorepo services",
+  "main": "./src/logger.ts",
+  "types": "./src/logger.ts",
+  "exports": {
+    ".": "./src/logger.ts"
+  },
+  "scripts": {
+    "build": "echo \"TODO: build shared-logging\"",
+    "test": "echo \"TODO: test shared-logging\""
+  },
+  "keywords": [
+    "logging",
+    "structured-logging",
+    "logger"
+  ],
+  "author": "",
+  "license": "ISC"
+}
