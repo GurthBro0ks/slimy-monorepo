@@ -4,6 +4,17 @@ const config = require("../config");
 const { hasRole } = require("../services/rbac");
 const { verifySessionToken, getCookieOptions } = require("../services/token");
 
+/**
+ * @typedef {import('express').Request} Request
+ * @typedef {import('express').Response} Response
+ * @typedef {import('express').NextFunction} NextFunction
+ */
+
+/**
+ * Log authentication-related events
+ * @param {string} message - Log message
+ * @param {Object} meta - Additional metadata
+ */
 function logReadAuth(message, meta = {}) {
   try {
     console.info("[admin-api] readAuth:", message, meta);
@@ -12,6 +23,11 @@ function logReadAuth(message, meta = {}) {
   }
 }
 
+/**
+ * Resolve user from request cookies and JWT token
+ * @param {Request} req - Express request object
+ * @returns {Object|null} User object or null if not authenticated
+ */
 function resolveUser(req) {
   if ("_cachedUser" in req) {
     return req._cachedUser;
@@ -44,6 +60,13 @@ function resolveUser(req) {
   }
 }
 
+/**
+ * Middleware to attach session to request
+ * Clears invalid cookies if token verification fails
+ * @param {Request} req - Express request
+ * @param {Response} res - Express response
+ * @param {NextFunction} next - Next middleware function
+ */
 function attachSession(req, res, next) {
   const user = resolveUser(req);
   if (!user && req.cookies?.[config.jwt.cookieName]) {
@@ -52,6 +75,11 @@ function attachSession(req, res, next) {
   return next();
 }
 
+/**
+ * Send 401 Unauthorized response
+ * @param {Response} res - Express response
+ * @returns {Response}
+ */
 function unauthorized(res) {
   return res.status(401).json({
     ok: false,
@@ -60,6 +88,12 @@ function unauthorized(res) {
   });
 }
 
+/**
+ * Send 403 Forbidden response
+ * @param {Response} res - Express response
+ * @param {string} message - Custom error message
+ * @returns {Response}
+ */
 function forbidden(res, message = "Insufficient role") {
   return res.status(403).json({
     ok: false,
@@ -68,6 +102,14 @@ function forbidden(res, message = "Insufficient role") {
   });
 }
 
+/**
+ * Middleware to require authentication
+ * Returns 401 if user is not authenticated
+ * @param {Request} req - Express request
+ * @param {Response} res - Express response
+ * @param {NextFunction} next - Next middleware function
+ * @returns {void|Response}
+ */
 function requireAuth(req, res, next) {
   const user = req.user || resolveUser(req);
   if (!user) {
@@ -76,6 +118,11 @@ function requireAuth(req, res, next) {
   return next();
 }
 
+/**
+ * Middleware factory to require a minimum role
+ * @param {string} minRole - Minimum required role ("member", "club", "admin")
+ * @returns {Function} Express middleware
+ */
 function requireRole(minRole = "admin") {
   return (req, res, next) => {
     const user = req.user || resolveUser(req);
