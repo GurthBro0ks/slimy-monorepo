@@ -44,6 +44,10 @@ ENV NEXT_PUBLIC_PLAUSIBLE_DOMAIN=$NEXT_PUBLIC_PLAUSIBLE_DOMAIN
 
 # Generate Prisma client and build the web app
 RUN pnpm install --frozen-lockfile --prefer-offline 2>&1 | tail -20 || true
+
+# Generate Prisma client before building
+RUN pnpm --filter @slimy/web run db:generate
+
 # Build the app
 RUN pnpm --filter @slimy/web build
 
@@ -56,9 +60,12 @@ RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
 # Copy built artifacts from apps/web in the builder stage
-COPY --from=builder /app/apps/web/public ./public
-COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/static ./.next/static
+# Next.js 16+ with monorepo generates nested structure in .next/standalone/apps/web/
+# We need to run the server from that nested location since that's where the symlinks are set up
+COPY --from=builder /app/apps/web/public ./apps/web/public
+COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/standalone/apps/web ./apps/web/
+COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/standalone/node_modules ./node_modules
+COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/static ./apps/web/.next/static
 
 USER nextjs
 
@@ -67,4 +74,5 @@ EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
-CMD ["node", "server.js"]
+# Run server from the nested location where symlinks are correct
+CMD ["node", "apps/web/server.js"]

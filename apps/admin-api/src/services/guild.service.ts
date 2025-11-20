@@ -1,6 +1,6 @@
 "use strict";
 
-const database = require("../../../lib/database");
+const database = require("../../lib/database");
 const { v4: uuidv4 } = require("uuid");
 
 class GuildService {
