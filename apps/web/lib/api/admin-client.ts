@@ -1,9 +1,9 @@
 /**
  * Centralized Admin API Client
- * 
+ *
  * Single source of truth for all Admin API proxy logic.
  * Consolidates proxy configuration, header handling, and error handling.
- * 
+ *
  * Features:
  * - Single configuration point for base URL
  * - Consistent header handling
@@ -12,22 +12,10 @@
  * - Request/response interceptors
  */
 
-export interface ApiError {
-  ok: false;
-  code: string;
-  message: string;
-  status?: number;
-  details?: unknown;
-}
+import type { ApiError, ApiSuccess, ApiResponse } from '@slimy/shared-http';
 
-export interface ApiSuccess<T = unknown> {
-  ok: true;
-  data: T;
-  status?: number;
-  headers?: Headers;
-}
-
-export type ApiResponse<T = unknown> = ApiSuccess<T> | ApiError;
+// Re-export types for backward compatibility
+export type { ApiError, ApiSuccess, ApiResponse };
 
 export interface RequestConfig extends RequestInit {
   timeout?: number;
