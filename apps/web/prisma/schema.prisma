@@ -10,61 +10,6 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Club Analysis
-model ClubAnalysis {
-  id          String   @id @default(cuid())
-  guildId     String
-  userId      String
-  title       String?
-  summary     String
-  confidence  Float
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  // Relations
-  images      ClubAnalysisImage[]
-  metrics     ClubMetric[]
-
-  @@index([guildId])
-  @@index([userId])
-  @@index([createdAt])
-  @@map("club_analyses")
-}
-
-// Club Analysis Images
-model ClubAnalysisImage {
-  id           String   @id @default(cuid())
-  analysisId   String
-  imageUrl     String
-  originalName String
-  fileSize     Int
-  uploadedAt   DateTime @default(now())
-
-  // Relations
-  analysis     ClubAnalysis @relation(fields: [analysisId], references: [id], onDelete: Cascade)
-
-  @@index([analysisId])
-  @@map("club_analysis_images")
-}
-
-// Club Metrics
-model ClubMetric {
-  id         String   @id @default(cuid())
-  analysisId String
-  name       String
-  value      String   // Stored as JSON string for flexibility
-  unit       String?
-  category   String
-  createdAt  DateTime @default(now())
-
-  // Relations
-  analysis   ClubAnalysis @relation(fields: [analysisId], references: [id], onDelete: Cascade)
-
-  @@index([analysisId])
-  @@index([category])
-  @@map("club_metrics")
-}
-
 // User Preferences
 model UserPreferences {
   id                String   @id @default(cuid())
@@ -145,29 +90,6 @@ model CodeReport {
   @@index([status])
   @@index([createdAt])
   @@map("code_reports")
-}
-
-// Audit Logs (for persistence)
-model AuditLog {
-  id         String   @id @default(cuid())
-  userId     String
-  username   String?
-  action     String
-  resource   String
-  resourceId String?
-  changes    String?  @db.Text // JSON string
-  ipAddress  String?
-  userAgent  String?  @db.Text
-  status     String   // success, failure
-  errorMsg   String?  @db.Text
-  metadata   String?  @db.Text // JSON string
-  createdAt  DateTime @default(now())
-
-  @@index([userId])
-  @@index([action])
-  @@index([resource])
-  @@index([createdAt])
-  @@map("audit_logs")
 }
 
 // User Sessions (optional - for session management)
