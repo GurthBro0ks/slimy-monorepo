@@ -46,6 +46,16 @@ async function start() {
     await database.initialize();
   }
 
+  // Initialize event system (pub/sub + audit log)
+  try {
+    const { bootstrapEventSystem } = require('./src/events/bootstrap');
+    await bootstrapEventSystem();
+    logger.info('[admin-api] Event system initialized');
+  } catch (err) {
+    logger.warn('[admin-api] Failed to initialize event system:', { err: err?.message || err });
+    // Don't fail startup if event system fails - it's non-critical
+  }
+
   const app = require("./src/app");
   const port = Number(process.env.PORT || process.env.ADMIN_API_PORT || 3080);
   const host = process.env.HOST || process.env.ADMIN_API_HOST || "127.0.0.1";
