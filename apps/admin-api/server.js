@@ -9,6 +9,14 @@ const database = require("../lib/database");
 const { applyDatabaseUrl } = require("./src/utils/apply-db-url");
 const logger = require("../lib/logger");
 
+// New Prisma database (for gradual migration)
+let prismaDatabase = null;
+try {
+  prismaDatabase = require("./src/lib/database");
+} catch (err) {
+  logger.warn("[admin-api] Could not load Prisma database module (optional)");
+}
+
 function loadEnv() {
   const explicitEnvPath =
     process.env.ADMIN_ENV_FILE || process.env.ENV_FILE || null;
@@ -44,6 +52,26 @@ async function start() {
     logger.warn("[admin-api] Database not configured; admin API will be read-only");
   } else {
     await database.initialize();
+  }
+
+  // Initialize new Prisma database (for gradual migration)
+  if (prismaDatabase && prismaDatabase.isConfigured && prismaDatabase.isConfigured()) {
+    logger.info("[admin-api] Initializing Prisma database...");
+    const prismaReady = await prismaDatabase.initialize();
+    if (prismaReady) {
+      logger.info("[admin-api] Prisma database initialized successfully");
+      // Log feature flags for migration tracking
+      try {
+        const { logFeatureFlags } = require("./src/lib/config/featureFlags");
+        logFeatureFlags();
+      } catch (err) {
+        // Feature flags module optional
+      }
+    } else {
+      logger.warn("[admin-api] Prisma database initialization failed; Prisma features will be unavailable");
+    }
+  } else {
+    logger.info("[admin-api] Prisma database not configured (DATABASE_URL not set)");
   }
 
   // Initialize queue infrastructure if Redis is configured
@@ -88,6 +116,15 @@ async function start() {
 
       // Close database connection
       await database.close();
+
+      // Close Prisma connection
+      if (prismaDatabase && prismaDatabase.disconnect) {
+        try {
+          await prismaDatabase.disconnect();
+        } catch (err) {
+          logger.error("[admin-api] Error closing Prisma connection", { err: err?.message || err });
+        }
+      }
 
       process.exit(0);
     });
