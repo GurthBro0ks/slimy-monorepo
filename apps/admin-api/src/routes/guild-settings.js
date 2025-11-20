@@ -6,6 +6,7 @@ const path = require("path");
 const { requireRole, requireGuildMember } = require("../middleware/auth");
 const { requireCsrf } = require("../middleware/csrf");
 const { readJson, writeJson } = require("../lib/store");
+const { notifyGuildSettingsUpdated } = require("../services/webhooks/subscriber");
 
 const SETTINGS_ROOT = path.join(process.cwd(), "data", "settings");
 
@@ -127,6 +128,15 @@ router.put(
       }
 
       await saveSettings(req.params.guildId, next);
+
+      // TODO: Move to centralized event bus when available
+      notifyGuildSettingsUpdated({
+        guildId: req.params.guildId,
+        settings: next,
+      }).catch((err) => {
+        console.error("Failed to dispatch webhook for guild settings update:", err);
+      });
+
       res.json({ ok: true, settings: next });
     } catch (err) {
       console.error("[guild-settings PUT] failed", err);
@@ -153,6 +163,15 @@ router.post(
       const current = await loadSettings(req.params.guildId);
       current.screenshot_channel_id = parsed.data.channelId;
       await saveSettings(req.params.guildId, current);
+
+      // TODO: Move to centralized event bus when available
+      notifyGuildSettingsUpdated({
+        guildId: req.params.guildId,
+        settings: current,
+      }).catch((err) => {
+        console.error("Failed to dispatch webhook for guild settings update:", err);
+      });
+
       res.json({ ok: true, settings: current });
     } catch (err) {
       console.error("[guild-settings screenshot] failed", err);

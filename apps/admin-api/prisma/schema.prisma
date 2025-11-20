@@ -20,12 +20,6 @@ model User {
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
-  // User profile fields
-  displayName String?  @map("display_name")
-  avatarUrl   String?  @map("avatar_url")
-  timezone    String?
-  preferences Json?    // Theme, default models, etc.
-
   // Relations
   sessions      Session[]
   userGuilds    UserGuild[]
@@ -36,7 +30,6 @@ model User {
   screenshotAnalyses ScreenshotAnalysis[]
   screenshotComparisons ScreenshotComparison[]
   auditLogs     AuditLog[]
-  savedPrompts  SavedPrompt[]
 
   // Performance indexes
   @@index([createdAt])
@@ -457,23 +450,52 @@ model AuditLog {
   @@map("audit_logs")
 }
 
-// User saved prompts/macros
-model SavedPrompt {
-  id        Int      @id @default(autoincrement())
-  userId    String   @map("user_id")
-  title     String
-  content   String   @db.Text // The actual prompt text
-  tags      String?  // Comma-separated tags
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+// Webhook configurations for outbound integrations
+model Webhook {
+  id         Int      @id @default(autoincrement())
+  guildId    String   @map("guild_id")
+  name       String
+  targetUrl  String   @map("target_url")
+  secret     String?  // for HMAC signatures
+  enabled    Boolean  @default(true)
+  eventTypes String   @map("event_types") // comma-separated e.g. "CLUB_SNAPSHOT_CREATED,SEASON_CLOSED"
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
 
   // Relations
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deliveries WebhookDelivery[]
 
   // Performance indexes
-  @@index([userId])
+  @@index([guildId])
+  @@index([enabled])
+  @@index([guildId, enabled])
   @@index([createdAt])
-  @@index([userId, createdAt])
 
-  @@map("saved_prompts")
+  @@map("webhooks")
+}
+
+// Webhook delivery logs for tracking and debugging
+model WebhookDelivery {
+  id           Int      @id @default(autoincrement())
+  webhookId    Int      @map("webhook_id")
+  eventType    String   @map("event_type")
+  payload      Json
+  status       String   // 'success', 'failed', 'retrying'
+  responseCode Int?     @map("response_code")
+  errorMessage String?  @map("error_message")
+  retryCount   Int      @default(0) @map("retry_count")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  // Relations
+  webhook Webhook @relation(fields: [webhookId], references: [id], onDelete: Cascade)
+
+  // Performance indexes
+  @@index([webhookId])
+  @@index([status])
+  @@index([eventType])
+  @@index([createdAt])
+  @@index([webhookId, createdAt])
+  @@index([status, createdAt])
+
+  @@map("webhook_deliveries")
 }
