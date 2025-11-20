@@ -1,6 +1,7 @@
 packages:
   - "apps/*"
   - "packages/*"
+  - "experimental/*"
 
 # pnpm v10+ requires explicit approval for build scripts
 # Allow trusted dependencies to run lifecycle scripts (postinstall, etc.)
