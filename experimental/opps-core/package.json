@@ -1,0 +1,18 @@
+{
+  "name": "@slimy/opps-core",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Core types and interfaces for the Opportunities system",
+  "type": "module",
+  "main": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "build": "tsc --noEmit",
+    "test": "echo \"No tests for opps-core yet\""
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  }
+}
