@@ -21,52 +21,74 @@ npm start  # or: node server.js
 
 ## Environment Variables
 
-Create `.env.admin.production` with:
+The Admin API uses a **type-safe configuration system** with Zod validation. All environment variables are validated at startup, and the application will fail to start with clear error messages if required variables are missing or invalid.
+
+**📖 See [ENV.md](./ENV.md) for complete documentation of all environment variables.**
+
+### Quick Start
+
+Create `.env.admin` with the required variables:
 
 ```bash
-# API
+# Required
+JWT_SECRET=your-super-secret-jwt-key-at-least-32-characters-long
+SESSION_SECRET=your-super-secret-session-key-at-least-32-characters
+DISCORD_CLIENT_ID=1234567890123456789
+DISCORD_CLIENT_SECRET=your-discord-client-secret
+DATABASE_URL=postgresql://user:password@localhost:5432/slimy_admin
+
+# Optional (with sensible defaults)
+NODE_ENV=development
 PORT=3080
 HOST=127.0.0.1
-NODE_ENV=production
+CORS_ALLOW_ORIGIN=http://localhost:3081
+```
 
-# Discord OAuth (scopes: identify, guilds) - ADMIN PANEL AUTH
-DISCORD_CLIENT_ID=your_oauth_app_id
-DISCORD_CLIENT_SECRET=your_oauth_secret
-DISCORD_REDIRECT_URI=https://admin.slimyai.xyz/api/auth/callback
+### Type-Safe Config
 
-# Discord Bot credentials - for checking bot membership
-DISCORD_BOT_TOKEN=your_bot_token
+The configuration system provides:
 
-# Session & Cookie
-SESSION_SECRET=random_secret_key
-COOKIE_NAME=slimy_admin
-COOKIE_DOMAIN=.slimyai.xyz
-COOKIE_SECURE=true
-COOKIE_SAMESITE=lax
+- ✅ **Runtime validation** with Zod schemas
+- ✅ **TypeScript types** for the entire config object
+- ✅ **Fail-fast** with clear error messages
+- ✅ **Sensible defaults** for optional values
 
-# Next.js UI environment - empty string means relative URLs
-NEXT_PUBLIC_ADMIN_API_BASE=
+```javascript
+// Import the config
+const config = require('./lib/config');
 
-# CORS
-ALLOWED_ORIGIN=https://admin.slimyai.xyz
+// Access typed, validated values
+const port = config.server.port;            // number
+const jwtSecret = config.jwt.secret;        // string
+const corsOrigins = config.server.corsOrigins;  // string[]
 ```
 
 ## Directory Structure
 
 ```
 admin-api/
+├── dist/                      # Compiled TypeScript (generated)
+│   └── lib/config/
+│       └── typed-config.js    # Compiled type-safe config
 ├── lib/
 │   ├── jwt.js                 # JWT signing/verification, cookie helpers
 │   └── session-store.js       # In-memory session store for guilds data
 ├── src/
 │   ├── app.js                 # Express app setup
-│   ├── config.js              # Environment configuration
+│   ├── config.js              # Configuration bridge (uses typed config)
+│   ├── lib/
+│   │   └── config/
+│   │       ├── typed-config.ts   # Type-safe config with Zod validation
+│   │       └── index.js          # Config export
 │   ├── middleware/
 │   │   └── auth.js            # Authentication middleware
 │   └── routes/
 │       ├── index.js           # Route registry
 │       ├── auth.js            # OAuth flow: login, callback, logout, /me
 │       └── guilds.js          # Guild management endpoints
+├── tests/
+│   └── config.test.js         # Config validation tests
+├── ENV.md                     # Environment variables documentation
 └── server.js                  # Entry point
 ```
 
