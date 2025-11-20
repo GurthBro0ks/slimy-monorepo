@@ -1,0 +1,710 @@
+{
+  "home": {
+    "title": {
+      "text": "slimy.ai Admin",
+      "tooltip": "Your control panel for managing Discord guilds with Slimy bot"
+    },
+    "loginButton": {
+      "text": "Login with Discord",
+      "tooltip": "Authorize with Discord to see your guilds and start managing settings"
+    },
+    "tagline": {
+      "text": "fueled by adhd — driven by feet — motivated by ducks",
+      "tooltip": "This is the energy we bring. You've been warned."
+    }
+  },
+  "guilds": {
+    "pageTitle": {
+      "text": "Your Guilds",
+      "tooltip": "All Discord servers where you have access to Slimy bot management"
+    },
+    "table": {
+      "guildName": {
+        "label": "Guild Name",
+        "tooltip": "The Discord server name. Click 'Open' to manage it."
+      },
+      "role": {
+        "label": "Your Role",
+        "tooltip": "ADMIN = full control | CLUB = view + tools | MEMBER = basic tools only"
+      },
+      "botStatus": {
+        "label": "Bot Status",
+        "tooltip": "Is Slimy bot installed in this guild? If not, click 'Invite Bot'."
+      }
+    },
+    "inviteButton": {
+      "text": "Invite Bot",
+      "tooltip": "Add Slimy bot to this Discord server (requires server Manage Server permission)"
+    },
+    "openButton": {
+      "text": "Open",
+      "tooltip": "Go to this guild's dashboard and settings"
+    }
+  },
+  "dashboard": {
+    "pageTitle": {
+      "text": "Dashboard",
+      "tooltip": "Guild overview, stats, and admin tasks"
+    },
+    "weekId": {
+      "label": "Week ID",
+      "tooltip": "Current tracking period identifier. Changes weekly."
+    },
+    "members": {
+      "label": "Members",
+      "tooltip": "Total members being tracked in this guild's baseline sheet"
+    },
+    "totalPower": {
+      "label": "Total Power",
+      "tooltip": "Sum of all member power scores. Threshold shows target goal."
+    },
+    "simPower": {
+      "label": "SIM Power",
+      "tooltip": "Special category power tracking (e.g., Sim-specific metrics). Threshold = goal."
+    },
+    "baseline": {
+      "label": "Baseline Sheet",
+      "tooltip": "The Google Sheet tab we're reading as source of truth (e.g., 'Baseline (10-24-25)')"
+    },
+    "uploads": {
+      "today": {
+        "label": "Uploads Today",
+        "tooltip": "Screenshots uploaded to this guild today"
+      },
+      "total": {
+        "label": "Total Uploads",
+        "tooltip": "All-time screenshot uploads for this guild"
+      }
+    },
+    "apiUptime": {
+      "label": "API Uptime",
+      "tooltip": "How long the backend has been running without restart"
+    },
+    "tasks": {
+      "ingestDirectory": {
+        "text": "Ingest Directory",
+        "tooltip": "Scan the screenshots folder and import new images into the database"
+      },
+      "runVerify": {
+        "text": "Run Verify",
+        "tooltip": "Check all member stats for consistency and flag issues"
+      },
+      "recomputeLatest": {
+        "text": "Recompute Latest",
+        "tooltip": "Recalculate the most recent snapshot's power scores"
+      },
+      "recomputePushSheet": {
+        "text": "Recompute & Push Sheet",
+        "tooltip": "Recalculate stats AND update the Google Sheet. Use with caution."
+      }
+    },
+    "logs": {
+      "title": {
+        "text": "Live Logs",
+        "tooltip": "Real-time output from the last task you ran. Errors show in red."
+      }
+    }
+  },
+  "uploads": {
+    "title": {
+      "text": "Uploads",
+      "tooltip": "Manage screenshots uploaded by members"
+    },
+    "selectButton": {
+      "text": "Select Screenshots",
+      "tooltip": "Choose image files from your device to upload (admins only)"
+    },
+    "emptyState": {
+      "text": "No uploads yet. Drop screenshots here to get started.",
+      "tooltip": "Drag and drop image files here, or click Select Screenshots"
+    },
+    "thumbnail": {
+      "tooltip": "Click to view full size. Shows uploader and timestamp."
+    }
+  },
+  "currentSheet": {
+    "title": {
+      "text": "Current Sheet",
+      "tooltip": "View and edit the live Google Sheet synced with this guild"
+    },
+    "corrections": {
+      "text": "Corrections",
+      "tooltip": "Override member stats when manual fixes are needed (e.g., OCR errors)"
+    },
+    "rescan": {
+      "text": "Rescan",
+      "tooltip": "Re-read the sheet data from Google Sheets API"
+    }
+  },
+  "settings": {
+    "pageTitle": {
+      "text": "Club Settings",
+      "tooltip": "Configure guild-wide behavior and integrations"
+    },
+    "sheetId": {
+      "label": "Sheet ID",
+      "tooltip": "The Google Sheets document ID (from the URL: docs.google.com/spreadsheets/d/[THIS_PART])"
+    },
+    "defaultTab": {
+      "label": "Default Tab",
+      "tooltip": "Which sheet tab to read as baseline (e.g., 'Baseline (10-24-25)')"
+    },
+    "defaultView": {
+      "label": "Default View",
+      "tooltip": "Choose Baseline (historical) or Latest (most recent snapshot) for dashboard display"
+    },
+    "allowPublicStats": {
+      "label": "Allow Public Stats",
+      "tooltip": "Let non-admins see guild stats via public links (if enabled in future features)"
+    },
+    "screenshotChannel": {
+      "label": "Screenshot Channel ID",
+      "tooltip": "Discord channel ID where members upload screenshots. Bot will watch this channel."
+    },
+    "enableUploads": {
+      "label": "Enable Uploads",
+      "tooltip": "Allow members to submit screenshots via Discord. Uncheck to disable."
+    },
+    "notes": {
+      "label": "Notes",
+      "tooltip": "Internal notes for admins (not visible to members). E.g., 'Only accept snail screenshots, not duck pics.'"
+    }
+  },
+  "channels": {
+    "pageTitle": {
+      "text": "Channels",
+      "tooltip": "Configure which Discord channels the bot monitors and how it behaves in each"
+    },
+    "refresh": {
+      "text": "Refresh",
+      "tooltip": "Re-fetch the channel list from Discord (updates names and IDs)"
+    },
+    "table": {
+      "channelId": {
+        "label": "Channel ID",
+        "tooltip": "Discord's unique identifier for this channel (auto-populated)"
+      },
+      "channelName": {
+        "label": "Channel Name",
+        "tooltip": "Human-readable channel name from Discord"
+      },
+      "modes": {
+        "label": "Modes JSON",
+        "tooltip": "Advanced: JSON config for bot behavior (e.g., {\"chat\": true, \"react\": false})"
+      },
+      "allowlist": {
+        "label": "Allowlist",
+        "tooltip": "Comma-separated list of allowed features or user IDs (optional)"
+      }
+    },
+    "addButton": {
+      "text": "Add Channel Configuration",
+      "tooltip": "Add a new channel to monitor (you'll need the channel ID from Discord)"
+    },
+    "saveButton": {
+      "text": "Save Changes",
+      "tooltip": "Commit all changes to the database. Bot will reload config."
+    }
+  },
+  "personality": {
+    "pageTitle": {
+      "text": "Persona Overrides",
+      "tooltip": "Customize how Slimy talks in this guild (merges with base personality)"
+    },
+    "description": {
+      "text": "Paste persona overrides (JSON). These merge with base persona in config/slimy_ai.persona.json.",
+      "tooltip": "Use JSON format. Example: {\"tone\": \"sarcastic\", \"topics\": [\"ducks\"]}. Leave empty for default."
+    },
+    "editor": {
+      "tooltip": "Valid JSON required. Changes take effect immediately after save."
+    },
+    "saveButton": {
+      "text": "Save Personality",
+      "tooltip": "Update the AI's personality for this guild. Test in Slime Chat afterwards."
+    },
+    "lastUpdated": {
+      "label": "Last Updated",
+      "tooltip": "Shows who changed the personality last and when"
+    }
+  },
+  "usage": {
+    "pageTitle": {
+      "text": "Usage & Spend",
+      "tooltip": "Track API costs, model usage, and token consumption"
+    },
+    "timeWindow": {
+      "today": {
+        "text": "Today",
+        "tooltip": "Show only today's usage"
+      },
+      "7days": {
+        "text": "7 Days",
+        "tooltip": "Show the last week"
+      },
+      "30days": {
+        "text": "30 Days",
+        "tooltip": "Show the last 30 days"
+      },
+      "thisMonth": {
+        "text": "This Month",
+        "tooltip": "Show current calendar month"
+      }
+    },
+    "chart": {
+      "title": {
+        "text": "Cost by Model",
+        "tooltip": "Visual breakdown of spending across different AI models (GPT-4, Claude, etc.)"
+      }
+    },
+    "table": {
+      "model": {
+        "label": "Model",
+        "tooltip": "AI model name (e.g., gpt-4-turbo, claude-3-opus)"
+      },
+      "requests": {
+        "label": "Requests",
+        "tooltip": "Total API calls made to this model"
+      },
+      "inputTokens": {
+        "label": "Input Tokens",
+        "tooltip": "Tokens sent TO the model (prompts, context)"
+      },
+      "outputTokens": {
+        "label": "Output Tokens",
+        "tooltip": "Tokens generated BY the model (responses)"
+      },
+      "images": {
+        "label": "Images",
+        "tooltip": "Number of images processed (vision models only)"
+      },
+      "cost": {
+        "label": "Cost",
+        "tooltip": "Estimated cost in USD based on model pricing"
+      }
+    }
+  },
+  "corrections": {
+    "pageTitle": {
+      "text": "Member Corrections",
+      "tooltip": "Manually override stats when OCR fails or data needs fixing"
+    },
+    "note": {
+      "text": "Corrections now live in the dashboard's Current Sheet tab",
+      "tooltip": "This is a legacy view. Most admins use the sheet tab now."
+    },
+    "displayName": {
+      "label": "Display Name",
+      "tooltip": "Member's in-game name (must match sheet exactly)"
+    },
+    "metric": {
+      "label": "Metric",
+      "tooltip": "Which stat to override: Total Power or SIM Power"
+    },
+    "value": {
+      "label": "Value",
+      "tooltip": "New numeric value. Preview shows before/after."
+    },
+    "reason": {
+      "label": "Reason (optional)",
+      "tooltip": "Why you're making this change (helpful for future you)"
+    },
+    "addButton": {
+      "text": "Add Correction",
+      "tooltip": "Save this override. Takes effect on next sheet sync."
+    },
+    "batchImport": {
+      "text": "Batch CSV Import",
+      "tooltip": "Upload a CSV file with multiple corrections at once (advanced)"
+    },
+    "deleteButton": {
+      "text": "Delete",
+      "tooltip": "Remove this correction and revert to calculated value"
+    }
+  },
+  "snail": {
+    "pageTitle": {
+      "text": "🐌 Snail Tools",
+      "tooltip": "Member-friendly analyzers for screenshot stats, codes, and power calculations"
+    },
+    "description": {
+      "text": "Snail Mode unlocks member-friendly analyzers for the guilds linked to your Discord",
+      "tooltip": "These tools work for everyone, not just admins"
+    },
+    "guildSelect": {
+      "tooltip": "Pick a guild to access its snail tools"
+    },
+    "analyze": {
+      "title": {
+        "text": "Analyze",
+        "tooltip": "Upload screenshots to extract stats automatically"
+      },
+      "helpToggle": {
+        "text": "Help",
+        "tooltip": "Show/hide tips for getting the best analysis results"
+      },
+      "dropzone": {
+        "text": "Drag and drop screenshots here, or click to browse",
+        "tooltip": "Max 8 screenshots, 10MB each. Supports PNG, JPG, WebP."
+      },
+      "prompt": {
+        "placeholder": "Optional prompt (e.g. 'compare rush vs baseline')",
+        "tooltip": "Give context to the AI analyzer. Examples: 'focus on DEF stat', 'is this good for PvP?'"
+      },
+      "runButton": {
+        "text": "Run analysis",
+        "tooltip": "Send screenshots to AI vision model. Usually takes 5-15 seconds."
+      },
+      "results": {
+        "hp": {
+          "label": "HP",
+          "tooltip": "Health Points extracted from screenshot"
+        },
+        "atk": {
+          "label": "ATK",
+          "tooltip": "Attack stat"
+        },
+        "def": {
+          "label": "DEF",
+          "tooltip": "Defense stat"
+        },
+        "rush": {
+          "label": "Rush",
+          "tooltip": "Rush power stat"
+        },
+        "fame": {
+          "label": "Fame",
+          "tooltip": "Fame score"
+        },
+        "tech": {
+          "label": "Tech",
+          "tooltip": "Technology stat"
+        },
+        "art": {
+          "label": "Art",
+          "tooltip": "Art stat"
+        },
+        "civ": {
+          "label": "Civ",
+          "tooltip": "Civilization stat"
+        },
+        "fth": {
+          "label": "Fth",
+          "tooltip": "Faith stat"
+        }
+      }
+    },
+    "stats": {
+      "title": {
+        "text": "Stats",
+        "tooltip": "Your personal snapshot history and analysis runs"
+      },
+      "lastRun": {
+        "label": "Last Analysis",
+        "tooltip": "Timestamp and prompt from your most recent analysis run"
+      },
+      "resultsGrid": {
+        "tooltip": "All stats extracted from your screenshots. Click to see source image."
+      }
+    },
+    "codes": {
+      "title": {
+        "text": "Codes",
+        "tooltip": "Promo codes for in-game rewards"
+      },
+      "filter": {
+        "active": {
+          "text": "Active",
+          "tooltip": "Show only codes that are currently valid"
+        },
+        "recent": {
+          "text": "Past 7 Days",
+          "tooltip": "Show codes added in the last week"
+        },
+        "all": {
+          "text": "All",
+          "tooltip": "Show all codes, including expired ones"
+        }
+      },
+      "copyButton": {
+        "text": "Copy",
+        "tooltip": "Copy code to clipboard for easy pasting in-game"
+      }
+    },
+    "help": {
+      "title": {
+        "text": "Help",
+        "tooltip": "Tips for getting the best analysis results"
+      },
+      "tips": {
+        "text": "Snail Analyze Tips",
+        "tooltip": "Best practices: clear screenshots, no crops, good lighting, etc."
+      }
+    },
+    "calc": {
+      "title": {
+        "text": "Calc",
+        "tooltip": "Quick power calculator for SIM and Total Power math"
+      },
+      "simPower": {
+        "label": "SIM Power",
+        "tooltip": "Enter your SIM-specific power score"
+      },
+      "totalPower": {
+        "label": "Total Power",
+        "tooltip": "Enter your overall power score"
+      },
+      "calculateButton": {
+        "text": "Calculate",
+        "tooltip": "Compute SIM percentage and other derived values"
+      },
+      "results": {
+        "sim": {
+          "label": "SIM",
+          "tooltip": "Your SIM Power (as entered)"
+        },
+        "total": {
+          "label": "Total",
+          "tooltip": "Your Total Power (as entered)"
+        },
+        "simPercent": {
+          "label": "SIM %",
+          "tooltip": "SIM Power as a percentage of Total Power"
+        }
+      }
+    },
+    "guides": {
+      "title": {
+        "text": "Guides",
+        "tooltip": "Strategy guides and tutorials (coming soon)"
+      },
+      "placeholder": {
+        "text": "Snail Guides — Coming Soon",
+        "tooltip": "We're writing helpful guides for new players. Check back later!"
+      }
+    },
+    "speciesWar": {
+      "title": {
+        "text": "Species War",
+        "tooltip": "Species War event planner and calculator (coming soon)"
+      },
+      "placeholder": {
+        "text": "Species War Planner — Coming Soon",
+        "tooltip": "Tools for strategizing Species War events. Stay tuned!"
+      }
+    }
+  },
+  "chat": {
+    "pageTitle": {
+      "text": "💬 Slime Chat",
+      "tooltip": "Real-time chat with Slimy AI in a sandbox environment"
+    },
+    "guildSelect": {
+      "tooltip": "Choose which guild's personality to use (affects AI responses)"
+    },
+    "messageInput": {
+      "placeholder": "Type a message…",
+      "tooltip": "Chat with Slimy here. It uses the guild's personality config."
+    },
+    "sendButton": {
+      "text": "Send",
+      "tooltip": "Send your message to Slimy"
+    },
+    "adminOnly": {
+      "label": "Admin-only",
+      "tooltip": "If checked, only admins will see this message in the channel"
+    },
+    "footer": {
+      "text": "mention @slimy.ai to chat with it",
+      "tooltip": "In Discord, use @slimy.ai to talk to the bot. This is just a testing sandbox."
+    },
+    "bubble": {
+      "role": {
+        "tooltip": "Message sender's role (color-coded)"
+      },
+      "adminBadge": {
+        "tooltip": "This user is a guild admin"
+      }
+    }
+  },
+  "club": {
+    "pageTitle": {
+      "text": "Club Overview",
+      "tooltip": "High-level stats across all guilds you have club access to"
+    },
+    "guildSelect": {
+      "tooltip": "Switch between guilds to see their club dashboard"
+    },
+    "snailToolsLink": {
+      "text": "🐌 Snail Tools",
+      "tooltip": "Jump to snail analysis tools for this guild"
+    },
+    "stats": {
+      "members": {
+        "label": "Members",
+        "tooltip": "Total tracked members in this guild"
+      },
+      "totalPower": {
+        "label": "Total Power",
+        "tooltip": "Guild's combined Total Power score"
+      },
+      "simPower": {
+        "label": "SIM Power",
+        "tooltip": "Guild's combined SIM Power score"
+      },
+      "lastSnapshot": {
+        "label": "Last Snapshot",
+        "tooltip": "When the most recent stats were captured"
+      }
+    },
+    "latestSnapshot": {
+      "text": "Latest Snail Snapshot",
+      "tooltip": "The most recent data pull from the baseline sheet"
+    }
+  },
+  "nav": {
+    "dashboard": {
+      "text": "Dashboard",
+      "tooltip": "Guild overview and admin tasks"
+    },
+    "settings": {
+      "text": "Club Settings",
+      "tooltip": "Configure guild behavior and integrations"
+    },
+    "channels": {
+      "text": "Channels",
+      "tooltip": "Manage Discord channel monitoring"
+    },
+    "personality": {
+      "text": "Personality",
+      "tooltip": "Customize Slimy's chat behavior"
+    },
+    "usage": {
+      "text": "Usage",
+      "tooltip": "View API costs and model usage"
+    },
+    "snailTools": {
+      "text": "🐌 Snail Tools",
+      "tooltip": "Screenshot analysis, codes, calculators"
+    },
+    "slimeChat": {
+      "text": "💬 Slime Chat",
+      "tooltip": "Test chat with Slimy AI"
+    },
+    "clubDashboard": {
+      "text": "Club Dashboard",
+      "tooltip": "Club member overview (requires club role)"
+    },
+    "emailLogin": {
+      "text": "📧 Email Login",
+      "tooltip": "Admin-only email authentication (advanced)"
+    },
+    "logout": {
+      "text": "Logout",
+      "tooltip": "Sign out of the admin panel"
+    },
+    "userRole": {
+      "tooltip": "Your role in the current guild (ADMIN, CLUB, or MEMBER)"
+    }
+  },
+  "diagnostic": {
+    "title": {
+      "text": "System Health",
+      "tooltip": "Quick view of backend API and services status"
+    },
+    "status": {
+      "ok": {
+        "text": "All systems operational",
+        "tooltip": "Everything's running smoothly"
+      },
+      "warning": {
+        "text": "Degraded performance",
+        "tooltip": "Some features may be slow or unavailable"
+      },
+      "error": {
+        "text": "Service outage",
+        "tooltip": "Backend is unreachable. Check back in a few minutes."
+      }
+    }
+  },
+  "slimeChatBar": {
+    "title": {
+      "text": "Quick Chat",
+      "tooltip": "Mini Slime Chat always available at the bottom of the screen"
+    },
+    "input": {
+      "placeholder": "Ask Slimy anything…",
+      "tooltip": "Quick question? Type here. Uses current guild's personality."
+    },
+    "toggle": {
+      "tooltip": "Expand/collapse the chat bar"
+    }
+  },
+  "error": {
+    "accessDenied": {
+      "text": "Access denied",
+      "tooltip": "You don't have permission to view this page. Check your guild role."
+    },
+    "noGuilds": {
+      "text": "No guilds available",
+      "tooltip": "You're not a member of any guilds with Slimy bot. Invite it to a server first."
+    },
+    "loadingFailed": {
+      "text": "Failed to load",
+      "tooltip": "Something went wrong. Try refreshing the page or check the system health widget."
+    },
+    "notFound": {
+      "text": "Page not found",
+      "tooltip": "This page doesn't exist. Use the sidebar to navigate."
+    }
+  },
+  "loading": {
+    "guilds": {
+      "text": "Loading your guilds…",
+      "tooltip": "Fetching guild list from Discord"
+    },
+    "session": {
+      "text": "Loading session…",
+      "tooltip": "Checking your authentication"
+    },
+    "data": {
+      "text": "Loading data…",
+      "tooltip": "Fetching info from the backend"
+    }
+  },
+  "success": {
+    "saved": {
+      "text": "Saved",
+      "tooltip": "Changes saved successfully"
+    },
+    "uploaded": {
+      "text": "Uploaded",
+      "tooltip": "Screenshots uploaded successfully"
+    },
+    "analyzed": {
+      "text": "Analysis complete",
+      "tooltip": "Your screenshots have been analyzed. See results below."
+    },
+    "copied": {
+      "text": "Copied to clipboard",
+      "tooltip": "Code copied! Paste it in-game to redeem."
+    }
+  },
+  "empty": {
+    "uploads": {
+      "text": "No uploads yet. Drop screenshots here to get started.",
+      "tooltip": "Drag and drop image files to upload them"
+    },
+    "codes": {
+      "text": "No codes available right now.",
+      "tooltip": "Check back later for new promo codes"
+    },
+    "corrections": {
+      "text": "No corrections yet.",
+      "tooltip": "Add a correction to override member stats"
+    },
+    "chat": {
+      "text": "No messages yet. Say hi!",
+      "tooltip": "Start a conversation with Slimy"
+    }
+  }
+}
