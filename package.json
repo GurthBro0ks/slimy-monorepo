@@ -8,6 +8,11 @@
   "scripts": {
     "lint": "pnpm -r run lint || echo \"TODO: lint\"",
     "build": "pnpm -r run build",
-    "test": "pnpm -r run test || echo \"TODO: wire tests\""
+    "test": "pnpm -r run test || echo \"TODO: wire tests\"",
+    "prisma:generate": "pnpm --filter ./apps/web db:generate && pnpm --filter ./apps/admin-api db:generate",
+    "lint:core": "pnpm --filter ./apps/admin-api lint && pnpm --filter ./apps/web lint && pnpm --filter ./apps/admin-ui lint",
+    "test:core": "pnpm --filter ./apps/admin-api test && pnpm --filter ./apps/web test && pnpm --filter ./apps/admin-ui test",
+    "build:core": "pnpm --filter ./apps/admin-api build && pnpm --filter ./apps/web build && pnpm --filter ./apps/admin-ui build",
+    "build:experimental": "pnpm --filter ./apps/bot build"
   }
 }
