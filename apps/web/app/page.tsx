@@ -1,13 +1,23 @@
 "use client";
 
 import Image from "next/image";
+import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Bot, BarChart3, MessageSquare, Shield } from "lucide-react";
 import { useAuth } from "@/lib/auth/context";
+import { recordPageView, recordButtonClick } from "@/lib/analytics";
 
 export default function HomePage() {
   const { login } = useAuth();
+
+  // Track page view on mount
+  useEffect(() => {
+    recordPageView("/", {
+      title: "Home - slimy.ai",
+      section: "landing",
+    });
+  }, []);
 
   const features = [
     {
@@ -63,7 +73,18 @@ export default function HomePage() {
         </p>
 
         {/* CTA Button */}
-        <Button variant="purple" size="lg" className="rounded-full" onClick={login}>
+        <Button
+          variant="purple"
+          size="lg"
+          className="rounded-full"
+          onClick={() => {
+            recordButtonClick("login-cta", {
+              location: "home-hero",
+              action: "discord-login",
+            });
+            login();
+          }}
+        >
           <span className="md:hidden">Login</span>
           <span className="hidden md:inline">Login with Discord</span>
         </Button>
