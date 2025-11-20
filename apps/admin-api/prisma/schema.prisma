@@ -73,6 +73,8 @@ model Guild {
   stats         Stat[]
   chatMessages  ChatMessage[]
   clubAnalyses  ClubAnalysis[]
+  guildSettings GuildSettings?
+  guildPersonality GuildPersonality?
 
   // Performance indexes
   @@index([createdAt])
@@ -448,6 +450,75 @@ model AuditLog {
   @@index([requestId])
 
   @@map("audit_logs")
+}
+
+// Guild settings (migrated from MySQL guild_settings table)
+model GuildSettings {
+  id                  String   @id @default(cuid())
+  guildId             String   @unique @map("guild_id")
+  sheetId             String?  @map("sheet_id")      // Google Sheets ID for stats
+  sheetTab            String?  @map("sheet_tab")     // Specific tab in the sheet
+  viewMode            String   @default("baseline")  @map("view_mode")  // 'baseline' or 'latest'
+  allowPublic         Boolean  @default(false)       @map("allow_public")    // Public access
+  screenshotChannelId String?  @map("screenshot_channel_id")  // Discord channel for screenshots
+  uploadsEnabled      Boolean  @default(true)        @map("uploads_enabled")
+  notes               String?  // Custom notes/metadata
+  updatedAt           DateTime @updatedAt            @map("updated_at")
+
+  // Relations
+  guild Guild? @relation(fields: [guildId], references: [discordId], onDelete: Cascade)
+
+  // Performance indexes
+  @@index([guildId])
+  @@index([updatedAt])
+
+  @@map("guild_settings")
+}
+
+// Guild AI personality/persona settings
+model GuildPersonality {
+  id           String   @id @default(cuid())
+  guildId      String   @unique @map("guild_id")
+  systemPrompt String   @map("system_prompt")  // System prompt for the AI
+  temperature  Float    @default(0.7)          // AI temperature (0-2)
+  topP         Float    @default(1.0)          @map("top_p")  // Top P sampling
+  tone         String   @default("neutral")    // Bot tone/personality
+  updatedAt    DateTime @updatedAt             @map("updated_at")
+
+  // Relations
+  guild Guild? @relation(fields: [guildId], references: [discordId], onDelete: Cascade)
+
+  // Performance indexes
+  @@index([guildId])
+  @@index([updatedAt])
+
+  @@map("guild_personalities")
+}
+
+// Club analytics corrections (manual overrides)
+model Correction {
+  id         String   @id @default(cuid())
+  guildId    String   @map("guild_id")        // Guild this correction applies to
+  weekId     String   @map("week_id")         // Week identifier
+  memberKey  String   @map("member_key")      // Member identifier
+  metric     String                            // Metric name being corrected
+  value      Json                              // Corrected value
+  reason     String?                           // Reason for correction
+  createdBy  String?  @map("created_by")     // User who created the correction
+  createdAt  DateTime @default(now())         @map("created_at")
+  updatedAt  DateTime @updatedAt              @map("updated_at")
+
+  // Performance indexes
+  @@index([guildId])
+  @@index([weekId])
+  @@index([memberKey])
+  @@index([metric])
+  @@index([createdAt])
+  @@index([guildId, weekId])
+  @@index([guildId, memberKey])
+
+  @@unique([guildId, weekId, memberKey, metric])
+  @@map("corrections")
 }
 
 // Webhook configurations for outbound integrations
