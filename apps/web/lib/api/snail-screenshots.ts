@@ -54,10 +54,37 @@ export type SnailAnalysisPayload = {
  * Fetch latest screenshot analysis for a guild
  */
 export async function fetchLatestScreenshots(
-  guildId: string
+  guildId?: string
 ): Promise<ApiResponse<SnailAnalysisPayload>> {
+  const query = guildId ? `?guildId=${encodeURIComponent(guildId)}` : '';
   return adminApiClient.get<SnailAnalysisPayload>(
-    `/api/snail/${guildId}/screenshots/latest`
+    `/api/snail/screenshots/latest${query}`
+  );
+}
+
+/**
+ * Pick the highest-rated snail from an analysis payload
+ */
+export function pickBestSnailFromAnalysis(
+  analysis?: SnailAnalysisPayload | null
+): SnailScreenshotResult | null {
+  if (!analysis || !Array.isArray(analysis.results) || analysis.results.length === 0) {
+    return null;
+  }
+
+  const resultsWithScores = analysis.results.filter(
+    (result): result is SnailScreenshotResult & { stats: SnailScreenshotStats & { suggestedScore: number } } =>
+      typeof result?.stats?.suggestedScore === 'number'
+  );
+
+  if (resultsWithScores.length === 0) {
+    return analysis.results[0] ?? null;
+  }
+
+  return resultsWithScores.reduce((currentBest, candidate) =>
+    (candidate.stats!.suggestedScore as number) > (currentBest.stats!.suggestedScore as number)
+      ? candidate
+      : currentBest
   );
 }
 
