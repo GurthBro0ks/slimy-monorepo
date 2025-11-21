@@ -17,7 +17,12 @@
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "test:all": "pnpm test && pnpm --filter @slimy/web test && pnpm test:e2e",
-    "playwright:install": "playwright install --with-deps chromium"
+    "playwright:install": "playwright install --with-deps chromium",
+    "prisma:generate": "pnpm --filter ./apps/web db:generate && pnpm --filter ./apps/admin-api db:generate",
+    "lint:core": "pnpm --filter ./apps/admin-api lint && pnpm --filter ./apps/web lint && pnpm --filter ./apps/admin-ui lint",
+    "test:core": "pnpm --filter ./apps/admin-api test && pnpm --filter ./apps/web test && pnpm --filter ./apps/admin-ui test",
+    "build:core": "pnpm --filter ./apps/admin-api build && pnpm --filter ./apps/web build && pnpm --filter ./apps/admin-ui build",
+    "build:experimental": "pnpm --filter ./apps/bot build"
   },
   "devDependencies": {
     "@playwright/test": "^1.56.1",
