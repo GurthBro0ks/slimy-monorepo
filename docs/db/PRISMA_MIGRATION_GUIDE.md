@@ -1,455 +1,291 @@
-# Prisma Database Migration Guide
+# Prisma Migration Guide
 
-**Status**: Phase 1-2 Complete + Phase 2.1 In Progress
-**Last Updated**: 2025-11-20 (Phase 2.1 - Database Consolidation)
-**Target**: Single canonical Prisma schema across web + admin-api with backwards compatibility
+This guide explains the Prisma schema architecture and migration patterns for the slimy-monorepo.
 
-## Overview
+## Schema Ownership Model
+
+### Two Independent Prisma Schemas
 
-This document outlines the incremental migration from:
-1. MySQL → PostgreSQL/Prisma (admin-api)
-2. Multiple separate Prisma schemas → Single canonical schema (Phase 2.1)
-3. Isolated features → Integrated features via admin-api endpoints
+The monorepo maintains **two separate Prisma schemas** with clear ownership boundaries:
 
-The migration uses a **dual-write pattern** with feature flags for zero downtime.
+1. **Admin-API Schema** (`apps/admin-api/prisma/schema.prisma`)
+   - **Owner**: Admin-API backend service
+   - **Purpose**: Canonical source of truth for shared/backend domains
+   - **Controls**: All migrations for shared tables
 
-## Current State (After Phase 2.1 - Database Consolidation)
+2. **Web Schema** (`apps/web/prisma/schema.prisma`)
+   - **Owner**: Web frontend application
+   - **Purpose**: Web-specific local state and preferences
+   - **Controls**: Migrations for web-only tables
 
-### ✅ Completed
+### Critical Rule: No Schema Duplication
+
+**As of Phase 2.4**, web does not own Prisma models for:
+- ✅ Club analytics (ClubAnalysis, ClubAnalysisImage, ClubMetric)
+- ✅ Audit logging (AuditLog)
 
-**Phase 1-2 (MySQL → Prisma):**
-- PostgreSQL database configured (docker-compose in `apps/admin-api/infra/docker/`)
-- Prisma schema extended with guild settings models:
-  - `GuildSettings` - Guild configuration
-  - `GuildPersonality` - AI personality settings
-  - `Correction` - Club analytics corrections
-- Feature flag system: `src/lib/config/featureFlags.ts`
-- Test infrastructure: `tests/utils/setupTestDb.ts`, `tests/utils/factories.ts`
+These domains are **exclusively owned by admin-api**.
 
-**Phase 2.1 (Database & Schema Consolidation):**
-- ✅ Single PostgreSQL instance for both web + admin-api (DATABASE_URL shared)
-- ✅ Chat models renamed for clarity:
-  - `Conversation` → `GuildConversation` (guild communication)
-  - `ChatMessage` → `GuildChatMessage` (guild communication)
-  - Web keeps `ChatConversation` + `ChatMessage` (AI chat)
-- ✅ Canonical models in admin-api:
-  - ClubAnalysis* (from web, now canonical in admin-api)
-  - AuditLog (from web, now canonical in admin-api)
-- ✅ Web models marked as deprecated with migration comments
-- ✅ Prisma migrations created for schema changes:
-  - `20251120131627_rename_chat_models_for_clarity`
-  - `20251120131640_mark_club_analytics_deprecated`
+## Domain Ownership Reference
 
-### ⏳ In Progress / Pending
+### Admin-API Owned Domains
 
-**Phase 2.2-2.4:**
-- Club analytics data migration (web → admin-api)
-- Web to call admin-api /api/club-analytics/* instead of local Prisma
-- Audit log integration (web events → admin-api)
-- Session consolidation (optional)
+These models are defined ONLY in `apps/admin-api/prisma/schema.prisma`:
 
-## Schema Consolidation Architecture (Phase 2.1)
+- **User Management**: User, Session
+- **Guild Management**: Guild, UserGuild
+- **Club Analytics**: ClubAnalysis, ClubAnalysisImage, ClubMetric
+- **Audit Logging**: AuditLog
+- **Statistics**: Stat
+- **Conversations**: Conversation, ChatMessage
+- **Screenshots**: ScreenshotAnalysis, ScreenshotComparison
 
-As of Phase 2.1, the database architecture is being consolidated to a single canonical schema:
+**Admin-API controls**:
+- Schema definitions via Prisma
+- Database migrations
+- Table structure and indexes
+- Data access patterns
 
-### Database Connection Strategy
-- **Single Postgres Instance per Environment**: Both web + admin-api use the same DATABASE_URL
-- **Single Schema**: Both apps write to schema=public
-- **Canonical Models in admin-api**: Guild management, club analytics, audit logs
-- **Web-Local Models**: AI chat, user preferences, game features
+**Web consumes via**:
+- HTTP API calls to admin-api endpoints
+- TypeScript interfaces (not Prisma types)
 
-### Canonical Models (Admin-API is source of truth)
-
-**Core:**
-- User, Session, Guild, UserGuild
+### Web-Only Domains
 
-**Guild Communication:**
-- `GuildConversation` (renamed from `Conversation` for clarity)
-- `GuildChatMessage` (renamed from `ChatMessage` for clarity)
+These models are defined ONLY in `apps/web/prisma/schema.prisma`:
 
-**Club Analytics (moved from web):**
-- ClubAnalysis, ClubAnalysisImage, ClubMetric
+- **UserPreferences**: Web UI preferences (theme, language, etc.)
+- **ChatConversation**: Web chat UI state
+- **ChatMessage**: Web chat messages
+- **GuildFeatureFlags**: Web feature toggles
+- **CodeReport**: Web code reporting system
+- **UserSession**: Web authentication sessions
 
-**Audit Trail:**
-- AuditLog (comprehensive version with requestId, sessionId, etc.)
+**Web controls**:
+- Schema definitions for these web-specific tables
+- Migrations for these tables only
+- Direct Prisma access within web app
 
-**Configuration:**
-- GuildSettings, GuildPersonality, Correction
+## Migration Patterns
 
-**Screenshots:**
-- ScreenshotAnalysis, ScreenshotData, ScreenshotTag, ScreenshotComparison, etc.
+### For Admin-API Domains
 
-**Webhooks:**
-- Webhook, WebhookDelivery
+When you need to modify a shared domain (e.g., club analytics, audit logs):
 
-### Web App Models (remain in web database, separate from admin-api)
+1. **Update the schema** in `apps/admin-api/prisma/schema.prisma`
+2. **Create migration** from admin-api:
+   ```bash
+   cd apps/admin-api
+   pnpm db:migrate
+   ```
+3. **Generate client** for admin-api:
+   ```bash
+   cd apps/admin-api
+   pnpm db:generate
+   ```
+4. **Update admin-api endpoints** to expose new fields/functionality
+5. **Update web** to consume new API shape (update TypeScript interfaces only)
+6. **DO NOT** add these models to web's schema
 
-**AI Chat (NOT guild communication):**
-- `ChatConversation`, `ChatMessage` (AI conversations with roles: user/assistant/system)
+### For Web-Only Domains
 
-**User Settings:**
-- UserPreferences, GuildFeatureFlags
+When you need to modify web-specific models:
 
-**Game Features:**
-- CodeReport, UserSession
+1. **Update the schema** in `apps/web/prisma/schema.prisma`
+2. **Create migration** from web:
+   ```bash
+   cd apps/web
+   pnpm db:migrate
+   ```
+3. **Generate client** for web:
+   ```bash
+   cd apps/web
+   pnpm db:generate
+   ```
+4. **Use Prisma client** directly in web code
 
-### Migration Path
+### When Adding a New Domain
 
-**Web to Admin-API Integration:**
-```
-Old (Isolated):
-Web App → Local ClubAnalysis table → Local PostgreSQL
+Decide ownership first:
 
-New (Integrated):
-Web App → HTTP Request → /api/club-analytics/* → Admin-API → Shared PostgreSQL
-```
+**Use Admin-API if**:
+- Shared between bot and web
+- Backend business logic required
+- Needs audit logging
+- Complex queries or aggregations
 
-### Deprecation Timeline
+**Use Web if**:
+- Pure UI/UX state
+- User preferences for web only
+- Temporary/cache data
+- No backend access needed
 
-**Current (Phase 2.1):**
-- ClubAnalysis*, AuditLog marked as deprecated in web schema
-- Models remain in web database for backwards compatibility
-- Prisma migrations document the consolidation strategy
+## Common Patterns
 
-**Phase 2.2-2.3:**
-- Data migration script (web ClubAnalysis → admin-api)
-- Web calls admin-api endpoints instead of local Prisma
-- Code updated to remove direct web schema references
+### Accessing Admin-API Data from Web
 
-**Phase 2.4 Cleanup:**
-- Remove deprecated models from web schema
-- Full consolidation to admin-api as canonical source
-
----
-
-## Architecture: Dual-Write Pattern
-
-The migration uses a **dual-write pattern** to gradually move data from MySQL/legacy storage to Prisma:
-
-```
-┌─────────────────────────────────────────────────────────┐
-│                   Client Request                         │
-└────────────────────┬────────────────────────────────────┘
-                     │
-        ┌────────────▼────────────┐
-        │  GuildSettingsRepository│
-        │  (isFeatureEnabled?)    │
-        └───────┬──────────┬──────┘
-        ╭───────▼──╮  ╭────▼──────╮
-        │  MySQL   │  │  Prisma   │
-        │ (Legacy) │  │(PostgreSQL)│
-        ╰──────────╯  ╰───────────╯
-
-Phase 1: Feature OFF (Default)
-├─ Reads from MySQL
-├─ Writes to MySQL
-└─ (Reads from MySQL)
-
-Phase 2: Feature ON - Dual Write
-├─ Reads from MySQL (or Prisma if flag enables)
-├─ Writes to BOTH MySQL AND Prisma
-└─ Validates consistency
-
-Phase 3: Feature ON - Read from Prisma
-├─ Reads from Prisma
-├─ Writes to Prisma (MySQL still optional for backwards compat)
-└─ Can decommission MySQL
-
-Phase 4: Cleanup
-├─ Remove MySQL code
-└─ Full PostgreSQL cutover
-```
-
-## Setting Up Local Development
-
-### Prerequisites
-- Docker & Docker Compose
-- Node.js 20+
-- pnpm
-
-### 1. Start PostgreSQL Database
-
-```bash
-cd apps/admin-api
-
-# Start PostgreSQL and Redis (from docker-compose.yml in infra/docker/)
-docker-compose -f infra/docker/docker-compose.yml up -d
-
-# Verify database is running
-docker-compose -f infra/docker/docker-compose.yml ps
-# Should show postgres and redis as "healthy"
-```
-
-### 2. Configure Environment
-
-```bash
-cd apps/admin-api
-
-# Copy environment template
-cp .env.example .env
-
-# Update DATABASE_URL in .env (if not using Docker, or using different host)
-# For local dev: postgresql://slimy:slimy_dev_password@localhost:5432/slimy
-```
-
-### 3. Run Migrations
-
-```bash
-cd apps/admin-api
-
-# Install dependencies (if not done)
-pnpm install
-
-# Generate Prisma client
-pnpm prisma:generate
-
-# Run migrations
-pnpm prisma:migrate
-
-# Or reset/recreate database
-pnpm db:reset
-```
-
-### 4. Verify Installation
-
-```bash
-# View database schema in Prisma Studio
-pnpm prisma:studio
-
-# Should open browser at http://localhost:5555
-# Verify tables exist: guilds, users, guild_settings, guild_personalities, corrections, etc.
-```
-
-## Feature Flags
-
-Feature flags control which database implementation is used for each domain:
-
-### Environment Variables
-
-```bash
-# Feature Flags (all default to false/off for MySQL)
-ENABLE_PRISMA_GUILD_SETTINGS=false    # OFF: Use MySQL, ON: Use Prisma
-ENABLE_PRISMA_GUILD_PERSONALITY=false # OFF: Use files, ON: Use Prisma
-ENABLE_PRISMA_CORRECTIONS=false       # OFF: Use in-memory, ON: Use Prisma
-ENABLE_PRISMA_WEBHOOKS=true           # ON: Already uses Prisma (proven)
-```
-
-### Current Status
-
-When server starts, feature flags are logged:
-
-```
-📋 Feature Flags:
-  ✗ OFF - ENABLE_PRISMA_GUILD_SETTINGS
-  ✗ OFF - ENABLE_PRISMA_GUILD_PERSONALITY
-  ✗ OFF - ENABLE_PRISMA_CORRECTIONS
-  ✓ ON  - ENABLE_PRISMA_WEBHOOKS
-```
-
-## Migration Phases
-
-### Phase 1: Infrastructure ✅ COMPLETE
-- [x] PostgreSQL running
-- [x] Prisma schema defined
-- [x] Migrations created
-- [x] Test infrastructure in place
-- [x] Server.js updated for Prisma initialization
-
-### Phase 2: GuildSettings Dual-Write ⏳ IN PROGRESS
-
-**Implementation**:
+**❌ WRONG** - Don't define Prisma models in web:
 ```typescript
-// In src/repositories/guildSettings.ts
-class GuildSettingsRepository {
-  async upsertSettings(guildId: string, patch) {
-    // 1. Read current from MySQL
-    // 2. Merge with patch
-    // 3. If ENABLE_PRISMA_GUILD_SETTINGS:
-    //    - Write to Prisma (dual-write)
-    // 4. Return merged result
-  }
+// apps/web/prisma/schema.prisma
+model ClubAnalysis {  // ❌ NO! Don't duplicate admin-api models
+  id String @id
+  // ...
 }
 ```
 
-**Testing**:
-```bash
-# Run with feature flag OFF (default)
-pnpm test
-
-# Run with feature flag ON (dual-write)
-ENABLE_PRISMA_GUILD_SETTINGS=true pnpm test
-
-# Validate consistency
-# Repository provides validateConsistency() method
-```
-
-**Rollout Steps**:
-1. Deploy code with flag OFF (no behavior change)
-2. Enable flag for test guilds (ENABLE_PRISMA_GUILD_SETTINGS=true)
-3. Monitor for errors/inconsistencies
-4. Enable flag globally (all guilds use dual-write)
-5. Switch reads to Prisma (validate no data loss)
-6. Decommission MySQL code
-
-### Phase 3: Additional Domains
-
-Similar to Phase 2, but for:
-- Guild Personality settings
-- Club Analytics corrections
-- Session storage (from in-memory to database)
-
-### Phase 4: Cleanup
-
-- Remove MySQL code
-- Remove feature flags
-- Update documentation
-
-## Test Database Setup
-
-For integration tests using real database instead of mocks:
-
+**✅ CORRECT** - Define TypeScript interfaces, call HTTP API:
 ```typescript
-// tests/guild-settings.test.ts
-import {
-  setupTestDb,
-  cleanTestDb,
-  teardownTestDb,
-  createTestGuild,
-  createTestGuildSettings,
-} from './utils';
+// apps/web/lib/club/database.ts
+export interface StoredClubAnalysis {
+  id: string;
+  guildId: string;
+  // ... matches admin-api response shape
+}
 
-describe('GuildSettings', () => {
-  beforeAll(async () => {
-    await setupTestDb(); // Initialize test DB with migrations
-  });
-
-  afterEach(async () => {
-    await cleanTestDb(); // Clean between tests
-  });
-
-  afterAll(async () => {
-    await teardownTestDb(); // Close connection
-  });
-
-  test('should create guild settings', async () => {
-    const guild = await createTestGuild();
-    const settings = await createTestGuildSettings(guild.discordId);
-
-    expect(settings.guildId).toBe(guild.discordId);
-    expect(settings.viewMode).toBe('baseline');
-  });
-});
-```
-
-## Monitoring & Validation
-
-### Feature Flag Logging
-
-Server automatically logs status on startup:
-
-```
-[admin-api] Initializing Prisma database...
-[admin-api] Prisma database initialized successfully
-📋 Feature Flags:
-  ✗ OFF - ENABLE_PRISMA_GUILD_SETTINGS
-  ✗ OFF - ENABLE_PRISMA_GUILD_PERSONALITY
-  ✗ OFF - ENABLE_PRISMA_CORRECTIONS
-  ✓ ON  - ENABLE_PRISMA_WEBHOOKS
-```
-
-### Consistency Validation
-
-```typescript
-// Check if data is consistent between MySQL and Prisma
-const repo = getGuildSettingsRepository();
-const consistency = await repo.validateConsistency(guildId);
-
-if (!consistency.consistent) {
-  console.warn('Data mismatch detected!', consistency.differences);
+// apps/web/lib/api/clubAnalytics.ts
+async function fetchAnalysis(id: string): Promise<StoredClubAnalysis> {
+  const response = await fetch(`${ADMIN_API_URL}/club-analytics/${id}`);
+  return response.json();
 }
 ```
 
-### Metrics
+### Type Safety Without Duplication
 
-The repository logs errors and migrations are tracked in server startup messages.
+You can create shared type packages if needed:
+
+```bash
+# Future improvement
+packages/
+  shared-types/
+    club-analytics.ts
+    audit-log.ts
+```
+
+But for now, web defines local interfaces matching API contracts.
+
+## Database Setup
+
+Both schemas point to the **same PostgreSQL database**, but manage **different tables**:
+
+```env
+# Both apps use same DATABASE_URL
+DATABASE_URL=postgresql://user:pass@localhost:5432/slimy_db
+```
+
+**Important**: Prisma migrations from each app only touch their owned tables. The shared database means:
+- Admin-API migrations manage: `club_analyses`, `audit_logs`, `users`, `guilds`, etc.
+- Web migrations manage: `user_preferences`, `chat_conversations`, `code_reports`, etc.
+
+## Migration Commands
+
+### Admin-API
+
+```bash
+# From monorepo root or apps/admin-api
+pnpm db:generate       # Generate Prisma client
+pnpm db:migrate        # Create and apply migration
+pnpm db:studio         # Open Prisma Studio
+pnpm db:reset          # Reset database (destructive!)
+```
+
+### Web
+
+```bash
+# From monorepo root or apps/web
+pnpm db:generate       # Generate Prisma client
+pnpm db:migrate        # Create and apply migration
+pnpm db:studio         # Open Prisma Studio
+pnpm db:reset          # Reset database (destructive!)
+```
 
 ## Troubleshooting
 
-### Database Connection Failed
+### "Cannot find Prisma type" in Web
 
-```
-✗ Failed to connect to test database
-```
+If web code imports a type from `@prisma/client` that no longer exists (e.g., `ClubAnalysis`):
 
-**Solution**:
-```bash
-# Check DATABASE_URL is set correctly
-echo $DATABASE_URL
+1. **Don't add it back to web schema**
+2. **Define a local interface** instead:
+   ```typescript
+   export interface ClubAnalysis {
+     id: string;
+     // ... fields needed by web
+   }
+   ```
+3. **Fetch data via admin-api HTTP endpoint**
 
-# Verify Postgres is running
-docker-compose -f infra/docker/docker-compose.yml ps
+### "Table already exists" during migration
 
-# Check logs
-docker-compose -f infra/docker/docker-compose.yml logs postgres
+This can happen if:
+- You try to create a table in web that admin-api owns
+- You try to create a table in admin-api that web owns
 
-# Restart if needed
-docker-compose -f infra/docker/docker-compose.yml restart postgres
-```
+**Solution**: Determine correct ownership, remove from wrong schema, run migrations from correct app.
 
-### Migration Failed
+### Schema Drift
 
-```
-Error: P3004 - Introspection operation failed
-```
-
-**Solution**:
-```bash
-# Reset database and re-run migrations
-pnpm db:reset
-
-# Or manually recreate:
-docker-compose -f infra/docker/docker-compose.yml exec postgres dropdb -U slimy slimy
-docker-compose -f infra/docker/docker-compose.yml exec postgres createdb -U slimy slimy
-pnpm prisma:migrate
-```
-
-### Schema Mismatch
-
-If Prisma schema doesn't match actual database:
+To check if schemas are in sync with database:
 
 ```bash
-# Introspect actual schema from database
-pnpm prisma db pull
+# Admin-API
+cd apps/admin-api
+npx prisma migrate status
 
-# Review changes, then sync
-pnpm prisma migrate dev
+# Web
+cd apps/web
+npx prisma migrate status
 ```
 
-## Next Steps
+## Phase 2.4 Changes
 
-1. **Test Suite** - Run full test suite with new infrastructure
-2. **Example Test** - Write sample integration test for GuildSettings
-3. **Phase 2 Rollout** - Enable dual-write for GuildSettings in test environment
-4. **Validation** - Verify data consistency between MySQL and Prisma
-5. **Gradual Rollout** - Enable for all guilds, monitor, switch to Prisma reads
-6. **Phase 3** - Repeat for other domains (Personality, Corrections, etc.)
-7. **MySQL Decommission** - Remove legacy code after cutover
+As of Phase 2.4 (2025-11-20):
 
-## References
+### Removed from Web Schema
+- `ClubAnalysis` model
+- `ClubAnalysisImage` model
+- `ClubMetric` model
+- `AuditLog` model
 
-- **Prisma Documentation**: https://www.prisma.io/docs/
-- **Schema**: `apps/admin-api/prisma/schema.prisma`
-- **Migrations**: `apps/admin-api/prisma/migrations/`
-- **Repository**: `src/repositories/guildSettings.ts`
-- **Feature Flags**: `src/lib/config/featureFlags.ts`
-- **Test Utilities**: `tests/utils/`
+### Removed from Web Codebase
+- `apps/web/lib/repositories/club-analytics.repository.ts` (unused Prisma repository)
 
-## Questions & Issues
+### Web Now Uses
+- Admin-API HTTP endpoints for club analytics
+- Admin-API HTTP endpoints for audit logging
+- Local TypeScript interfaces for type safety
 
-For questions or issues with the migration:
+### Database Tables
+**No tables were dropped**. The underlying tables (`club_analyses`, `club_analysis_images`, `club_metrics`, `audit_logs`) remain in the database, managed by admin-api migrations.
 
-1. Check server logs for Prisma errors
-2. Review feature flag status
-3. Validate data consistency with `.validateConsistency()` method
-4. Check this guide for troubleshooting section
-5. Review Prisma logs in Prisma Studio (`pnpm prisma:studio`)
+## Future Considerations
+
+When admin-api is fully stable and all domains are migrated:
+
+1. **Consider table cleanup**: Drop old tables that are no longer needed
+2. **Create shared type package**: Extract common types to `packages/shared-types`
+3. **API versioning**: Implement versioned admin-api endpoints for stability
+4. **Schema validation**: Add runtime validation of API responses in web
+
+## Best Practices
+
+1. ✅ **Always check ownership** before modifying a model
+2. ✅ **Admin-API first** for shared domains
+3. ✅ **Web schema is minimal** - only truly web-specific models
+4. ✅ **Migrations from one app** - don't duplicate migrations
+5. ✅ **Types in web match API** - keep interfaces in sync with admin-api responses
+6. ❌ **Never duplicate models** across admin-api and web schemas
+7. ❌ **Never run migrations from web** that touch admin-api tables
+
+## Summary
+
+| Aspect | Admin-API | Web |
+|--------|-----------|-----|
+| **Schema File** | `apps/admin-api/prisma/schema.prisma` | `apps/web/prisma/schema.prisma` |
+| **Domains** | Shared/backend (club analytics, audit logs, users, guilds) | Web-specific (preferences, UI state) |
+| **Migrations** | Owns migrations for shared tables | Owns migrations for web-only tables |
+| **Access Pattern** | Prisma client within admin-api | HTTP API calls to admin-api |
+| **Type Source** | Prisma-generated types | TypeScript interfaces matching API |
+
+---
+
+**Last Updated**: 2025-11-20 (Phase 2.4)
