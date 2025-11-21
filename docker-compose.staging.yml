@@ -1,0 +1,102 @@
+name: slimy-staging
+
+services:
+  postgres-staging:
+    image: postgres:16-alpine
+    container_name: slimy-db-staging
+    restart: unless-stopped
+    env_file:
+      - .env.db.staging
+    ports:
+      - "5433:5432"  # Different port to avoid conflict with production
+    volumes:
+      - postgres_staging_data:/var/lib/postgresql/data
+      - ./backups/postgres-staging:/backups
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+    networks:
+      - slimy-staging
+
+  admin-api-staging:
+    build:
+      context: .
+      dockerfile: apps/admin-api/Dockerfile
+    container_name: slimy-admin-api-staging
+    restart: unless-stopped
+    env_file:
+      - .env.admin-api.staging
+    environment:
+      NODE_ENV: staging
+      HOST: 0.0.0.0
+      PORT: 3080
+      TRUST_PROXY: "1"
+      UPLOADS_DIR: /var/lib/slimy/uploads
+    depends_on:
+      postgres-staging:
+        condition: service_healthy
+    ports:
+      - "3081:3080"  # External port 3081 to avoid conflict
+    volumes:
+      - ./data/admin-api-staging:/app/data
+      - ./data/uploads-staging:/var/lib/slimy/uploads
+      - ./logs/admin-api-staging:/app/logs
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          node -e "require('http').get('http://127.0.0.1:3080/api/health',
+          res => process.exit(res.statusCode === 200 ? 0 : 1)).on('error',
+          () => process.exit(1));"
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+    networks:
+      - slimy-staging
+
+  web-staging:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        NEXT_PUBLIC_ADMIN_API_BASE: ${NEXT_PUBLIC_ADMIN_API_BASE:-http://localhost:3081}
+        NEXT_PUBLIC_SNELP_CODES_URL: ${NEXT_PUBLIC_SNELP_CODES_URL:-https://snelp.com/api/codes}
+        NEXT_PUBLIC_PLAUSIBLE_DOMAIN: ${NEXT_PUBLIC_PLAUSIBLE_DOMAIN:-staging.slimy.ai}
+    container_name: slimy-web-staging
+    restart: unless-stopped
+    env_file:
+      - .env.web.staging
+    environment:
+      HOST: 0.0.0.0
+      PORT: 3000
+      NODE_ENV: staging
+      NEXT_TELEMETRY_DISABLED: "1"
+    depends_on:
+      postgres-staging:
+        condition: service_healthy
+      admin-api-staging:
+        condition: service_started
+    ports:
+      - "3001:3000"  # External port 3001
+    volumes:
+      - ./logs/web-staging:/app/logs
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O- http://127.0.0.1:3000/api/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 6
+      start_period: 30s
+    networks:
+      - slimy-staging
+
+networks:
+  slimy-staging:
+    name: slimy-staging-network
+    driver: bridge
+
+volumes:
+  postgres_staging_data:
+    name: slimy-staging-postgres-data
