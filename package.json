@@ -7,7 +7,11 @@
   ],
   "scripts": {
     "lint": "pnpm -r run lint || echo \"TODO: lint\"",
+    "lint:core": "pnpm --filter admin-api --filter web --filter admin-ui run lint || echo \"TODO: lint\"",
     "build": "pnpm -r run build",
-    "test": "pnpm -r run test || echo \"TODO: wire tests\""
+    "build:core": "pnpm --filter admin-api --filter web --filter admin-ui run build",
+    "test": "pnpm -r run test || echo \"TODO: wire tests\"",
+    "test:core": "pnpm --filter admin-api --filter web --filter admin-ui run test || echo \"TODO: wire tests\"",
+    "prisma:generate": "pnpm --filter admin-api --filter web run prisma:generate"
   }
 }
