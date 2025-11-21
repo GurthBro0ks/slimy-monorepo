@@ -7,6 +7,8 @@ import { Upload, BarChart3, Users, FileSpreadsheet, Loader2, CheckCircle } from 
 import { Button } from "@/components/ui/button";
 import { ProtectedRoute } from "@/components/auth/protected-route";
 import { LazyClubResults } from "@/components/lazy";
+import { PageShell } from "@/components/layout/page-shell";
+import { ConnectionBadge } from "@/components/status/connection-badge";
 import type { StoredClubAnalysis } from "@/lib/club/database";
 
 export default function ClubPage() {
@@ -143,49 +145,46 @@ export default function ClubPage() {
 
   return (
     <ProtectedRoute requiredRole="club">
-      <div className="container px-4 py-8">
-        <div className="mx-auto max-w-6xl">
-          <div className="mb-8">
-            <h1 className="mb-2 text-4xl font-bold">Club Analytics</h1>
-            <p className="text-muted-foreground">
-              AI-powered club performance tracking and member statistics
-            </p>
-          </div>
+      <PageShell
+        icon={BarChart3}
+        title="Club Analytics"
+        subtitle="AI-powered club performance tracking and member statistics"
+        status={<ConnectionBadge />}
+        actions={
+          <Button
+            onClick={handleExportToSheets}
+            className="bg-emerald-500 hover:bg-emerald-600 text-white"
+            disabled={analyses.length === 0}
+            size="sm"
+          >
+            <FileSpreadsheet className="mr-2 h-4 w-4" />
+            <span className="hidden sm:inline">Export to Sheets</span>
+            <span className="sm:hidden">Export</span>
+            {analyses.length > 0 && ` (${analyses.length})`}
+          </Button>
+        }
+      >
+        <Callout variant="note" className="mb-6 text-sm">
+          GPT-4 Vision integration active. Upload screenshots for instant AI analysis.
+        </Callout>
 
-          <Callout variant="note" className="mb-6 text-sm">
-            GPT-4 Vision integration active. Upload screenshots for instant AI analysis.
-          </Callout>
-
-          {/* Export Button */}
-          <div className="mb-6">
-            <Button
-              onClick={handleExportToSheets}
-              className="bg-emerald-500 hover:bg-emerald-600 text-white"
-              disabled={analyses.length === 0}
-            >
-              <FileSpreadsheet className="mr-2 h-4 w-4" />
-              Export All to Google Sheets
-              {analyses.length > 0 && ` (${analyses.length} analyses)`}
-            </Button>
-          </div>
-
-          <div className="grid gap-6 lg:grid-cols-3">
-            {/* Upload Screenshots Card */}
-            <Card className="rounded-2xl border border-emerald-500/30 bg-zinc-900/40 shadow-sm hover:bg-zinc-900/60 transition-colors">
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <Upload className="h-10 w-10 text-neon-green mb-2" />
-                  {isAnalyzing && <Loader2 className="h-5 w-5 animate-spin text-emerald-500" />}
-                  {isUploading && !isAnalyzing && <CheckCircle className="h-5 w-5 text-emerald-500" />}
-                </div>
-                <CardTitle>Upload & Analyze</CardTitle>
-                <CardDescription>
-                  Upload club screenshots for AI-powered analysis
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <label className="block">
+        <div className="grid gap-6 lg:grid-cols-3">
+          {/* Upload Screenshots Card */}
+          <Card className="rounded-2xl border border-emerald-500/30 bg-zinc-900/40 shadow-sm hover:bg-zinc-900/60 transition-colors">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <Upload className="h-10 w-10 text-neon-green mb-2" />
+                {isAnalyzing && <Loader2 className="h-5 w-5 animate-spin text-emerald-500" />}
+                {isUploading && !isAnalyzing && <CheckCircle className="h-5 w-5 text-emerald-500" />}
+              </div>
+              <CardTitle>Upload & Analyze</CardTitle>
+              <CardDescription>
+                Upload club screenshots for AI-powered analysis
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <label className="block">
                     <input
                       type="file"
                       multiple
@@ -285,16 +284,15 @@ export default function ClubPage() {
             </Card>
           </div>
 
-          {/* Analysis Results Section */}
-          <div className="mt-8">
-            <LazyClubResults
-              analyses={analyses}
-              onExport={handleExportAnalysis}
-              loading={isLoadingResults}
-            />
-          </div>
+        {/* Analysis Results Section */}
+        <div className="mt-8">
+          <LazyClubResults
+            analyses={analyses}
+            onExport={handleExportAnalysis}
+            loading={isLoadingResults}
+          />
         </div>
-      </div>
+      </PageShell>
     </ProtectedRoute>
   );
 }

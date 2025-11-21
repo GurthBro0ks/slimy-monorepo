@@ -7,8 +7,10 @@ import { CopyBox } from "@/components/ui/copy-box";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Callout } from "@/components/ui/callout";
-import { RefreshCw, Search, Flag } from "lucide-react";
+import { RefreshCw, Search, Flag, Ticket } from "lucide-react";
 import { ProtectedRoute } from "@/components/auth/protected-route";
+import { PageShell } from "@/components/layout/page-shell";
+import { ConnectionBadge } from "@/components/status/connection-badge";
 
 interface Code {
   code: string;
@@ -112,39 +114,12 @@ export default function CodesPage() {
 
   return (
     <ProtectedRoute>
-      <div className="container px-4 py-8">
-      <div className="mx-auto max-w-4xl">
-        <div className="mb-8">
-          <h1 className="mb-2 text-4xl font-bold">Secret Codes</h1>
-          <p className="text-muted-foreground">
-            Aggregated from Snelp and Reddit r/SuperSnailGame
-          </p>
-        </div>
-
-        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex gap-2">
-            <Button
-              variant={scope === "active" ? "neon" : "outline"}
-              size="sm"
-              onClick={() => setScope("active")}
-            >
-              Active
-            </Button>
-            <Button
-              variant={scope === "past7" ? "neon" : "outline"}
-              size="sm"
-              onClick={() => setScope("past7")}
-            >
-              Past 7 Days
-            </Button>
-            <Button
-              variant={scope === "all" ? "neon" : "outline"}
-              size="sm"
-              onClick={() => setScope("all")}
-            >
-              All
-            </Button>
-          </div>
+      <PageShell
+        icon={Ticket}
+        title="Secret Codes"
+        subtitle="Aggregated from Snelp and Reddit r/SuperSnailGame"
+        status={<ConnectionBadge />}
+        actions={
           <Button
             variant="outline"
             size="sm"
@@ -152,7 +127,31 @@ export default function CodesPage() {
             disabled={refreshing}
           >
             <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
-            <span className="ml-2">Refresh</span>
+            <span className="ml-2 hidden sm:inline">Refresh</span>
+          </Button>
+        }
+      >
+        <div className="mb-6 flex gap-2">
+          <Button
+            variant={scope === "active" ? "neon" : "outline"}
+            size="sm"
+            onClick={() => setScope("active")}
+          >
+            Active
+          </Button>
+          <Button
+            variant={scope === "past7" ? "neon" : "outline"}
+            size="sm"
+            onClick={() => setScope("past7")}
+          >
+            Past 7 Days
+          </Button>
+          <Button
+            variant={scope === "all" ? "neon" : "outline"}
+            size="sm"
+            onClick={() => setScope("all")}
+          >
+            All
           </Button>
         </div>
 
@@ -258,8 +257,7 @@ export default function CodesPage() {
             )}
           </>
         )}
-      </div>
-      </div>
+      </PageShell>
     </ProtectedRoute>
   );
 }
