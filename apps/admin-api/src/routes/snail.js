@@ -31,6 +31,8 @@ const { requireCsrf } = require("../middleware/csrf");
 const { cacheGuildData, cacheStats } = require("../middleware/cache");
 const { snail, validateFileUploads } = require("../lib/validation/schemas");
 const { apiHandler } = require("../lib/errors");
+const { calculateSnailTier } = require("../services/snail-tier");
+const { getLatestScreenshotAnalysis } = require("../services/snail-screenshots");
 
 const router = express.Router({ mergeParams: true });
 
@@ -280,6 +282,107 @@ router.post("/calc", requireCsrf, express.json(), snail.calc, (req, res) => {
     total,
     simPct,
   });
+});
+
+/**
+ * POST /api/snail/:guildId/tier
+ *
+ * Calculate player tier based on snail stats.
+ *
+ * Requires: member role, guild membership
+ *
+ * Request body:
+ *   - level: number (required) - Snail level
+ *   - cityLevel: number (required) - City level
+ *   - relicPower: number (optional) - Total relic power
+ *   - clubContribution: number (optional) - Club contribution score
+ *   - simPower: number (optional) - Current SIM power
+ *   - maxSimPower: number (optional) - Maximum possible SIM power
+ *
+ * Response:
+ *   - tier: string - Calculated tier (S+, S, A, B, C, D, F)
+ *   - score: number - Numeric score
+ *   - summary: string - Human-readable summary
+ *   - details: object - Detailed breakdown
+ *
+ * Errors:
+ *   - 400: missing_required_fields - Missing level or cityLevel
+ *   - 500: server_error - Internal server error
+ */
+router.post("/tier", requireCsrf, express.json(), async (req, res) => {
+  try {
+    const { level, cityLevel, relicPower, clubContribution, simPower, maxSimPower } = req.body;
+
+    if (typeof level === "undefined" || level === null) {
+      return res.status(400).json({ error: "missing_required_fields", field: "level" });
+    }
+
+    if (typeof cityLevel === "undefined" || cityLevel === null) {
+      return res.status(400).json({ error: "missing_required_fields", field: "cityLevel" });
+    }
+
+    const result = calculateSnailTier({
+      level,
+      cityLevel,
+      relicPower,
+      clubContribution,
+      simPower,
+      maxSimPower,
+    });
+
+    res.json(result);
+  } catch (err) {
+    console.error("[snail/tier] failed:", err);
+    res.status(500).json({ error: "server_error", message: err.message });
+  }
+});
+
+/**
+ * GET /api/snail/:guildId/screenshots/latest
+ *
+ * Get latest screenshot analysis with tier suggestions.
+ *
+ * Currently returns stubbed analysis data with computed tier suggestions
+ * based on the centralized tier formulas.
+ *
+ * Requires: member role, guild membership
+ *
+ * Response:
+ *   - guildId: string
+ *   - userId: string
+ *   - analysis: object
+ *     - results: array - Array of analysis results
+ *       - imageUrl: string
+ *       - timestamp: string
+ *       - stats: object
+ *         - snailLevel: number
+ *         - cityLevel: number
+ *         - simPower: number
+ *         - relicPower: number
+ *         - clubContribution: number
+ *         - suggestedTier: string - Computed tier (S+, S, A, B, C, D, F)
+ *         - suggestedScore: number - Computed score
+ *       - confidence: object - Confidence scores for extracted stats
+ *     - summary: string
+ *
+ * Errors:
+ *   - 500: server_error - Internal server error
+ */
+router.get("/screenshots/latest", cacheGuildData(300, 600), async (req, res) => {
+  try {
+    const guildId = String(req.params.guildId);
+    const userId = req.user.id;
+
+    const result = getLatestScreenshotAnalysis({
+      guildId,
+      userId,
+    });
+
+    res.json(result);
+  } catch (err) {
+    console.error("[snail/screenshots/latest] failed:", err);
+    res.status(500).json({ error: "server_error", message: err.message });
+  }
 });
 
 /**
