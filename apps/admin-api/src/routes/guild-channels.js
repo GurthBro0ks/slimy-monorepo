@@ -2,6 +2,7 @@
 const express = require("express");
 const { requireAuth } = require("../middleware/auth");
 const { requireCsrf } = require("../middleware/csrf");
+const { recordAudit } = require("../services/audit");
 const fs = require("fs");
 const path = require("path");
 const DISCORD_API = "https://discord.com/api/v10";
@@ -51,12 +52,26 @@ router.get("/:guildId/channels", (req, res) => {
 });
 
 /** POST overrides (manual save) */
-router.post("/:guildId/channels", requireCsrf, express.json(), (req, res) => {
+router.post("/:guildId/channels", requireCsrf, express.json(), async (req, res) => {
   const { guildId } = req.params;
   const items = Array.isArray(req.body?.overrides) ? req.body.overrides : [];
   const cleaned = items.map(x => ({ id: String(x.id || ""), name: String(x.name || "") }))
                        .filter(x => x.id && x.name);
   fs.writeFileSync(overridesFile(guildId), JSON.stringify(cleaned, null, 2));
+
+  // Record audit log for channel overrides update
+  await recordAudit({
+    adminId: req.user?.sub || req.user?.id,
+    action: "guild.channel_overrides.update",
+    guildId: guildId,
+    payload: {
+      channelCount: cleaned.length,
+      channels: cleaned.map(c => ({ id: c.id, name: c.name })),
+    },
+  }).catch(err => {
+    console.error("[guild-channels] audit log failed:", err);
+  });
+
   res.json({ ok: true, overrides: cleaned });
 });
 

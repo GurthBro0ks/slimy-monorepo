@@ -7,6 +7,7 @@ const { requireRole, requireGuildMember } = require("../middleware/auth");
 const { requireCsrf } = require("../middleware/csrf");
 const { readJson, writeJson } = require("../lib/store");
 const { notifyGuildSettingsUpdated } = require("../services/webhooks/subscriber");
+const { recordAudit } = require("../services/audit");
 
 const SETTINGS_ROOT = path.join(process.cwd(), "data", "settings");
 
@@ -129,6 +130,21 @@ router.put(
 
       await saveSettings(req.params.guildId, next);
 
+      // Record audit log for settings update
+      await recordAudit({
+        adminId: req.user?.sub || req.user?.id,
+        action: "guild.settings.update",
+        guildId: req.params.guildId,
+        payload: {
+          hasScreenshotChannel: !!next.screenshot_channel_id,
+          personalityKeys: Object.keys(next.personality || {}),
+          overrideCategoryCount: Object.keys(next.overrides?.category || {}).length,
+          overrideChannelCount: Object.keys(next.overrides?.channel || {}).length,
+        },
+      }).catch(err => {
+        console.error("[guild-settings] audit log failed:", err);
+      });
+
       // TODO: Move to centralized event bus when available
       notifyGuildSettingsUpdated({
         guildId: req.params.guildId,
@@ -163,6 +179,18 @@ router.post(
       const current = await loadSettings(req.params.guildId);
       current.screenshot_channel_id = parsed.data.channelId;
       await saveSettings(req.params.guildId, current);
+
+      // Record audit log for screenshot channel update
+      await recordAudit({
+        adminId: req.user?.sub || req.user?.id,
+        action: "guild.screenshot_channel.update",
+        guildId: req.params.guildId,
+        payload: {
+          channelId: parsed.data.channelId,
+        },
+      }).catch(err => {
+        console.error("[guild-settings] audit log failed:", err);
+      });
 
       // TODO: Move to centralized event bus when available
       notifyGuildSettingsUpdated({
