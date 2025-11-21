@@ -9,69 +9,62 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Callout } from "@/components/ui/callout";
 import { RefreshCw, Search, Flag } from "lucide-react";
 import { ProtectedRoute } from "@/components/auth/protected-route";
-
-interface Code {
-  code: string;
-  source: "snelp" | "reddit";
-  ts: string;
-  tags: string[];
-  expires: string | null;
-  region: string;
-  description?: string;
-}
+import { fetchSnailCodes, isUsingSandbox, type SnailCode } from "@/lib/api/snail-codes";
 
 export default function CodesPage() {
-  const [codes, setCodes] = useState<Code[]>([]);
-  const [filteredCodes, setFilteredCodes] = useState<Code[]>([]);
+  const [codes, setCodes] = useState<SnailCode[]>([]);
+  const [filteredCodes, setFilteredCodes] = useState<SnailCode[]>([]);
   const [loading, setLoading] = useState(true);
-  const [scope, setScope] = useState<"active" | "past7" | "all">("active");
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [reportingCode, setReportingCode] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "expired">("active");
 
-  const fetchCodes = useCallback(async (hardRefresh = false) => {
+  const loadCodes = useCallback(async (hardRefresh = false) => {
     if (hardRefresh) setRefreshing(true);
     else setLoading(true);
 
     try {
-      const cache = hardRefresh ? "no-cache" : "default";
-      const response = await fetch(`/api/codes?scope=${scope}`, { cache });
-
-      if (response.ok) {
-        const data = await response.json();
-        setCodes(data.codes || []);
-      }
+      const data = await fetchSnailCodes();
+      setCodes(data);
     } catch (error) {
       console.error("Failed to fetch codes:", error);
+      // fetchSnailCodes already handles fallback to sandbox
+      setCodes([]);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [scope]);
+  }, []);
 
   useEffect(() => {
-    fetchCodes();
-  }, [fetchCodes]);
+    loadCodes();
+  }, [loadCodes]);
 
-  // Client-side search filtering
+  // Client-side filtering (search + status)
   useEffect(() => {
-    if (!searchQuery.trim()) {
-      setFilteredCodes(codes);
-      return;
+    let filtered = codes;
+
+    // Filter by status
+    if (statusFilter !== "all") {
+      filtered = filtered.filter((code) => code.status === statusFilter);
     }
 
-    const query = searchQuery.toLowerCase();
-    const filtered = codes.filter((code) => {
-      return (
-        code.code.toLowerCase().includes(query) ||
-        code.description?.toLowerCase().includes(query) ||
-        code.tags.some((tag) => tag.toLowerCase().includes(query)) ||
-        code.source.toLowerCase().includes(query)
-      );
-    });
+    // Filter by search query
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter((code) => {
+        return (
+          code.code.toLowerCase().includes(query) ||
+          code.title?.toLowerCase().includes(query) ||
+          code.source.toLowerCase().includes(query) ||
+          code.status.toLowerCase().includes(query)
+        );
+      });
+    }
 
     setFilteredCodes(filtered);
-  }, [searchQuery, codes]);
+  }, [searchQuery, codes, statusFilter]);
 
   const handleReportCode = async (code: string) => {
     setReportingCode(code);
@@ -101,12 +94,29 @@ export default function CodesPage() {
 
   const allCodesText = filteredCodes.map((c) => c.code).join("\n");
 
-  const getSourceBadge = (source: Code["source"]) => {
+  const getSourceBadge = (source: SnailCode["source"]) => {
     switch (source) {
       case "snelp":
         return <Badge variant="default">Snelp</Badge>;
       case "reddit":
         return <Badge variant="secondary">Reddit</Badge>;
+      case "twitter":
+        return <Badge variant="outline">Twitter</Badge>;
+      case "discord":
+        return <Badge variant="outline">Discord</Badge>;
+      case "other":
+        return <Badge variant="outline">Other</Badge>;
+    }
+  };
+
+  const getStatusBadge = (status: SnailCode["status"]) => {
+    switch (status) {
+      case "active":
+        return <Badge variant="default">Active</Badge>;
+      case "expired":
+        return <Badge variant="destructive">Expired</Badge>;
+      case "unknown":
+        return <Badge variant="secondary">Unknown</Badge>;
     }
   };
 
@@ -124,23 +134,23 @@ export default function CodesPage() {
         <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex gap-2">
             <Button
-              variant={scope === "active" ? "neon" : "outline"}
+              variant={statusFilter === "active" ? "neon" : "outline"}
               size="sm"
-              onClick={() => setScope("active")}
+              onClick={() => setStatusFilter("active")}
             >
               Active
             </Button>
             <Button
-              variant={scope === "past7" ? "neon" : "outline"}
+              variant={statusFilter === "expired" ? "neon" : "outline"}
               size="sm"
-              onClick={() => setScope("past7")}
+              onClick={() => setStatusFilter("expired")}
             >
-              Past 7 Days
+              Expired
             </Button>
             <Button
-              variant={scope === "all" ? "neon" : "outline"}
+              variant={statusFilter === "all" ? "neon" : "outline"}
               size="sm"
-              onClick={() => setScope("all")}
+              onClick={() => setStatusFilter("all")}
             >
               All
             </Button>
@@ -148,7 +158,7 @@ export default function CodesPage() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => fetchCodes(true)}
+            onClick={() => loadCodes(true)}
             disabled={refreshing}
           >
             <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
@@ -206,7 +216,7 @@ export default function CodesPage() {
             ) : (
               <div className="space-y-4">
                 {filteredCodes.map((code, index) => (
-                  <Card key={`${code.code}-${index}`}>
+                  <Card key={`${code.id}-${index}`}>
                     <CardHeader>
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
@@ -214,31 +224,27 @@ export default function CodesPage() {
                             {code.code}
                           </CardTitle>
                           <CardDescription>
-                            Added {new Date(code.ts).toLocaleDateString()}
-                            {code.description && ` • ${code.description}`}
+                            {code.foundAt && `Added ${new Date(code.foundAt).toLocaleDateString()}`}
+                            {code.title && ` • ${code.title}`}
                           </CardDescription>
                         </div>
                         <div className="flex gap-2">
                           {getSourceBadge(code.source)}
+                          {getStatusBadge(code.status)}
                         </div>
                       </div>
                     </CardHeader>
                     <CardContent>
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <div className="flex flex-wrap gap-2">
-                          {code.region && (
-                            <Badge variant="outline">{code.region.toUpperCase()}</Badge>
-                          )}
-                          {code.expires && (
-                            <Badge variant="destructive">
-                              Expires {new Date(code.expires).toLocaleDateString()}
+                          {code.expiresAt && (
+                            <Badge variant={code.status === "expired" ? "destructive" : "outline"}>
+                              {code.status === "expired" ? "Expired" : "Expires"} {new Date(code.expiresAt).toLocaleDateString()}
                             </Badge>
                           )}
-                          {code.tags?.map((tag) => (
-                            <Badge key={tag} variant="secondary">
-                              {tag}
-                            </Badge>
-                          ))}
+                          {!code.expiresAt && code.status === "active" && (
+                            <Badge variant="outline">No Expiry</Badge>
+                          )}
                         </div>
                         <Button
                           variant="ghost"

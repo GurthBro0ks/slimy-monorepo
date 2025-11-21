@@ -12,6 +12,7 @@ const diagRoutes = require("./diag");
 const botRoutes = require("./bot");
 const statsRoutes = require("./stats");
 const snailRoutes = require("./snail");
+const snailCodesRoutes = require("./snail-codes");
 const chatRoutes = require("./chat");
 
 router.get("/api/", (_req, res) => res.json({ ok: true }));
@@ -33,6 +34,7 @@ router.use("/api/uploads", uploadsRoutes);
 router.use("/api/diag", diagRoutes);
 router.use("/api/bot", botRoutes);
 router.use("/api/stats", statsRoutes);
+router.use("/api/snail", snailCodesRoutes);
 router.use("/api/chat", chatRoutes);
 
 module.exports = router;
