@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { ProtectedRoute } from "@/components/auth/protected-route";
 import {
   fetchLatestSnailAnalysis,
   type SnailAnalysisPayload,
@@ -12,6 +13,8 @@ import {
  *
  * Displays the latest analyzed Supersnail screenshots with normalized stats.
  * Supports both live mode (admin-api configured) and sandbox mode.
+ *
+ * Protected: Requires authentication
  */
 export default function ScreenshotsPage() {
   const [analysis, setAnalysis] = useState<SnailAnalysisPayload | null>(null);
@@ -43,7 +46,8 @@ export default function ScreenshotsPage() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100">
+    <ProtectedRoute>
+      <div className="min-h-screen bg-slate-950 text-slate-100">
       {/* Header */}
       <div className="border-b border-slate-800 bg-slate-900/60 px-4 py-4">
         <div className="mx-auto flex max-w-5xl items-center justify-between">
@@ -206,5 +210,6 @@ export default function ScreenshotsPage() {
         )}
       </div>
     </div>
+    </ProtectedRoute>
   );
 }
