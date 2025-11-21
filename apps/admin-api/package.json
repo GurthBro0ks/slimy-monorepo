@@ -7,12 +7,16 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node server.js",
-    "build": "node -e \"console.log('admin-api runs directly from source; no build artifacts generated yet.')\""
+    "build": "node -e \"console.log('admin-api runs directly from source; no build artifacts generated yet.')\"",
+    "prisma:generate": "prisma generate",
+    "test": "jest"
   },
   "engines": {
     "node": ">=20"
   },
   "dependencies": {
+    "@prisma/client": "^6.19.0",
+    "@sentry/node": "^8.43.0",
     "@slimy/core": "file:vendor/slimy-core",
     "axios": "^1.12.2",
     "compression": "^1.8.1",
@@ -29,8 +33,16 @@
     "multer": "^1.4.5-lts.2",
     "mysql2": "^3.15.3",
     "node-fetch": "^3.3.2",
+    "pino": "^9.7.0",
+    "redis": "^4.6.8",
     "sharp": "^0.33.4",
     "undici": "^7.16.0",
     "zod": "^3.25.6"
+  },
+  "devDependencies": {
+    "@types/jest": "^29.5.13",
+    "jest": "^29.7.0",
+    "prisma": "^6.19.0",
+    "supertest": "^7.1.0"
   }
 }
