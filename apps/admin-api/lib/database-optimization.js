@@ -1,4 +1,4 @@
-const { PrismaClient } = require('@prisma/client');
+const { PrismaClient } = require('../node_modules/.prisma/client-admin-api');
 const { getCache } = require('./cache/redis');
 
 /**
