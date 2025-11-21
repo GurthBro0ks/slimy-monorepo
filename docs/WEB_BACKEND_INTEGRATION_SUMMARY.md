@@ -87,7 +87,7 @@ export class AdminApiClient {
 
 #### Public Routes
 
-- `/` - Homepage
+- `/` - Homepage (shows hero content; logged-in users also see a "My Snail Snapshot" panel summarizing their best snail tier/score)
 - `/chat` - Public chat interface
 - `/login` - Login page (redirects to Discord)
 

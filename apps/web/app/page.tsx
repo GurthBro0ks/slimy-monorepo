@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Bot, BarChart3, MessageSquare, Shield } from "lucide-react";
 import { useAuth } from "@/lib/auth/context";
+import { SnailSnapshotCard } from "@/components/snail/snail-snapshot-card";
 
 export default function HomePage() {
   const { login } = useAuth();
@@ -67,6 +68,11 @@ export default function HomePage() {
           <span className="md:hidden">Login</span>
           <span className="hidden md:inline">Login with Discord</span>
         </Button>
+      </section>
+
+      {/* Snail Snapshot */}
+      <section className="mx-auto mt-10 max-w-4xl">
+        <SnailSnapshotCard />
       </section>
 
       {/* Features Grid */}
