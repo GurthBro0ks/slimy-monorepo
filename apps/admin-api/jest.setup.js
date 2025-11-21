@@ -3,6 +3,11 @@ jest.mock('uuid', () => ({
   v4: jest.fn(() => 'test-uuid-1234'),
 }));
 
+// Mock nanoid to avoid ES module issues
+jest.mock('nanoid', () => ({
+  nanoid: jest.fn(() => 'test-nanoid-1234'),
+}));
+
 // Mock database to avoid initialization issues
 const mockDatabase = {
   isConfigured: jest.fn(() => false),
@@ -74,7 +79,8 @@ const mockDatabase = {
 };
 
 jest.mock('./src/lib/database', () => mockDatabase);
-jest.mock('../lib/database', () => mockDatabase);
+// Note: lib/* imports are handled by moduleNameMapper in jest.config.js
+// and point to monorepo root /lib directory
 
 // Mock session store to avoid database dependencies
 const mockSessions = new Map();
