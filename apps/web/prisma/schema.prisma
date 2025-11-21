@@ -10,73 +10,6 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// DEPRECATED: Club Analysis models moved to admin-api
-//
-// NOTE: As of Phase 2.1 (Database Consolidation), club analytics are canonically
-// stored in admin-api's Prisma schema. These web app models are deprecated.
-//
-// Migration Plan:
-// 1. Existing data should be migrated to admin-api database
-// 2. Web app should read/write club analytics via admin-api endpoints (/api/club-analytics/*)
-// 3. These models will be removed in a future migration
-//
-// For new code, use the admin-api endpoints instead of querying these models directly.
-
-// Club Analysis (DEPRECATED - use admin-api instead)
-model ClubAnalysis {
-  id          String   @id @default(cuid())
-  guildId     String
-  userId      String
-  title       String?
-  summary     String
-  confidence  Float
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  // Relations
-  images      ClubAnalysisImage[]
-  metrics     ClubMetric[]
-
-  @@index([guildId])
-  @@index([userId])
-  @@index([createdAt])
-  @@map("club_analyses")
-}
-
-// Club Analysis Images (DEPRECATED - use admin-api instead)
-model ClubAnalysisImage {
-  id           String   @id @default(cuid())
-  analysisId   String
-  imageUrl     String
-  originalName String
-  fileSize     Int
-  uploadedAt   DateTime @default(now())
-
-  // Relations
-  analysis     ClubAnalysis @relation(fields: [analysisId], references: [id], onDelete: Cascade)
-
-  @@index([analysisId])
-  @@map("club_analysis_images")
-}
-
-// Club Metrics (DEPRECATED - use admin-api instead)
-model ClubMetric {
-  id         String   @id @default(cuid())
-  analysisId String
-  name       String
-  value      String   // Stored as JSON string for flexibility
-  unit       String?
-  category   String
-  createdAt  DateTime @default(now())
-
-  // Relations
-  analysis   ClubAnalysis @relation(fields: [analysisId], references: [id], onDelete: Cascade)
-
-  @@index([analysisId])
-  @@index([category])
-  @@map("club_metrics")
-}
-
 // User Preferences
 model UserPreferences {
   id                String   @id @default(cuid())
@@ -162,43 +95,6 @@ model CodeReport {
   @@index([status])
   @@index([createdAt])
   @@map("code_reports")
-}
-
-// DEPRECATED: Audit Logs (for persistence)
-//
-// NOTE: As of Phase 2.1 (Database Consolidation), audit logs are canonically
-// stored in admin-api's Prisma schema. This web app model is deprecated.
-//
-// The admin-api version includes additional fields (requestId, sessionId, tracing info)
-// and is the single source of truth for all system audits.
-//
-// Migration Plan:
-// 1. Existing web audit logs should be migrated to admin-api
-// 2. Web app should submit audit events via admin-api endpoints (/api/audit-log/*)
-// 3. This model will be removed in a future migration
-//
-// For new code, use admin-api audit log submission endpoints instead of querying this model.
-
-model AuditLog {
-  id         String   @id @default(cuid())
-  userId     String
-  username   String?
-  action     String
-  resource   String
-  resourceId String?
-  changes    String?  @db.Text // JSON string
-  ipAddress  String?
-  userAgent  String?  @db.Text
-  status     String   // success, failure
-  errorMsg   String?  @db.Text
-  metadata   String?  @db.Text // JSON string
-  createdAt  DateTime @default(now())
-
-  @@index([userId])
-  @@index([action])
-  @@index([resource])
-  @@index([createdAt])
-  @@map("audit_logs")
 }
 
 // User Sessions (optional - for session management)
