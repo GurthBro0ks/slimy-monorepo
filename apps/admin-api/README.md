@@ -76,16 +76,24 @@ admin-api/
 ├── src/
 │   ├── app.js                 # Express app setup
 │   ├── config.js              # Configuration bridge (uses typed config)
+│   ├── services/
+│   │   └── audit.js           # Audit logging service
 │   ├── lib/
-│   │   └── config/
-│   │       ├── typed-config.ts   # Type-safe config with Zod validation
-│   │       └── index.js          # Config export
+│   │   ├── config/
+│   │   │   ├── typed-config.ts   # Type-safe config with Zod validation
+│   │   │   └── index.js          # Config export
+│   │   └── queues/
+│   │       └── audit-processor.js  # Async audit event processing
 │   ├── middleware/
 │   │   └── auth.js            # Authentication middleware
 │   └── routes/
 │       ├── index.js           # Route registry
 │       ├── auth.js            # OAuth flow: login, callback, logout, /me
-│       └── guilds.js          # Guild management endpoints
+│       ├── guilds.js          # Guild management endpoints
+│       ├── guild-settings.js  # Guild settings (with audit logging)
+│       ├── guild-channels.js  # Channel configuration (with audit logging)
+│       ├── personality.js     # Personality config (with audit logging)
+│       └── bot.js             # Bot operations (with audit logging)
 ├── tests/
 │   └── config.test.js         # Config validation tests
 ├── ENV.md                     # Environment variables documentation
@@ -227,6 +235,7 @@ router.get('/protected', requireAuth, (req, res) => {
 });
 ```
 
+<<<<<<< HEAD
 ## Caching
 
 The API includes a Redis-backed caching utility with automatic fallback to in-memory caching when Redis is unavailable.
@@ -359,6 +368,22 @@ The cache automatically handles Redis failures:
 4. All cache operations work identically regardless of backend
 
 **Note**: Memory cache is not shared across multiple server instances and is lost on restart.
+=======
+## Audit Logging
+
+Comprehensive audit logging is implemented for all critical administrative actions. See **[AUDIT_LOGGING.md](./AUDIT_LOGGING.md)** for:
+- Instrumented routes and event types
+- Event payload schemas
+- Querying and reporting
+- Retention and compliance
+- Testing and troubleshooting
+
+**Phase 3.2** added audit logging for:
+- Guild settings updates
+- Channel configuration changes
+- Personality updates and resets
+- Bot rescan operations
+>>>>>>> origin/claude/audit-logging-rollout-01Gnj1jhHyKXYzPsRMKDjscR
 
 ## Security Notes
 
@@ -368,6 +393,7 @@ The cache automatically handles Redis failures:
 - JWT signed with `SESSION_SECRET`
 - CORS restricted to `ALLOWED_ORIGIN`
 - Helmet.js security headers enabled
+- Audit logging enabled by default (disable with `ADMIN_AUDIT_DISABLED=true`)
 
 ## TODO
 
