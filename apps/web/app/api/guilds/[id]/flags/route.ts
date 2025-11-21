@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getGuildFlags, updateGuildFlags, type GuildFlags } from "@/lib/feature-flags";
+import { sendAuditEvent, AuditActions, ResourceTypes } from "@/lib/api/auditLog";
 
 export const runtime = "nodejs";
 
@@ -40,9 +41,9 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  try {
-    const { id: guildId } = await params;
+  const { id: guildId } = await params;
 
+  try {
     // TODO: Verify admin role from session/token
     // For now, allow all updates (add auth later)
 
@@ -60,7 +61,24 @@ export async function PATCH(
       );
     }
 
+    // Capture old values for audit trail
+    const oldFlags = getGuildFlags(guildId);
+
     const updated = updateGuildFlags(guildId, body);
+
+    // Log the flags update to audit log (non-blocking)
+    sendAuditEvent({
+      action: AuditActions.GUILD_FLAGS_UPDATE,
+      resourceType: ResourceTypes.GUILD,
+      resourceId: guildId,
+      details: {
+        changed: Object.keys(body),
+        before: oldFlags,
+        after: updated,
+      },
+    }).catch(err => {
+      console.error('[Audit] Failed to log guild flags update:', err);
+    });
 
     return NextResponse.json({
       ok: true,
@@ -68,6 +86,17 @@ export async function PATCH(
     });
   } catch (error) {
     console.error("Failed to update guild flags:", error);
+
+    // Log the failed attempt to audit log (non-blocking)
+    sendAuditEvent({
+      action: AuditActions.GUILD_FLAGS_UPDATE,
+      resourceType: ResourceTypes.GUILD,
+      resourceId: guildId,
+      success: false,
+      errorMessage: error instanceof Error ? error.message : 'Unknown error',
+    }).catch(err => {
+      console.error('[Audit] Failed to log failed guild flags update:', err);
+    });
 
     return NextResponse.json(
       {

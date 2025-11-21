@@ -27,7 +27,7 @@ const seasonsRoutes = require("./seasons");
 const slimecraftRoutes = require("./slimecraft-updates");
 const savedPromptsRoutes = require("./savedPrompts");
 const exportRoutes = require("./export");
-const auditLogRoutes = require("./auditLog");
+const auditLogRoutes = require("./audit-log");
 
 router.get("/api/", (_req, res) => res.json({ ok: true }));
 router.get("/api/health", (_req, res) => {
