@@ -4,7 +4,7 @@
  * Provides a singleton Prisma client instance for database operations
  */
 
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient } from '../node_modules/.prisma/client';
 
 // Extend PrismaClient type for global storage
 declare global {
@@ -80,4 +80,4 @@ export async function getDbHealth(): Promise<{
 }
 
 // Export Prisma types for use in other files
-export * from '@prisma/client';
+export * from '../node_modules/.prisma/client';
