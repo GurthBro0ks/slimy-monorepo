@@ -30,6 +30,61 @@ const router = express.Router();
 router.use(requireAuth);
 
 /**
+ * POST /api/chat
+ *
+ * Simple synchronous chat endpoint for direct message/reply interaction.
+ * Returns a reply immediately without queuing.
+ *
+ * Requires: authentication
+ *
+ * Request body:
+ *   - message: string (required) - User's message
+ *   - history: array (optional) - Array of previous messages with {role, content}
+ *
+ * Response:
+ *   - reply: string - AI-generated reply (placeholder for now)
+ *   - usage: object (optional) - Token usage and cost information
+ *
+ * Errors:
+ *   - 400: invalid_message - Message is missing or invalid
+ *   - 500: server_error - Internal server error
+ */
+router.post("/", express.json(), apiHandler(async (req, res) => {
+  const { message, history } = req.body;
+
+  // Validate message
+  if (!message || typeof message !== 'string' || message.trim().length === 0) {
+    res.status(400).json({
+      error: "invalid_message",
+      message: "Message must be a non-empty string"
+    });
+    return;
+  }
+
+  try {
+    // TODO: Replace with real LLM call later
+    // For now, return a simple placeholder reply
+    const reply = `This is a placeholder reply from the admin-api chat endpoint. You said: "${message.trim()}".`;
+
+    // Optional: Use history to enhance the reply if provided
+    const historyContext = history && Array.isArray(history) && history.length > 0
+      ? ` (I can see ${history.length} previous message${history.length > 1 ? 's' : ''} in our conversation history)`
+      : '';
+
+    return {
+      reply: reply + historyContext,
+      usage: {
+        tokens: 0,
+        costUsd: 0,
+      },
+    };
+  } catch (error) {
+    console.error('[chat] Failed to generate reply:', error);
+    throw error;
+  }
+}, { routeName: "chat/message" }));
+
+/**
  * POST /api/chat/bot
  *
  * Submit a chat bot interaction job for async processing.
