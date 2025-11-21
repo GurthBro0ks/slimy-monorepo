@@ -321,6 +321,119 @@ export async function fetchSomeData() {
 
 ---
 
+## Auth and Protected Routes
+
+### Authentication System
+
+The application uses a **custom Discord OAuth-based authentication** system:
+
+**Frontend (apps/web)**:
+- `AuthProvider` component wraps the entire app (in `app/layout.tsx`)
+- `useAuth()` hook provides session access across all components
+- `ProtectedRoute` component for route-level access control
+- Auth state management with automatic token refresh
+- Cookie-based session transport
+
+**Backend (apps/admin-api)**:
+- JWT cookie-based authentication
+- Middleware: `requireAuth`, `requireRole`, `requireGuildMember`
+- Session verification via `verifySessionToken`
+- Discord OAuth flow: `/api/auth/login` → `/api/auth/callback`
+- User info endpoint: `GET /api/auth/me`
+
+### Protected Frontend Routes
+
+Routes that **require authentication** (use `ProtectedRoute` component):
+
+| Route | Auth Requirement | Notes |
+|-------|------------------|-------|
+| `/snail/codes` | Login required | Uses `<ProtectedRoute>` wrapper |
+| `/screenshots` | Login required | Uses `<ProtectedRoute>` wrapper |
+| `/club` | Login required + `club` role | Uses `<ProtectedRoute requiredRole="club">` |
+| `/chat` | Session-aware (optional) | Accessible without login, but session context used when available |
+
+**Note**: `/usage` and `/tiers` pages do not exist yet as standalone pages, but when implemented should use `<ProtectedRoute>`.
+
+### Protected Backend Endpoints
+
+Endpoints that **require authentication**:
+
+| Endpoint | Auth Middleware | Role Required | Notes |
+|----------|----------------|---------------|-------|
+| `GET /api/snail/screenshots/latest` | `requireAuth` | Any authenticated user | Protected: requires session cookie |
+| `GET /api/snail/codes` | `requireAuth`, `requireRole("member")` | Member or higher | Guild-scoped |
+| `POST /api/snail/tier` | `requireAuth`, `requireRole("member")` | Member or higher | Guild-scoped |
+| `POST /api/snail/analyze` | `requireAuth`, `requireRole("member")` | Member or higher | Guild-scoped, file upload |
+| `GET /api/snail/stats` | `requireAuth`, `requireRole("member")` | Member or higher | Guild-scoped |
+| `POST /api/chat` | `requireAuth` | Any authenticated user | Chat bot interaction |
+
+**Public Endpoints** (no auth required):
+- `GET /api/health` - Health check
+- `GET /api/` - API root
+
+### Auth Flow
+
+1. **Login**:
+   - User clicks login on web app
+   - Redirects to `${ADMIN_API_BASE}/api/auth/login`
+   - Admin API redirects to Discord OAuth
+   - Discord callback returns to `${ADMIN_API_BASE}/api/auth/callback`
+   - Admin API sets JWT session cookie
+   - Redirects back to web app
+
+2. **Session Check**:
+   - On app load, `AuthProvider` calls `GET /api/auth/me`
+   - If cookie valid, returns user object with role and guilds
+   - If invalid/missing, user is logged out
+
+3. **Authenticated Requests**:
+   - `AdminApiClient` includes `credentials: 'include'` in all fetch requests
+   - Browser automatically sends session cookie with each request
+   - Admin API validates cookie via `requireAuth` middleware
+   - User object attached to `req.user` for route handlers
+
+4. **Logout**:
+   - User clicks logout
+   - Calls `GET /api/auth/logout`
+   - Admin API clears session cookie
+   - Redirects back to web app
+
+### Role Hierarchy
+
+```
+admin (2) > club (1) > member (0)
+```
+
+- **admin**: Full access to all features and guilds
+- **club**: Access to club analytics and member features
+- **member**: Basic access to snail tools and codes
+
+### CORS Configuration
+
+For auth to work cross-origin (web app on `:3000`, admin-api on `:3001`):
+
+**Admin API must set**:
+- `Access-Control-Allow-Origin: http://localhost:3000`
+- `Access-Control-Allow-Credentials: true`
+- `Access-Control-Allow-Methods: GET, POST, PUT, PATCH, DELETE`
+- `Access-Control-Allow-Headers: Content-Type`
+
+**Web App sets**:
+- `credentials: 'include'` in all `AdminApiClient` requests
+
+### TODOs for Full Auth Integration
+
+- [ ] Implement guild-specific data filtering in screenshot endpoints
+- [ ] Add per-guild role assignments (currently global roles only)
+- [ ] Implement token refresh logic on 401 responses
+- [ ] Add "You need to login" UI with Discord button for protected pages
+- [ ] Add proper error handling for expired sessions
+- [ ] Implement CSRF protection for state-changing endpoints
+- [ ] Add rate limiting per user/guild
+- [ ] Add audit logging for sensitive operations
+
+---
+
 ## Environment Variables
 
 ### apps/web

@@ -141,7 +141,7 @@ export class AdminApiClient {
 
     // Add timeout support
     const controller = new AbortController();
-    const timeoutId = timeout > 0 
+    const timeoutId = timeout > 0
       ? setTimeout(() => controller.abort(), timeout)
       : null;
 
@@ -150,6 +150,7 @@ export class AdminApiClient {
         ...fetchOptions,
         headers,
         signal: controller.signal,
+        credentials: 'include', // Include cookies for authentication
       });
 
       if (timeoutId) {
@@ -306,7 +307,7 @@ export class AdminApiClient {
     } = config;
 
     const controller = new AbortController();
-    const timeoutId = timeout > 0 
+    const timeoutId = timeout > 0
       ? setTimeout(() => controller.abort(), timeout)
       : null;
 
@@ -315,6 +316,7 @@ export class AdminApiClient {
         ...fetchOptions,
         headers,
         signal: controller.signal,
+        credentials: 'include', // Include cookies for authentication
       });
 
       if (timeoutId) {
