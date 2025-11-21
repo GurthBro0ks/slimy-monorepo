@@ -3,6 +3,31 @@ jest.mock('uuid', () => ({
   v4: jest.fn(() => 'test-uuid-1234'),
 }));
 
+// Mock @slimy/core to avoid module resolution issues
+jest.mock('@slimy/core', () => ({
+  // Add any core functions that might be used
+  validatePersonality: jest.fn(() => true),
+}));
+
+// Mock week-anchor to avoid module resolution issues
+jest.mock('./lib/week-anchor', () => ({
+  getWeekAnchor: jest.fn(() => new Date('2024-01-01')),
+  setWeekAnchor: jest.fn(),
+}));
+
+// Mock club-corrections to avoid module resolution issues
+jest.mock('./lib/club-corrections', () => ({
+  applyCorrections: jest.fn((data) => data),
+  getCorrections: jest.fn(() => ({})),
+}));
+
+// Mock other lib files that delegate to non-existent parent lib
+// Only mock files that actually exist
+jest.mock('./src/lib/store', () => ({
+  readJson: jest.fn(() => Promise.resolve(null)),
+  writeJson: jest.fn(() => Promise.resolve()),
+}));
+
 // Mock database to avoid initialization issues
 const mockDatabase = {
   isConfigured: jest.fn(() => false),
@@ -74,7 +99,7 @@ const mockDatabase = {
 };
 
 jest.mock('./src/lib/database', () => mockDatabase);
-jest.mock('../lib/database', () => mockDatabase);
+jest.mock('./lib/database', () => mockDatabase);
 
 // Mock session store to avoid database dependencies
 const mockSessions = new Map();

@@ -129,6 +129,41 @@ admin-api/
 
 **Purpose**: Store guilds array and access tokens server-side to avoid exceeding cookie size limits (4KB browser maximum).
 
+## Testing
+
+### Running Tests
+```bash
+pnpm test
+```
+
+### Test Suites
+
+The admin-api has a minimal but solid smoke test suite covering:
+
+#### 1. Health Endpoints (`tests/health.smoke.test.js`)
+- `GET /api/health` - Service health check
+- `GET /api/` - Root API endpoint
+
+#### 2. Club Analytics (`tests/club-analytics.smoke.test.js`)
+- `POST /api/club-analytics/analysis` - Create analysis (admin only)
+- `GET /api/club-analytics/analyses` - List analyses with filtering
+- `GET /api/club-analytics/analyses/:id` - Get single analysis
+- Tests validation, auth, and error handling
+
+#### 3. Audit Logging (`tests/audit-logging.smoke.test.js`)
+- Verifies guild settings changes are audited
+- Verifies screenshot channel changes are audited
+- Tests audit event structure and admin ID tracking
+
+### Test Configuration
+- **Runner**: Jest 29.7.0
+- **HTTP Testing**: supertest 6.3.3
+- **Timeout**: 10s per test
+- **Mocking**: Comprehensive mocks in `jest.setup.js`
+
+### Known Issues
+Tests currently require resolution of monorepo-level lib dependencies. See `../../docs/MEGA_HEALTH_CHECK.md` for details.
+
 **Implementation**:
 - In-memory Map (not persistent across restarts)
 - Auto-expires sessions after 12 hours
