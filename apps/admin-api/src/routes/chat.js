@@ -26,7 +26,85 @@ const { apiHandler } = require("../lib/errors");
 const ADMIN_ROOM_ID = "admin-global";
 
 const router = express.Router();
-// All chat routes require authentication
+
+/**
+ * POST /api/chat
+ *
+ * Simple synchronous chat endpoint for basic message/reply interactions.
+ * This is a simplified endpoint for direct chat communication without queuing.
+ *
+ * IMPORTANT: This endpoint does NOT require authentication (no requireAuth middleware).
+ * It's designed for simple, stateless chat interactions.
+ *
+ * Request body:
+ *   - message: string (required) - User's message
+ *   - history: array (optional) - Conversation history
+ *     - Each item: { role: "user" | "assistant" | "system", content: string }
+ *
+ * Response:
+ *   - ok: boolean
+ *   - reply: string - AI-generated response
+ *   - usage: object (optional) - Token usage and cost info
+ *     - tokens: number
+ *     - costUsd: number
+ *
+ * Errors:
+ *   - 400: bad_request - Invalid request body
+ */
+router.post("/", express.json(), apiHandler(async (req, res) => {
+  const { message, history } = req.body;
+
+  // Validate required fields
+  if (!message || typeof message !== 'string' || message.trim().length === 0) {
+    res.status(400).json({
+      ok: false,
+      error: 'bad_request',
+      message: 'Message is required and must be a non-empty string'
+    });
+    return;
+  }
+
+  // Validate history if provided
+  if (history !== undefined && !Array.isArray(history)) {
+    res.status(400).json({
+      ok: false,
+      error: 'bad_request',
+      message: 'History must be an array'
+    });
+    return;
+  }
+
+  try {
+    // Use a simple placeholder implementation for now
+    // TODO: Replace with real LLM integration later
+    const historyContext = history && history.length > 0
+      ? ` (conversation with ${history.length} previous messages)`
+      : '';
+
+    const reply = `This is a placeholder reply from the admin-api chat endpoint${historyContext}. Your message was: "${message.trim()}".`;
+
+    return {
+      ok: true,
+      reply,
+      usage: {
+        tokens: 0,
+        costUsd: 0,
+      },
+    };
+
+  } catch (error) {
+    console.error('[chat] Failed to process chat message:', error);
+    throw error;
+  }
+}, {
+  routeName: "chat",
+  errorMapper: (error, req, res) => {
+    // Custom error handling for this endpoint
+    return null; // Use default error handling
+  }
+}));
+
+// All other chat routes require authentication
 router.use(requireAuth);
 
 /**

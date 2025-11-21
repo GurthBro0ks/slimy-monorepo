@@ -50,198 +50,88 @@ export function useChat(conversationId?: string) {
     setIsLoading(true);
     setError(null);
 
-    let assistantMessageId: string | null = null;
-
     try {
-    // Create conversation if needed
-    let conversationIdToUse = currentConversationId;
-    if (!conversationIdToUse && user) {
-      try {
-        const title = chatStorage.generateTitleFromMessage(content);
-        conversationIdToUse = await chatStorage.createConversation(
-          user.id,
-          title,
-          session.currentMode
-        );
-        setCurrentConversationId(conversationIdToUse);
-      } catch (error) {
-        console.error('Failed to create conversation:', error);
-        // Continue without conversation persistence for now
-      }
-    }
-
-    // Add user message
-    const userMessage: Message = {
-      id: `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      role: 'user',
-      content,
-      timestamp: Date.now(),
-      personalityMode: session.currentMode,
-    };
-
-    setSession(prev => ({
-      ...prev,
-      messages: [...prev.messages, userMessage],
-      updatedAt: Date.now(),
-    }));
-
-    // Save user message to database if we have a conversation
-    if (conversationIdToUse && user) {
-      try {
-        await chatStorage.saveMessage(conversationIdToUse, user.id, userMessage);
-      } catch (error) {
-        console.error('Failed to save user message:', error);
-        // Continue with chat even if persistence fails
-      }
-    }
-
-    // Add placeholder assistant message for streaming
-    assistantMessageId = `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    const placeholderMessage: Message = {
-      id: assistantMessageId,
-      role: 'assistant',
-      content: '',
-      timestamp: Date.now(),
-      personalityMode: session.currentMode,
-    };
-
-    setSession(prev => ({
-      ...prev,
-      messages: [...prev.messages, placeholderMessage],
-      updatedAt: Date.now(),
-    }));
-
-    // Retry logic for network/API failures
-    let response;
-    let retryCount = 0;
-    const maxRetries = 2;
-
-    while (retryCount <= maxRetries) {
-      try {
-        response = await fetch('/api/chat/message', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            message: content,
-            personalityMode: session.currentMode,
-            conversationHistory: session.messages.filter(msg => msg.id !== placeholderMessage.id),
-            userId: user?.id,
-          }),
-        });
-        break; // Success, exit retry loop
-      } catch (networkError) {
-        retryCount++;
-        if (retryCount <= maxRetries) {
-          console.warn(`Network request failed (attempt ${retryCount}/${maxRetries + 1}), retrying...`);
-          await new Promise(resolve => setTimeout(resolve, Math.pow(2, retryCount) * 1000));
-          continue;
-        }
-        throw networkError;
-      }
-    }
-
-    if (!response!.ok) {
-      const errorData = await response!.json();
-
-      // Don't retry on rate limit or auth errors
-      if (errorData.code === 'RATE_LIMIT_EXCEEDED' || errorData.code === 'OPENAI_AUTH_ERROR') {
-        throw new Error(errorData.error || 'Request failed');
-      }
-
-      // Retry on other errors
-      if (retryCount < maxRetries && errorData.code !== 'INVALID_MESSAGE') {
-        console.warn(`API request failed with ${errorData.code}, retrying...`);
-        // Could implement retry logic here for specific error codes
-      }
-
-      throw new Error(errorData.error || 'Failed to send message');
-    }
-
-    // Handle streaming response
-    const reader = response!.body?.getReader();
-    const decoder = new TextDecoder();
-
-    if (!reader) {
-      throw new Error('No response stream available');
-    }
-
-    let fullContent = '';
-    let isComplete = false;
-
-    while (!isComplete) {
-      const { done, value } = await reader.read();
-
-      if (done) {
-        isComplete = true;
-        break;
-      }
-
-      const chunk = decoder.decode(value, { stream: true });
-      const lines = chunk.split('\n').filter(line => line.trim());
-
-      for (const line of lines) {
+      // Create conversation if needed (optional persistence)
+      let conversationIdToUse = currentConversationId;
+      if (!conversationIdToUse && user) {
         try {
-          const data = JSON.parse(line);
-
-          if (data.type === 'chunk') {
-            fullContent += data.content;
-
-            // Update the assistant message with streaming content
-            setSession(prev => ({
-              ...prev,
-              messages: prev.messages.map(msg =>
-                msg.id === assistantMessageId
-                  ? { ...msg, content: fullContent }
-                  : msg
-              ),
-              updatedAt: Date.now(),
-            }));
-          } else if (data.type === 'complete') {
-            // Update with final message
-            setSession(prev => ({
-              ...prev,
-              messages: prev.messages.map(msg =>
-                msg.id === assistantMessageId
-                  ? data.message
-                  : msg
-              ),
-              updatedAt: Date.now(),
-            }));
-
-            // Save assistant message to database if we have a conversation
-            if (conversationIdToUse && user) {
-              try {
-                await chatStorage.saveMessage(conversationIdToUse, user.id, data.message);
-              } catch (error) {
-                console.error('Failed to save assistant message:', error);
-                // Continue even if persistence fails
-              }
-            }
-
-            isComplete = true;
-            break;
-          } else if (data.type === 'error') {
-            throw new Error(data.error || 'Streaming error occurred');
-          }
-        } catch (parseError) {
-          console.error('Failed to parse streaming data:', parseError, line);
+          const title = chatStorage.generateTitleFromMessage(content);
+          conversationIdToUse = await chatStorage.createConversation(
+            user.id,
+            title,
+            session.currentMode
+          );
+          setCurrentConversationId(conversationIdToUse);
+        } catch (error) {
+          console.error('Failed to create conversation:', error);
+          // Continue without conversation persistence
         }
       }
-    }
+
+      // Add user message
+      const userMessage: Message = {
+        id: `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        role: 'user',
+        content,
+        timestamp: Date.now(),
+        personalityMode: session.currentMode,
+      };
+
+      setSession(prev => ({
+        ...prev,
+        messages: [...prev.messages, userMessage],
+        updatedAt: Date.now(),
+      }));
+
+      // Save user message to database if we have a conversation
+      if (conversationIdToUse && user) {
+        try {
+          await chatStorage.saveMessage(conversationIdToUse, user.id, userMessage);
+        } catch (error) {
+          console.error('Failed to save user message:', error);
+          // Continue with chat even if persistence fails
+        }
+      }
+
+      // Import the new admin-api chat client
+      const { sendChatMessage } = await import('@/lib/api/chat');
+
+      // Convert message history to the format expected by the API
+      const history = session.messages.map(msg => ({
+        role: msg.role,
+        content: msg.content,
+      }));
+
+      // Call the admin-api chat endpoint (or sandbox fallback)
+      const result = await sendChatMessage(content, history);
+
+      // Create assistant message from the reply
+      const assistantMessage: Message = {
+        id: `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        role: 'assistant',
+        content: result.reply,
+        timestamp: Date.now(),
+        personalityMode: session.currentMode,
+      };
+
+      setSession(prev => ({
+        ...prev,
+        messages: [...prev.messages, assistantMessage],
+        updatedAt: Date.now(),
+      }));
+
+      // Save assistant message to database if we have a conversation
+      if (conversationIdToUse && user) {
+        try {
+          await chatStorage.saveMessage(conversationIdToUse, user.id, assistantMessage);
+        } catch (error) {
+          console.error('Failed to save assistant message:', error);
+          // Continue even if persistence fails
+        }
+      }
+
     } catch (err: any) {
       console.error('Send message error:', err);
-
-      // Remove the placeholder message on error
-      if (assistantMessageId) {
-        setSession(prev => ({
-          ...prev,
-          messages: prev.messages.filter(msg => msg.id !== assistantMessageId),
-          updatedAt: Date.now(),
-        }));
-      }
-
       setError(err.message || 'Failed to send message');
     } finally {
       setIsLoading(false);
