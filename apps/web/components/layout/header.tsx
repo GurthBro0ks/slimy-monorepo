@@ -15,9 +15,9 @@ import { LogOut, Loader2 } from "lucide-react";
 
 const navItems = [
   { href: "/", label: "Home", prefetch: true },
-  { href: "/features", label: "Features", prefetch: true },
-  { href: "/docs", label: "Docs", prefetch: true },
-  { href: "/status", label: "Status", prefetch: false },
+  { href: "/chat", label: "Chat", prefetch: true },
+  { href: "/snail/codes", label: "Snail Codes", prefetch: true },
+  { href: "/club", label: "Club", prefetch: true, requiresRole: "club" as const },
 ];
 
 // Critical paths to prefetch on mount (for authenticated users)
@@ -81,21 +81,28 @@ export function Header() {
             <span className="text-2xl font-bold text-neon-green">slimy.ai</span>
           </Link>
           <nav className="hidden md:flex gap-6">
-            {navItems.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                prefetch={item.prefetch}
-                className={cn(
-                  "text-sm font-medium transition-colors hover:text-neon-green",
-                  pathname === item.href
-                    ? "text-neon-green"
-                    : "text-muted-foreground"
-                )}
-              >
-                {item.label}
-              </Link>
-            ))}
+            {navItems.map((item) => {
+              // Hide club link if user doesn't have club role
+              if (item.requiresRole && (!user || user.role !== item.requiresRole && user.role !== "admin")) {
+                return null;
+              }
+
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  prefetch={item.prefetch}
+                  className={cn(
+                    "text-sm font-medium transition-colors hover:text-neon-green",
+                    pathname === item.href
+                      ? "text-neon-green"
+                      : "text-muted-foreground"
+                  )}
+                >
+                  {item.label}
+                </Link>
+              );
+            })}
           </nav>
         </div>
 
