@@ -7,7 +7,8 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node server.js",
-    "build": "node -e \"console.log('admin-api runs directly from source; no build artifacts generated yet.')\""
+    "build": "node -e \"console.log('admin-api runs directly from source; no build artifacts generated yet.')\"",
+    "test": "jest --coverage --passWithNoTests"
   },
   "engines": {
     "node": ">=20"
@@ -28,9 +29,17 @@
     "morgan": "^1.10.1",
     "multer": "^1.4.5-lts.2",
     "mysql2": "^3.15.3",
+    "nanoid": "^5.1.6",
     "node-fetch": "^3.3.2",
     "sharp": "^0.33.4",
     "undici": "^7.16.0",
+    "uuid": "^13.0.0",
     "zod": "^3.25.6"
+  },
+  "devDependencies": {
+    "@types/jest": "^30.0.0",
+    "@types/supertest": "^6.0.3",
+    "jest": "^30.2.0",
+    "supertest": "^7.1.4"
   }
 }
