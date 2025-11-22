@@ -23,6 +23,7 @@ describe("UsageBadge", () => {
 
       render(<UsageBadge />);
 
+      expect(screen.getByTestId("usage-badge")).toBeInTheDocument();
       expect(screen.getByText("Loading...")).toBeInTheDocument();
     });
 
@@ -56,10 +57,10 @@ describe("UsageBadge", () => {
         new Error("Network error")
       );
 
-      const { container } = render(<UsageBadge />);
+      render(<UsageBadge />);
 
       await waitFor(() => {
-        expect(container.querySelector('[class*="badge"]')).toBeInTheDocument();
+        expect(screen.getByTestId("usage-badge")).toBeInTheDocument();
       });
     });
   });
@@ -115,9 +116,8 @@ describe("UsageBadge", () => {
         expect(screen.getByText("Usage: 100%")).toBeInTheDocument();
       });
 
-      // Check for destructive variant
-      const badge = container.querySelector('[class*="destructive"]');
-      expect(badge).toBeInTheDocument();
+      const badge = screen.getByTestId("usage-badge");
+      expect(badge.getAttribute("data-usage-level")).toBe("over_cap");
     });
   });
 
@@ -242,9 +242,7 @@ describe("UsageBadge", () => {
         expect(screen.getByText("Usage: 50%")).toBeInTheDocument();
       });
 
-      // Check for CheckCircle icon (via class)
-      const icon = container.querySelector('svg.lucide-check-circle');
-      expect(icon).toBeInTheDocument();
+      expect(screen.getByTestId("usage-status-icon-ok")).toBeInTheDocument();
     });
 
     it("should show yellow warning icon for soft_cap status", async () => {
@@ -263,9 +261,7 @@ describe("UsageBadge", () => {
         expect(screen.getByText("Usage: 95%")).toBeInTheDocument();
       });
 
-      // Check for AlertTriangle icon
-      const icon = container.querySelector('svg.lucide-alert-triangle');
-      expect(icon).toBeInTheDocument();
+      expect(screen.getByTestId("usage-status-icon-soft")).toBeInTheDocument();
     });
 
     it("should show red X icon for hard_cap status", async () => {
@@ -284,16 +280,12 @@ describe("UsageBadge", () => {
         expect(screen.getByText("Usage: 100%")).toBeInTheDocument();
       });
 
-      // Check for XCircle icon
-      const icon = container.querySelector('svg.lucide-x-circle');
-      expect(icon).toBeInTheDocument();
+      expect(screen.getByTestId("usage-status-icon-hard")).toBeInTheDocument();
     });
   });
 
   describe("Auto-refresh", () => {
     it("should refresh data every 30 seconds", async () => {
-      vi.useFakeTimers();
-
       const mockData: UsageData = {
         level: "pro",
         currentSpend: 500,
@@ -303,24 +295,22 @@ describe("UsageBadge", () => {
 
       vi.mocked(fetchUsageDataSafe).mockResolvedValue(mockData);
 
+      const intervalSpy = vi.spyOn(global, "setInterval");
+
       render(<UsageBadge />);
 
-      await waitFor(() => {
-        expect(screen.getByText("Usage: 50%")).toBeInTheDocument();
-      });
-
-      // Called once on mount
+      await screen.findByText("Usage: 50%");
       expect(fetchUsageDataSafe).toHaveBeenCalledTimes(1);
+      expect(intervalSpy).toHaveBeenCalledWith(expect.any(Function), 30000);
 
-      // Advance by 30 seconds
-      vi.advanceTimersByTime(30000);
+      const intervalCallback = intervalSpy.mock.calls[0][0] as () => void;
+      await intervalCallback();
 
-      // Should be called again
       await waitFor(() => {
         expect(fetchUsageDataSafe).toHaveBeenCalledTimes(2);
       });
 
-      vi.useRealTimers();
+      intervalSpy.mockRestore();
     });
   });
 
@@ -337,15 +327,12 @@ describe("UsageBadge", () => {
 
       const { container } = render(<UsageBadge />);
 
-      await waitFor(() => {
-        expect(screen.getByText("Usage: 50%")).toBeInTheDocument();
-      });
+      await screen.findByText("Usage: 50%");
 
-      // Check for responsive classes
-      const mobileElements = container.querySelectorAll(".md\\:hidden");
+      const badge = screen.getByTestId("usage-badge");
       const desktopElements = container.querySelectorAll(".hidden.md\\:inline");
 
-      expect(mobileElements.length).toBeGreaterThan(0);
+      expect(badge.querySelector("svg")).toBeInTheDocument();
       expect(desktopElements.length).toBeGreaterThan(0);
     });
   });
