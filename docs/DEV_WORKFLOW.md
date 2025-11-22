@@ -1,7 +1,6 @@
 # Development Workflow
 
-This guide explains how to develop, test, and run basic health checks on the Slimy monorepo.
-This guide explains how to develop locally in the Slimy monorepo.
+This guide explains how to develop, test, and run basic health checks on the Slimy monorepo. For a quick click-through checklist, see `docs/DEV_SANITY_CHECK.md`.
 
 ## Prerequisites
 
