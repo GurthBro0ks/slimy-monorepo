@@ -1,41 +1,51 @@
-# General VCS & tooling
+# Global ignores for Slimy monorepo Docker builds
+# Prevents host node_modules from contaminating container builds
+
+# Dependencies (use Dockerfile RUN npm install instead)
+node_modules
+*/node_modules
+**/node_modules
+
+# Version control
 .git
 .gitignore
+.gitattributes
+
+# OS and editor artifacts
+.DS_Store
 .vscode
 .idea
 *.swp
 *.swo
-*.log
+*~
 
-# Node / pnpm
-node_modules
-.pnpm-store
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-.pnpm-debug.log*
-
-# Build artifacts
+# Build and dist outputs (rebuilt in container)
+.next
+.turbo
 dist
 build
 coverage
-.out
-.next
-out
-.tmp
-.cache
-turbo
-**/.turbo
-**/.next
-**/dist
-**/build
-**/coverage
 
-# Env / secrets
-.env
-.env.*
-*.local
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
 
-# OS cruft
-.DS_Store
-Thumbs.db
+# Local development/testing artifacts
+.env.local
+*.test.ts
+*.spec.ts
+
+# Documentation files (not needed in runtime images)
+*.md
+README
+LICENSE
+
+# CI/CD
+.github
+.gitlab-ci.yml
+
+# Optional project-specific excludes
+terraform
+docs
