@@ -316,7 +316,7 @@ export function generateScreenshotId(): string {
  */
 export function calculateConfidence(analysis: any): number {
   let score = 0;
-  let maxScore = 7; // title, description, summary, data, insights, recommendations, tags
+  const maxScore = 7; // title, description, summary, data, insights, recommendations, tags
 
   if (analysis.title && analysis.title.length > 3) score += 1;
   if (analysis.description && analysis.description.length > 10) score += 1;

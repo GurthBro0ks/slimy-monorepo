@@ -8,7 +8,7 @@ import { PrismaClient } from '../node_modules/.prisma/client';
 
 // Extend PrismaClient type for global storage
 declare global {
-  // eslint-disable-next-line no-var
+   
   var prisma: PrismaClient | undefined;
 }
 

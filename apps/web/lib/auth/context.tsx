@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import React, { createContext, useContext, useEffect, useState, ReactNode, useCallback } from "react";
 import { apiClient } from "@/lib/api-client";
 import { AuthContextType, AuthState, AuthUser } from "./types";
 
@@ -18,7 +18,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     lastRefresh: 0,
   });
 
-  const refresh = async () => {
+  const refresh = useCallback(async () => {
     try {
       setState(prev => ({ ...prev, loading: true, error: null }));
 
@@ -50,7 +50,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         lastRefresh: 0,
       });
     }
-  };
+  }, []);
 
   const login = () => {
     const adminApiBase = process.env.NEXT_PUBLIC_ADMIN_API_BASE || "";
@@ -88,13 +88,16 @@ export function AuthProvider({ children }: AuthProviderProps) {
     const REFRESH_INTERVAL = 25 * 60 * 1000; // 25 minutes
     const timeSinceLastRefresh = Date.now() - state.lastRefresh;
 
-    if (timeSinceLastRefresh >= REFRESH_INTERVAL) {
-      console.log("[Auth] Auto-refreshing session...");
+    const triggerRefresh = () =>
       refresh().catch(error => {
         console.error("[Auth] Auto-refresh failed:", error);
-        // If auto-refresh fails, user might need to re-authenticate
-        // This will be handled by the next API call or page navigation
       });
+
+    let immediateTimer: ReturnType<typeof setTimeout> | undefined;
+
+    if (timeSinceLastRefresh >= REFRESH_INTERVAL) {
+      console.log("[Auth] Auto-refreshing session...");
+      immediateTimer = setTimeout(triggerRefresh, 0);
     }
 
     // Set up next refresh check
@@ -102,12 +105,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
     const timeoutId = setTimeout(() => {
       if (state.user) {
         console.log("[Auth] Checking if session needs refresh...");
-        refresh().catch(console.error);
+        triggerRefresh();
       }
     }, Math.max(nextCheck, 60000)); // Minimum 1 minute between checks
 
-    return () => clearTimeout(timeoutId);
-  }, [state.user, state.lastRefresh]);
+    return () => {
+      if (immediateTimer) clearTimeout(immediateTimer);
+      clearTimeout(timeoutId);
+    };
+  }, [refresh, state.lastRefresh, state.user]);
 
   // Initial auth check on mount
   useEffect(() => {

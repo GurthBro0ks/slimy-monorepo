@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 interface User {
   id: string;
@@ -13,21 +13,13 @@ interface SlimeChatUserListProps {
   onClose: () => void;
 }
 
-export function SlimeChatUserList({ onClose }: SlimeChatUserListProps) {
-  const [users, setUsers] = useState<User[]>([]);
-
-  // TODO: Connect to MCP chat service for real user list
-  useEffect(() => {
-    // Placeholder users for demonstration
-    const demoUsers: User[] = [
-      { id: "1", username: "Alex", color: "#06b6d4", status: "online" },
-      { id: "2", username: "Brooke", color: "#ec4899", status: "online" },
-      { id: "3", username: "Chris", color: "#eab308", status: "online" },
-      { id: "4", username: "Devon", color: "#8b5cf6", status: "online" },
-    ];
-    setUsers(demoUsers);
-  }, []);
-
+export function SlimeChatUserList({ onClose: _onClose }: SlimeChatUserListProps) {
+  const [users] = useState<User[]>([
+    { id: "1", username: "Alex", color: "#06b6d4", status: "online" },
+    { id: "2", username: "Brooke", color: "#ec4899", status: "online" },
+    { id: "3", username: "Chris", color: "#eab308", status: "online" },
+    { id: "4", username: "Devon", color: "#8b5cf6", status: "online" },
+  ]);
   return (
     <div className="absolute top-14 right-4 bg-zinc-800 border border-emerald-500/30 rounded-lg shadow-lg p-4 w-48 z-10">
       <div className="flex items-center justify-between mb-3">

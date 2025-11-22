@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
       ok: true,
       conversations,
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error("[conversations] GET error:", error);
     return NextResponse.json(
       { error: "Failed to load conversations" },
@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
       ok: true,
       conversationId,
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error("[conversations] POST error:", error);
     return NextResponse.json(
       { error: "Failed to create conversation" },
