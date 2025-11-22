@@ -140,7 +140,7 @@ export default function UsagePage() {
         <Callout variant="warn" className="mb-6">
           <div>
             <p className="font-bold">Approaching Usage Limit</p>
-            <p>You're at {percentage}% of your usage limit. Consider upgrading to avoid service interruption.</p>
+            <p>You&apos;re at {percentage}% of your usage limit. Consider upgrading to avoid service interruption.</p>
           </div>
         </Callout>
       )}
@@ -148,7 +148,7 @@ export default function UsagePage() {
         <Callout variant="error" className="mb-6">
           <div>
             <p className="font-bold">Usage Limit Reached</p>
-            <p>You've reached your usage limit. Model probe actions are disabled until the next billing cycle.</p>
+            <p>You&apos;ve reached your usage limit. Model probe actions are disabled until the next billing cycle.</p>
           </div>
         </Callout>
       )}

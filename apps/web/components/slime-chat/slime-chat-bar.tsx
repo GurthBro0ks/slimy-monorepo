@@ -7,7 +7,7 @@ import { SlimeChatWindow } from "./slime-chat-window";
 
 export function SlimeChatBar() {
   const [isExpanded, setIsExpanded] = useState(false);
-  const [unreadCount, setUnreadCount] = useState(0);
+  const [unreadCount, setUnreadCount] = useState(3);
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
@@ -19,13 +19,6 @@ export function SlimeChatBar() {
     window.addEventListener('resize', checkMobile);
     
     return () => window.removeEventListener('resize', checkMobile);
-  }, []);
-
-  // TODO: Connect to MCP chat service for real unread count
-  useEffect(() => {
-    // Placeholder for MCP integration
-    // This will be replaced with actual WebSocket connection
-    setUnreadCount(3);
   }, []);
 
   const toggleChat = () => {

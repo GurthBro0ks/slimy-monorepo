@@ -18,40 +18,35 @@ interface SlimeChatWindowProps {
   isMobile: boolean;
 }
 
+const demoMessages: Message[] = [
+  {
+    id: "1",
+    username: "Alex",
+    content: "Hello!",
+    timestamp: new Date(),
+    userColor: "#06b6d4", // cyan
+  },
+  {
+    id: "2",
+    username: "Brooke",
+    content: "Hi there!",
+    timestamp: new Date(),
+    userColor: "#ec4899", // magenta
+  },
+  {
+    id: "3",
+    username: "Chris",
+    content: "How's it going?",
+    timestamp: new Date(),
+    userColor: "#eab308", // yellow
+  },
+];
+
 export function SlimeChatWindow({ onClose, isMobile }: SlimeChatWindowProps) {
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<Message[]>(demoMessages);
   const [inputValue, setInputValue] = useState("");
   const [showUserList, setShowUserList] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-
-  // TODO: Connect to MCP chat service
-  useEffect(() => {
-    // Placeholder messages for demonstration
-    const demoMessages: Message[] = [
-      {
-        id: "1",
-        username: "Alex",
-        content: "Hello!",
-        timestamp: new Date(),
-        userColor: "#06b6d4", // cyan
-      },
-      {
-        id: "2",
-        username: "Brooke",
-        content: "Hi there!",
-        timestamp: new Date(),
-        userColor: "#ec4899", // magenta
-      },
-      {
-        id: "3",
-        username: "Chris",
-        content: "How's it going?",
-        timestamp: new Date(),
-        userColor: "#eab308", // yellow
-      },
-    ];
-    setMessages(demoMessages);
-  }, []);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {

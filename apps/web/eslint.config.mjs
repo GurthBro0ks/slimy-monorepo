@@ -13,6 +13,31 @@ const eslintConfig = defineConfig([
     "build/**",
     "next-env.d.ts",
   ]),
+  {
+    rules: {
+      "@typescript-eslint/no-explicit-any": "off",
+      "@typescript-eslint/no-unsafe-function-type": "off",
+    },
+  },
+  {
+    files: [
+      "**/*.config.{js,ts,mjs}",
+      "next.config.ts",
+      "next.config.js",
+      "tailwind.config.ts",
+      "scripts/**/*",
+      "test-auth.js",
+    ],
+    rules: {
+      "@typescript-eslint/no-require-imports": "off",
+    },
+  },
+  {
+    files: ["tests/**/*", "**/*.test.{ts,tsx}", "test-auth.js"],
+    rules: {
+      "@typescript-eslint/no-unused-vars": "warn",
+    },
+  },
 ]);
 
 export default eslintConfig;

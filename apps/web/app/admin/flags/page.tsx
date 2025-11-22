@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -28,7 +28,7 @@ export default function FlagsAdminPage() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
-  const fetchFlags = async () => {
+  const fetchFlags = useCallback(async () => {
     setLoading(true);
     try {
       const response = await fetch(`/api/guilds/${guildId}/flags`);
@@ -41,26 +41,34 @@ export default function FlagsAdminPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [guildId]);
 
   useEffect(() => {
     if (guildId) {
       fetchFlags();
     }
-  }, [guildId]);
+  }, [guildId, fetchFlags]);
 
-  const updateFlag = async (path: string, value: any) => {
+  type FlagUpdatePath =
+    | "theme.colorPrimary"
+    | "theme.badgeStyle"
+    | `experiments.${keyof GuildFlags["experiments"]}`;
+
+  const updateFlag = async (path: FlagUpdatePath, value: string | boolean) => {
     setSaving(true);
     setMessage(null);
 
     try {
-      const updates: any = {};
-      const [section, key] = path.split(".");
+      const updates: Partial<Pick<GuildFlags, "theme" | "experiments">> = {};
+      const [section, key] = path.split(".") as ["theme" | "experiments", string];
 
       if (section === "theme") {
-        updates.theme = { [key]: value };
+        updates.theme = { ...(flags?.theme ?? {}), [key]: value } as GuildFlags["theme"];
       } else if (section === "experiments") {
-        updates.experiments = { [key]: value };
+        updates.experiments = {
+          ...(flags?.experiments ?? {}),
+          [key]: Boolean(value),
+        };
       }
 
       const response = await fetch(`/api/guilds/${guildId}/flags`, {
