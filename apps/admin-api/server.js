@@ -7,7 +7,7 @@ const dotenv = require("dotenv");
 
 const database = require("../lib/database");
 const { applyDatabaseUrl } = require("./src/utils/apply-db-url");
-const logger = require("../lib/logger");
+const { logger } = require("./src/lib/logger");
 
 function loadEnv() {
   const explicitEnvPath =
@@ -37,7 +37,7 @@ async function start() {
   }
 
   if (process.env.NODE_ENV !== "production") {
-    logger.info("[admin-api] Booting in non-production mode");
+    logger.info({ env: process.env.NODE_ENV }, "[admin-api] Booting in non-production mode");
   }
 
   if (!database.isConfigured()) {
@@ -51,7 +51,7 @@ async function start() {
   const host = process.env.HOST || process.env.ADMIN_API_HOST || "127.0.0.1";
 
   const server = app.listen(port, host, () => {
-    logger.info(`[admin-api] Listening on http://${host}:${port}`);
+    logger.info({ port, host }, `[admin-api] Listening on http://${host}:${port}`);
   });
 
   process.on("SIGINT", () => {
@@ -62,12 +62,12 @@ async function start() {
   });
 
   process.on("unhandledRejection", (err) => {
-    logger.error("[admin-api] Unhandled rejection", { err: err?.message || err });
+    logger.error({ error: err }, "[admin-api] Unhandled rejection");
   });
 }
 
 start().catch((err) => {
-  logger.error("[admin-api] Failed to start", { err: err?.message || err });
+  logger.error({ error: err }, "[admin-api] Failed to start");
   console.error(err);
   process.exit(1);
 });
