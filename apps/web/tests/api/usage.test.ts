@@ -98,7 +98,7 @@ describe("Usage API Client", () => {
 
     describe("HTTP errors", () => {
       it("should throw UsageApiError on 500 HTTP error", async () => {
-        mockFetch.mockResolvedValueOnce({
+        mockFetch.mockResolvedValue({
           ok: false,
           status: 500,
           statusText: "Internal Server Error",
@@ -116,7 +116,7 @@ describe("Usage API Client", () => {
       });
 
       it("should throw UsageApiError on 502 Bad Gateway", async () => {
-        mockFetch.mockResolvedValueOnce({
+        mockFetch.mockResolvedValue({
           ok: false,
           status: 502,
           statusText: "Bad Gateway",

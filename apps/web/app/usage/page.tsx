@@ -118,17 +118,25 @@ export default function UsagePage() {
   const isNearLimit = percentage >= 90;
   const isOverLimit = percentage >= 100;
 
+  // Defensive: ensure modelProbeStatus is valid
+  const safeModelProbeStatus = (["ok", "soft_cap", "hard_cap"].includes(usage.modelProbeStatus)
+    ? usage.modelProbeStatus
+    : "ok") as NonNullable<UsageData["modelProbeStatus"]>;
+
+  // Defensive: ensure level is a string
+  const safeLevel = usage.level || "unknown";
+
   return (
     <div className="container mx-auto p-6 max-w-4xl">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-3xl font-bold">Usage Dashboard</h1>
         <Badge variant={isOverLimit ? "destructive" : isNearLimit ? "secondary" : "default"}>
-          {usage.level.replace("_", " ").toUpperCase()}
+          {safeLevel.replace("_", " ").toUpperCase()}
         </Badge>
       </div>
 
       {/* Status callout */}
-      {usage.modelProbeStatus === "soft_cap" && (
+      {safeModelProbeStatus === "soft_cap" && (
         <Callout variant="warn" className="mb-6">
           <div>
             <p className="font-bold">Approaching Usage Limit</p>
@@ -136,7 +144,7 @@ export default function UsagePage() {
           </div>
         </Callout>
       )}
-      {usage.modelProbeStatus === "hard_cap" && (
+      {safeModelProbeStatus === "hard_cap" && (
         <Callout variant="error" className="mb-6">
           <div>
             <p className="font-bold">Usage Limit Reached</p>
@@ -176,14 +184,14 @@ export default function UsagePage() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              {statusIcons[usage.modelProbeStatus]}
+              {statusIcons[safeModelProbeStatus]}
               Service Status
             </CardTitle>
             <CardDescription>Model probe availability</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="text-xl font-semibold">
-              {statusText[usage.modelProbeStatus]}
+              {statusText[safeModelProbeStatus]}
             </div>
             <div className="text-sm text-muted-foreground mt-2">
               Remaining: ${remaining.toLocaleString()}
@@ -202,7 +210,7 @@ export default function UsagePage() {
           <div className="space-y-4">
             <div className="flex justify-between items-center">
               <span className="text-sm font-medium">Tier</span>
-              <span className="text-sm">{usage.level.replace("_", " ")}</span>
+              <span className="text-sm">{safeLevel.replace("_", " ")}</span>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-sm font-medium">Current Spend</span>
