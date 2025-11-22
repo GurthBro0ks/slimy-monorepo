@@ -22,7 +22,7 @@ The repository includes automated CI testing via GitHub Actions. See [docs/CI.md
 
 ## Development Quickstart
 
-For detailed development workflows, see [docs/DEV_WORKFLOW.md](docs/DEV_WORKFLOW.md).
+For detailed development workflows, see [docs/DEV_WORKFLOW.md](docs/DEV_WORKFLOW.md). For a ready-to-run local checklist, see [docs/DEV_SANITY_CHECK.md](docs/DEV_SANITY_CHECK.md).
 
 ### Core Commands
 
