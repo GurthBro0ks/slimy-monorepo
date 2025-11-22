@@ -78,6 +78,54 @@ To understand how the services work together and what each one does:
 - **[Infrastructure Overview](docs/INFRA_OVERVIEW.md)** - System architecture, data flows, and service communication
 - **[Services Matrix](docs/SERVICES_MATRIX.md)** - Detailed reference table with ports, commands, and dependencies
 
+## Development Quickstart
+
+For detailed development instructions, see **[docs/DEV_WORKFLOW.md](docs/DEV_WORKFLOW.md)**.
+
+### Essential Commands
+
+```bash
+# Install all dependencies
+pnpm install
+
+# Generate Prisma clients (required for web & admin-api)
+pnpm prisma:generate
+
+# Start applications in development mode
+pnpm dev:web         # Public web app → http://localhost:3000
+pnpm dev:admin-api   # Admin API → http://localhost:3080
+pnpm dev:admin-ui    # Admin dashboard → http://localhost:3081
+pnpm dev:bot         # Bot application (placeholder)
+
+# Run tests
+pnpm test:all        # All apps
+pnpm test:web        # Web app only
+pnpm test:admin-api  # Admin API only
+
+# Build & lint
+pnpm build           # Build all apps
+pnpm lint            # Lint all code
+```
+
+### First-Time Setup
+
+```bash
+# 1. Clone and install
+git clone https://github.com/GurthBro0ks/slimy-monorepo.git
+cd slimy-monorepo
+pnpm install
+
+# 2. Configure environment
+cp apps/admin-api/.env.example apps/admin-api/.env
+# Edit .env files as needed
+
+# 3. Generate database clients
+pnpm prisma:generate
+
+# 4. Start developing!
+pnpm dev:web
+```
+
 ## Structure
 
 - `apps/` holds runnable Slimy.ai applications (web, admin, bot, etc.).

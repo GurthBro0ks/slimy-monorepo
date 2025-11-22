@@ -1,167 +1,182 @@
 # Development Workflow
 
-This guide explains how to develop, test, and run basic health checks on the Slimy monorepo. For a quick click-through checklist, see `docs/DEV_SANITY_CHECK.md`.
+This guide explains how to develop, test, and run applications in the Slimy monorepo. Whether you're new to the project or need a quick reference, this document covers the essential commands and workflows.
 
 ## Prerequisites
 
-- **Node.js**: v20 or higher
-- **pnpm**: Install globally with `npm install -g pnpm`
+- **Node.js**: Version 20 or higher
+- **pnpm**: Install with `npm install -g pnpm` if not already available
+- **Git**: For version control
 
 ## Initial Setup
 
-1. Clone the repository and navigate to the project root
-2. Install all dependencies:
-   ```bash
-   pnpm install
-   ```
-3. Generate Prisma client files (required for admin-api and web):
-   ```bash
-   pnpm prisma:generate
-   ```
-
-## Running Applications
-
-All applications can be started from the monorepo root using standardized dev scripts.
-
-### Web Dashboard (`apps/web`)
-
-The main web dashboard built with Next.js.
-- **Git**: For version control
-
-## Quick Start
-
-### 1. Clone and Install
+### 1. Clone the Repository
 
 ```bash
 git clone https://github.com/GurthBro0ks/slimy-monorepo.git
 cd slimy-monorepo
+```
+
+### 2. Install Dependencies
+
+```bash
 pnpm install
 ```
 
-The `pnpm install` command installs dependencies for all workspace packages in the monorepo.
+This installs all dependencies for the entire monorepo workspace, including all apps and packages.
 
-### 2. Generate Prisma Clients
+### 3. Environment Configuration
 
-Some apps use Prisma ORM and require generated clients before running:
+Each app may require environment variables. Check for `.env.example` files in each app directory:
+
+- `apps/admin-api/.env.example` → Copy to `apps/admin-api/.env`
+- `apps/web/.env.example` → Copy to `apps/web/.env` (if exists)
+
+Example:
+```bash
+cp apps/admin-api/.env.example apps/admin-api/.env
+# Edit .env files with your local configuration
+```
+
+### 4. Generate Prisma Client (if needed)
+
+Some apps use Prisma for database access:
 
 ```bash
 pnpm prisma:generate
 ```
 
-This generates Prisma clients for `admin-api` and `web` apps.
+## Running Applications in Development Mode
 
-## Running Apps in Development Mode
+Each application can be started individually in development mode with hot reloading enabled.
 
-The monorepo contains four main applications. Each can be started individually in development mode.
+### Web Application
 
-### Web App (Port 3000)
-
-The main Slimy.ai web application built with Next.js.
+The main public-facing web application built with Next.js.
 
 ```bash
+# From root
 pnpm dev:web
+
+# Or from apps/web
+cd apps/web
+pnpm dev
 ```
 
+- **Port**: 3000 (default Next.js port)
 - **URL**: http://localhost:3000
-- **Tech**: Next.js 16 with Turbopack
-- **Database**: Uses Prisma (ensure `pnpm prisma:generate` has been run)
+- **Features**: Turbopack enabled for faster builds
 
-### Admin API (`apps/admin-api`)
+### Admin API
 
-The backend API server for admin operations.
-- Runs on: `http://localhost:3000` (default Next.js port)
-- Tech: Next.js 16 with Turbopack
-- Features: MDX docs, Redis cache, Prisma database
-
-### Admin API (Port 3080)
-
-Backend API for administrative operations.
+Backend API service for admin operations.
 
 ```bash
+# From root
 pnpm dev:admin-api
+
+# Or from apps/admin-api
+cd apps/admin-api
+pnpm dev
 ```
 
+- **Port**: 3080 (configured in `.env`)
 - **URL**: http://localhost:3080
-- **Tech**: Express.js running from source
-- **Database**: Uses Prisma + MySQL
-- **Health endpoint**: http://localhost:3080/api/health
+- **Note**: Requires database connection and proper `.env` configuration
 
-### Admin UI (`apps/admin-ui`)
+### Admin UI
 
-The admin dashboard interface.
-- Runs on: `http://localhost:3080` (configurable via `PORT` or `ADMIN_API_PORT` env vars)
-- Tech: Express.js
-- Features: REST API, Prisma database, Redis, JWT auth
-
-### Admin UI (Port 3081)
-
-Administrative dashboard interface.
+Admin dashboard interface built with Next.js.
 
 ```bash
+# From root
 pnpm dev:admin-ui
+
+# Or from apps/admin-ui
+cd apps/admin-ui
+pnpm dev
 ```
 
+- **Port**: 3081
 - **URL**: http://localhost:3081
-- **Tech**: Next.js 14
 
-### Bot (`apps/bot`)
+### Bot Application
 
-The Discord/chat bot application.
-- Runs on: `http://localhost:3081`
-- Tech: Next.js 14
-- Features: Real-time monitoring, charts, Socket.io integration
-
-### Bot (TBD)
-
-The bot application is currently a placeholder.
+Discord/chat bot application (currently in development).
 
 ```bash
+# From root
 pnpm dev:bot
+
+# Or from apps/bot
+cd apps/bot
+pnpm dev
 ```
 
-- **Status**: Placeholder - not yet implemented
-- **Output**: Prints a TODO message
+- **Status**: Placeholder - implementation pending
+- **Note**: Currently outputs a TODO message
 
 ## Running Tests
 
-### Test All Workspaces
+### Test Individual Apps
 
-Run tests across all applications:
+Run tests for a specific application:
+
+```bash
+# Web app tests (Vitest + Playwright)
+pnpm test:web
+
+# Admin API tests (Jest)
+pnpm test:admin-api
+
+# Admin UI tests (placeholder)
+pnpm test:admin-ui
+
+# Bot tests (placeholder)
+pnpm test:bot
+```
+
+### Test All Apps
+
+Run the entire test suite across all apps:
 
 ```bash
 pnpm test:all
 ```
 
-### Test Individual Apps
-
-Test specific applications:
+Or use the shorthand:
 
 ```bash
-# Web app (Vitest + Playwright)
-pnpm test:web
-
-# Admin API (Jest)
-pnpm test:admin-api
+pnpm test
 ```
 
-**Note**: `admin-ui` and `bot` do not have test suites yet and will output placeholder messages.
+### Web-Specific Test Commands
 
-### Advanced Web Testing
-
-The web app includes additional test scripts:
+The web app has additional test options:
 
 ```bash
-# Coverage report
-pnpm --filter @slimy/web run test:coverage
+cd apps/web
 
-# E2E tests with Playwright
-pnpm --filter @slimy/web run test:e2e
+# Run tests with coverage
+pnpm test:coverage
 
-# E2E tests with UI mode
-pnpm --filter @slimy/web run test:e2e:ui
+# Run end-to-end tests
+pnpm test:e2e
+
+# Run E2E tests with UI
+pnpm test:e2e:ui
 ```
 
-## Building
+## Building for Production
+
+### Build Individual Apps
+
+```bash
+pnpm --filter web build
+pnpm --filter admin-api build
+pnpm --filter admin-ui build
+pnpm --filter bot build
+```
 
 ### Build All Apps
 
@@ -171,281 +186,201 @@ pnpm build
 
 ### Build Core Apps Only
 
-Builds only admin-api, web, and admin-ui (excludes bot):
+To build just the main production apps (web, admin-api, admin-ui):
 
 ```bash
 pnpm build:core
 ```
 
-## First-Time Sanity Check
+## Code Quality
 
-After initial setup, verify everything is working:
-
-1. **Check dependencies installed**:
-   ```bash
-   pnpm install
-   ```
-
-2. **Generate Prisma clients**:
-   ```bash
-   pnpm prisma:generate
-   ```
-
-3. **Start admin-api**:
-   ```bash
-   pnpm dev:admin-api
-   ```
-   - Verify it's listening on http://localhost:3080
-   - Check health endpoint: `curl http://localhost:3080/api/health`
-
-4. **Start web dashboard** (in a new terminal):
-   ```bash
-   pnpm dev:web
-   ```
-   - Open http://localhost:3000 in your browser
-   - Verify the page loads without errors
-
-5. **Start admin-ui** (in a new terminal):
-   ```bash
-   pnpm dev:admin-ui
-   ```
-   - Open http://localhost:3081 in your browser
-
-6. **Run tests**:
-   ```bash
-   pnpm test:all
-   ```
-   - Verify core tests pass (web and admin-api)
-
-## Environment Configuration
-
-Each app may require environment variables. Check for `.env.example` files:
-
-- `apps/admin-api/.env.example` - Admin API configuration (database, ports, auth)
-- `apps/web/.env` or `.env.local` - Web app configuration
-
-Copy example files and configure as needed:
+### Linting
 
 ```bash
-cp apps/admin-api/.env.example apps/admin-api/.env
+# Lint all apps
+pnpm lint
+
+# Lint core apps only
+pnpm lint:core
+
+# Lint specific app
+pnpm --filter web lint
 ```
 
-## Database Operations
+## Health Check & Verification
 
-Prisma commands are available for apps that use it (admin-api and web):
+To verify your development environment is properly set up, run this sequence:
+
+```bash
+# 1. Install dependencies
+pnpm install
+
+# 2. Generate Prisma clients
+pnpm prisma:generate
+
+# 3. Build all apps
+pnpm build
+
+# 4. Run all tests
+pnpm test:all
+```
+
+If all commands complete successfully, your environment is ready for development!
+
+## Common Development Tasks
+
+### Adding a New Package/Dependency
+
+```bash
+# Add to a specific app
+pnpm --filter web add <package-name>
+pnpm --filter admin-api add <package-name>
+
+# Add as dev dependency
+pnpm --filter web add -D <package-name>
+
+# Add to workspace root
+pnpm add -w <package-name>
+```
+
+### Database Operations (Prisma)
 
 ```bash
 # Generate Prisma client
 pnpm prisma:generate
 
-# Run migrations (web only)
-pnpm --filter @slimy/web run db:migrate
-
-# Open Prisma Studio (web only)
-pnpm --filter @slimy/web run db:studio
-
-# Seed database (web only)
-pnpm --filter @slimy/web run db:seed
-```
-
-## Linting
-
-```bash
-# Lint all workspaces
-pnpm lint
-
-# Lint core apps only
-pnpm lint:core
-```
-
-## Common Issues
-
-### "Cannot find module" errors
-
-Run `pnpm install` and `pnpm prisma:generate` to ensure all dependencies and generated code are up to date.
-
-### Port already in use
-
-If you get EADDRINUSE errors, ensure no other process is using the required ports (3000, 3080, 3081).
-
-### Database connection errors
-
-Verify your `.env` files are configured correctly with valid database credentials.
-
-## Project Structure
-
-```
-slimy-monorepo/
-├── apps/
-│   ├── admin-api/      # Express API server (port 3080)
-│   ├── admin-ui/       # Admin dashboard (port 3081)
-│   ├── web/            # Main web app (port 3000)
-│   └── bot/            # Discord bot (WIP)
-├── packages/           # Shared libraries
-├── infra/             # Deployment configs
-└── docs/              # Documentation
-```
-
-## Next Steps
-
-- Review `docs/STRUCTURE.md` for architectural details
-- Check individual app READMEs for app-specific documentation
-- Set up your local database using the admin-api guide
-- Configure environment variables for your development environment
-This will display a TODO message. Implementation pending.
-
-## Running Tests
-
-### Test Individual Apps
-
-Run tests for a specific app:
-
-```bash
-pnpm test:web         # Vitest unit tests + Playwright e2e tests
-pnpm test:admin-api   # Jest tests
-pnpm test:admin-ui    # TODO: tests not yet implemented
-pnpm test:bot         # TODO: tests not yet implemented
-```
-
-### Test All Apps
-
-Run tests across the entire workspace:
-
-```bash
-pnpm test:all
-```
-
-This recursively runs the `test` script in all workspace packages.
-
-### Additional Web Test Commands
-
-The `web` app has additional testing options:
-
-```bash
+# Run migrations (web app)
 cd apps/web
-pnpm test:coverage     # Run tests with coverage report
-pnpm test:e2e          # Run Playwright e2e tests
-pnpm test:e2e:ui       # Run e2e tests with Playwright UI
+pnpm db:migrate
+
+# Open Prisma Studio
+cd apps/web
+pnpm db:studio
+
+# Seed database
+cd apps/web
+pnpm db:seed
 ```
 
-## Other Useful Commands
+### Working with Multiple Apps
 
-### Linting
+To run multiple apps simultaneously, open separate terminal windows/tabs:
 
 ```bash
-pnpm lint              # Lint all packages (recursive)
-pnpm lint:core         # Lint core apps only (admin-api, web, admin-ui)
+# Terminal 1
+pnpm dev:web
+
+# Terminal 2
+pnpm dev:admin-api
+
+# Terminal 3
+pnpm dev:admin-ui
 ```
-
-### Building
-
-```bash
-pnpm build             # Build all packages (recursive)
-pnpm build:core        # Build core apps only
-```
-
-Individual app builds:
-
-```bash
-cd apps/web && pnpm build        # Production build for web
-cd apps/admin-ui && pnpm build   # Production build for admin-ui
-cd apps/admin-api && pnpm build  # No build needed (runs from source)
-```
-
-### Database Operations (Web & Admin API)
-
-Both `web` and `admin-api` use Prisma. Common operations:
-
-```bash
-# From the root:
-pnpm prisma:generate   # Generate Prisma clients
-
-# From apps/web or apps/admin-api:
-pnpm db:migrate        # Run database migrations (dev)
-pnpm db:studio         # Open Prisma Studio GUI
-pnpm db:seed           # Seed the database (web only)
-pnpm db:reset          # Reset database (web only)
-```
-
-## Health Check
-
-To verify the monorepo is set up correctly:
-
-1. **Install dependencies**: `pnpm install`
-2. **Generate Prisma clients**: `pnpm prisma:generate`
-3. **Run builds**: `pnpm build:core`
-4. **Run tests**: `pnpm test:all`
-
-If all steps complete without errors, your environment is ready for development.
-
-## Workspace Structure
-
-```
-slimy-monorepo/
-├── apps/
-│   ├── admin-api/      # Express API server
-│   ├── admin-ui/       # Next.js admin dashboard
-│   ├── web/            # Main Next.js web app
-│   └── bot/            # Bot application (placeholder)
-├── packages/           # Shared libraries and utilities
-├── infra/              # Deployment and infrastructure
-└── docs/               # Documentation
-```
-
-## Environment Variables
-
-Each app may require environment variables. Check for `.env.example` files in each app directory:
-
-- `apps/admin-api/.env` - Database URLs, JWT secrets, Redis config
-- `apps/web/.env` - Database URLs, OpenAI keys, Redis config
-- `apps/admin-ui/.env` - API endpoints, feature flags
-
-Copy `.env.example` to `.env` and fill in appropriate values for your local environment.
-
-## Deployment
-
-Deployment is out of scope for this guide. See:
-
-- `apps/web/DEPLOYMENT.md` - Web app deployment guide
-- `infra/docker/` - Docker configurations
-- `docs/STRUCTURE.md` - Monorepo architecture and ownership
 
 ## Troubleshooting
 
-### "Module not found" errors
+### Port Already in Use
 
-Run `pnpm install` to ensure all dependencies are installed.
+If you see "port already in use" errors:
 
-### Prisma client errors
+```bash
+# Find process using port 3000 (web)
+lsof -i :3000
 
-Run `pnpm prisma:generate` to regenerate Prisma clients.
+# Find process using port 3080 (admin-api)
+lsof -i :3080
 
-### Port already in use
+# Kill process by PID
+kill -9 <PID>
+```
 
-If a port is already in use, either:
-- Stop the process using that port
-- Change the port via environment variables (see app-specific docs)
+### Prisma Issues
 
-### pnpm command not found
+```bash
+# Regenerate Prisma client
+pnpm prisma:generate
 
-Install pnpm globally: `npm install -g pnpm`
+# Reset database (WARNING: deletes data)
+cd apps/web
+pnpm db:reset
+```
+
+### Dependency Issues
+
+```bash
+# Clear all node_modules and reinstall
+rm -rf node_modules apps/*/node_modules packages/*/node_modules
+pnpm install
+```
+
+### Build Failures
+
+```bash
+# Clear Next.js cache
+rm -rf apps/web/.next apps/admin-ui/.next
+
+# Rebuild
+pnpm build
+```
+
+## Project Structure Reference
+
+```
+slimy-monorepo/
+├── apps/
+│   ├── admin-api/    # Backend API (Express, port 3080)
+│   ├── admin-ui/     # Admin dashboard (Next.js, port 3081)
+│   ├── web/          # Public web app (Next.js, port 3000)
+│   └── bot/          # Chat bot (TBD)
+├── packages/         # Shared libraries
+├── docs/            # Documentation
+│   ├── STRUCTURE.md # Architecture details
+│   └── DEPLOY.md    # Deployment guide
+└── infra/           # Deployment configs
+```
+
+## Deployment
+
+This guide focuses on local development. For deployment instructions, see:
+
+- **[docs/DEPLOY.md](DEPLOY.md)** - Comprehensive deployment guide
+- **Docker**: See `DEPLOY.md` for Docker-based deployment
+- **Production**: Environment-specific configuration in `apps/*/env.*.example`
 
 ## Getting Help
 
-- Check app-specific README files in `apps/*/`
-- Review `docs/STRUCTURE.md` for architecture details
-- Check `.github/` for CI/CD workflows
-- Review commit history for recent changes
+- **Project Documentation**: Check `docs/` directory
+- **API Documentation**: See `apps/admin-api/README.md`
+- **Issue Tracker**: GitHub Issues for bug reports and feature requests
+- **Monitoring**: See `apps/admin-api/MONITORING_README.md` for observability setup
 
-## Contributing
+## Quick Reference
 
-When working on the monorepo:
+### Most Common Commands
 
-1. Create a feature branch from `main`
-2. Make your changes in the appropriate app or package
-3. Run tests: `pnpm test:all`
-4. Run linting: `pnpm lint`
-5. Commit with clear messages
-6. Push and create a pull request
+```bash
+# Install everything
+pnpm install
 
-Keep changes focused and test thoroughly before pushing.
+# Start web app
+pnpm dev:web
+
+# Start admin API
+pnpm dev:admin-api
+
+# Start admin UI
+pnpm dev:admin-ui
+
+# Run all tests
+pnpm test:all
+
+# Build everything
+pnpm build
+
+# Lint all code
+pnpm lint
+```
+
+---
+
+**Last Updated**: November 2025
