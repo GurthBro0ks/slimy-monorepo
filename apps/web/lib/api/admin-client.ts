@@ -36,6 +36,7 @@ export interface RequestConfig extends RequestInit {
 
 export class AdminApiClient {
   private baseUrl: string;
+  private lastNetworkErrorMessage?: string;
 
   constructor(baseUrl?: string) {
     this.baseUrl = baseUrl || process.env.NEXT_PUBLIC_ADMIN_API_BASE || '';
@@ -85,7 +86,11 @@ export class AdminApiClient {
   /**
    * Handle API errors consistently
    */
-  private async handleError(error: unknown, status?: number): Promise<ApiError> {
+  private async handleError(
+    error: unknown,
+    status?: number,
+    context?: { networkSummary?: string }
+  ): Promise<ApiError> {
     if (error instanceof Error) {
       if (error.name === 'AbortError') {
         return {
@@ -99,8 +104,10 @@ export class AdminApiClient {
       return {
         ok: false,
         code: 'NETWORK_ERROR',
-        message: error.message || 'Network request failed',
-        status,
+        message: context?.networkSummary
+          ? `Admin API unavailable (${context.networkSummary})`
+          : error.message || 'Network request failed',
+        status: status ?? 503,
         details: error,
       };
     }
@@ -205,9 +212,54 @@ export class AdminApiClient {
         clearTimeout(timeoutId);
       }
 
-      console.error('[AdminApiClient] Request error:', error);
-      return this.handleError(error);
+      const networkSummary = this.describeNetworkIssue(error);
+      const apiError = await this.handleError(error, undefined, { networkSummary });
+
+      if (apiError.code === 'NETWORK_ERROR') {
+        const summary = networkSummary || apiError.message;
+        if (summary) {
+          this.logNetworkIssue(summary);
+        }
+      } else if (apiError.code === 'TIMEOUT_ERROR') {
+        console.warn('[AdminApiClient] Request timed out');
+      } else {
+        console.error('[AdminApiClient] Request error:', apiError.message);
+      }
+
+      return apiError;
     }
+  }
+
+  private describeNetworkIssue(error: unknown): string | undefined {
+    const err = error as any;
+    const cause = err?.cause;
+
+    if (cause?.code && cause?.address && cause?.port) {
+      return `${cause.code} ${cause.address}:${cause.port}`;
+    }
+
+    if (cause?.code) {
+      return cause.code;
+    }
+
+    if (err instanceof Error && err.message) {
+      return err.message;
+    }
+
+    if (typeof err === 'object' && err && 'message' in (err as any)) {
+      return String((err as any).message);
+    }
+
+    return undefined;
+  }
+
+  private logNetworkIssue(message: string): void {
+    if (this.lastNetworkErrorMessage === message) {
+      return;
+    }
+
+    this.lastNetworkErrorMessage = message;
+    console.warn(`[AdminApiClient] admin-api unavailable (${message})`);
   }
 
   /**

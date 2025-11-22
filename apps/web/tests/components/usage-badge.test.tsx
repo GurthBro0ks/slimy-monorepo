@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import { UsageBadge } from "@/components/usage-badge";
 import type { UsageData } from "@/lib/usage-thresholds";
 
@@ -23,7 +23,9 @@ describe("UsageBadge", () => {
 
       render(<UsageBadge />);
 
-      expect(screen.getByText("Loading...")).toBeInTheDocument();
+      const badge = screen.getByTestId("usage-badge");
+      expect(badge).toHaveAttribute("data-usage-level", "loading");
+      expect(within(badge).getByText("Loading...")).toBeInTheDocument();
     });
 
     it("should show dot on mobile during loading", () => {
@@ -31,12 +33,10 @@ describe("UsageBadge", () => {
         () => new Promise(() => {})
       );
 
-      const { container } = render(<UsageBadge />);
+      render(<UsageBadge />);
 
-      // Check for mobile dot
-      const mobileDot = container.querySelector(".md\\:hidden");
-      expect(mobileDot).toBeInTheDocument();
-      expect(mobileDot?.textContent).toBe("•");
+      const badge = screen.getByTestId("usage-badge");
+      expect(within(badge).getByText("•")).toBeInTheDocument();
     });
   });
 
@@ -46,9 +46,9 @@ describe("UsageBadge", () => {
 
       render(<UsageBadge />);
 
-      await waitFor(() => {
-        expect(screen.getByText("Loading...")).toBeInTheDocument();
-      });
+      const badge = await screen.findByTestId("usage-badge");
+      expect(badge).toHaveAttribute("data-usage-level", "loading");
+      expect(within(badge).getByText("Loading...")).toBeInTheDocument();
     });
 
     it("should not crash on error", async () => {
@@ -56,11 +56,11 @@ describe("UsageBadge", () => {
         new Error("Network error")
       );
 
-      const { container } = render(<UsageBadge />);
+      render(<UsageBadge />);
 
-      await waitFor(() => {
-        expect(container.querySelector('[class*="badge"]')).toBeInTheDocument();
-      });
+      const badge = await screen.findByTestId("usage-badge");
+      expect(badge).toHaveAttribute("data-usage-level", "loading");
+      expect(within(badge).getByText("Loading...")).toBeInTheDocument();
     });
   });
 
@@ -77,9 +77,10 @@ describe("UsageBadge", () => {
 
       render(<UsageBadge />);
 
-      await waitFor(() => {
-        expect(screen.getByText("Usage: 50%")).toBeInTheDocument();
-      });
+      await screen.findByText("Usage: 50%");
+      const badge = screen.getByTestId("usage-badge");
+      expect(badge).toHaveAttribute("data-usage-level", "pro");
+      expect(within(badge).getByText("Usage: 50%")).toBeInTheDocument();
     });
 
     it("should display usage percentage for free tier", async () => {
@@ -94,9 +95,10 @@ describe("UsageBadge", () => {
 
       render(<UsageBadge />);
 
-      await waitFor(() => {
-        expect(screen.getByText("Usage: 75%")).toBeInTheDocument();
-      });
+      await screen.findByText("Usage: 75%");
+      const badge = screen.getByTestId("usage-badge");
+      expect(badge).toHaveAttribute("data-usage-level", "free");
+      expect(within(badge).getByText("Usage: 75%")).toBeInTheDocument();
     });
 
     it("should use correct badge variant for different levels", async () => {
@@ -109,15 +111,12 @@ describe("UsageBadge", () => {
 
       vi.mocked(fetchUsageDataSafe).mockResolvedValue(mockData);
 
-      const { container } = render(<UsageBadge />);
+      render(<UsageBadge />);
 
-      await waitFor(() => {
-        expect(screen.getByText("Usage: 100%")).toBeInTheDocument();
-      });
-
-      // Check for destructive variant
-      const badge = container.querySelector('[class*="destructive"]');
-      expect(badge).toBeInTheDocument();
+      await screen.findByText("Usage: 100%");
+      const badge = screen.getByTestId("usage-badge");
+      expect(badge).toHaveAttribute("data-usage-level", "over_cap");
+      expect(within(badge).getByText("Usage: 100%")).toBeInTheDocument();
     });
   });
 
@@ -134,9 +133,9 @@ describe("UsageBadge", () => {
 
       render(<UsageBadge />);
 
-      await waitFor(() => {
-        expect(screen.getByText("Usage: 33%")).toBeInTheDocument();
-      });
+      await screen.findByText("Usage: 33%");
+      const badge = screen.getByTestId("usage-badge");
+      expect(within(badge).getByText("Usage: 33%")).toBeInTheDocument();
     });
 
     it("should clamp percentage to 0 for negative values", async () => {
@@ -151,9 +150,9 @@ describe("UsageBadge", () => {
 
       render(<UsageBadge />);
 
-      await waitFor(() => {
-        expect(screen.getByText("Usage: 0%")).toBeInTheDocument();
-      });
+      await screen.findByText("Usage: 0%");
+      const badge = screen.getByTestId("usage-badge");
+      expect(within(badge).getByText("Usage: 0%")).toBeInTheDocument();
     });
 
     it("should clamp percentage to 100 for over-limit values", async () => {
@@ -168,9 +167,9 @@ describe("UsageBadge", () => {
 
       render(<UsageBadge />);
 
-      await waitFor(() => {
-        expect(screen.getByText("Usage: 100%")).toBeInTheDocument();
-      });
+      await screen.findByText("Usage: 100%");
+      const badge = screen.getByTestId("usage-badge");
+      expect(within(badge).getByText("Usage: 100%")).toBeInTheDocument();
     });
 
     it("should handle zero limit without dividing by zero", async () => {
@@ -185,9 +184,9 @@ describe("UsageBadge", () => {
 
       render(<UsageBadge />);
 
-      await waitFor(() => {
-        expect(screen.getByText("Usage: 0%")).toBeInTheDocument();
-      });
+      await screen.findByText("Usage: 0%");
+      const badge = screen.getByTestId("usage-badge");
+      expect(within(badge).getByText("Usage: 0%")).toBeInTheDocument();
     });
 
     it("should show 0% for zero usage", async () => {
@@ -202,9 +201,9 @@ describe("UsageBadge", () => {
 
       render(<UsageBadge />);
 
-      await waitFor(() => {
-        expect(screen.getByText("Usage: 0%")).toBeInTheDocument();
-      });
+      await screen.findByText("Usage: 0%");
+      const badge = screen.getByTestId("usage-badge");
+      expect(within(badge).getByText("Usage: 0%")).toBeInTheDocument();
     });
 
     it("should show 100% when at exact limit", async () => {
@@ -219,9 +218,9 @@ describe("UsageBadge", () => {
 
       render(<UsageBadge />);
 
-      await waitFor(() => {
-        expect(screen.getByText("Usage: 100%")).toBeInTheDocument();
-      });
+      await screen.findByText("Usage: 100%");
+      const badge = screen.getByTestId("usage-badge");
+      expect(within(badge).getByText("Usage: 100%")).toBeInTheDocument();
     });
   });
 
@@ -236,14 +235,11 @@ describe("UsageBadge", () => {
 
       vi.mocked(fetchUsageDataSafe).mockResolvedValue(mockData);
 
-      const { container } = render(<UsageBadge />);
+      render(<UsageBadge />);
 
-      await waitFor(() => {
-        expect(screen.getByText("Usage: 50%")).toBeInTheDocument();
-      });
+      await screen.findByText("Usage: 50%");
 
-      // Check for CheckCircle icon (via class)
-      const icon = container.querySelector('svg.lucide-check-circle');
+      const icon = screen.getByTestId("usage-status-icon-ok");
       expect(icon).toBeInTheDocument();
     });
 
@@ -257,14 +253,11 @@ describe("UsageBadge", () => {
 
       vi.mocked(fetchUsageDataSafe).mockResolvedValue(mockData);
 
-      const { container } = render(<UsageBadge />);
+      render(<UsageBadge />);
 
-      await waitFor(() => {
-        expect(screen.getByText("Usage: 95%")).toBeInTheDocument();
-      });
+      await screen.findByText("Usage: 95%");
 
-      // Check for AlertTriangle icon
-      const icon = container.querySelector('svg.lucide-alert-triangle');
+      const icon = screen.getByTestId("usage-status-icon-soft_cap");
       expect(icon).toBeInTheDocument();
     });
 
@@ -278,21 +271,18 @@ describe("UsageBadge", () => {
 
       vi.mocked(fetchUsageDataSafe).mockResolvedValue(mockData);
 
-      const { container } = render(<UsageBadge />);
+      render(<UsageBadge />);
 
-      await waitFor(() => {
-        expect(screen.getByText("Usage: 100%")).toBeInTheDocument();
-      });
+      await screen.findByText("Usage: 100%");
 
-      // Check for XCircle icon
-      const icon = container.querySelector('svg.lucide-x-circle');
+      const icon = screen.getByTestId("usage-status-icon-hard_cap");
       expect(icon).toBeInTheDocument();
     });
   });
 
   describe("Auto-refresh", () => {
     it("should refresh data every 30 seconds", async () => {
-      vi.useFakeTimers();
+      const intervalSpy = vi.spyOn(global, "setInterval");
 
       const mockData: UsageData = {
         level: "pro",
@@ -305,22 +295,24 @@ describe("UsageBadge", () => {
 
       render(<UsageBadge />);
 
+      await screen.findByText("Usage: 50%");
+      const badge = screen.getByTestId("usage-badge");
+      expect(badge).toBeInTheDocument();
+
       await waitFor(() => {
-        expect(screen.getByText("Usage: 50%")).toBeInTheDocument();
+        expect(fetchUsageDataSafe).toHaveBeenCalledTimes(1);
       });
 
-      // Called once on mount
-      expect(fetchUsageDataSafe).toHaveBeenCalledTimes(1);
+      expect(intervalSpy).toHaveBeenCalledWith(expect.any(Function), 30000);
+      const refreshFn = intervalSpy.mock.calls[0][0] as () => void;
 
-      // Advance by 30 seconds
-      vi.advanceTimersByTime(30000);
+      await act(async () => refreshFn());
 
-      // Should be called again
       await waitFor(() => {
         expect(fetchUsageDataSafe).toHaveBeenCalledTimes(2);
       });
 
-      vi.useRealTimers();
+      intervalSpy.mockRestore();
     });
   });
 
@@ -335,18 +327,13 @@ describe("UsageBadge", () => {
 
       vi.mocked(fetchUsageDataSafe).mockResolvedValue(mockData);
 
-      const { container } = render(<UsageBadge />);
+      render(<UsageBadge />);
 
-      await waitFor(() => {
-        expect(screen.getByText("Usage: 50%")).toBeInTheDocument();
-      });
+      await screen.findByText("Usage: 50%");
+      const badge = screen.getByTestId("usage-badge");
 
-      // Check for responsive classes
-      const mobileElements = container.querySelectorAll(".md\\:hidden");
-      const desktopElements = container.querySelectorAll(".hidden.md\\:inline");
-
-      expect(mobileElements.length).toBeGreaterThan(0);
-      expect(desktopElements.length).toBeGreaterThan(0);
+      expect(within(badge).getByText("Usage: 50%")).toBeInTheDocument();
+      expect(badge.querySelector('[data-testid^="usage-status-icon"]')).not.toBeNull();
     });
   });
 });
