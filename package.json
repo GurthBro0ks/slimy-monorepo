@@ -6,6 +6,15 @@
     "packages/*"
   ],
   "scripts": {
+    "dev:web": "pnpm --filter web dev",
+    "dev:admin-api": "pnpm --filter admin-api dev",
+    "dev:admin-ui": "pnpm --filter admin-ui dev",
+    "dev:bot": "pnpm --filter bot dev",
+    "test:web": "pnpm --filter web test",
+    "test:admin-api": "pnpm --filter admin-api test",
+    "test:admin-ui": "pnpm --filter admin-ui test",
+    "test:bot": "pnpm --filter bot test",
+    "test:all": "pnpm -r run test",
     "lint": "pnpm -r run lint || echo \"TODO: lint\"",
     "lint:core": "pnpm --filter admin-api --filter web --filter admin-ui run lint || echo \"TODO: lint\"",
     "build": "pnpm -r run build",
