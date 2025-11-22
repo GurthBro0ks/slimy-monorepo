@@ -39,6 +39,34 @@ pnpm build            # Build all apps
 pnpm lint             # Lint all apps
 ```
 
+## Development Quickstart
+
+Essential commands to get up and running:
+
+```bash
+# Install all dependencies
+pnpm install
+
+# Generate Prisma clients (required for admin-api and web)
+pnpm prisma:generate
+
+# Start individual apps
+pnpm dev:web         # Web dashboard → http://localhost:3000
+pnpm dev:admin-api   # Admin API → http://localhost:3080
+pnpm dev:admin-ui    # Admin UI → http://localhost:3081
+pnpm dev:bot         # Bot (placeholder)
+
+# Run tests
+pnpm test:all        # All workspaces
+pnpm test:web        # Web app only
+pnpm test:admin-api  # Admin API only
+
+# Build all apps
+pnpm build
+```
+
+For detailed setup instructions, environment configuration, and troubleshooting, see **[docs/DEV_WORKFLOW.md](docs/DEV_WORKFLOW.md)**.
+
 ## Structure
 
 - `apps/` holds runnable Slimy.ai applications (web, admin, bot, etc.).

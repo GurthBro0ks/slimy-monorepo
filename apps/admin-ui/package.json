@@ -5,6 +5,7 @@
     "dev": "next dev -p 3081",
     "build": "next build",
     "start": "next start -p 3081",
+    "test": "echo \"No tests yet for admin-ui\" && exit 0"
     "test": "echo \"TODO: Add tests for admin-ui\" && exit 0"
   },
   "dependencies": {
