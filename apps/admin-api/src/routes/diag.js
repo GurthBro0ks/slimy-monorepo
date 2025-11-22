@@ -2,7 +2,6 @@
 
 const os = require("os");
 const express = require("express");
-const { requireAuth } = require("../middleware/auth");
 const { summarizeUploads } = require("../services/uploads");
 
 const router = express.Router();
@@ -20,11 +19,19 @@ function buildAdminSnapshot() {
   };
 }
 
-router.get("/", requireAuth, async (req, res) => {
+router.get("/", async (req, res) => {
   console.info("[admin-api] /api/diag called", {
     hasUser: Boolean(req.user),
     userId: req.user?.id || null,
   });
+
+  if (!req.user) {
+    return res.json({
+      ok: true,
+      authenticated: false,
+    });
+  }
+
   try {
     const uploads = await summarizeUploads().catch(() => ({
       total: 0,
@@ -34,6 +41,7 @@ router.get("/", requireAuth, async (req, res) => {
 
     res.json({
       ok: true,
+      authenticated: true,
       admin: buildAdminSnapshot(),
       uploads,
     });
