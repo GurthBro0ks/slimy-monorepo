@@ -135,6 +135,18 @@ admin-api/
 
 **Note**: Endpoints marked (stub) return placeholder data and need database integration.
 
+### Club Analytics
+- `GET /api/guilds/:guildId/club/latest` - Get latest member power metrics (Name, SIM Power, Total Power)
+  - Auth: requires authentication + guild membership
+  - Returns: Array of members sorted by total power descending
+  - Response: `{ ok: true, guildId, members: [{ memberKey, name, simPower, totalPower, changePercent, lastSeenAt }] }`
+- `POST /api/guilds/:guildId/club/rescan` - Trigger rescan of club metrics
+  - Auth: requires authentication + admin role
+  - Currently recomputes latest aggregates (full rescan pipeline TODO)
+  - Response: `{ ok: true, message, guildId, recomputedAt }`
+
+**Database Schema**: Apply `lib/club-schema.sql` to enable club analytics. See `docs/CLUB_SCHEMA_MIGRATION.md` for migration guide.
+
 ### Uploads & Diagnostics
 - `GET /api/uploads/:guildId` — List recent uploads (thumbnails + links), auth required
 - `POST /api/uploads/:guildId` — Multipart upload (`files[]`) limited to 20 images, auto-generates JPEG, XL, and thumbnail variants
