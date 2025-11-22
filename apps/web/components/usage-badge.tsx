@@ -5,6 +5,7 @@ import { Badge } from "./ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
 import { AlertTriangle, CheckCircle, XCircle } from "lucide-react";
 import { UsageData, UsageLevel } from "@/lib/usage-thresholds";
+import { fetchUsageDataSafe } from "@/lib/api/usage";
 
 const levelColors: Record<UsageLevel, "default" | "secondary" | "destructive"> = {
   free: "secondary",
@@ -31,12 +32,10 @@ export function UsageBadge() {
   useEffect(() => {
     async function fetchUsage() {
       try {
-        const response = await fetch("/api/usage");
-        if (response.ok) {
-          const data = await response.json();
-          setUsage(data.data);
-        }
+        const data = await fetchUsageDataSafe();
+        setUsage(data);
       } catch (error) {
+        // Error already logged by fetchUsageDataSafe
         console.error("Failed to fetch usage:", error);
       } finally {
         setLoading(false);
@@ -57,7 +56,10 @@ export function UsageBadge() {
     );
   }
 
-  const percentage = Math.round((usage.currentSpend / usage.limit) * 100);
+  // Calculate percentage safely, avoiding division by zero and clamping to 0-100
+  const percentage = usage.limit > 0
+    ? Math.min(100, Math.max(0, Math.round((usage.currentSpend / usage.limit) * 100)))
+    : 0;
 
   const tooltipContent = (
     <div className="space-y-1 text-xs">
