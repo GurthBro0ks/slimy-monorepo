@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import UsagePage from "@/app/usage/page";
 import type { UsageData } from "@/lib/usage-thresholds";
 
@@ -32,12 +32,13 @@ describe("UsagePage", () => {
         () => new Promise(() => {})
       );
 
-      render(<UsagePage />);
+      const { unmount } = render(<UsagePage />);
 
       expect(screen.getByText("Usage Dashboard")).toBeInTheDocument();
-      // Check for skeleton loading elements
-      const skeletons = document.querySelectorAll('[class*="skeleton"]');
+      const skeletons = screen.getAllByTestId("usage-skeleton");
       expect(skeletons.length).toBeGreaterThan(0);
+
+      unmount();
     });
 
     it("should show loading state before data is available", async () => {
@@ -58,11 +59,13 @@ describe("UsagePage", () => {
           )
       );
 
-      render(<UsagePage />);
+      const { unmount } = render(<UsagePage />);
 
       // Initially shows loading
-      const skeletons = document.querySelectorAll('[class*="skeleton"]');
+      const skeletons = screen.getAllByTestId("usage-skeleton");
       expect(skeletons.length).toBeGreaterThan(0);
+
+      unmount();
     });
   });
 
@@ -135,13 +138,17 @@ describe("UsagePage", () => {
 
       render(<UsagePage />);
 
-      await waitFor(() => {
-        expect(screen.getByText("$500")).toBeInTheDocument();
-      });
+      const page = await screen.findByTestId("usage-page");
+      expect(page).toBeInTheDocument();
 
-      expect(screen.getByText("of $1,000 limit")).toBeInTheDocument();
-      expect(screen.getByText("50% used")).toBeInTheDocument();
-      expect(screen.getByText("Operating normally")).toBeInTheDocument();
+      const currentCard = await screen.findByTestId("usage-card-current");
+      const currentWithin = within(currentCard);
+      expect(currentWithin.getByText("$500")).toBeInTheDocument();
+      expect(currentWithin.getByText("of $1,000 limit")).toBeInTheDocument();
+      expect(currentWithin.getByText("50% used")).toBeInTheDocument();
+
+      const statusCard = await screen.findByTestId("usage-card-status");
+      expect(within(statusCard).getByText("Operating normally")).toBeInTheDocument();
       expect(screen.getByText("PRO")).toBeInTheDocument();
     });
 
@@ -157,13 +164,13 @@ describe("UsagePage", () => {
 
       render(<UsagePage />);
 
-      await waitFor(() => {
-        expect(screen.getByText("$50")).toBeInTheDocument();
-      });
+      const currentCard = await screen.findByTestId("usage-card-current");
+      const currentWithin = within(currentCard);
 
-      expect(screen.getByText("of $100 limit")).toBeInTheDocument();
-      expect(screen.getByText("50% used")).toBeInTheDocument();
       expect(screen.getByText("FREE")).toBeInTheDocument();
+      expect(currentWithin.getByText("$50")).toBeInTheDocument();
+      expect(currentWithin.getByText("of $100 limit")).toBeInTheDocument();
+      expect(currentWithin.getByText("50% used")).toBeInTheDocument();
     });
 
     it("should display soft cap warning when approaching limit", async () => {
@@ -268,11 +275,11 @@ describe("UsagePage", () => {
 
       render(<UsagePage />);
 
-      await waitFor(() => {
-        expect(screen.getByText("$0")).toBeInTheDocument();
-      });
+      const currentCard = await screen.findByTestId("usage-card-current");
+      const currentWithin = within(currentCard);
 
-      expect(screen.getByText("0% used")).toBeInTheDocument();
+      expect(currentWithin.getByText("$0")).toBeInTheDocument();
+      expect(currentWithin.getByText("0% used")).toBeInTheDocument();
     });
 
     it("should clamp percentage to 0-100 range for negative values", async () => {
@@ -323,12 +330,11 @@ describe("UsagePage", () => {
 
       render(<UsagePage />);
 
-      await waitFor(() => {
-        expect(screen.getByText("$0")).toBeInTheDocument();
-      });
+      const currentCard = await screen.findByTestId("usage-card-current");
+      const currentWithin = within(currentCard);
 
-      // Should show 0% (avoiding division by zero)
-      expect(screen.getByText("0% used")).toBeInTheDocument();
+      expect(currentWithin.getByText("$0")).toBeInTheDocument();
+      expect(currentWithin.getByText("0% used")).toBeInTheDocument();
     });
 
     it("should handle null usage data gracefully", async () => {
@@ -356,17 +362,17 @@ describe("UsagePage", () => {
 
       render(<UsagePage />);
 
-      await waitFor(() => {
-        expect(screen.getByText("$50,000")).toBeInTheDocument();
-      });
+      const currentCard = await screen.findByTestId("usage-card-current");
+      const currentWithin = within(currentCard);
 
-      expect(screen.getByText("of $100,000 limit")).toBeInTheDocument();
+      expect(currentWithin.getByText("$50,000")).toBeInTheDocument();
+      expect(currentWithin.getByText("of $100,000 limit")).toBeInTheDocument();
     });
   });
 
   describe("Auto-refresh behavior", () => {
     it("should set up auto-refresh interval", async () => {
-      vi.useFakeTimers();
+      const intervalSpy = vi.spyOn(global, "setInterval");
 
       const mockData: UsageData = {
         level: "pro",
@@ -379,22 +385,25 @@ describe("UsagePage", () => {
 
       render(<UsagePage />);
 
+      const page = await screen.findByTestId("usage-page");
+      expect(page).toBeInTheDocument();
+
       await waitFor(() => {
-        expect(screen.getByText("$500")).toBeInTheDocument();
+        expect(fetchUsageData).toHaveBeenCalledTimes(1);
       });
 
-      // Should have called once on mount
-      expect(fetchUsageData).toHaveBeenCalledTimes(1);
+      expect(intervalSpy).toHaveBeenCalledWith(expect.any(Function), 30000);
+      const refreshFn = intervalSpy.mock.calls[0][0] as () => void;
 
-      // Advance time by 30 seconds
-      vi.advanceTimersByTime(30000);
+      await act(async () => {
+        refreshFn();
+      });
 
-      // Should have called again
       await waitFor(() => {
         expect(fetchUsageData).toHaveBeenCalledTimes(2);
       });
 
-      vi.useRealTimers();
+      intervalSpy.mockRestore();
     });
   });
 
@@ -411,12 +420,12 @@ describe("UsagePage", () => {
 
       render(<UsagePage />);
 
-      await waitFor(() => {
-        expect(screen.getByText("Current Usage")).toBeInTheDocument();
-      });
+      const card = await screen.findByTestId("usage-card-current");
+      const cardWithin = within(card);
 
-      expect(screen.getByText("$750")).toBeInTheDocument();
-      expect(screen.getByText("of $1,000 limit")).toBeInTheDocument();
+      expect(cardWithin.getByText("Current Usage")).toBeInTheDocument();
+      expect(cardWithin.getByText("$750")).toBeInTheDocument();
+      expect(cardWithin.getByText("of $1,000 limit")).toBeInTheDocument();
     });
 
     it("should display service status card", async () => {
@@ -431,11 +440,11 @@ describe("UsagePage", () => {
 
       render(<UsagePage />);
 
-      await waitFor(() => {
-        expect(screen.getByText("Service Status")).toBeInTheDocument();
-      });
+      const card = await screen.findByTestId("usage-card-status");
+      const cardWithin = within(card);
 
-      expect(screen.getByText("Operating normally")).toBeInTheDocument();
+      expect(cardWithin.getByText("Service Status")).toBeInTheDocument();
+      expect(cardWithin.getByText("Operating normally")).toBeInTheDocument();
     });
 
     it("should display usage details card", async () => {
@@ -450,13 +459,13 @@ describe("UsagePage", () => {
 
       render(<UsagePage />);
 
-      await waitFor(() => {
-        expect(screen.getByText("Usage Details")).toBeInTheDocument();
-      });
+      const card = await screen.findByTestId("usage-card-details");
+      const cardWithin = within(card);
 
-      expect(screen.getByText("Tier")).toBeInTheDocument();
-      expect(screen.getByText("Current Spend")).toBeInTheDocument();
-      expect(screen.getByText("Usage Limit")).toBeInTheDocument();
+      expect(cardWithin.getByText("Usage Details")).toBeInTheDocument();
+      expect(cardWithin.getByText("Tier")).toBeInTheDocument();
+      expect(cardWithin.getByText("Current Spend")).toBeInTheDocument();
+      expect(cardWithin.getByText("Usage Limit")).toBeInTheDocument();
     });
   });
 });
