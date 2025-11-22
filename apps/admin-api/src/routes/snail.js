@@ -42,7 +42,9 @@ const SNELP_CODES_URL =
   process.env.SNELP_CODES_URL || "https://snelp.com/api/codes";
 
 // Directory paths for file storage
-const UPLOAD_ROOT = path.join(UPLOADS_DIR, "snail");
+// Use local development path if UPLOADS_DIR is not explicitly set in environment
+const baseUploadsDir = process.env.UPLOADS_DIR || path.join(process.cwd(), "uploads");
+const UPLOAD_ROOT = path.join(baseUploadsDir, "snail");
 const DATA_ROOT = path.join(process.cwd(), "data", "snail");
 const CODES_ROOT = path.join(process.cwd(), "data", "codes");
 
