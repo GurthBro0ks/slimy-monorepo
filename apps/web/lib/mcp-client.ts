@@ -17,6 +17,8 @@
  * - Implements role-based permissions (Admin > Club > Guild)
  */
 
+import { config as runtimeConfig } from '@/lib/config';
+
 interface MCPClientConfig {
   baseUrl?: string;
   apiKey?: string;
@@ -33,8 +35,10 @@ export class MCPClient {
   private apiKey: string;
 
   constructor(config?: MCPClientConfig) {
-    this.baseUrl = config?.baseUrl || process.env.MCP_BASE_URL || 'http://localhost:3100';
-    this.apiKey = config?.apiKey || process.env.MCP_API_KEY || '';
+    const mcp = runtimeConfig.mcp;
+
+    this.baseUrl = config?.baseUrl || mcp.baseUrl || 'http://localhost:3100';
+    this.apiKey = config?.apiKey || mcp.apiKey || '';
   }
 
   /**

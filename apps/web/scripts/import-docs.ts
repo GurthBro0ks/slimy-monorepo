@@ -3,11 +3,12 @@
 import { writeFileSync, mkdirSync, existsSync } from "fs";
 import { join, dirname } from "path";
 import matter from "gray-matter";
+import { config } from "../lib/config";
 
 const GITHUB_API = "https://api.github.com";
-const DOCS_SOURCE_REPO = process.env.DOCS_SOURCE_REPO || "";
-const DOCS_SOURCE_PATH = process.env.DOCS_SOURCE_PATH || "docs";
-const GITHUB_TOKEN = process.env.GITHUB_TOKEN || "";
+const DOCS_SOURCE_REPO = config.docs.sourceRepo || "";
+const DOCS_SOURCE_PATH = config.docs.sourcePath || "docs";
+const GITHUB_TOKEN = config.docs.githubToken || "";
 const DRY_RUN = process.argv.includes("--dry-run");
 
 interface GitHubTreeItem {

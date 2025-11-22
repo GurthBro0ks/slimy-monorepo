@@ -6,6 +6,7 @@
  */
 
 import { createHmac, timingSafeEqual } from 'crypto';
+import { config, isProduction } from '@/lib/config';
 import { AuthenticationError } from '../errors';
 
 /**
@@ -22,7 +23,7 @@ interface SignatureConfig {
  * Default configuration
  */
 const DEFAULT_CONFIG: SignatureConfig = {
-  secret: process.env.REQUEST_SIGNING_SECRET || 'change-me-in-production',
+  secret: config.requestSigning.secret || 'change-me-in-production',
   algorithm: 'sha256',
   timestampToleranceSeconds: 300, // 5 minutes
   headerName: 'x-signature',
@@ -37,7 +38,7 @@ export class RequestSigner {
   constructor(config?: Partial<SignatureConfig>) {
     this.config = { ...DEFAULT_CONFIG, ...config };
 
-    if (this.config.secret === 'change-me-in-production' && process.env.NODE_ENV === 'production') {
+    if (this.config.secret === 'change-me-in-production' && isProduction) {
       console.warn('⚠️  WARNING: Using default request signing secret in production!');
     }
   }

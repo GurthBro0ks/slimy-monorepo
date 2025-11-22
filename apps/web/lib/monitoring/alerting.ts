@@ -4,6 +4,7 @@
  * Provides alerting for critical application events and threshold breaches
  */
 
+import { config, isProduction } from '@/lib/config';
 import { getLogger } from './logger';
 import type { JSONObject } from '../types/common';
 
@@ -114,19 +115,18 @@ export class AlertingManager {
     this.alerts = [];
 
     // Add default console channel in development
-    if (process.env.NODE_ENV !== 'production') {
+    if (!isProduction) {
       this.addChannel(new ConsoleAlertChannel());
     }
 
     // Add webhook channel if configured
-    if (process.env.ALERT_WEBHOOK_URL) {
-      this.addChannel(new WebhookAlertChannel(process.env.ALERT_WEBHOOK_URL));
+    if (config.alerting.webhookUrl) {
+      this.addChannel(new WebhookAlertChannel(config.alerting.webhookUrl));
     }
 
     // Add email channel if configured
-    if (process.env.ALERT_EMAIL_RECIPIENTS) {
-      const recipients = process.env.ALERT_EMAIL_RECIPIENTS.split(',');
-      this.addChannel(new EmailAlertChannel(recipients));
+    if (config.alerting.emailRecipients.length > 0) {
+      this.addChannel(new EmailAlertChannel(config.alerting.emailRecipients));
     }
   }
 

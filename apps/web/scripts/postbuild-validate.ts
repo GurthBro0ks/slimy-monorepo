@@ -2,13 +2,14 @@
 
 import { existsSync } from "fs";
 import { join } from "path";
+import { clientConfig, isProduction } from "../lib/config";
 
 const errors: string[] = [];
 const warnings: string[] = [];
 
 // Check required environment variables in production
-if (process.env.NODE_ENV === "production") {
-  if (!process.env.NEXT_PUBLIC_ADMIN_API_BASE) {
+if (isProduction) {
+  if (!clientConfig.adminApiBase) {
     warnings.push("NEXT_PUBLIC_ADMIN_API_BASE is not set");
   }
 }

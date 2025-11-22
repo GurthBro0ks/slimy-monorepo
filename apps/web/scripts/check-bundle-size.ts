@@ -8,6 +8,7 @@
 
 import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
+import { config } from '../lib/config';
 
 interface BundleSizeConfig {
   maxInitialBundleSize: number; // in KB
@@ -17,10 +18,10 @@ interface BundleSizeConfig {
 }
 
 const DEFAULT_CONFIG: BundleSizeConfig = {
-  maxInitialBundleSize: 1000, // 1MB
-  maxRouteChunkSize: 500, // 500KB
-  maxTotalBundleSize: 3000, // 3MB
-  warnThreshold: 0.8, // Warn at 80% of limit
+  maxInitialBundleSize: config.bundleChecks.maxInitialBundleKB,
+  maxRouteChunkSize: config.bundleChecks.maxRouteChunkKB,
+  maxTotalBundleSize: config.bundleChecks.maxTotalBundleKB,
+  warnThreshold: config.bundleChecks.warnThreshold,
 };
 
 interface BundleInfo {
@@ -168,12 +169,7 @@ function analyzeBundleSizes(config: BundleSizeConfig = DEFAULT_CONFIG): {
 }
 
 function main() {
-  const config: BundleSizeConfig = {
-    maxInitialBundleSize: parseInt(process.env.MAX_INITIAL_BUNDLE_KB || '1000', 10),
-    maxRouteChunkSize: parseInt(process.env.MAX_ROUTE_CHUNK_KB || '500', 10),
-    maxTotalBundleSize: parseInt(process.env.MAX_TOTAL_BUNDLE_KB || '3000', 10),
-    warnThreshold: parseFloat(process.env.BUNDLE_WARN_THRESHOLD || '0.8'),
-  };
+  const config: BundleSizeConfig = { ...DEFAULT_CONFIG };
 
   console.log('📦 Analyzing bundle sizes...\n');
   console.log('Configuration:');

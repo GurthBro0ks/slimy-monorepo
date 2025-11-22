@@ -5,6 +5,7 @@
  */
 
 import { PrismaClient } from '../node_modules/.prisma/client';
+import { isDevelopment, isProduction } from '@/lib/config';
 
 // Extend PrismaClient type for global storage
 declare global {
@@ -18,7 +19,7 @@ declare global {
 function createPrismaClient(): PrismaClient {
   return new PrismaClient({
     log:
-      process.env.NODE_ENV === 'development'
+      isDevelopment
         ? ['query', 'error', 'warn']
         : ['error'],
   });
@@ -30,7 +31,7 @@ export const db =
   global.prisma ||
   createPrismaClient();
 
-if (process.env.NODE_ENV !== 'production') {
+if (!isProduction) {
   global.prisma = db;
 }
 

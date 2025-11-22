@@ -3,6 +3,7 @@
  * Fetches codes from the official Super Snail Discord channel
  */
 
+import { config } from '@/lib/config';
 import { Code, SourceMetadata } from "../types/codes";
 
 const CHANNEL_ID = "1118010099974287370";
@@ -68,8 +69,7 @@ export async function fetchDiscordCodes(): Promise<{
   codes: Code[];
   metadata: SourceMetadata;
 }> {
-  const token = process.env.DISCORD_TOKEN;
-  const clientId = process.env.DISCORD_CLIENT_ID;
+  const { token, clientId } = config.discord;
 
   if (!token || !clientId) {
     console.warn("Discord credentials not configured");

@@ -3,6 +3,7 @@
 import { useEffect, ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth/context";
+import { clientConfig } from "@/lib/config";
 import { Role } from "@/slimy.config";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -44,7 +45,7 @@ export function ProtectedRoute({
       if (!fallback) {
         if (redirectTo === "/login" || !user) {
           // For login redirects, we need to trigger login flow
-          const adminApiBase = process.env.NEXT_PUBLIC_ADMIN_API_BASE || "";
+          const adminApiBase = clientConfig.adminApiBase || "";
           if (adminApiBase) {
             window.location.href = `${adminApiBase}/api/auth/login`;
           } else {

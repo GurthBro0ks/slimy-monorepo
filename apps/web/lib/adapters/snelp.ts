@@ -3,6 +3,7 @@
  * Scrapes codes from Snelp.com using Firecrawl API
  */
 
+import { config } from '@/lib/config';
 import { Code, SourceMetadata } from "../types/codes";
 
 const SNELP_URL = "https://snelp.com/codes";
@@ -73,7 +74,7 @@ export async function fetchSnelpCodes(): Promise<{
   codes: Code[];
   metadata: SourceMetadata;
 }> {
-  const apiKey = process.env.FIRECRAWL_API_KEY;
+  const apiKey = config.firecrawl.apiKey;
 
   if (!apiKey) {
     console.warn("Firecrawl API key not configured");

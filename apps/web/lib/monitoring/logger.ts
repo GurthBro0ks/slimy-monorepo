@@ -7,6 +7,7 @@
 
 import { writeFileSync, mkdirSync, existsSync } from 'fs';
 import { join } from 'path';
+import { config } from '@/lib/config';
 import type { LogLevel, LogEntry, JSONObject } from '../types/common';
 
 /**
@@ -111,16 +112,16 @@ export class Logger {
   private transports: LogTransport[];
   private context: JSONObject;
 
-  constructor(config?: Partial<LoggerConfig>, initialContext?: JSONObject) {
+  constructor(overrides?: Partial<LoggerConfig>, initialContext?: JSONObject) {
     this.config = {
-      level: (process.env.LOG_LEVEL as LogLevel) || 'info',
+      level: (overrides?.level as LogLevel) || config.logging.level,
       enableConsole: true,
-      enableFile: process.env.NODE_ENV === 'production',
-      logDirectory: 'logs',
-      prettyPrint: process.env.NODE_ENV !== 'production',
-      includeTimestamp: true,
-      includeStackTrace: true,
-      ...config,
+      enableFile: overrides?.enableFile ?? config.logging.enableFile,
+      logDirectory: overrides?.logDirectory || 'logs',
+      prettyPrint: overrides?.prettyPrint ?? config.logging.prettyPrint,
+      includeTimestamp: overrides?.includeTimestamp ?? true,
+      includeStackTrace: overrides?.includeStackTrace ?? config.monitoring.logging.enableErrorStacks,
+      ...overrides,
     };
 
     this.context = initialContext || {};

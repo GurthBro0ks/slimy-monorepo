@@ -10,6 +10,8 @@
  * - INP (Interaction to Next Paint)
  */
 
+import { isDevelopment } from '@/lib/config';
+
 export interface WebVitalsMetric {
   name: 'CLS' | 'FID' | 'FCP' | 'LCP' | 'TTFB' | 'INP';
   value: number;
@@ -86,7 +88,7 @@ async function sendToAnalytics(metric: WebVitalsMetric): Promise<void> {
  */
 function reportWebVitals(metric: WebVitalsMetric): void {
   // Log to console in development
-  if (process.env.NODE_ENV === 'development') {
+  if (isDevelopment) {
     console.log('[Web Vitals]', metric.name, {
       value: metric.value,
       rating: metric.rating,

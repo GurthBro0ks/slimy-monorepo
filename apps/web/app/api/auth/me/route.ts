@@ -1,5 +1,5 @@
-import { NextResponse } from "next/server";
 import { apiClient } from "@/lib/api-client";
+import { apiHandler } from "@/lib/api/handler";
 import { getUserRole } from "@/slimy.config";
 
 export const dynamic = "force-dynamic"; // no-store
@@ -15,22 +15,19 @@ interface AdminApiMeResponse {
   }>;
 }
 
-export async function GET() {
-  const result = await apiClient.get<AdminApiMeResponse>("/api/auth/me", {
+export const GET = apiHandler(async () => {
+  const result = await apiClient.getOrThrow<AdminApiMeResponse>("/api/auth/me", {
     useCache: false, // Don't cache auth data
   });
 
-  if (!result.ok) {
-    return NextResponse.json(result, { status: result.status || 401 });
-  }
-
-  // Extract roles from guilds and determine user role
   const allRoles = result.data.guilds?.flatMap(g => g.roles) || [];
   const role = getUserRole(allRoles);
 
-  return NextResponse.json({
-    user: result.data.user,
-    role,
-    guilds: result.data.guilds,
-  });
-}
+  return {
+    body: {
+      user: result.data.user,
+      role,
+      guilds: result.data.guilds,
+    },
+  };
+});

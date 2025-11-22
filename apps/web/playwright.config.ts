@@ -1,12 +1,13 @@
 import { defineConfig, devices } from "@playwright/test";
+import { env } from "./lib/config";
 
 export default defineConfig({
   testDir: "./tests/e2e",
   fullyParallel: true,
-  forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 1 : undefined,
-  reporter: process.env.CI ? "github" : "html",
+  forbidOnly: !!env.CI,
+  retries: env.CI ? 2 : 0,
+  workers: env.CI ? 1 : undefined,
+  reporter: env.CI ? "github" : "html",
   use: {
     baseURL: "http://localhost:3000",
     trace: "on-first-retry",
@@ -19,14 +20,14 @@ export default defineConfig({
       use: {
         ...devices["Desktop Chrome"],
         // Reduce viewport size for faster tests in CI
-        viewport: process.env.CI ? { width: 1280, height: 720 } : { width: 1920, height: 1080 },
+        viewport: env.CI ? { width: 1280, height: 720 } : { width: 1920, height: 1080 },
       },
     },
   ],
   webServer: {
     command: "npm run build && npm start",
     url: "http://localhost:3000",
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: !env.CI,
     timeout: 120 * 1000, // 2 minutes
   },
   expect: {

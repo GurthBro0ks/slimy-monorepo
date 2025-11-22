@@ -2,6 +2,8 @@
  * CDN configuration and utilities
  */
 
+import { clientConfig } from '@/lib/config';
+
 export interface CDNConfig {
   enabled: boolean;
   baseUrl: string;
@@ -13,10 +15,10 @@ export interface CDNConfig {
  * Default CDN configuration
  */
 const DEFAULT_CDN_CONFIG: CDNConfig = {
-  enabled: !!process.env.NEXT_PUBLIC_CDN_URL,
-  baseUrl: process.env.NEXT_PUBLIC_CDN_URL || '',
-  domains: (process.env.NEXT_PUBLIC_CDN_DOMAINS || '').split(',').filter(Boolean),
-  cacheBusting: process.env.NODE_ENV === 'production',
+  enabled: clientConfig.cdn.enabled,
+  baseUrl: clientConfig.cdn.baseUrl,
+  domains: clientConfig.cdn.domains,
+  cacheBusting: clientConfig.cdn.cacheBusting,
 };
 
 /**
