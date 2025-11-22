@@ -35,8 +35,16 @@ app.use((_, res, next) => {
   next();
 });
 
+// Request logging and ID tracking
+app.use(requestLogger);
+
+// Auth resolution
 app.use(readAuth);
+
+// Routes
 app.use("/", routes);
+
+// Static file serving
 app.use(
   "/api/uploads/files",
   express.static(UPLOADS_DIR, {
