@@ -13,6 +13,7 @@ const botRoutes = require("./bot");
 const statsRoutes = require("./stats");
 const snailRoutes = require("./snail");
 const chatRoutes = require("./chat");
+const clubRoutes = require("./club");
 
 router.get("/api/", (_req, res) => res.json({ ok: true }));
 router.get("/api/health", (_req, res) => {
@@ -26,6 +27,7 @@ router.get("/api/health", (_req, res) => {
 router.use("/api", debugRoutes);
 router.use("/api/auth", authRoutes);
 router.use("/api/guilds/:guildId/snail", snailRoutes);
+router.use("/api/guilds/:guildId/club", clubRoutes);
 router.use("/api/guilds", guildRoutes);
 router.use("/api/guilds", guildSettingsRoutes);
 router.use("/api/guilds", personalityRoutes);
