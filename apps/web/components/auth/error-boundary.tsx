@@ -1,6 +1,7 @@
 "use client";
 
 import React, { Component, ErrorInfo, ReactNode } from "react";
+import { isDevelopment } from "@/lib/config";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { AlertTriangle, RefreshCw, Home } from "lucide-react";
@@ -88,7 +89,7 @@ export class AuthErrorBoundary extends Component<Props, State> {
                 </Button>
               </div>
 
-              {process.env.NODE_ENV === "development" && this.state.error && (
+              {isDevelopment && this.state.error && (
                 <details className="mt-4 rounded-md bg-muted p-3">
                   <summary className="cursor-pointer text-sm font-medium">
                     Error Details (Development Only)

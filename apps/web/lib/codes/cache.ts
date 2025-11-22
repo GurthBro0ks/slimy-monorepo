@@ -1,4 +1,5 @@
 import { RedisClientType, createClient } from "redis";
+import { config } from '@/lib/config';
 
 /**
  * Cache configuration
@@ -17,8 +18,8 @@ export interface CacheConfig {
  * Default cache configuration
  */
 const DEFAULT_CONFIG: CacheConfig = {
-  enabled: process.env.REDIS_URL ? true : false,
-  url: process.env.REDIS_URL,
+  enabled: config.redis.enabled,
+  url: config.redis.url,
   ttl: 300, // 5 minutes
   staleTtl: 600, // 10 minutes for stale data
   keyPrefix: "codes:",

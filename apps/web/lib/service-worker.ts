@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from 'react';
+import { isProduction } from '@/lib/config';
 
 /**
  * Service Worker Registration Hook
@@ -11,7 +12,7 @@ export function useServiceWorker() {
     if (
       typeof window !== 'undefined' &&
       'serviceWorker' in navigator &&
-      process.env.NODE_ENV === 'production'
+      isProduction
     ) {
       // Register service worker
       navigator.serviceWorker
@@ -69,4 +70,3 @@ export function unregisterServiceWorker() {
     });
   }
 }
-

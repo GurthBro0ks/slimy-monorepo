@@ -12,15 +12,9 @@
  * AdminApiClient is the single source of truth for proxy logic.
  */
 
-import { adminApiClient, type ApiResponse as AdminApiResponse } from './api/admin-client';
-
-export interface ApiError {
-  ok: false;
-  code: string;
-  message: string;
-  status?: number;
-  details?: unknown;
-}
+import { clientConfig } from '@/lib/config';
+import { adminApiClient } from './api/admin-client';
+import { type ApiErrorPayload, logApiError, normalizeError } from './api/errors';
 
 export interface ApiSuccess<T = unknown> {
   ok: true;
@@ -29,7 +23,9 @@ export interface ApiSuccess<T = unknown> {
   headers: Headers;
 }
 
-export type ApiResponse<T = unknown> = ApiSuccess<T> | ApiError;
+export type ApiError = ApiErrorPayload;
+export type ApiErrorResponse = ApiErrorPayload;
+export type ApiResponse<T = unknown> = ApiSuccess<T> | ApiErrorResponse;
 
 export interface RequestConfig {
   timeout?: number;
@@ -59,11 +55,11 @@ export class ApiClient {
   private cache = new Map<string, CacheEntry>();
   private requestInterceptors: Array<(config: RequestInit) => RequestInit> = [];
   private responseInterceptors: Array<(response: Response) => Response | Promise<Response>> = [];
-  private errorInterceptors: Array<(error: ApiError) => ApiError | Promise<ApiError>> = [];
+  private errorInterceptors: Array<(error: ApiErrorResponse) => ApiErrorResponse | Promise<ApiErrorResponse>> = [];
   private adminClient = adminApiClient;
 
   constructor(baseUrl?: string) {
-    this.baseUrl = baseUrl || process.env.NEXT_PUBLIC_ADMIN_API_BASE || '';
+    this.baseUrl = baseUrl || clientConfig.adminApiBase || '';
     this.defaultTimeout = 10000; // 10 seconds
 
     this.retryConfig = {
@@ -100,7 +96,7 @@ export class ApiClient {
   /**
    * Add an error interceptor that can modify error responses
    */
-  addErrorInterceptor(interceptor: (error: ApiError) => ApiError | Promise<ApiError>): void {
+  addErrorInterceptor(interceptor: (error: ApiErrorResponse) => ApiErrorResponse | Promise<ApiErrorResponse>): void {
     this.errorInterceptors.push(interceptor);
   }
 
@@ -176,7 +172,7 @@ export class ApiClient {
   /**
    * Check if error is retryable
    */
-  private isRetryableError(error: ApiError): boolean {
+  private isRetryableError(error: ApiErrorResponse): boolean {
     // Retry on network errors, 5xx server errors, and specific 4xx errors
     const retryableCodes = ['NETWORK_ERROR', 'TIMEOUT_ERROR'];
     const retryableStatuses = [408, 429, 500, 502, 503, 504];
@@ -210,7 +206,7 @@ export class ApiClient {
   /**
    * Process error through interceptors
    */
-  private async processErrorInterceptors(error: ApiError): Promise<ApiError> {
+  private async processErrorInterceptors(error: ApiErrorResponse): Promise<ApiErrorResponse> {
     let processedError = error;
     for (const interceptor of this.errorInterceptors) {
       processedError = await interceptor(processedError);
@@ -221,37 +217,10 @@ export class ApiClient {
   /**
    * Handle API errors consistently
    */
-  private async handleError(error: unknown, status?: number): Promise<ApiError> {
-    let apiError: ApiError;
-
-    if (error instanceof Error) {
-      if (error.name === 'AbortError') {
-        apiError = {
-          ok: false,
-          code: 'TIMEOUT_ERROR',
-          message: 'Request timed out',
-          status: 408,
-        };
-      } else {
-        apiError = {
-          ok: false,
-          code: 'NETWORK_ERROR',
-          message: error.message || 'Network request failed',
-          status,
-          details: error,
-        };
-      }
-    } else {
-      apiError = {
-        ok: false,
-        code: 'UNKNOWN_ERROR',
-        message: 'An unknown error occurred',
-        status,
-        details: error,
-      };
-    }
-
-    return this.processErrorInterceptors(apiError);
+  private async handleError(error: unknown, status?: number): Promise<ApiErrorResponse> {
+    const normalized = normalizeError(error, status);
+    logApiError(normalized, { status });
+    return this.processErrorInterceptors(normalized.toJSON());
   }
 
   /**
@@ -307,7 +276,7 @@ export class ApiClient {
     // Process request through interceptors
     const processedConfig = await this.processRequestInterceptors(requestConfig);
 
-    let lastError: ApiError | null = null;
+    let lastError: ApiErrorResponse | null = null;
 
     for (let attempt = 0; attempt <= retries; attempt++) {
       try {
@@ -321,7 +290,9 @@ export class ApiClient {
 
         // Handle error responses
         if (!response.ok) {
-          lastError = response as ApiError;
+          const normalized = normalizeError(response, response.status ?? 500);
+          logApiError(normalized, { path, attempt, status: response.status });
+          lastError = await this.processErrorInterceptors(normalized.toJSON());
 
           // Check if we should retry
           if (attempt < retries && this.isRetryableError(lastError)) {
@@ -331,7 +302,7 @@ export class ApiClient {
             continue;
           }
 
-          return await this.processErrorInterceptors(lastError);
+          return lastError;
         }
 
         // Success - response is already parsed by AdminApiClient
@@ -365,6 +336,7 @@ export class ApiClient {
       ok: false,
       code: 'UNKNOWN_ERROR',
       message: 'Request failed after all retries',
+      status: 500,
     };
   }
 
@@ -459,6 +431,71 @@ export class ApiClient {
       body: data ? JSON.stringify(data) : undefined,
       ...config,
     });
+  }
+
+  /**
+   * Ensure an ApiResponse is successful or throw a normalized ApiError
+   */
+  private ensureSuccess<T>(response: ApiResponse<T>): ApiSuccess<T> {
+    if (!response.ok) {
+      throw normalizeError(response, response.status ?? 500);
+    }
+
+    return response;
+  }
+
+  /**
+   * Convenience: perform GET and throw on non-2xx responses
+   */
+  async getOrThrow<T = unknown>(
+    path: string,
+    config: RequestConfig = {}
+  ): Promise<ApiSuccess<T>> {
+    return this.ensureSuccess(await this.get<T>(path, config));
+  }
+
+  /**
+   * Convenience: perform POST and throw on non-2xx responses
+   */
+  async postOrThrow<T = unknown>(
+    path: string,
+    data?: unknown,
+    config: RequestConfig = {}
+  ): Promise<ApiSuccess<T>> {
+    return this.ensureSuccess(await this.post<T>(path, data, config));
+  }
+
+  /**
+   * Convenience: perform PATCH and throw on non-2xx responses
+   */
+  async patchOrThrow<T = unknown>(
+    path: string,
+    data?: unknown,
+    config: RequestConfig = {}
+  ): Promise<ApiSuccess<T>> {
+    return this.ensureSuccess(await this.patch<T>(path, data, config));
+  }
+
+  /**
+   * Convenience: perform DELETE and throw on non-2xx responses
+   */
+  async deleteOrThrow<T = unknown>(
+    path: string,
+    config: RequestConfig = {}
+  ): Promise<ApiSuccess<T>> {
+    return this.ensureSuccess(await this.delete<T>(path, config));
+  }
+
+  /**
+   * Convenience: perform arbitrary request and throw on non-2xx responses
+   */
+  async requestOrThrow<T = unknown>(
+    method: string,
+    path: string,
+    data?: unknown,
+    config: RequestConfig = {}
+  ): Promise<ApiSuccess<T>> {
+    return this.ensureSuccess(await this.request<T>(method, path, data, config));
   }
 
   /**

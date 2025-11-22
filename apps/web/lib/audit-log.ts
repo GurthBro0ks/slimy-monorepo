@@ -6,6 +6,7 @@
 
 import { writeFileSync, mkdirSync, existsSync } from 'fs';
 import { join } from 'path';
+import { isProduction } from '@/lib/config';
 
 /**
  * Audit log entry interface
@@ -132,7 +133,7 @@ export class AuditLogger {
       writeFileSync(logFile, logLine, { flag: 'a' });
 
       // Also log to console in development
-      if (process.env.NODE_ENV !== 'production') {
+      if (!isProduction) {
         console.log('[AUDIT]', {
           action: fullEntry.action,
           user: fullEntry.username || fullEntry.userId,

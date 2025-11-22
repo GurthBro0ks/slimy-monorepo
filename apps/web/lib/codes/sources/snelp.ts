@@ -1,4 +1,5 @@
 import { Code } from "@/lib/codes-aggregator";
+import { clientConfig } from "@/lib/config";
 import { CodeSource, SourceConfig, SourceResult, SourceFactory } from "./types";
 
 /**
@@ -80,7 +81,7 @@ export class SnelpSource implements CodeSource {
    * Fetch with retry logic
    */
   private async fetchWithRetry(): Promise<Code[]> {
-    const url = process.env.NEXT_PUBLIC_SNELP_CODES_URL;
+    const url = clientConfig.codes.snelpUrl;
 
     if (!url) {
       throw new Error("NEXT_PUBLIC_SNELP_CODES_URL not configured");
@@ -192,7 +193,7 @@ export class SnelpSource implements CodeSource {
    */
   async healthCheck(): Promise<{ healthy: boolean; error?: string }> {
     try {
-      const url = process.env.NEXT_PUBLIC_SNELP_CODES_URL;
+      const url = clientConfig.codes.snelpUrl;
       if (!url) {
         return { healthy: false, error: "NEXT_PUBLIC_SNELP_CODES_URL not configured" };
       }
@@ -230,7 +231,7 @@ export class SnelpSource implements CodeSource {
     return {
       name: "Snelp",
       description: "Official Super Snail codes from Snelp API",
-      url: process.env.NEXT_PUBLIC_SNELP_CODES_URL,
+      url: clientConfig.codes.snelpUrl,
       rateLimit: "Unknown",
       lastSuccessfulFetch: this.fetchStats.lastSuccessfulFetch ?? undefined,
       totalFetches: this.fetchStats.totalFetches,

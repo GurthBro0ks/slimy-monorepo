@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CheckCircle, XCircle, AlertCircle, HelpCircle, RefreshCw } from "lucide-react";
+import { clientConfig } from "@/lib/config";
 
 interface ServiceStatus {
   name: string;
@@ -25,7 +26,7 @@ export default function StatusPage() {
     setRefreshing(true);
     
     // Check if Admin API is configured
-    const adminApiBase = process.env.NEXT_PUBLIC_ADMIN_API_BASE;
+    const adminApiBase = clientConfig.adminApiBase;
     
     // Check Admin API
     if (!adminApiBase) {

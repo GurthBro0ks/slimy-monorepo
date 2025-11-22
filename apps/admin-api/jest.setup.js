@@ -8,6 +8,178 @@ process.env.DISCORD_CLIENT_SECRET ||= 'test-discord-secret';
 process.env.SESSION_SECRET ||= '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
 process.env.JWT_SECRET ||= 'abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789';
 process.env.DATABASE_URL ||= 'postgresql://slimy:slimy@localhost:5432/slimy?schema=public';
+process.env.CORS_ORIGIN ||= 'http://localhost';
+
+const normalizeMemberKey = (input) => {
+  if (!input) return null;
+  return String(input).trim().toLowerCase().replace(/\s+/g, '-');
+};
+
+// Shim vendor-only libs that aren't present in the test bundle.
+jest.mock('./lib/club-vision', () => ({
+  classifyPage: jest.fn(async () => ({ type: 'total', score: 1 })),
+  parseManageMembersImageEnsemble: jest.fn(async (_dataUrl, metric = 'total') => ({
+    metric: metric || 'total',
+    rows: [
+      { canonical: 'test-member', display: 'Test Member', value: 1000 },
+    ],
+    ensembleMetadata: { totalMembers: 1, disagreements: [] },
+  })),
+}));
+
+jest.mock('./lib/club-store', () => ({
+  canonicalize: jest.fn((input) => normalizeMemberKey(input)),
+}), { virtual: true });
+
+jest.mock('./lib/club-sheets', () => ({
+  pushLatest: jest.fn(async (guildId) => ({ guildId, pushed: true })),
+  testSheetAccess: jest.fn(async (sheetId) => ({ title: `Sheet ${sheetId}` })),
+}), { virtual: true });
+
+jest.mock('../../lib/database', () => ({
+  isConfigured: jest.fn(() => false),
+  query: jest.fn(async () => []),
+}), { virtual: true });
+
+jest.mock('./lib/usage-openai', () => ({
+  parseWindow: jest.fn((window = '7d', startDate = null, endDate = null) => ({
+    window,
+    startDate: startDate || new Date(0),
+    endDate: endDate || new Date(0),
+  })),
+  fetchOpenAIUsage: jest.fn(async () => []),
+  fetchLocalImageStats: jest.fn(async () => []),
+  aggregateUsage: jest.fn(() => ({ totalTokens: 0, requests: 0 })),
+}), { virtual: true });
+
+jest.mock('./lib/week-anchor', () => ({
+  getWeekAnchor: jest.fn(() => ({ start: new Date(0), end: new Date(0) })),
+  getWeekId: jest.fn(() => 'week-0'),
+}));
+
+jest.mock('./lib/club-corrections', () => ({
+  listCorrections: jest.fn(async () => []),
+  addCorrection: jest.fn(async (payload) => ({ id: 'mock-correction', ...payload })),
+  removeCorrection: jest.fn(async () => true),
+}));
+
+// Mock Google Sheets SDK and auth so tests don't require external packages.
+jest.mock('@googleapis/sheets', () => {
+  const mockSpreadsheetsGet = jest.fn(async () => ({ data: { sheets: [] } }));
+  const mockValuesGet = jest.fn(async () => ({ data: { values: [] } }));
+  const mockBatchUpdate = jest.fn(async () => ({ data: {} }));
+
+  const sheetsFn = jest.fn(() => ({
+    spreadsheets: {
+      get: mockSpreadsheetsGet,
+      values: {
+        get: mockValuesGet,
+        batchUpdate: mockBatchUpdate,
+      },
+    },
+  }));
+
+  return { sheets: sheetsFn };
+}, { virtual: true });
+
+jest.mock('google-auth-library', () => ({
+  GoogleAuth: jest.fn().mockImplementation(() => ({
+    getClient: jest.fn(async () => ({})),
+  })),
+}), { virtual: true });
+
+const snailVisionPath = path.join(__dirname, "src/routes/../../../lib/snail-vision");
+jest.mock(snailVisionPath, () => ({
+  analyzeSnailDataUrl: jest.fn(async () => ({
+    ok: true,
+    results: [],
+  })),
+}), { virtual: true });
+
+const snailRoutesPath = path.join(__dirname, "src/routes/snail");
+jest.mock(snailRoutesPath, () => {
+  const express = require('express');
+  return express.Router();
+});
+
+jest.mock('bullmq', () => ({
+  Queue: jest.fn().mockImplementation(() => ({
+    add: jest.fn(),
+    on: jest.fn(),
+    close: jest.fn(),
+  })),
+  Worker: jest.fn().mockImplementation(() => ({
+    on: jest.fn(),
+    close: jest.fn(),
+  })),
+  QueueScheduler: jest.fn().mockImplementation(() => ({
+    on: jest.fn(),
+    close: jest.fn(),
+  })),
+}), { virtual: true });
+
+jest.mock('ioredis', () => jest.fn().mockImplementation(() => ({
+  on: jest.fn(),
+  quit: jest.fn(),
+})), { virtual: true });
+
+const adminApiDatabasePath = path.join(__dirname, "src/routes/../../../lib/database");
+jest.mock(adminApiDatabasePath, () => ({
+  isConfigured: jest.fn(() => false),
+  query: jest.fn(async () => []),
+}), { virtual: true });
+
+jest.mock('./lib/guild-personality', () => {
+  const PRESETS = [
+    { key: 'friendly', label: 'Friendly Helper', description: 'Mock preset' },
+  ];
+
+  return {
+    PRESETS,
+    getGuildPersona: jest.fn(async () => ({
+      system_prompt: 'Mock prompt',
+      presets: PRESETS,
+    })),
+    upsertGuildPersona: jest.fn(async (_guildId, profile) => ({
+      system_prompt: 'Mock prompt',
+      profile,
+    })),
+    resetToPreset: jest.fn(async (_guildId, preset) => ({
+      preset: preset || 'friendly',
+    })),
+    defaultsFor: jest.fn(() => ({ system_prompt: 'Default prompt' })),
+  };
+}, { virtual: true });
+
+jest.mock('@slimy/core', () => {
+  const numparse = require('../../lib/numparse');
+  const normalize = (input) => normalizeMemberKey(input);
+
+  return {
+    ingestScreenshots: jest.fn(async () => {}),
+    verifyStats: jest.fn(async () => {}),
+    recomputeLatest: jest.fn(async () => {}),
+    pushSheet: jest.fn(async (guildId) => ({ guildId })),
+    pushLatest: jest.fn(async (guildId) => ({ guildId })),
+    testSheetAccess: jest.fn(async (sheetId) => ({ title: `Sheet ${sheetId}` })),
+    usage: {
+      parseWindow: jest.fn((window = '7d', startDate = null, endDate = null) => ({
+        window,
+        startDate: startDate || new Date(0),
+        endDate: endDate || new Date(0),
+      })),
+      fetchOpenAIUsage: jest.fn(async () => []),
+      fetchLocalImageStats: jest.fn(async () => []),
+      aggregateUsage: jest.fn(() => ({ totalTokens: 0, requests: 0 })),
+    },
+    parsePower: numparse.parsePower,
+    normalizeMemberKey: jest.fn((input) => normalize(input)),
+    classifyPage: jest.fn(async () => ({ type: 'total', score: 1 })),
+    canonicalize: jest.fn((input) => normalize(input)),
+    getWeekAnchor: jest.fn(() => ({ start: new Date(0), end: new Date(0) })),
+    getWeekId: jest.fn(() => 'week-0'),
+  };
+});
 
 try {
   // Ensure config module sees the env populated; fall back to real module.

@@ -3,6 +3,7 @@
  * Scrapes codes from supersnail.wiki.gg using Firecrawl API
  */
 
+import { config } from '@/lib/config';
 import { Code, SourceMetadata } from "../types/codes";
 
 const WIKI_URL = "https://supersnail.wiki.gg/wiki/Snail_codes";
@@ -85,7 +86,7 @@ export async function fetchWikiCodes(): Promise<{
   codes: Code[];
   metadata: SourceMetadata;
 }> {
-  const apiKey = process.env.FIRECRAWL_API_KEY;
+  const apiKey = config.firecrawl.apiKey;
 
   if (!apiKey) {
     console.warn("Firecrawl API key not configured");

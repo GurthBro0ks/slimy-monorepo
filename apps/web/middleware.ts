@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { clientConfig } from '@/lib/config';
 
 /**
  * Centralized Authentication Middleware
@@ -62,7 +63,7 @@ export function middleware(request: NextRequest) {
 
   if (!sessionCookie || !sessionCookie.value) {
     // No valid session cookie, redirect to login
-    const adminApiBase = process.env.NEXT_PUBLIC_ADMIN_API_BASE;
+    const adminApiBase = clientConfig.adminApiBase;
     if (adminApiBase) {
       const loginUrl = `${adminApiBase}/api/auth/login?redirect=${encodeURIComponent(request.url)}`;
       return NextResponse.redirect(loginUrl);

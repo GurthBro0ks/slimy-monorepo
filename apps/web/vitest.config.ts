@@ -6,7 +6,11 @@ import path from "path";
 export default defineConfig({
   plugins: [react(), tsconfigPaths()],
   test: {
-    include: ["tests/**/*.test.{ts,tsx}", "tests/**/__tests__/**/*.{ts,tsx}"],
+    include: [
+      "tests/**/*.test.{ts,tsx}",
+      "tests/**/__tests__/**/*.{ts,tsx}",
+      "lib/**/*.test.{ts,tsx}",
+    ],
     exclude: ["tests/e2e/**/*.spec.{ts,tsx}"],
     environment: "jsdom",
     environmentMatchGlobs: [

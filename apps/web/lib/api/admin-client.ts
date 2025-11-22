@@ -12,11 +12,15 @@
  * - Request/response interceptors
  */
 
+import { clientConfig } from '@/lib/config';
+
 export interface ApiError {
   ok: false;
   code: string;
   message: string;
   status?: number;
+  error?: string;
+  hint?: string;
   details?: unknown;
 }
 
@@ -38,7 +42,7 @@ export class AdminApiClient {
   private baseUrl: string;
 
   constructor(baseUrl?: string) {
-    this.baseUrl = baseUrl || process.env.NEXT_PUBLIC_ADMIN_API_BASE || '';
+    this.baseUrl = baseUrl || clientConfig.adminApiBase || '';
     
     if (!this.baseUrl) {
       console.warn('[AdminApiClient] NEXT_PUBLIC_ADMIN_API_BASE not configured');
@@ -93,6 +97,7 @@ export class AdminApiClient {
           code: 'TIMEOUT_ERROR',
           message: 'Request timed out',
           status: 408,
+          error: 'Request timed out',
         };
       }
       
@@ -100,8 +105,9 @@ export class AdminApiClient {
         ok: false,
         code: 'NETWORK_ERROR',
         message: error.message || 'Network request failed',
-        status,
+        status: status ?? 500,
         details: error,
+        error: error.message || 'Network request failed',
       };
     }
 
@@ -109,8 +115,9 @@ export class AdminApiClient {
       ok: false,
       code: 'UNKNOWN_ERROR',
       message: 'An unknown error occurred',
-      status,
+      status: status ?? 500,
       details: error,
+      error: 'An unknown error occurred',
     };
   }
 
@@ -126,6 +133,8 @@ export class AdminApiClient {
         ok: false,
         code: 'CONFIG_ERROR',
         message: 'Admin API base URL not configured',
+        status: 500,
+        error: 'Admin API base URL not configured',
       };
     }
 
@@ -171,6 +180,7 @@ export class AdminApiClient {
           message: (errorData as { message?: string })?.message || `Admin API returned ${response.status}`,
           status: response.status,
           details: errorData,
+          error: (errorData as { message?: string })?.message || `Admin API returned ${response.status}`,
         };
       }
 

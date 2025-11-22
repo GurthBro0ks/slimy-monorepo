@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { env } from "@/lib/config";
 
 export const revalidate = 60; // s-maxage=60
 
@@ -7,7 +8,7 @@ export async function GET() {
     {
       ok: true,
       ts: new Date().toISOString(),
-      env: process.env.NODE_ENV,
+      env: env.NODE_ENV,
     },
     {
       headers: {

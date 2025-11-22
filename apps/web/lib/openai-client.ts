@@ -1,16 +1,17 @@
 import OpenAI from 'openai';
+import { config } from '@/lib/config';
 
 let openaiInstance: OpenAI | null = null;
 
 export function getOpenAIClient(): OpenAI {
   if (!openaiInstance) {
-    const apiKey = process.env.OPENAI_API_KEY;
+    const { apiKey, apiBase } = config.openai;
     if (!apiKey) {
-      throw new Error('Missing credentials. Please pass an `apiKey`, or set the `OPENAI_API_KEY` environment variable.');
+      throw new Error('Missing credentials. Please set the `OPENAI_API_KEY` environment variable.');
     }
     openaiInstance = new OpenAI({
       apiKey,
-      baseURL: process.env.OPENAI_API_BASE,
+      baseURL: apiBase,
     });
   }
   return openaiInstance;

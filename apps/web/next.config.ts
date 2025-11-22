@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { clientConfig, config as runtimeConfig } from "./lib/config";
 
 const nextConfig: NextConfig = {
   // Output configuration for production
@@ -20,10 +21,11 @@ const nextConfig: NextConfig = {
     contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
     // CDN configuration
     loader: 'default',
-    path: process.env.NEXT_PUBLIC_CDN_URL || '/_next/image',
+    path: clientConfig.cdn.baseUrl || '/_next/image',
     domains: [
       // Add your CDN domains here
-      ...(process.env.NEXT_PUBLIC_CDN_DOMAIN ? [process.env.NEXT_PUBLIC_CDN_DOMAIN] : []),
+      ...(clientConfig.cdn.domain ? [clientConfig.cdn.domain] : []),
+      ...clientConfig.cdn.domains,
       // Default domains for development
       'localhost',
       '127.0.0.1',
@@ -33,7 +35,7 @@ const nextConfig: NextConfig = {
   // Bundle analysis and optimization
   webpack: (config, { buildId, dev, isServer, defaultLoaders, webpack }) => {
     // Bundle analyzer (only in production builds)
-    if (!dev && process.env.ANALYZE === 'true') {
+    if (!dev && runtimeConfig.build.analyze) {
       const { BundleAnalyzerPlugin } = require('webpack-bundle-analyzer');
       config.plugins.push(
         new BundleAnalyzerPlugin({
@@ -192,7 +194,7 @@ const nextConfig: NextConfig = {
       // API proxy for development
       {
         source: '/api/:path*',
-        destination: `${process.env.NEXT_PUBLIC_ADMIN_API_BASE || 'http://admin-api:3080'}/api/:path*`,
+        destination: `${clientConfig.adminApiBase || 'http://admin-api:3080'}/api/:path*`,
       },
     ];
   },

@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { apiClient, ApiClient, type ApiSuccess, type ApiError } from "./api-client";
+import { ApiError as ApiErrorClass } from "./api/errors";
 
 const mockAdminClient = vi.hoisted(() => ({
   request: vi.fn(),
@@ -21,6 +22,8 @@ const errorResponse = (overrides: Partial<ApiError> = {}): ApiError => ({
   ok: false as const,
   code: "NETWORK_ERROR",
   message: "Network error",
+  status: 500,
+  error: "Network error",
   ...overrides,
 });
 
@@ -90,6 +93,7 @@ describe("ApiClient", () => {
 
     expect(result.ok).toBe(false);
     expect(result.code).toBe("NETWORK_ERROR");
+    expect(result.status).toBeGreaterThanOrEqual(400);
   });
 
   it("should handle timeout errors", async () => {
@@ -100,6 +104,26 @@ describe("ApiClient", () => {
 
     expect(result.ok).toBe(false);
     expect(result.code).toBe("TIMEOUT_ERROR");
+    expect(result.status).toBe(408);
+  });
+
+  it("should normalize upstream errors with status codes", async () => {
+    mockAdminClient.request.mockResolvedValueOnce(
+      errorResponse({ code: "UPSTREAM_ERROR", message: "bad gateway", status: 502 })
+    );
+
+    const result = await client.get("/upstream", { retries: 0 });
+    expect(result.ok).toBe(false);
+    expect(result.status).toBe(502);
+    expect(result.error).toBe("bad gateway");
+  });
+
+  it("should throw on getOrThrow when response is not ok", async () => {
+    mockAdminClient.request.mockResolvedValueOnce(
+      errorResponse({ code: "NOT_FOUND", message: "missing", status: 404 })
+    );
+
+    await expect(client.getOrThrow("/missing", { retries: 0 })).rejects.toBeInstanceOf(ApiErrorClass);
   });
 
   it("should support request interceptors", async () => {
