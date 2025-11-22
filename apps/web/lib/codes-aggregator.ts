@@ -28,7 +28,7 @@ export interface CodesResponse {
     [key: string]: {
       count: number;
       lastFetch: string;
-      status: "success" | "partial" | "failed";
+      status: "success" | "partial" | "failed" | "disabled";
       error?: string;
     };
   };

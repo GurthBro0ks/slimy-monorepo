@@ -42,4 +42,14 @@ module.exports = {
 
   // Verbose output
   verbose: true,
+
+  // Transform ESM dependencies that need transpiling (e.g., nanoid)
+  transformIgnorePatterns: [
+    "/node_modules/(?!nanoid/)",
+  ],
+
+  // Provide a CJS-friendly mock for ESM-only deps
+  moduleNameMapper: {
+    "^nanoid$": "<rootDir>/tests/__mocks__/nanoid.js",
+  },
 };

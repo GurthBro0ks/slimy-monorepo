@@ -3,7 +3,7 @@ import Link from "next/link";
 import { Callout } from "./ui/callout";
 import { CopyBox } from "./ui/copy-box";
 
-export function useMDXComponents(components: MDXComponents): MDXComponents {
+export function getMDXComponents(components: MDXComponents): MDXComponents {
   return {
     h1: ({ children }) => (
       <h1 className="mb-4 mt-8 text-4xl font-bold tracking-tight">{children}</h1>
