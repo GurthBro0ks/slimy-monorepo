@@ -98,21 +98,20 @@ describe("Usage API Client", () => {
 
     describe("HTTP errors", () => {
       it("should throw UsageApiError on 500 HTTP error", async () => {
-        mockFetch.mockResolvedValueOnce({
-          ok: false,
-          status: 500,
-          statusText: "Internal Server Error",
-          json: async () => ({
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 500,
+        statusText: "Internal Server Error",
+        json: async () => ({
             ok: false,
             code: "SERVER_ERROR",
             message: "Internal server error occurred",
           }),
         });
 
-        await expect(fetchUsageData()).rejects.toThrow(UsageApiError);
-        await expect(fetchUsageData()).rejects.toThrow(
-          "Internal server error occurred"
-        );
+        const promise = fetchUsageData();
+        await expect(promise).rejects.toThrow(UsageApiError);
+        await expect(promise).rejects.toThrow("Internal server error occurred");
       });
 
       it("should throw UsageApiError on 502 Bad Gateway", async () => {
@@ -125,8 +124,9 @@ describe("Usage API Client", () => {
           },
         });
 
-        await expect(fetchUsageData()).rejects.toThrow(UsageApiError);
-        await expect(fetchUsageData()).rejects.toThrow(/502/);
+        const promise = fetchUsageData();
+        await expect(promise).rejects.toThrow(UsageApiError);
+        await expect(promise).rejects.toThrow(/502/);
       });
 
       it("should throw UsageApiError on 404 Not Found", async () => {

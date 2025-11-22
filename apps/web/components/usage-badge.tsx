@@ -20,9 +20,9 @@ const levelText: Record<UsageLevel, string> = {
 };
 
 const statusIcons: Record<UsageData["modelProbeStatus"], React.ReactElement> = {
-  ok: <CheckCircle className="h-3 w-3 text-neon-green" />,
-  soft_cap: <AlertTriangle className="h-3 w-3 text-yellow-500" />,
-  hard_cap: <XCircle className="h-3 w-3 text-red-500" />,
+  ok: <CheckCircle data-testid="usage-status-icon-ok" className="h-3 w-3 text-neon-green" />,
+  soft_cap: <AlertTriangle data-testid="usage-status-icon-soft" className="h-3 w-3 text-yellow-500" />,
+  hard_cap: <XCircle data-testid="usage-status-icon-hard" className="h-3 w-3 text-red-500" />,
 };
 
 export function UsageBadge() {
@@ -49,7 +49,7 @@ export function UsageBadge() {
 
   if (loading || !usage) {
     return (
-      <Badge variant="secondary" className="cursor-pointer">
+      <Badge data-testid="usage-badge" variant="secondary" className="cursor-pointer">
         <span className="md:hidden">•</span>
         <span className="hidden md:inline">Loading...</span>
       </Badge>
@@ -85,7 +85,12 @@ export function UsageBadge() {
     <TooltipProvider>
       <Tooltip>
         <TooltipTrigger asChild>
-          <Badge variant={levelColors[usage.level]} className="cursor-pointer">
+          <Badge
+            data-testid="usage-badge"
+            data-usage-level={usage.level}
+            variant={levelColors[usage.level]}
+            className="cursor-pointer"
+          >
             <span className="mr-1">{statusIcons[usage.modelProbeStatus]}</span>
             <span className="hidden md:inline">Usage: {percentage}%</span>
           </Badge>
