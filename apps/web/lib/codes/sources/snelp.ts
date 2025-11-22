@@ -19,6 +19,7 @@ export class SnelpSource implements CodeSource {
   public readonly name = "snelp";
   public readonly config: SourceConfig;
 
+  private static missingEnvLogged = false;
   private fetchStats = {
     totalFetches: 0,
     successfulFetches: 0,
@@ -37,8 +38,28 @@ export class SnelpSource implements CodeSource {
     const startTime = Date.now();
     this.fetchStats.totalFetches++;
 
+    const snelpUrl = process.env.NEXT_PUBLIC_SNELP_CODES_URL;
+    if (!snelpUrl) {
+      if (!SnelpSource.missingEnvLogged) {
+        console.warn("Snelp source disabled: NEXT_PUBLIC_SNELP_CODES_URL not configured");
+        SnelpSource.missingEnvLogged = true;
+      }
+
+      return {
+        codes: [],
+        success: true,
+        metadata: {
+          source: this.name,
+          fetchedAt: new Date().toISOString(),
+          count: 0,
+          duration: Date.now() - startTime,
+          status: "disabled",
+        },
+      };
+    }
+
     try {
-      const codes = await this.fetchWithRetry();
+      const codes = await this.fetchWithRetry(snelpUrl);
       const duration = Date.now() - startTime;
 
       this.fetchStats.successfulFetches++;
@@ -79,13 +100,7 @@ export class SnelpSource implements CodeSource {
   /**
    * Fetch with retry logic
    */
-  private async fetchWithRetry(): Promise<Code[]> {
-    const url = process.env.NEXT_PUBLIC_SNELP_CODES_URL;
-
-    if (!url) {
-      throw new Error("NEXT_PUBLIC_SNELP_CODES_URL not configured");
-    }
-
+  private async fetchWithRetry(url: string): Promise<Code[]> {
     let lastError: Error | null = null;
 
     for (let attempt = 1; attempt <= this.config.retries; attempt++) {

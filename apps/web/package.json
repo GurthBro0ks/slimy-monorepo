@@ -8,7 +8,7 @@
     "build:analyze": "ANALYZE=true next build",
     "build:check": "next build && tsx scripts/check-bundle-size.ts",
     "start": "next start",
-    "lint": "eslint",
+    "lint": "eslint .",
     "docs:import": "tsx scripts/import-docs.ts",
     "docs:check": "tsx scripts/import-docs.ts --dry-run",
     "test": "vitest",

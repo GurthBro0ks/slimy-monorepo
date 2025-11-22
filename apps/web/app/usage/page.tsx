@@ -50,25 +50,25 @@ export default function UsagePage() {
   // Loading state
   if (loading) {
     return (
-      <div className="container mx-auto p-6 max-w-4xl">
+      <div className="container mx-auto p-6 max-w-4xl" data-testid="usage-page">
         <h1 className="text-3xl font-bold mb-6">Usage Dashboard</h1>
         <div className="grid gap-6 md:grid-cols-2">
-          <Card>
+          <Card data-testid="usage-skeleton-card">
             <CardHeader>
-              <Skeleton className="h-6 w-32" />
-              <Skeleton className="h-4 w-48 mt-2" />
+              <Skeleton className="h-6 w-32" data-testid="usage-skeleton" />
+              <Skeleton className="h-4 w-48 mt-2" data-testid="usage-skeleton" />
             </CardHeader>
             <CardContent>
-              <Skeleton className="h-12 w-full" />
+              <Skeleton className="h-12 w-full" data-testid="usage-skeleton" />
             </CardContent>
           </Card>
-          <Card>
+          <Card data-testid="usage-skeleton-card">
             <CardHeader>
-              <Skeleton className="h-6 w-32" />
-              <Skeleton className="h-4 w-48 mt-2" />
+              <Skeleton className="h-6 w-32" data-testid="usage-skeleton" />
+              <Skeleton className="h-4 w-48 mt-2" data-testid="usage-skeleton" />
             </CardHeader>
             <CardContent>
-              <Skeleton className="h-12 w-full" />
+              <Skeleton className="h-12 w-full" data-testid="usage-skeleton" />
             </CardContent>
           </Card>
         </div>
@@ -79,9 +79,9 @@ export default function UsagePage() {
   // Error state
   if (error) {
     return (
-      <div className="container mx-auto p-6 max-w-4xl">
+      <div className="container mx-auto p-6 max-w-4xl" data-testid="usage-page">
         <h1 className="text-3xl font-bold mb-6">Usage Dashboard</h1>
-        <Callout variant="error">
+        <Callout variant="error" data-testid="usage-error">
           <div>
             <p className="font-bold">Error loading usage data</p>
             <p>{error}</p>
@@ -97,7 +97,7 @@ export default function UsagePage() {
   // Data not available (shouldn't happen, but defensive)
   if (!usage) {
     return (
-      <div className="container mx-auto p-6 max-w-4xl">
+      <div className="container mx-auto p-6 max-w-4xl" data-testid="usage-page">
         <h1 className="text-3xl font-bold mb-6">Usage Dashboard</h1>
         <Callout variant="warn">
           <div>
@@ -127,7 +127,7 @@ export default function UsagePage() {
   const safeLevel = usage.level || "unknown";
 
   return (
-    <div className="container mx-auto p-6 max-w-4xl">
+    <div className="container mx-auto p-6 max-w-4xl" data-testid="usage-page">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-3xl font-bold">Usage Dashboard</h1>
         <Badge variant={isOverLimit ? "destructive" : isNearLimit ? "secondary" : "default"}>
@@ -154,8 +154,8 @@ export default function UsagePage() {
       )}
 
       {/* Summary cards */}
-      <div className="grid gap-6 md:grid-cols-2 mb-6">
-        <Card>
+      <div className="grid gap-6 md:grid-cols-2 mb-6" data-testid="usage-summary-grid">
+        <Card data-testid="usage-card-current">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <TrendingUp className="h-5 w-5" />
@@ -181,7 +181,7 @@ export default function UsagePage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card data-testid="usage-card-status">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               {statusIcons[safeModelProbeStatus]}
@@ -201,7 +201,7 @@ export default function UsagePage() {
       </div>
 
       {/* Details card */}
-      <Card>
+      <Card data-testid="usage-card-details">
         <CardHeader>
           <CardTitle>Usage Details</CardTitle>
           <CardDescription>Breakdown of your current usage</CardDescription>
