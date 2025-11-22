@@ -3,3 +3,4 @@ apps/*/node_modules/
 apps/*/.next/
 .next/
 dist/
+.aider*
