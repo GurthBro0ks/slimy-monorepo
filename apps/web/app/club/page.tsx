@@ -3,296 +3,272 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Callout } from "@/components/ui/callout";
-import { Upload, BarChart3, Users, FileSpreadsheet, Loader2, CheckCircle } from "lucide-react";
+import { Users, TrendingUp, Trophy, Activity, AlertCircle, Loader2, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ProtectedRoute } from "@/components/auth/protected-route";
-import { LazyClubResults } from "@/components/lazy";
-import type { StoredClubAnalysis } from "@/lib/club/database";
+import { fetchClubLatest, getSandboxStatus, type ClubMemberMetrics } from "@/lib/api/club";
 
 export default function ClubPage() {
-  const [isUploading, setIsUploading] = useState(false);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [uploadedFiles, setUploadedFiles] = useState<string[]>([]);
-  const [analyses, setAnalyses] = useState<StoredClubAnalysis[]>([]);
-  const [isLoadingResults, setIsLoadingResults] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [members, setMembers] = useState<ClubMemberMetrics[]>([]);
+  const [guildId, setGuildId] = useState<string>('guild-123'); // TODO: Get from auth context
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // Mock guild and user IDs - in real app these would come from auth context
-  const guildId = 'guild-123';
-  const userId = 'user-456';
-
-  // Load existing analyses on mount
+  // Load club metrics on mount
   useEffect(() => {
-    loadAnalyses();
+    loadClubMetrics();
   }, []);
 
-  const loadAnalyses = async () => {
-    setIsLoadingResults(true);
-    try {
-      const response = await fetch(`/api/club/analyze?guildId=${guildId}`);
-      if (response.ok) {
-        const data = await response.json();
-        setAnalyses(data.results || []);
-      }
-    } catch (error) {
-      console.error('Failed to load analyses:', error);
-    } finally {
-      setIsLoadingResults(false);
-    }
-  };
-
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = event.target.files;
-    if (!files || files.length === 0) return;
-
-    setIsUploading(true);
-    setIsAnalyzing(true);
+  const loadClubMetrics = async () => {
+    setLoading(true);
+    setError(null);
 
     try {
-      const formData = new FormData();
-      Array.from(files).forEach((file) => {
-        formData.append('screenshots', file);
-      });
-
-      // Add required parameters
-      formData.append('guildId', guildId);
-      formData.append('analyze', 'true'); // Trigger analysis after upload
-
-      const response = await fetch('/api/club/upload', {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (!response.ok) {
-        throw new Error('Upload failed');
-      }
-
-      const result = await response.json();
-
-      if (result.success) {
-        const newFiles = Array.from(files).map(f => f.name);
-        setUploadedFiles(prev => [...prev, ...newFiles]);
-
-        // If analysis results are included, add them to the list
-        if (result.analysisResults && result.analysisResults.length > 0) {
-          setAnalyses(prev => [...result.analysisResults, ...prev]);
-        } else {
-          // Reload analyses to get the new ones
-          await loadAnalyses();
-        }
-      }
-    } catch (error) {
-      console.error('Error uploading files:', error);
-      alert('Upload failed. Please try again.');
-    } finally {
-      setIsUploading(false);
-      setIsAnalyzing(false);
-    }
-  };
-
-  const handleExportToSheets = async () => {
-    try {
-      const response = await fetch('/api/club/export', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          guildId,
-          includeAnalysis: true
-        }),
-      });
+      const response = await fetchClubLatest(guildId);
 
       if (response.ok) {
-        const result = await response.json();
-        if (result.spreadsheetUrl) {
-          window.open(result.spreadsheetUrl, '_blank');
-        }
-        alert(result.message || 'Export completed successfully!');
+        setMembers(response.members);
       } else {
-        alert('Export failed. Please try again.');
+        setError('Failed to load club metrics');
+        setMembers([]);
       }
-    } catch (error) {
-      console.error('Error exporting to sheets:', error);
-      alert('Export failed. Please try again.');
+    } catch (err) {
+      console.error('Error loading club metrics:', err);
+      setError(err instanceof Error ? err.message : 'An error occurred');
+      setMembers([]);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleExportAnalysis = async (analysisId: string) => {
-    try {
-      const response = await fetch('/api/club/export', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          guildId,
-          analysisId,
-          includeAnalysis: true
-        }),
-      });
-
-      if (response.ok) {
-        const result = await response.json();
-        if (result.spreadsheetUrl) {
-          window.open(result.spreadsheetUrl, '_blank');
-        }
-      } else {
-        alert('Export failed. Please try again.');
-      }
-    } catch (error) {
-      console.error('Error exporting analysis:', error);
-      alert('Export failed. Please try again.');
-    }
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await loadClubMetrics();
+    setIsRefreshing(false);
   };
+
+  // Calculate summary statistics
+  const totalMembers = members.length;
+  const totalClubPower = members.reduce((sum, m) => sum + (m.totalPower || 0), 0);
+  const avgChangePercent = members.length > 0
+    ? members.reduce((sum, m) => sum + (m.changePercent || 0), 0) / members.length
+    : 0;
+  const topMember = members.length > 0
+    ? members.reduce((top, m) => (m.totalPower || 0) > (top.totalPower || 0) ? m : top, members[0])
+    : null;
+
+  // Sort members by total power (descending)
+  const sortedMembers = [...members].sort((a, b) => (b.totalPower || 0) - (a.totalPower || 0));
+
+  // Check if we're in sandbox mode
+  const sandboxStatus = getSandboxStatus();
 
   return (
     <ProtectedRoute requiredRole="club">
       <div className="container px-4 py-8">
-        <div className="mx-auto max-w-6xl">
-          <div className="mb-8">
-            <h1 className="mb-2 text-4xl font-bold">Club Analytics</h1>
-            <p className="text-muted-foreground">
-              AI-powered club performance tracking and member statistics
-            </p>
-          </div>
-
-          <Callout variant="note" className="mb-6 text-sm">
-            GPT-4 Vision integration active. Upload screenshots for instant AI analysis.
-          </Callout>
-
-          {/* Export Button */}
-          <div className="mb-6">
+        <div className="mx-auto max-w-7xl">
+          {/* Header */}
+          <div className="mb-8 flex items-center justify-between">
+            <div>
+              <h1 className="mb-2 text-4xl font-bold flex items-center gap-3">
+                <Users className="h-10 w-10 text-neon-green" />
+                Club Analytics
+              </h1>
+              <p className="text-muted-foreground">
+                Latest power metrics for your club members
+              </p>
+            </div>
             <Button
-              onClick={handleExportToSheets}
-              className="bg-emerald-500 hover:bg-emerald-600 text-white"
-              disabled={analyses.length === 0}
+              onClick={handleRefresh}
+              disabled={isRefreshing || loading}
+              variant="outline"
+              className="gap-2"
             >
-              <FileSpreadsheet className="mr-2 h-4 w-4" />
-              Export All to Google Sheets
-              {analyses.length > 0 && ` (${analyses.length} analyses)`}
+              <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+              Refresh
             </Button>
           </div>
 
-          <div className="grid gap-6 lg:grid-cols-3">
-            {/* Upload Screenshots Card */}
-            <Card className="rounded-2xl border border-emerald-500/30 bg-zinc-900/40 shadow-sm hover:bg-zinc-900/60 transition-colors">
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <Upload className="h-10 w-10 text-neon-green mb-2" />
-                  {isAnalyzing && <Loader2 className="h-5 w-5 animate-spin text-emerald-500" />}
-                  {isUploading && !isAnalyzing && <CheckCircle className="h-5 w-5 text-emerald-500" />}
+          {/* Sandbox Mode Indicator */}
+          {sandboxStatus.isSandbox && (
+            <Callout variant="note" className="mb-6">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="h-4 w-4" />
+                <span>
+                  <strong>Sandbox Mode:</strong> Showing example data. Configure NEXT_PUBLIC_ADMIN_API_BASE to connect to live data.
+                </span>
+              </div>
+            </Callout>
+          )}
+
+          {/* Error State */}
+          {error && !loading && (
+            <Callout variant="error" className="mb-6">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="h-4 w-4" />
+                <div>
+                  <strong>Error loading club metrics</strong>
+                  <p className="text-sm mt-1">{error}</p>
                 </div>
-                <CardTitle>Upload & Analyze</CardTitle>
+              </div>
+            </Callout>
+          )}
+
+          {/* Loading State */}
+          {loading && (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-neon-green" />
+              <span className="ml-3 text-muted-foreground">Loading club metrics...</span>
+            </div>
+          )}
+
+          {/* Summary Cards */}
+          {!loading && members.length > 0 && (
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-8">
+              {/* Total Members */}
+              <Card className="rounded-2xl border border-emerald-500/30 bg-zinc-900/40">
+                <CardHeader className="pb-3">
+                  <CardDescription className="flex items-center gap-2">
+                    <Users className="h-4 w-4 text-neon-green" />
+                    Total Members
+                  </CardDescription>
+                  <CardTitle className="text-3xl font-bold text-neon-green">
+                    {totalMembers}
+                  </CardTitle>
+                </CardHeader>
+              </Card>
+
+              {/* Total Club Power */}
+              <Card className="rounded-2xl border border-emerald-500/30 bg-zinc-900/40">
+                <CardHeader className="pb-3">
+                  <CardDescription className="flex items-center gap-2">
+                    <Activity className="h-4 w-4 text-neon-green" />
+                    Total Club Power
+                  </CardDescription>
+                  <CardTitle className="text-3xl font-bold text-neon-green">
+                    {totalClubPower.toLocaleString()}
+                  </CardTitle>
+                </CardHeader>
+              </Card>
+
+              {/* Average Change */}
+              <Card className="rounded-2xl border border-emerald-500/30 bg-zinc-900/40">
+                <CardHeader className="pb-3">
+                  <CardDescription className="flex items-center gap-2">
+                    <TrendingUp className="h-4 w-4 text-neon-green" />
+                    Average Change
+                  </CardDescription>
+                  <CardTitle className={`text-3xl font-bold ${avgChangePercent >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                    {avgChangePercent >= 0 ? '+' : ''}{avgChangePercent.toFixed(1)}%
+                  </CardTitle>
+                </CardHeader>
+              </Card>
+
+              {/* Top Member */}
+              <Card className="rounded-2xl border border-emerald-500/30 bg-zinc-900/40">
+                <CardHeader className="pb-3">
+                  <CardDescription className="flex items-center gap-2">
+                    <Trophy className="h-4 w-4 text-neon-green" />
+                    Top Member
+                  </CardDescription>
+                  <CardTitle className="text-xl font-bold text-neon-green truncate">
+                    {topMember?.name || 'N/A'}
+                  </CardTitle>
+                  <p className="text-sm text-muted-foreground">
+                    {topMember?.totalPower?.toLocaleString() || '0'} power
+                  </p>
+                </CardHeader>
+              </Card>
+            </div>
+          )}
+
+          {/* Members Table */}
+          {!loading && members.length > 0 && (
+            <Card className="rounded-2xl border border-emerald-500/30 bg-zinc-900/40">
+              <CardHeader>
+                <CardTitle>Member Rankings</CardTitle>
                 <CardDescription>
-                  Upload club screenshots for AI-powered analysis
+                  Ranked by total power (descending)
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  <label className="block">
-                    <input
-                      type="file"
-                      multiple
-                      accept="image/*"
-                      onChange={handleFileUpload}
-                      disabled={isUploading || isAnalyzing}
-                      className="block w-full text-sm text-gray-400
-                        file:mr-4 file:py-2 file:px-4
-                        file:rounded-lg file:border-0
-                        file:text-sm file:font-semibold
-                        file:bg-emerald-500 file:text-white
-                        hover:file:bg-emerald-600
-                        file:cursor-pointer cursor-pointer
-                        disabled:opacity-50 disabled:cursor-not-allowed"
-                    />
-                  </label>
-
-                  {(isUploading || isAnalyzing) && (
-                    <div className="text-sm">
-                      {isUploading && <p className="text-emerald-500">📤 Uploading files...</p>}
-                      {isAnalyzing && <p className="text-blue-500">🤖 Analyzing with AI...</p>}
-                    </div>
-                  )}
-
-                  {uploadedFiles.length > 0 && (
-                    <div className="text-sm text-muted-foreground">
-                      <p className="font-semibold mb-1">Recent uploads:</p>
-                      <ul className="list-disc list-inside space-y-1 max-h-20 overflow-y-auto">
-                        {uploadedFiles.slice(-5).map((file, index) => (
-                          <li key={index} className="truncate">{file}</li>
-                        ))}
-                      </ul>
-                      {uploadedFiles.length > 5 && (
-                        <p className="text-xs mt-1">...and {uploadedFiles.length - 5} more</p>
-                      )}
-                    </div>
-                  )}
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-zinc-700">
+                        <th className="text-left py-3 px-4 text-sm font-semibold text-muted-foreground">Rank</th>
+                        <th className="text-left py-3 px-4 text-sm font-semibold text-muted-foreground">Name</th>
+                        <th className="text-right py-3 px-4 text-sm font-semibold text-muted-foreground">SIM Power</th>
+                        <th className="text-right py-3 px-4 text-sm font-semibold text-muted-foreground">Total Power</th>
+                        <th className="text-right py-3 px-4 text-sm font-semibold text-muted-foreground">Change</th>
+                        <th className="text-left py-3 px-4 text-sm font-semibold text-muted-foreground">Last Seen</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {sortedMembers.map((member, index) => (
+                        <tr
+                          key={member.memberKey}
+                          className="border-b border-zinc-800 hover:bg-zinc-800/50 transition-colors"
+                        >
+                          <td className="py-3 px-4">
+                            <div className="flex items-center gap-2">
+                              {index === 0 && <Trophy className="h-4 w-4 text-yellow-500" />}
+                              {index === 1 && <Trophy className="h-4 w-4 text-gray-400" />}
+                              {index === 2 && <Trophy className="h-4 w-4 text-amber-700" />}
+                              <span className="font-semibold">{index + 1}</span>
+                            </div>
+                          </td>
+                          <td className="py-3 px-4 font-medium">{member.name}</td>
+                          <td className="py-3 px-4 text-right font-mono">
+                            {member.simPower?.toLocaleString() ?? 'N/A'}
+                          </td>
+                          <td className="py-3 px-4 text-right font-mono font-semibold text-neon-green">
+                            {member.totalPower?.toLocaleString() ?? 'N/A'}
+                          </td>
+                          <td className="py-3 px-4 text-right">
+                            {member.changePercent !== null ? (
+                              <span
+                                className={`font-semibold ${
+                                  member.changePercent >= 0 ? 'text-green-500' : 'text-red-500'
+                                }`}
+                              >
+                                {member.changePercent >= 0 ? '+' : ''}
+                                {member.changePercent.toFixed(1)}%
+                              </span>
+                            ) : (
+                              <span className="text-muted-foreground">N/A</span>
+                            )}
+                          </td>
+                          <td className="py-3 px-4 text-sm text-muted-foreground">
+                            {member.lastSeenAt
+                              ? new Date(member.lastSeenAt).toLocaleString()
+                              : 'Unknown'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               </CardContent>
             </Card>
+          )}
 
-            {/* Analytics Overview Card */}
-            <Card className="rounded-2xl border border-emerald-500/30 bg-zinc-900/40 shadow-sm">
-              <CardHeader>
-                <BarChart3 className="h-10 w-10 text-neon-green mb-2" />
-                <CardTitle>Analytics Overview</CardTitle>
-                <CardDescription>
-                  AI-powered insights and performance metrics
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Total Analyses:</span>
-                    <span className="font-semibold text-neon-green">{analyses.length}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Avg Confidence:</span>
-                    <span className="font-semibold text-neon-green">
-                      {analyses.length > 0
-                        ? `${Math.round(analyses.reduce((sum, a) => sum + a.confidence, 0) / analyses.length * 100)}%`
-                        : 'N/A'
-                      }
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Latest:</span>
-                    <span className="font-semibold text-neon-green">
-                      {analyses.length > 0
-                        ? new Date(analyses[0].createdAt).toLocaleDateString()
-                        : 'None'
-                      }
-                    </span>
-                  </div>
-                </div>
+          {/* Empty State */}
+          {!loading && members.length === 0 && !error && (
+            <Card className="rounded-2xl border border-emerald-500/30 bg-zinc-900/40">
+              <CardContent className="py-12 text-center">
+                <Users className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+                <h3 className="text-xl font-semibold mb-2">No Club Metrics Yet</h3>
+                <p className="text-muted-foreground mb-6">
+                  Upload and process screenshots to populate club analytics.
+                </p>
+                <Button asChild variant="outline">
+                  <a href="/screenshots">Go to Screenshots</a>
+                </Button>
               </CardContent>
             </Card>
-
-            {/* Quick Actions Card */}
-            <Card className="rounded-2xl border border-emerald-500/30 bg-zinc-900/40 shadow-sm">
-              <CardHeader>
-                <Users className="h-10 w-10 text-neon-green mb-2" />
-                <CardTitle>Quick Actions</CardTitle>
-                <CardDescription>
-                  Common analytics tasks and tools
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2 text-sm text-muted-foreground">
-                  <p>• 📊 Performance tracking</p>
-                  <p>• 👥 Member analytics</p>
-                  <p>• 📈 Trend analysis</p>
-                  <p>• 📋 Export reports</p>
-                  <p className="text-emerald-500 font-semibold mt-4">✓ AI Analysis Active</p>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Analysis Results Section */}
-          <div className="mt-8">
-            <LazyClubResults
-              analyses={analyses}
-              onExport={handleExportAnalysis}
-              loading={isLoadingResults}
-            />
-          </div>
+          )}
         </div>
       </div>
     </ProtectedRoute>

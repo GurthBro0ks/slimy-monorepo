@@ -1,3 +1,12 @@
+// Set up required environment variables for tests
+process.env.DISCORD_CLIENT_ID ||= "1234567890123456789";
+process.env.DISCORD_CLIENT_SECRET ||= "test-secret-with-minimum-length-requirement";
+process.env.SESSION_SECRET ||= "test-session-secret-with-minimum-32-chars-required-for-security";
+process.env.JWT_SECRET ||= "test-jwt-secret-with-minimum-32-characters-required-for-security";
+process.env.OPENAI_API_KEY ||= "sk-test-key-for-validation";
+process.env.CORS_ORIGIN ||= "http://localhost:3000";
+process.env.DATABASE_URL ||= "postgresql://test:test@localhost:5432/test";
+
 // Mock uuid to avoid ES module issues
 jest.mock('uuid', () => ({
   v4: jest.fn(() => 'test-uuid-1234'),
@@ -202,4 +211,20 @@ jest.mock('./src/lib/logger', () => ({
     warn: jest.fn(),
     error: jest.fn(),
   },
+  createLogger: jest.fn(() => ({
+    info: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
+    debug: jest.fn(),
+  })),
+  logError: jest.fn(),
+}));
+
+// Mock slimy-core to avoid missing lib dependencies
+jest.mock('@slimy/core', () => ({
+  parsePower: jest.fn((str) => parseInt(str) || 0),
+  classifyPage: jest.fn(() => ({ type: 'unknown' })),
+  canonicalize: jest.fn((data) => data),
+  pushLatest: jest.fn(() => Promise.resolve()),
+  testSheetAccess: jest.fn(() => Promise.resolve(true)),
 }));
