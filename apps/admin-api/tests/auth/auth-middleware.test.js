@@ -30,14 +30,14 @@ describe("Auth Middleware", () => {
     });
 
     test("should return null when token is invalid", () => {
-      mockReq.cookies.slimy_admin = "invalid-token";
+      mockReq.cookies.slimy_admin_token = "invalid-token";
       const result = resolveUser(mockReq);
       expect(result).toBeNull();
       expect(mockReq._cachedUser).toBeNull();
     });
 
     test("should return hydrated user when session exists", () => {
-      mockReq.cookies.slimy_admin = "valid-token";
+      mockReq.cookies.slimy_admin_token = "valid-token";
       // Mock will return session data from jest.setup.js
 
       const result = resolveUser(mockReq);
@@ -55,7 +55,7 @@ describe("Auth Middleware", () => {
 
     test("should return fallback user when no session exists", () => {
       // Use a valid token but mock getSession to return null
-      mockReq.cookies.slimy_admin = "valid-token";
+      mockReq.cookies.slimy_admin_token = "valid-token";
 
       // Temporarily mock getSession to return null
       const originalGetSession = require("../../lib/session-store").getSession;
@@ -77,7 +77,7 @@ describe("Auth Middleware", () => {
     });
 
     test("should cache user resolution", () => {
-      mockReq.cookies.slimy_admin = "valid-token";
+      mockReq.cookies.slimy_admin_token = "valid-token";
       const result1 = resolveUser(mockReq);
       const result2 = resolveUser(mockReq);
 
@@ -88,7 +88,7 @@ describe("Auth Middleware", () => {
 
   describe("requireAuth", () => {
     test("should call next when user is authenticated", () => {
-      mockReq.cookies.slimy_admin = "valid-token";
+      mockReq.cookies.slimy_admin_token = "valid-token";
 
       requireAuth(mockReq, mockRes, mockNext);
 
@@ -116,7 +116,7 @@ describe("Auth Middleware", () => {
     const requireAdminRole = requireRole("admin");
 
     test("should call next when user has required role (member)", () => {
-      mockReq.cookies.slimy_admin = "valid-token";
+      mockReq.cookies.slimy_admin_token = "valid-token";
 
       requireMemberRole(mockReq, mockRes, mockNext);
 
@@ -125,7 +125,7 @@ describe("Auth Middleware", () => {
     });
 
     test("should call next when user has higher role than required", () => {
-      mockReq.cookies.slimy_admin = "admin-token";
+      mockReq.cookies.slimy_admin_token = "admin-token";
 
       requireMemberRole(mockReq, mockRes, mockNext);
 
@@ -133,7 +133,7 @@ describe("Auth Middleware", () => {
     });
 
     test("should return 403 when user has insufficient role", () => {
-      mockReq.cookies.slimy_admin = "member-token";
+      mockReq.cookies.slimy_admin_token = "member-token";
 
       requireAdminRole(mockReq, mockRes, mockNext);
 
@@ -158,7 +158,7 @@ describe("Auth Middleware", () => {
     const middleware = requireGuildMember("guildId");
 
     test("should call next for admin user regardless of guild membership", () => {
-      mockReq.cookies.slimy_admin = "admin-token";
+      mockReq.cookies.slimy_admin_token = "admin-token";
       mockReq.params.guildId = "guild-123";
 
       middleware(mockReq, mockRes, mockNext);
@@ -167,7 +167,7 @@ describe("Auth Middleware", () => {
     });
 
     test("should call next when user is member of the guild", () => {
-      mockReq.cookies.slimy_admin = "member-token";
+      mockReq.cookies.slimy_admin_token = "member-token";
       mockReq.params.guildId = "guild-123";
 
       middleware(mockReq, mockRes, mockNext);
@@ -176,7 +176,7 @@ describe("Auth Middleware", () => {
     });
 
     test("should return 403 when user is not member of the guild", () => {
-      mockReq.cookies.slimy_admin = "member-token";
+      mockReq.cookies.slimy_admin_token = "member-token";
       mockReq.params.guildId = "different-guild-456";
 
       middleware(mockReq, mockRes, mockNext);
@@ -191,7 +191,7 @@ describe("Auth Middleware", () => {
     });
 
     test("should return 400 when guildId parameter is missing", () => {
-      mockReq.cookies.slimy_admin = "member-token";
+      mockReq.cookies.slimy_admin_token = "member-token";
 
       middleware(mockReq, mockRes, mockNext);
 
@@ -215,7 +215,7 @@ describe("Auth Middleware", () => {
 
     test("should use custom parameter name", () => {
       const customMiddleware = requireGuildMember("customGuildId");
-      mockReq.cookies.slimy_admin = "member-token";
+      mockReq.cookies.slimy_admin_token = "member-token";
       mockReq.params.customGuildId = "guild-123";
 
       customMiddleware(mockReq, mockRes, mockNext);

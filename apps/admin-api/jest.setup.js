@@ -1,3 +1,103 @@
+const path = require('path');
+const dotenv = require('dotenv');
+
+// Load local .env for tests if present and provide defaults so config validation passes.
+dotenv.config({ path: path.resolve(__dirname, '.env') });
+process.env.DISCORD_CLIENT_ID ||= '123456789012345678';
+process.env.DISCORD_CLIENT_SECRET ||= 'test-discord-secret';
+process.env.SESSION_SECRET ||= '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
+process.env.JWT_SECRET ||= 'abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789';
+process.env.DATABASE_URL ||= 'postgresql://slimy:slimy@localhost:5432/slimy?schema=public';
+
+try {
+  // Ensure config module sees the env populated; fall back to real module.
+  jest.mock('./src/lib/config/index.js', () => {
+    const real = jest.requireActual('./src/lib/config/index.js');
+    return real;
+  });
+} catch (err) {
+  // If the path changes, continue without mocking.
+}
+
+// Provide deterministic token verification for tests.
+const sessionTokens = new Map([
+  [
+    'valid-token',
+    {
+      user: {
+        id: 'test-user',
+        username: 'TestUser',
+        globalName: 'Test User',
+        avatar: null,
+        role: 'member',
+        guilds: [{ id: 'guild-123' }],
+      },
+      session: {
+        sub: 'test-user',
+        username: 'TestUser',
+        globalName: 'Test User',
+        avatar: null,
+        role: 'member',
+        guilds: [{ id: 'guild-123' }],
+      },
+    },
+  ],
+  [
+    'admin-token',
+    {
+      user: {
+        id: 'test-admin',
+        username: 'TestAdmin',
+        globalName: 'Test Admin',
+        avatar: null,
+        role: 'admin',
+        guilds: [{ id: 'guild-123' }],
+      },
+      session: {
+        sub: 'test-admin',
+        username: 'TestAdmin',
+        globalName: 'Test Admin',
+        avatar: null,
+        role: 'admin',
+        guilds: [{ id: 'guild-123' }],
+      },
+    },
+  ],
+  [
+    'member-token',
+    {
+      user: {
+        id: 'test-member',
+        username: 'TestMember',
+        globalName: 'Test Member',
+        avatar: null,
+        role: 'member',
+        guilds: [{ id: 'guild-123' }],
+      },
+      session: {
+        sub: 'test-member',
+        username: 'TestMember',
+        globalName: 'Test Member',
+        avatar: null,
+        role: 'member',
+        guilds: [{ id: 'guild-123' }],
+      },
+    },
+  ],
+]);
+
+jest.mock('./src/services/token', () => ({
+  verifySessionToken: jest.fn((token) => {
+    const payload = sessionTokens.get(token);
+    if (!payload) {
+      throw new Error('jwt malformed');
+    }
+    return payload;
+  }),
+  createSessionToken: jest.fn(),
+  getCookieOptions: jest.fn(() => ({})),
+}));
+
 // Mock uuid to avoid ES module issues
 jest.mock('uuid', () => ({
   v4: jest.fn(() => 'test-uuid-1234'),
@@ -74,7 +174,6 @@ const mockDatabase = {
 };
 
 jest.mock('./src/lib/database', () => mockDatabase);
-jest.mock('../lib/database', () => mockDatabase);
 
 // Mock session store to avoid database dependencies
 const mockSessions = new Map();
@@ -126,7 +225,7 @@ jest.mock('./lib/session-store', () => ({
 const mockTokens = new Map();
 
 jest.mock('./lib/jwt', () => ({
-  COOKIE_NAME: 'slimy_admin',
+  COOKIE_NAME: 'slimy_admin_token',
   verifySession: jest.fn((token) => {
     const decoded = mockTokens.get(token);
     if (decoded) {
