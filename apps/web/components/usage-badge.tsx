@@ -49,7 +49,12 @@ export function UsageBadge() {
 
   if (loading || !usage) {
     return (
-      <Badge variant="secondary" className="cursor-pointer">
+      <Badge
+        variant="secondary"
+        className="cursor-pointer"
+        data-testid="usage-badge"
+        data-usage-level="loading"
+      >
         <span className="md:hidden">•</span>
         <span className="hidden md:inline">Loading...</span>
       </Badge>
@@ -85,8 +90,16 @@ export function UsageBadge() {
     <TooltipProvider>
       <Tooltip>
         <TooltipTrigger asChild>
-          <Badge variant={levelColors[usage.level]} className="cursor-pointer">
-            <span className="mr-1">{statusIcons[usage.modelProbeStatus]}</span>
+          <Badge
+            variant={levelColors[usage.level]}
+            className="cursor-pointer"
+            data-testid="usage-badge"
+            data-usage-level={usage.level}
+            data-usage-status={usage.modelProbeStatus}
+          >
+            <span className="mr-1" data-testid={`usage-status-icon-${usage.modelProbeStatus}`}>
+              {statusIcons[usage.modelProbeStatus]}
+            </span>
             <span className="hidden md:inline">Usage: {percentage}%</span>
           </Badge>
         </TooltipTrigger>
