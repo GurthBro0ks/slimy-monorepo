@@ -1,12 +1,22 @@
 {
   "name": "@slimy/bot",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "private": true,
+  "type": "module",
   "scripts": {
-    "dev": "echo \"TODO: start bot in dev mode\" && exit 0",
-    "build": "echo \"TODO: build bot\"",
-    "dev": "echo \"TODO: Implement bot dev mode\" && exit 0",
-    "build": "echo \"TODO: build bot\" && exit 0",
-    "test": "echo \"TODO: test bot\" && exit 0"
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "discord.js": "^14.14.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.5",
+    "tsx": "^4.7.0",
+    "typescript": "^5.3.3",
+    "vitest": "^1.2.1"
   }
 }
