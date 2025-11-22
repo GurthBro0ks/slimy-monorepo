@@ -82,8 +82,9 @@ const mockDatabase = {
   findUserById: jest.fn(() => Promise.resolve({ id: 'user-123', discordId: '123', username: 'testuser' })),
 };
 
+// Mock both possible paths to database module
 jest.mock('./src/lib/database', () => mockDatabase);
-jest.mock('../lib/database', () => mockDatabase);
+jest.mock('./lib/database', () => mockDatabase);
 
 // Mock session store to avoid database dependencies
 const mockSessions = new Map();
@@ -227,4 +228,27 @@ jest.mock('@slimy/core', () => ({
   canonicalize: jest.fn((data) => data),
   pushLatest: jest.fn(() => Promise.resolve()),
   testSheetAccess: jest.fn(() => Promise.resolve(true)),
+}));
+
+// Mock @slimy/core to avoid vendor dependency issues
+jest.mock('@slimy/core', () => ({
+  parseNumber: jest.fn((val) => {
+    const num = parseFloat(val);
+    return isNaN(num) ? null : num;
+  }),
+  formatNumber: jest.fn((val) => String(val)),
+}));
+
+// Mock lib files to avoid monorepo root dependencies
+jest.mock('./lib/week-anchor', () => ({
+  weekStart: jest.fn(() => new Date('2025-01-01')),
+  getCurrentWeek: jest.fn(() => 1),
+}));
+
+jest.mock('./lib/club-corrections', () => ({}));
+jest.mock('./lib/club-vision', () => ({}));
+
+// Mock cache middleware to avoid Redis/config dependencies
+jest.mock('./src/middleware/cache', () => ({
+  cache: jest.fn(() => (req, res, next) => next()),
 }));
