@@ -5,6 +5,8 @@
   "scripts": {
     "dev": "echo \"TODO: start bot in dev mode\" && exit 0",
     "build": "echo \"TODO: build bot\"",
+    "dev": "echo \"TODO: Implement bot dev mode\" && exit 0",
+    "build": "echo \"TODO: build bot\" && exit 0",
     "test": "echo \"TODO: test bot\" && exit 0"
   }
 }
