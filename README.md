@@ -4,9 +4,68 @@ This repository is the future home for all Slimy.ai applications and shared pack
 
 ## Getting Started
 
-- Install pnpm if you have not already.
-- Run `pnpm install` once dependencies are added in future commits.
-- Use the root scripts (`pnpm lint`, `pnpm build`, `pnpm test`) as orchestration entry points once real logic is wired up.
+1. Install [pnpm](https://pnpm.io/) if you haven't already: `npm install -g pnpm`
+2. Clone the repository and install dependencies:
+   ```bash
+   git clone https://github.com/GurthBro0ks/slimy-monorepo.git
+   cd slimy-monorepo
+   pnpm install
+   ```
+3. Generate Prisma clients:
+   ```bash
+   pnpm prisma:generate
+   ```
+
+## Development Quickstart
+
+For detailed development workflows, see [docs/DEV_WORKFLOW.md](docs/DEV_WORKFLOW.md).
+
+### Core Commands
+
+```bash
+# Start individual apps in development mode
+pnpm dev:web          # Main web app (http://localhost:3000)
+pnpm dev:admin-api    # Admin API server (http://localhost:3080)
+pnpm dev:admin-ui     # Admin dashboard (http://localhost:3081)
+pnpm dev:bot          # Bot application (TBD)
+
+# Run tests
+pnpm test:all         # Run all tests across the workspace
+pnpm test:web         # Test web app only
+pnpm test:admin-api   # Test admin API only
+
+# Build and lint
+pnpm build            # Build all apps
+pnpm lint             # Lint all apps
+```
+
+## Development Quickstart
+
+Essential commands to get up and running:
+
+```bash
+# Install all dependencies
+pnpm install
+
+# Generate Prisma clients (required for admin-api and web)
+pnpm prisma:generate
+
+# Start individual apps
+pnpm dev:web         # Web dashboard → http://localhost:3000
+pnpm dev:admin-api   # Admin API → http://localhost:3080
+pnpm dev:admin-ui    # Admin UI → http://localhost:3081
+pnpm dev:bot         # Bot (placeholder)
+
+# Run tests
+pnpm test:all        # All workspaces
+pnpm test:web        # Web app only
+pnpm test:admin-api  # Admin API only
+
+# Build all apps
+pnpm build
+```
+
+For detailed setup instructions, environment configuration, and troubleshooting, see **[docs/DEV_WORKFLOW.md](docs/DEV_WORKFLOW.md)**.
 
 ## Structure
 

@@ -5,6 +5,9 @@ const morgan = require("morgan");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
 const { readAuth } = require("./middleware/auth");
+const requestIdMiddleware = require("./middleware/request-id");
+const { requestLogger } = require("./lib/logger");
+const { errorHandler, notFoundHandler } = require("./middleware/error-handler");
 const routes = require("./routes");
 const { UPLOADS_DIR } = require("./services/uploads");
 
@@ -18,6 +21,8 @@ if (!CORS_ORIGIN) {
 }
 
 app.use(helmet());
+app.use(requestIdMiddleware);
+app.use(requestLogger);
 app.use(express.json({ limit: "1mb" }));
 app.use(cookieParser());
 app.use(cors({
@@ -40,5 +45,11 @@ app.use(
     },
   }),
 );
+
+// 404 handler - must come before error handler
+app.use(notFoundHandler);
+
+// Error handler - must be last
+app.use(errorHandler);
 
 module.exports = app;

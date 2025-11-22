@@ -15,13 +15,47 @@ const snailRoutes = require("./snail");
 const chatRoutes = require("./chat");
 const clubRoutes = require("./club");
 
+// Track app start time for uptime calculation
+const APP_START_TIME = Date.now();
+
 router.get("/api/", (_req, res) => res.json({ ok: true }));
+
+/**
+ * Health check endpoint
+ * Returns basic service health information
+ */
 router.get("/api/health", (_req, res) => {
+  const uptime = Math.floor((Date.now() - APP_START_TIME) / 1000); // uptime in seconds
+
   res.json({
-    ok: true,
-    service: "admin-api",
-    env: process.env.NODE_ENV || "development",
+    status: "ok",
+    uptime,
     timestamp: new Date().toISOString(),
+    version: process.env.npm_package_version || "1.0.0",
+  });
+});
+
+/**
+ * Status endpoint
+ * Returns detailed service status and subsystem information
+ */
+router.get("/api/status", (_req, res) => {
+  const uptime = Math.floor((Date.now() - APP_START_TIME) / 1000);
+  const database = require("../lib/database");
+
+  // Get subsystem status (keep checks lightweight)
+  const subsystems = {
+    database: database.isConfigured() ? "configured" : "not_configured",
+    redis: "unknown", // Could add Redis check if needed
+  };
+
+  res.json({
+    status: "ok",
+    uptime,
+    timestamp: new Date().toISOString(),
+    version: process.env.npm_package_version || "1.0.0",
+    environment: process.env.NODE_ENV || "development",
+    subsystems,
   });
 });
 router.use("/api", debugRoutes);
