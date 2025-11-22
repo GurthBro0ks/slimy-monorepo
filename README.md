@@ -18,7 +18,7 @@ This repository is the future home for all Slimy.ai applications and shared pack
 
 ## Development Quickstart
 
-For detailed development workflows, see [docs/DEV_WORKFLOW.md](docs/DEV_WORKFLOW.md).
+For detailed development workflows, see [docs/DEV_WORKFLOW.md](docs/DEV_WORKFLOW.md). For a ready-to-run local checklist, see [docs/DEV_SANITY_CHECK.md](docs/DEV_SANITY_CHECK.md).
 
 ### Core Commands
 
