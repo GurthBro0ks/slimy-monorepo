@@ -2,12 +2,12 @@
 
 const path = require("path");
 
-const { parsePower } = require("../../lib/numparse");
-const { classifyPage } = require("../../lib/club-vision");
-const { canonicalize } = require("../../lib/club-store");
-const { pushLatest, testSheetAccess } = require("../../lib/club-sheets");
-const usage = require("../../lib/usage-openai");
-const { getWeekAnchor, getWeekId } = require("../../lib/week-anchor");
+const { parsePower } = require("./lib/numparse");
+const { classifyPage } = require("./lib/club-vision");
+const { canonicalize } = require("./lib/club-store");
+const { pushLatest, testSheetAccess } = require("./lib/club-sheets");
+const usage = require("./lib/usage-openai");
+const { getWeekAnchor, getWeekId } = require("./lib/week-anchor");
 
 const { ingestScreenshots } = require("./tasks/ingest");
 const { verifyStats } = require("./tasks/verify");
