@@ -3,7 +3,7 @@
  * Uses a file to store timestamps for rate limiting.
  */
 
-import { readFileSync, writeFileSync, existsSync } from "fs";
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
 import { join } from "path";
 
 const RATE_LIMIT_DIR = join(process.cwd(), "data/rate-limits");
@@ -26,7 +26,7 @@ export function isRateLimited(key: string, limit: number, windowMs: number): boo
 
   if (!existsSync(RATE_LIMIT_DIR)) {
     try {
-      require("fs").mkdirSync(RATE_LIMIT_DIR, { recursive: true });
+      mkdirSync(RATE_LIMIT_DIR, { recursive: true });
     } catch (e) {
       console.error("Failed to create rate limit directory:", e);
       // Fail open if directory cannot be created

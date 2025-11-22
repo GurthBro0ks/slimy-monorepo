@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useMemo, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -45,10 +45,7 @@ export function ScreenshotViewer({
   const [searchTerm, setSearchTerm] = useState("");
   const [filterType, setFilterType] = useState<ScreenshotType | "all">("all");
   const [zoomLevel, setZoomLevel] = useState(1);
-  const [filteredAnalyses, setFilteredAnalyses] = useState<ScreenshotAnalysisResult[]>(analyses);
-
-  // Filter and search analyses
-  useEffect(() => {
+  const filteredAnalyses = useMemo(() => {
     let filtered = analyses;
 
     // Filter by type
@@ -67,7 +64,7 @@ export function ScreenshotViewer({
       );
     }
 
-    setFilteredAnalyses(filtered);
+    return filtered;
   }, [analyses, filterType, searchTerm]);
 
   const handleSelectForComparison = (analysis: ScreenshotAnalysisResult) => {

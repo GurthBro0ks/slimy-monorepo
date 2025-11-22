@@ -157,7 +157,7 @@ export function generateAnalysisId(): string {
  */
 export function calculateConfidence(analysis: any): number {
   let score = 0;
-  let maxScore = 4;
+  const maxScore = 4;
 
   if (analysis.summary && analysis.summary.length > 10) score += 1;
   if (analysis.metrics && Object.keys(analysis.metrics).length > 0) score += 1;
