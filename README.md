@@ -2,6 +2,10 @@
 
 This repository is the future home for all Slimy.ai applications and shared packages. It currently contains only scaffolding while we prepare to import existing projects such as **slimyai-web** and **slimyai_setup**. Each app and package below will eventually host the migrated code and build tooling managed through a pnpm workspace.
 
+## CI Status
+
+The repository includes automated CI testing via GitHub Actions. See [docs/CI.md](docs/CI.md) for details on what's tested and how to extend the pipeline.
+
 ## Getting Started
 
 1. Install [pnpm](https://pnpm.io/) if you haven't already: `npm install -g pnpm`
