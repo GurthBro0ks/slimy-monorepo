@@ -3,7 +3,8 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
+    "dev": "echo \"TODO: start bot in dev mode\" && exit 0",
     "build": "echo \"TODO: build bot\"",
-    "test": "echo \"TODO: test bot\""
+    "test": "echo \"TODO: test bot\" && exit 0"
   }
 }

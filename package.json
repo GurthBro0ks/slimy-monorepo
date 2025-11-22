@@ -6,12 +6,19 @@
     "packages/*"
   ],
   "scripts": {
+    "dev:web": "pnpm --filter @slimy/web run dev",
+    "dev:admin-api": "pnpm --filter @slimy/admin-api run dev",
+    "dev:admin-ui": "pnpm --filter @slimy/admin-ui run dev",
+    "dev:bot": "pnpm --filter @slimy/bot run dev",
     "lint": "pnpm -r run lint || echo \"TODO: lint\"",
     "lint:core": "pnpm --filter admin-api --filter web --filter admin-ui run lint || echo \"TODO: lint\"",
     "build": "pnpm -r run build",
     "build:core": "pnpm --filter admin-api --filter web --filter admin-ui run build",
     "test": "pnpm -r run test || echo \"TODO: wire tests\"",
+    "test:all": "pnpm -r run test",
     "test:core": "pnpm --filter admin-api --filter web --filter admin-ui run test || echo \"TODO: wire tests\"",
+    "test:web": "pnpm --filter @slimy/web run test",
+    "test:admin-api": "pnpm --filter @slimy/admin-api run test",
     "prisma:generate": "pnpm --filter admin-api --filter web run prisma:generate"
   }
 }
