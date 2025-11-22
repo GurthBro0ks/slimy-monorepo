@@ -1,4 +1,6 @@
 // Set up required environment variables for tests
+const path = require("path");
+
 process.env.DISCORD_CLIENT_ID ||= "1234567890123456789";
 process.env.DISCORD_CLIENT_SECRET ||= "test-secret-with-minimum-length-requirement";
 process.env.SESSION_SECRET ||= "test-session-secret-with-minimum-32-chars-required-for-security";
@@ -6,10 +8,90 @@ process.env.JWT_SECRET ||= "test-jwt-secret-with-minimum-32-characters-required-
 process.env.OPENAI_API_KEY ||= "sk-test-key-for-validation";
 process.env.CORS_ORIGIN ||= "http://localhost:3000";
 process.env.DATABASE_URL ||= "postgresql://test:test@localhost:5432/test";
+process.env.UPLOADS_DIR ||= path.join(__dirname, "__test_uploads");
 
 // Mock uuid to avoid ES module issues
 jest.mock('uuid', () => ({
   v4: jest.fn(() => 'test-uuid-1234'),
+}));
+
+// Provide a lightweight config override to bypass strict validation during tests
+jest.mock('./src/lib/config', () => ({
+  server: {
+    port: 3080,
+    serviceName: "slimy-admin-api",
+    version: "test",
+    nodeEnv: "test",
+    corsOrigins: ["http://localhost:3000"],
+  },
+  session: {
+    secret: process.env.SESSION_SECRET,
+    cookieDomain: "localhost",
+    cookieName: "slimy_admin",
+    maxAgeSec: 60 * 60 * 2,
+  },
+  jwt: {
+    secret: process.env.JWT_SECRET,
+  },
+  discord: {
+    clientId: process.env.DISCORD_CLIENT_ID,
+    clientSecret: process.env.DISCORD_CLIENT_SECRET,
+    botToken: "test-bot-token",
+    redirectUri: "http://localhost:3080/api/auth/callback",
+    scopes: "identify guilds",
+    apiBaseUrl: "https://discord.com/api/v10",
+    tokenUrl: "https://discord.com/api/oauth2/token",
+  },
+  database: {
+    url: process.env.DATABASE_URL,
+    logLevel: [],
+  },
+  openai: {
+    apiKey: process.env.OPENAI_API_KEY,
+    model: "gpt-4o-mini",
+  },
+  google: {
+    credentialsJson: null,
+    credentialsPath: null,
+    sheetsScopes: [],
+    statsSheetId: "",
+    statsBaselineTitle: "",
+  },
+  cache: {
+    redisUrl: "",
+    enabled: false,
+    ttl: 300,
+    staleTtl: 600,
+    keyPrefix: "admin:",
+    retryAttempts: 0,
+    retryDelay: 0,
+  },
+  redis: {
+    url: "",
+    enabled: false,
+  },
+  cdn: {
+    enabled: false,
+    url: "",
+    staticMaxAge: 0,
+    uploadsMaxAge: 0,
+  },
+  sentry: {
+    dsn: "",
+    enabled: false,
+    environment: "test",
+    release: "test",
+    tracesSampleRate: 0,
+    profilesSampleRate: 0,
+  },
+  roles: {
+    adminUserIds: [],
+    clubUserIds: [],
+  },
+  permissions: {
+    administrator: BigInt(0),
+    manageGuild: BigInt(0),
+  },
 }));
 
 // Mock database to avoid initialization issues
@@ -249,6 +331,24 @@ jest.mock('./lib/club-corrections', () => ({}));
 jest.mock('./lib/club-vision', () => ({}));
 
 // Mock cache middleware to avoid Redis/config dependencies
-jest.mock('./src/middleware/cache', () => ({
-  cache: jest.fn(() => (req, res, next) => next()),
-}));
+jest.mock('./src/middleware/cache', () => {
+  const passThrough = jest.fn(() => (req, res, next) => next());
+  const apiCache = {
+    cache: passThrough,
+    staleWhileRevalidate: jest.fn(() => (req, res, next) => next()),
+    invalidate: jest.fn(),
+    clear: jest.fn(),
+  };
+
+  return {
+    cache: passThrough,
+    cacheStats: passThrough,
+    cacheGuildData: passThrough,
+    cacheUserData: passThrough,
+    cacheChatHistory: passThrough,
+    swrGuildData: jest.fn(() => (req, res, next) => next()),
+    swrStats: jest.fn(() => (req, res, next) => next()),
+    getAPICache: jest.fn(() => apiCache),
+    initAPICache: jest.fn(async () => apiCache),
+  };
+});

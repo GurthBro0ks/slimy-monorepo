@@ -12,7 +12,7 @@ export interface SourceResult {
     fetchedAt: string;
     count: number;
     duration: number;
-    status: "success" | "partial" | "failed";
+    status: "success" | "partial" | "failed" | "disabled";
   };
 }
 

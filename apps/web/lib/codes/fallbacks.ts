@@ -140,7 +140,7 @@ export class FallbackManager {
     const successfulResults = results.filter(r => r.success);
     const failedResults = results.filter(r => !r.success);
 
-    let allCodes: Code[] = [];
+    const allCodes: Code[] = [];
     const processedResults: SourceResult[] = [];
     let hasFallbacks = false;
 

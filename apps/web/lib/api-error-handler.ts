@@ -18,7 +18,7 @@ import {
  * API Handler type
  */
 type RouteContext = {
-  params?: Record<string, string> | Promise<Record<string, string>> | Promise<{}>;
+  params?: Record<string, string> | Promise<Record<string, string>>;
 };
 
 export type APIHandler = (

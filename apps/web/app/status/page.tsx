@@ -112,7 +112,11 @@ export default function StatusPage() {
   }, []);
 
   useEffect(() => {
-    checkStatus();
+    const timeout = setTimeout(() => {
+      void checkStatus();
+    }, 0);
+
+    return () => clearTimeout(timeout);
   }, [checkStatus]);
 
   const getStatusIcon = (status: ServiceStatus["status"]) => {
