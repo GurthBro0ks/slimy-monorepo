@@ -9,7 +9,9 @@
     "dev": "node server.js",
     "build": "node -e \"console.log('admin-api runs directly from source; no build artifacts generated yet.')\"",
     "prisma:generate": "prisma generate",
-    "test": "jest"
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage"
   },
   "engines": {
     "node": ">=20"
