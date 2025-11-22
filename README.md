@@ -67,6 +67,13 @@ pnpm build
 
 For detailed setup instructions, environment configuration, and troubleshooting, see **[docs/DEV_WORKFLOW.md](docs/DEV_WORKFLOW.md)**.
 
+## Architecture & Infrastructure
+
+To understand how the services work together and what each one does:
+
+- **[Infrastructure Overview](docs/INFRA_OVERVIEW.md)** - System architecture, data flows, and service communication
+- **[Services Matrix](docs/SERVICES_MATRIX.md)** - Detailed reference table with ports, commands, and dependencies
+
 ## Structure
 
 - `apps/` holds runnable Slimy.ai applications (web, admin, bot, etc.).
