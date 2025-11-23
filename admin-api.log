@@ -1,0 +1,21 @@
+nohup: ignoring input
+
+> @slimy/admin-api@1.0.0 dev /home/mint/slimy-dev/slimy-monorepo/apps/admin-api
+> node server.js
+
+[INFO 2025-11-22T21:19:52.087Z] { env: undefined } [admin-api] Booting in non-production mode
+[admin-api] Database connection failed: Access denied for user 'root'@'localhost'
+[admin-api] Continuing in read-only mode without database
+{"level":"INFO","time":"2025-11-22T21:19:52.255Z","pid":7065,"hostname":"mint","service":"slimy-admin-api","version":"dev","env":"development","hostname":"mint","pid":7065,"msg":"Configuration validated successfully"}
+[INFO 2025-11-22T21:19:52.422Z] { port: 3080, host: '127.0.0.1' } [admin-api] Listening on http://127.0.0.1:3080
+{"level":"INFO","time":"2025-11-22T21:20:23.806Z","pid":7065,"hostname":"mint","requestId":"ca0049d5-ae73-4e95-8f38-26f4a5fc2417","method":"GET","path":"/api/diag","method":"GET","path":"/api/diag","query":{},"ip":"127.0.0.1","service":"slimy-admin-api","version":"dev","env":"development","hostname":"mint","pid":7065,"msg":"Incoming request"}
+[admin-api] readAuth: cookie missing { cookieName: 'slimy_admin_token' }
+[admin-api] /api/diag called { hasUser: false, userId: null }
+127.0.0.1 - - [22/Nov/2025:21:20:23 +0000] "GET /api/diag HTTP/1.1" 200 33 "-" "curl/8.5.0"
+{"level":"INFO","time":"2025-11-22T21:20:23.808Z","pid":7065,"hostname":"mint","requestId":"ca0049d5-ae73-4e95-8f38-26f4a5fc2417","method":"GET","path":"/api/diag","method":"GET","path":"/api/diag","query":{},"ip":"127.0.0.1","service":"slimy-admin-api","version":"dev","env":"development","hostname":"mint","pid":7065,"msg":"Incoming request"}
+{"level":"INFO","time":"2025-11-22T21:20:23.812Z","pid":7065,"hostname":"mint","requestId":"ca0049d5-ae73-4e95-8f38-26f4a5fc2417","method":"GET","path":"/api/diag","method":"GET","path":"/","statusCode":200,"duration":5,"service":"slimy-admin-api","version":"dev","env":"development","hostname":"mint","pid":7065,"msg":"Request completed"}
+{"level":"INFO","time":"2025-11-22T21:20:23.813Z","pid":7065,"hostname":"mint","requestId":"ca0049d5-ae73-4e95-8f38-26f4a5fc2417","method":"GET","path":"/api/diag","method":"GET","path":"/","statusCode":200,"duration":5,"service":"slimy-admin-api","version":"dev","env":"development","hostname":"mint","pid":7065,"msg":"Request completed"}
+Killed
+/home/mint/slimy-dev/slimy-monorepo/apps/admin-api:
+ ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @slimy/admin-api@1.0.0 dev: `node server.js`
+Exit status 137
