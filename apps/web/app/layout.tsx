@@ -1,4 +1,7 @@
+'use client';
+
 import type { Metadata } from "next";
+import { usePathname } from "next/navigation";
 import "./globals.css";
 import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
@@ -17,16 +20,20 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const pathname = usePathname();
+  const shellRoutes = ["/dashboard", "/analytics", "/club", "/snail"];
+  const isShellRoute = shellRoutes.some((route) => pathname?.startsWith(route));
+
   return (
     <html lang="en" className="dark">
       <body className="font-sans antialiased">
         <AuthErrorBoundary>
           <AuthProvider>
             <div className="flex min-h-screen flex-col">
-              <Header />
+              {!isShellRoute && <Header />}
               <main className="flex-1">{children}</main>
-              <Footer />
-              <LazySlimeChatBar />
+              {!isShellRoute && <Footer />}
+              {!isShellRoute && <LazySlimeChatBar />}
               <ServiceWorkerRegistration />
             </div>
           </AuthProvider>
