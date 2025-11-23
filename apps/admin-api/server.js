@@ -6,6 +6,7 @@ const path = require("path");
 const dotenv = require("dotenv");
 
 const database = require("./lib/database");
+const prismaDatabase = require("./src/lib/database");
 const { applyDatabaseUrl } = require("./src/utils/apply-db-url");
 const logger = require("./lib/logger");
 
@@ -46,6 +47,22 @@ async function start() {
     await database.initialize();
   }
 
+  // Initialize Prisma database for session management (optional)
+  try {
+    if (prismaDatabase.isConfigured()) {
+      const initialized = await prismaDatabase.initialize();
+      if (initialized) {
+        logger.info("[admin-api] Prisma database initialized successfully");
+      } else {
+        logger.warn("[admin-api] Prisma database initialization failed; sessions will not be persisted");
+      }
+    } else {
+      logger.warn("[admin-api] Prisma database not configured; sessions will not be persisted (JWT-only mode)");
+    }
+  } catch (err) {
+    logger.warn("[admin-api] Prisma database initialization error; continuing without session persistence", { error: err.message });
+  }
+
   const app = require("./src/app");
   const port = Number(process.env.PORT || process.env.ADMIN_API_PORT || 3080);
   const host = process.env.HOST || process.env.ADMIN_API_HOST || "127.0.0.1";
@@ -57,7 +74,10 @@ async function start() {
   process.on("SIGINT", () => {
     logger.info("[admin-api] Caught SIGINT, shutting down");
     server.close(() => {
-      database.close().finally(() => process.exit(0));
+      Promise.all([
+        database.close(),
+        prismaDatabase.close()
+      ]).finally(() => process.exit(0));
     });
   });
 

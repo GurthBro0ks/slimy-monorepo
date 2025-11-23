@@ -12,7 +12,7 @@ export function Footer() {
           <p className="text-sm text-muted-foreground mb-6">
             Your AI-powered Discord companion for Super Snail and more.
           </p>
-          
+
           <div className="grid grid-flow-col auto-cols-max gap-8 overflow-x-auto snap-x pb-4">
             {/* Product */}
             <div className="snap-start">
@@ -163,7 +163,7 @@ export function Footer() {
         </div>
 
         <div className="mt-8 border-t pt-8 text-center text-sm text-muted-foreground">
-          <p className="mb-2">fueled by adhd — driven by feet — motivated by ducks</p>
+          <p className="mb-2">Built for the Grid</p>
           <p>&copy; {currentYear} slimy.ai. All rights reserved.</p>
         </div>
       </div>

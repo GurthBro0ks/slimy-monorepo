@@ -1,0 +1,56 @@
+   ▲ Next.js 16.0.1
+   - Local:        http://localhost:3000
+   - Network:      http://192.168.68.64:3000
+
+ ✓ Starting...
+ ⚠ `images.domains` is deprecated in favor of `images.remotePatterns`. Please update next.config.js to protect your application from malicious users.
+ ✓ Ready in 366ms
+ ⚠ The "images.domains" configuration is deprecated. Please use "images.remotePatterns" configuration instead.
+ ⨯ The requested resource isn't a valid image for /brand/slimy-logo.png received null
+ ⨯ The requested resource isn't a valid image for /brand/feature-orbit.png received null
+ ⨯ The requested resource isn't a valid image for /brand/feature-signal.png received null
+ ⨯ The requested resource isn't a valid image for /brand/feature-inbox.png received null
+ ⨯ The requested resource isn't a valid image for /brand/feature-collab.png received null
+ ⨯ The requested resource isn't a valid image for /brand/feature-guard.png received null
+ ⨯ The requested resource isn't a valid image for /brand/feature-sandbox.png received null
+ ⨯ The requested resource isn't a valid image for /brand/feature-orbit.png received null
+ ⨯ The requested resource isn't a valid image for /brand/feature-inbox.png received null
+ ⨯ The requested resource isn't a valid image for /brand/feature-signal.png received null
+ ⨯ The requested resource isn't a valid image for /brand/feature-sandbox.png received null
+ ⨯ The requested resource isn't a valid image for /brand/feature-collab.png received null
+ ⨯ The requested resource isn't a valid image for /brand/feature-guard.png received null
+ ⨯ The requested resource isn't a valid image for /brand/feature-orbit.png received null
+ ⨯ The requested resource isn't a valid image for /brand/feature-inbox.png received null
+ ⨯ The requested resource isn't a valid image for /brand/feature-collab.png received null
+ ⨯ The requested resource isn't a valid image for /brand/feature-signal.png received null
+ ⨯ The requested resource isn't a valid image for /brand/feature-sandbox.png received null
+ ⨯ The requested resource isn't a valid image for /brand/feature-guard.png received null
+[ApiClient] GET /api/diag (attempt 1/4)
+[AdminApiClient] admin-api unavailable (ECONNREFUSED 192.168.68.64:3080)
+[ApiClient] Retrying in 1000ms...
+[ApiClient] GET /api/diag (attempt 2/4)
+[ApiClient] Retrying in 2000ms...
+[ApiClient] GET /api/diag (attempt 3/4)
+[ApiClient] Retrying in 4000ms...
+[ApiClient] GET /api/diag (attempt 4/4)
+[ApiClient] GET /api/diag (attempt 1/4)
+[ApiClient] Retrying in 1000ms...
+[ApiClient] GET /api/diag (attempt 2/4)
+[ApiClient] Retrying in 2000ms...
+[ApiClient] GET /api/diag (attempt 3/4)
+[ApiClient] Retrying in 4000ms...
+[ApiClient] GET /api/diag (attempt 4/4)
+[ApiClient] GET /api/diag (attempt 1/4)
+[ApiClient] Retrying in 1000ms...
+[ApiClient] GET /api/diag (attempt 2/4)
+[ApiClient] Retrying in 2000ms...
+[ApiClient] GET /api/diag (attempt 3/4)
+[ApiClient] Retrying in 4000ms...
+[ApiClient] GET /api/diag (attempt 4/4)
+[ApiClient] GET /api/diag (attempt 1/4)
+[ApiClient] Retrying in 1000ms...
+[ApiClient] GET /api/diag (attempt 2/4)
+[ApiClient] Retrying in 2000ms...
+[ApiClient] GET /api/diag (attempt 3/4)
+[ApiClient] Retrying in 4000ms...
+[ApiClient] GET /api/diag (attempt 4/4)

@@ -39,35 +39,58 @@ function validateConfig(rawConfig) {
   const errors = [];
   const warnings = [];
 
-  // Required validations
+  const isProduction = rawConfig.server.nodeEnv === 'production';
+
+  // Discord credentials (required in production, optional in development)
   if (!rawConfig.discord.clientId) {
-    errors.push('DISCORD_CLIENT_ID is required');
+    if (isProduction) {
+      errors.push('DISCORD_CLIENT_ID is required');
+    } else {
+      warnings.push('DISCORD_CLIENT_ID not set - Discord OAuth will not work');
+    }
   } else if (!/^\d+$/.test(rawConfig.discord.clientId)) {
     errors.push('DISCORD_CLIENT_ID must be a valid Discord application ID (numeric)');
   }
 
   if (!rawConfig.discord.clientSecret) {
-    errors.push('DISCORD_CLIENT_SECRET is required');
+    if (isProduction) {
+      errors.push('DISCORD_CLIENT_SECRET is required');
+    } else {
+      warnings.push('DISCORD_CLIENT_SECRET not set - Discord OAuth will not work');
+    }
   }
 
+  // Session and JWT secrets (use defaults in development)
   if (!rawConfig.session.secret) {
-    errors.push('SESSION_SECRET is required');
+    if (isProduction) {
+      errors.push('SESSION_SECRET is required');
+    } else {
+      warnings.push('SESSION_SECRET not set - using development default');
+    }
   } else if (rawConfig.session.secret.length < 32) {
     errors.push('SESSION_SECRET must be at least 32 characters long');
   }
 
   // JWT_SECRET can fall back to SESSION_SECRET, so check if either is set
   if (!rawConfig.jwt.secret) {
-    errors.push('JWT_SECRET or SESSION_SECRET is required');
+    if (isProduction) {
+      errors.push('JWT_SECRET or SESSION_SECRET is required');
+    } else {
+      warnings.push('JWT_SECRET/SESSION_SECRET not set - using development default');
+    }
   } else if (rawConfig.jwt.secret.length < 32) {
     errors.push('JWT_SECRET (or SESSION_SECRET if JWT_SECRET not set) must be at least 32 characters long');
   }
 
-  if (!rawConfig.database.url) {
-    errors.push('DATABASE_URL is required');
-  } else if (!rawConfig.database.url.startsWith('postgresql://') && 
-             !rawConfig.database.url.startsWith('postgres://')) {
-    errors.push('DATABASE_URL must be a valid PostgreSQL connection string');
+  // DATABASE_URL is optional in development, but if provided must be valid
+  if (rawConfig.database.url) {
+    if (!rawConfig.database.url.startsWith('postgresql://') &&
+        !rawConfig.database.url.startsWith('postgres://')) {
+      errors.push('DATABASE_URL must be a valid PostgreSQL connection string');
+    }
+  } else if (rawConfig.server.nodeEnv === 'production') {
+    // Required in production
+    errors.push('DATABASE_URL is required in production');
   }
 
   // Port validation
@@ -131,7 +154,7 @@ function loadConfig() {
 
     // Session configuration
     session: {
-      secret: (process.env.SESSION_SECRET || "").trim(),
+      secret: (process.env.SESSION_SECRET || (process.env.NODE_ENV !== "production" ? "dev-session-secret-minimum-32chars-changeme" : "")).trim(),
       cookieDomain: (process.env.COOKIE_DOMAIN || ".slimyai.xyz").trim(),
       cookieName: "slimy_admin",
       maxAgeSec: 60 * 60 * 2, // 2 hours
@@ -139,7 +162,12 @@ function loadConfig() {
 
     // JWT configuration
     jwt: {
-      secret: (process.env.JWT_SECRET || process.env.SESSION_SECRET || "").trim(),
+      secret: (process.env.JWT_SECRET || process.env.SESSION_SECRET || (process.env.NODE_ENV !== "production" ? "dev-jwt-secret-minimum-32chars-changeme-please" : "")).trim(),
+      cookieName: "slimy_admin_token",
+      cookieDomain: process.env.NODE_ENV === "production" ? (process.env.COOKIE_DOMAIN || ".slimyai.xyz").trim() : undefined,
+      cookieSecure: process.env.NODE_ENV === "production",
+      cookieSameSite: process.env.COOKIE_SAMESITE || "lax",
+      maxAgeSeconds: 12 * 60 * 60, // 12 hours
     },
 
     // Discord OAuth configuration

@@ -42,6 +42,7 @@
     "rehype-slug": "^6.0.0",
     "remark-frontmatter": "^5.0.0",
     "remark-gfm": "^4.0.1",
+    "sharp": "^0.33.5",
     "web-vitals": "^5.1.0",
     "zod": "^4.1.12"
   },
@@ -75,8 +76,8 @@
     "tailwindcss-animate": "^1.0.7",
     "tsx": "^4.20.6",
     "typescript": "^5",
-    "vitest": "^4.0.7",
     "vite-tsconfig-paths": "^5.1.1",
+    "vitest": "^4.0.7",
     "webpack-bundle-analyzer": "^4.9.0"
   }
 }
