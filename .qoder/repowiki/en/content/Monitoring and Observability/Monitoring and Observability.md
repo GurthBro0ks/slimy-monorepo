@@ -5,496 +5,569 @@
 - [MONITORING_README.md](file://apps/admin-api/MONITORING_README.md)
 - [MONITORING_SETUP_GUIDE.md](file://apps/admin-api/MONITORING_SETUP_GUIDE.md)
 - [prometheus.yml](file://apps/admin-api/prometheus.yml)
+- [alertmanager.yml](file://apps/web/monitoring/alertmanager.yml)
 - [grafana-dashboard.json](file://apps/admin-api/grafana-dashboard.json)
-- [src/lib/monitoring/sentry.js](file://apps/admin-api/src/lib/monitoring/sentry.js)
-- [src/lib/monitoring/metrics.js](file://apps/admin-api/src/lib/monitoring/metrics.js)
-- [src/lib/logger.js](file://apps/admin-api/src/lib/logger.js)
-- [src/lib/alerts.js](file://apps/admin-api/src/lib/alerts.js)
-- [src/services/health.js](file://apps/admin-api/src/services/health.js)
-- [src/routes/diagnostics.js](file://apps/admin-api/src/routes/diagnostics.js)
-- [src/routes/diag.js](file://apps/admin-api/src/routes/diag.js)
-- [src/lib/database.js](file://apps/admin-api/src/lib/database.js)
-- [monitoring/alertmanager.yml](file://apps/web/monitoring/alertmanager.yml)
+- [sentry.js](file://apps/admin-api/src/lib/monitoring/sentry.js)
+- [metrics.js](file://apps/admin-api/src/lib/monitoring/metrics.js)
+- [alerts.js](file://apps/admin-api/src/lib/alerts.js)
+- [logger.js](file://apps/admin-api/src/lib/logger.js)
+- [docker-compose.monitoring.yml](file://apps/web/docker-compose.monitoring.yml)
+- [dashboard.yml](file://apps/web/grafana/provisioning/dashboards/dashboard.yml)
+- [prometheus.yml](file://apps/web/grafana/provisioning/datasources/prometheus.yml)
 </cite>
 
 ## Table of Contents
 1. [Introduction](#introduction)
-2. [Logging Strategy](#logging-strategy)
-3. [Metrics Collection](#metrics-collection)
-4. [Alerting Configuration](#alerting-configuration)
-5. [Dashboard Visualization](#dashboard-visualization)
-6. [Error Tracking](#error-tracking)
-7. [Health Checks and Diagnostic Tools](#health-checks-and-diagnostic-tools)
-8. [Configuration Examples](#configuration-examples)
-9. [Storage and Retention](#storage-and-retention)
-10. [Troubleshooting](#troubleshooting)
-11. [Performance Optimization](#performance-optimization)
+2. [Error Tracking with Sentry](#error-tracking-with-sentry)
+3. [Metrics Collection with Prometheus](#metrics-collection-with-prometheus)
+4. [Grafana Dashboard Configuration](#grafana-dashboard-configuration)
+5. [Alertmanager Setup](#alertmanager-setup)
+6. [Logging Strategy](#logging-strategy)
+7. [Monitoring Stack Setup](#monitoring-stack-setup)
+8. [Interpreting Key Metrics](#interpreting-key-metrics)
+9. [Troubleshooting Common Issues](#troubleshooting-common-issues)
+10. [Conclusion](#conclusion)
 
 ## Introduction
 
-The slimy-monorepo platform implements a comprehensive monitoring and observability system to ensure system health, performance, and reliability. The monitoring stack integrates multiple industry-standard tools and practices, including structured logging, Prometheus metrics collection, Grafana visualization, Alertmanager alerting, and Sentry error tracking. This documentation provides a detailed overview of the monitoring architecture, configuration, and best practices for maintaining system observability.
+The Slimy Monorepo implements a comprehensive monitoring and observability system to ensure service reliability, performance, and rapid incident response. The system integrates multiple components including Sentry for error tracking, Prometheus for metrics collection, Grafana for visualization, Alertmanager for alert routing, and structured logging across services. This documentation provides detailed guidance on the implementation, configuration, and operation of the monitoring stack.
 
-The monitoring system is designed to provide real-time insights into application performance, detect and alert on issues proactively, and facilitate rapid troubleshooting when problems occur. The implementation follows modern observability principles, capturing metrics, logs, and traces to create a complete picture of system behavior.
+The monitoring system provides real-time visibility into application health, performance metrics, error rates, and system resources. It enables proactive detection of issues through automated alerts and provides historical data for performance analysis and capacity planning. The system is designed to be deployed across different environments with appropriate configuration for development, staging, and production use.
 
 **Section sources**
 - [MONITORING_README.md](file://apps/admin-api/MONITORING_README.md#L1-L208)
 - [MONITORING_SETUP_GUIDE.md](file://apps/admin-api/MONITORING_SETUP_GUIDE.md#L1-L357)
 
-## Logging Strategy
+## Error Tracking with Sentry
 
-The platform employs structured logging with a consistent JSON format in production environments, while providing human-readable output for development. The logging system captures essential contextual information for effective troubleshooting and analysis.
+The Slimy Monorepo uses Sentry for comprehensive error tracking and performance monitoring. Sentry captures exceptions, provides stack traces, and offers performance insights through transaction tracing and profiling.
 
-### Structured Logging Implementation
+### Exception Capture
 
-The logging strategy is implemented using the Pino logger with custom formatters and serializers. All log entries include standardized metadata fields such as service name, version, environment, hostname, and process ID. This consistent structure enables efficient log aggregation, searching, and analysis.
-
-In production, logs are output in JSON format with ISO timestamps, making them compatible with log aggregation systems. For development environments, the system uses pino-pretty to provide colorized, human-readable output that enhances developer productivity.
+Sentry is configured to automatically capture unhandled exceptions and promise rejections in the Admin API. The integration is initialized through the `sentry.js` module, which reads configuration from environment variables:
 
 ```mermaid
 flowchart TD
-A[Application Code] --> B[Logger with Context]
-B --> C{Environment}
-C --> |Development| D[Pretty-Printed Output]
-C --> |Production| E[JSON Structured Logs]
-D --> F[Console]
-E --> G[Log Aggregation System]
+A[Application Error] --> B{Sentry Enabled?}
+B --> |Yes| C[Capture Exception]
+C --> D[Enrich with Context]
+D --> E[Send to Sentry]
+B --> |No| F[Log Locally]
+```
+
+The error capture process includes filtering to avoid noise from expected client errors (4xx status codes) and network timeouts. The `beforeSend` hook in the Sentry configuration filters out non-actionable errors while preserving critical server-side exceptions.
+
+### Context Enrichment
+
+Sentry events are enriched with contextual information to facilitate debugging and incident investigation. The system automatically includes:
+
+- User identification (ID and username) when available
+- Request ID for correlation across logs and traces
+- HTTP method and path for request context
+- Service metadata (name, version, environment)
+
+Custom context can be added using the `captureError` and `captureMessage` utility functions, which allow developers to include relevant business context with error reports. This enables more effective root cause analysis by providing additional information about the application state when errors occur.
+
+```mermaid
+classDiagram
+class Sentry {
++initSentry()
++sentryRequestHandler()
++sentryErrorHandler()
++captureError(error, context)
++captureMessage(message, level, context)
++startTransaction(name, op)
+}
+class Context {
++user : {id, username}
++requestId : string
++method : string
++path : string
++service : string
++version : string
++environment : string
+}
+Sentry --> Context : "enriches with"
 ```
 
 **Diagram sources**
-- [src/lib/logger.js](file://apps/admin-api/src/lib/logger.js#L1-L169)
-
-### Log Context and Correlation
-
-Each log entry includes contextual information to facilitate correlation and analysis. Key features include:
-
-- **Request ID correlation**: Each HTTP request is assigned a unique request ID that is included in all related log entries, enabling end-to-end request tracing
-- **Request/response details**: HTTP method, path, status code, duration, and relevant headers are captured
-- **Error context**: Full error objects with name, message, code, status code, and stack trace are serialized
-- **User context**: When available, user ID and username are included for authentication-related operations
-
-The system automatically logs incoming requests and completed responses, providing a comprehensive audit trail of API activity. This approach balances detailed observability with performance considerations.
+- [sentry.js](file://apps/admin-api/src/lib/monitoring/sentry.js#L8-L147)
 
 **Section sources**
-- [src/lib/logger.js](file://apps/admin-api/src/lib/logger.js#L1-L169)
-- [MONITORING_README.md](file://apps/admin-api/MONITORING_README.md#L151-L175)
+- [sentry.js](file://apps/admin-api/src/lib/monitoring/sentry.js#L8-L147)
+- [MONITORING_README.md](file://apps/admin-api/MONITORING_README.md#L8-L10)
+- [MONITORING_SETUP_GUIDE.md](file://apps/admin-api/MONITORING_SETUP_GUIDE.md#L85-L94)
 
-## Metrics Collection
+## Metrics Collection with Prometheus
 
-The platform collects comprehensive metrics using Prometheus, exposing a wide range of application, system, and business-specific metrics through a dedicated endpoint.
+The monitoring system collects comprehensive metrics using Prometheus, exposing them through a dedicated endpoint in the Admin API. The metrics cover application performance, system health, and business-specific KPIs.
 
 ### Custom Metrics Implementation
 
-The metrics collection system tracks various aspects of application performance and health:
+The metrics collection is implemented in the `metrics.js` module, which tracks various aspects of the application's behavior and performance. The system collects several categories of metrics:
 
-- **HTTP metrics**: Request count, response times (P50, P95, P99), status code distribution, and error rates
-- **Database metrics**: Query count, average query time, and connection count
-- **System metrics**: Memory usage (heap used, heap total), CPU usage, and uptime
-- **Application metrics**: Images processed, chat messages, active sessions, and job queue statistics
-- **Job processing metrics**: Queue length, completion rate, failure rate, and processing duration for chat, database, and audit processors
+#### HTTP Metrics
+- Request count and rate
+- Response time percentiles (P50, P95, P99)
+- HTTP status code distribution
+- Error rates
 
-The metrics are collected using in-memory counters and gauges that are exposed via the `/api/metrics` endpoint in Prometheus format. The implementation uses a sliding window approach for response time tracking, maintaining the last 1,000 response times to calculate percentiles accurately.
+#### Database Metrics
+- Query count and rate
+- Average query execution time
+- Connection pool usage
+
+#### System Metrics
+- Memory usage (heap used, heap total)
+- CPU usage
+- Service uptime
+
+#### Application Metrics
+- Images processed
+- Chat messages handled
+- Active sessions
+- Job queue performance
+
+The metrics are collected through middleware that wraps HTTP requests, recording response times and status codes. Database query metrics are captured by instrumenting database operations, while system metrics are collected from Node.js process information.
 
 ```mermaid
 flowchart TD
-A[HTTP Request] --> B[Start Timer]
-B --> C[Process Request]
-C --> D[Record Response Time]
-D --> E[Update Status Code Counter]
-E --> F[Check for Errors]
-F --> |Status >= 500| G[Increment Error Counter]
-F --> |Status < 500| H[Continue]
-H --> I[Update Active Connections]
-I --> J[Expose via /api/metrics]
+A[HTTP Request] --> B[metricsMiddleware]
+B --> C[Record Start Time]
+C --> D[Process Request]
+D --> E[Record Response Time]
+E --> F[Update Metrics]
+F --> G[Store in Memory]
+G --> H[Expose via /api/metrics]
+I[Database Query] --> J[recordDatabaseQuery]
+J --> K[Update Query Metrics]
+K --> G
+L[Periodic Collection] --> M[getMemoryUsage]
+M --> G
 ```
 
-**Diagram sources**
-- [src/lib/monitoring/metrics.js](file://apps/admin-api/src/lib/monitoring/metrics.js#L1-L357)
+### Metrics Endpoint
 
-### API Performance Monitoring
+The Admin API exposes metrics in Prometheus format at the `/api/metrics` endpoint. This endpoint returns plain text with metrics in the Prometheus exposition format, making it compatible with any Prometheus-compatible monitoring system. The endpoint is publicly accessible to allow Prometheus to scrape metrics without authentication.
 
-The system tracks API performance through multiple dimensions:
-
-- **Response time percentiles**: P50, P95, and P99 response times provide insight into tail latency
-- **Request rate**: Requests per second over time, enabling detection of traffic spikes
-- **Error rate**: Percentage of requests resulting in errors, calculated as errors/total requests
-- **Active connections**: Current number of concurrent connections to the service
-
-These metrics are updated in real-time as requests are processed and are available for immediate visualization and alerting. The metrics middleware automatically captures this data for all HTTP requests, requiring no additional instrumentation in route handlers.
+The metrics are updated in real-time as requests are processed, with response times stored in a sliding window of the last 1000 requests to calculate percentiles efficiently. The system also provides a snapshot function that returns a comprehensive view of all metrics for debugging and diagnostics.
 
 **Section sources**
-- [src/lib/monitoring/metrics.js](file://apps/admin-api/src/lib/monitoring/metrics.js#L1-L357)
+- [metrics.js](file://apps/admin-api/src/lib/monitoring/metrics.js#L1-L357)
 - [MONITORING_README.md](file://apps/admin-api/MONITORING_README.md#L13-L16)
+- [MONITORING_SETUP_GUIDE.md](file://apps/admin-api/MONITORING_SETUP_GUIDE.md#L110-L115)
 
-## Alerting Configuration
+## Grafana Dashboard Configuration
 
-The alerting system combines in-application alert checking with external monitoring via Prometheus and Alertmanager to provide comprehensive coverage of system health.
+The monitoring system includes a comprehensive Grafana dashboard for visualizing key metrics and system health. The dashboard provides real-time insights into application performance, error rates, and resource utilization.
 
-### Alert Thresholds and Rules
+### Key Visualizations
 
-The system implements configurable alert thresholds for various metrics:
-
-- **Error rate**: Warning > 5%, Critical > 10%
-- **Response time**: P95 warning > 2s, critical > 5s; P99 warning > 5s, critical > 10s
-- **Memory usage**: Warning > 80%, Critical > 90%
-- **Database query time**: Warning > 100ms, Critical > 500ms
-- **Health checks**: Service availability monitoring
-
-Alerts are implemented with cooldown periods (5 minutes by default) to prevent alert spam during transient issues. The system tracks alert state to distinguish between new alerts and ongoing issues, and automatically resolves alerts when conditions return to normal.
-
-```mermaid
-flowchart TD
-A[Metrics Collection] --> B{Check Thresholds}
-B --> |Exceeded| C[Check Alert State]
-C --> |New Alert| D[Trigger Alert]
-C --> |Existing Alert| E[Continue]
-D --> F[Send Notification]
-F --> G[Update Alert State]
-G --> H[Start Cooldown Period]
-H --> I{Condition Normalized?}
-I --> |Yes| J[Resolve Alert]
-I --> |No| K[Continue Monitoring]
-```
-
-**Diagram sources**
-- [src/lib/alerts.js](file://apps/admin-api/src/lib/alerts.js#L1-L343)
-
-### Alertmanager Integration
-
-For production environments, the system integrates with Alertmanager to provide advanced alert routing and notification capabilities. The Alertmanager configuration supports:
-
-- **Email notifications**: SMTP integration for email alerts
-- **Grouping**: Alerts are grouped by alert name to reduce notification volume
-- **Rate limiting**: Controls how frequently notifications are sent
-- **Escalation policies**: Different notification channels based on alert severity
-
-The Alertmanager configuration is designed to be flexible, allowing different notification recipients and methods based on alert severity and type.
-
-**Section sources**
-- [src/lib/alerts.js](file://apps/admin-api/src/lib/alerts.js#L1-L343)
-- [monitoring/alertmanager.yml](file://apps/web/monitoring/alertmanager.yml#L1-L22)
-
-## Dashboard Visualization
-
-The monitoring system includes a comprehensive Grafana dashboard that visualizes key metrics and system health indicators.
-
-### Grafana Dashboard Components
-
-The Grafana dashboard provides a holistic view of system health with the following panels:
-
-- **Service Health**: Current service status (UP/DOWN) with color-coded indicators
-- **Uptime**: Service uptime in hours since last restart
-- **Error Rate**: Current error rate with color-coded thresholds (green < 5%, orange 5-10%, red > 10%)
-- **Active Connections**: Current number of active connections to the service
-- **Response Time Percentiles**: P50, P95, and P99 response times over time
-- **Request Rate**: Requests per second over time
-- **HTTP Status Codes**: Distribution of response codes (2xx, 3xx, 4xx, 5xx)
-- **Memory Usage**: Heap memory usage trends
-- **Database Performance**: Connection count and average query time
-- **Application Metrics**: Business-specific metrics like images processed and chat messages
-- **Error Trends**: Error rate over time
-
-The dashboard is configured to refresh every 30 seconds and displays data from the last hour by default, providing near real-time visibility into system performance.
+The Grafana dashboard contains multiple panels organized into logical groups:
 
 ```mermaid
 graph TB
-A[Grafana] --> B[Prometheus]
-B --> C[Admin API /api/metrics]
-C --> D[Metrics Collection]
-D --> E[HTTP Requests]
-D --> F[Database Queries]
-D --> G[System Resources]
-D --> H[Application Events]
-A --> I[Dashboard Panels]
-I --> J[Service Health]
-I --> K[Uptime]
-I --> L[Error Rate]
-I --> M[Response Times]
-I --> N[Request Rate]
-I --> O[Status Codes]
-I --> P[Memory Usage]
-I --> Q[Database Performance]
-I --> R[Application Metrics]
+A[Grafana Dashboard] --> B[Service Health]
+A --> C[Uptime]
+A --> D[Error Rate]
+A --> E[Active Connections]
+A --> F[Response Time Percentiles]
+A --> G[Request Rate]
+A --> H[HTTP Status Codes]
+A --> I[Memory Usage]
+A --> J[Database Performance]
+A --> K[Application Metrics]
+A --> L[Error Trends]
 ```
 
-**Diagram sources**
-- [grafana-dashboard.json](file://apps/admin-api/grafana-dashboard.json#L1-L364)
-- [MONITORING_README.md](file://apps/admin-api/MONITORING_README.md#L112-L127)
+#### Service Health and Uptime
+The top row of the dashboard displays overall service health as a simple UP/DOWN indicator, service uptime in hours, current error rate with color-coded thresholds, and active connection count. These panels provide an immediate overview of the system's current state.
+
+#### Performance Metrics
+The middle section focuses on performance with graphs showing response time percentiles (P50, P95, P99), request rate over time, and HTTP status code distribution. These visualizations help identify performance bottlenecks and traffic patterns.
+
+#### Resource Utilization
+The bottom section monitors system resources with graphs for memory usage (heap used vs. total), database performance (connections and query times), and application-specific metrics like images processed and chat messages. This helps identify resource constraints and capacity issues.
 
 ### Dashboard Configuration
 
-The dashboard is defined in JSON format and can be easily imported into Grafana instances. It uses Prometheus as the data source and includes pre-configured queries for all metrics. The dashboard is designed to be self-contained, requiring minimal configuration after import.
+The dashboard is defined in the `grafana-dashboard.json` file, which contains the complete configuration including panel layouts, queries, and visualization settings. The dashboard is designed to refresh every 30 seconds to provide near real-time monitoring.
 
-Key configuration aspects include:
-- Time range: Last hour by default
-- Refresh interval: 30 seconds
-- Data source: Prometheus
-- Panel layout: Optimized for quick scanning of key metrics
-- Thresholds: Pre-configured for color-coding based on alert levels
+The dashboard uses Prometheus as its data source and queries metrics using PromQL. For example, the error rate panel uses the `slimy_admin_api_error_rate_percent` metric with thresholds configured to display green (normal), orange (warning), and red (critical) based on the error rate.
+
+```mermaid
+classDiagram
+class GrafanaDashboard {
++id : null
++title : "Slimy Admin API Monitoring"
++panels : Array
++time : {from : "now-1h", to : "now"}
++refresh : "30s"
+}
+class Panel {
++id : number
++title : string
++type : string
++targets : Array
++gridPos : {h : number, w : number, x : number, y : number}
+}
+GrafanaDashboard --> Panel : "contains"
+```
+
+**Diagram sources**
+- [grafana-dashboard.json](file://apps/admin-api/grafana-dashboard.json#L1-L364)
+- [dashboard.yml](file://apps/web/grafana/provisioning/dashboards/dashboard.yml#L1-L10)
 
 **Section sources**
 - [grafana-dashboard.json](file://apps/admin-api/grafana-dashboard.json#L1-L364)
-- [MONITORING_SETUP_GUIDE.md](file://apps/admin-api/MONITORING_SETUP_GUIDE.md#L204-L210)
+- [MONITORING_README.md](file://apps/admin-api/MONITORING_README.md#L112-L127)
+- [MONITORING_SETUP_GUIDE.md](file://apps/admin-api/MONITORING_SETUP_GUIDE.md#L244-L259)
 
-## Error Tracking
+## Alertmanager Setup
 
-The platform uses Sentry for comprehensive error tracking, performance monitoring, and transaction tracing.
+The alerting system is configured using Alertmanager, which handles alert routing, grouping, and notification. The system provides automated alerts for critical issues with configurable thresholds and cooldown periods.
 
-### Sentry Implementation
+### Alert Configuration
 
-Sentry is integrated into the application to provide:
+Alertmanager is configured through the `alertmanager.yml` file, which defines the global settings, routing rules, and notification receivers. The configuration includes:
 
-- **Automatic error tracking**: Unhandled exceptions and promise rejections are automatically captured
-- **Performance monitoring**: Transaction tracing for HTTP requests and custom operations
-- **CPU/memory profiling**: Continuous profiling to identify performance bottlenecks
-- **Release tracking**: Correlation of errors with specific code deployments
-- **Breadcrumbs**: Contextual information leading up to errors
+- SMTP settings for email notifications
+- Alert grouping by alert name
+- Group wait and interval settings to prevent alert storms
+- Repeat interval to avoid duplicate notifications
 
-The Sentry integration is initialized with environment-specific configuration, including DSN, environment name, and release version. Sampling rates are configured to capture 100% of transactions in development and 10% in production to balance insight with performance impact.
-
-```mermaid
-sequenceDiagram
-participant App as Application
-participant Sentry as Sentry
-participant UI as Dashboard
-App->>App : Request starts
-App->>Sentry : Start transaction
-App->>App : Process request
-alt Error occurs
-App->>Sentry : Capture exception
-Sentry->>Sentry : Add context (user, request ID)
-end
-App->>Sentry : Finish transaction
-Sentry->>UI : Display error and performance data
-```
-
-**Diagram sources**
-- [src/lib/monitoring/sentry.js](file://apps/admin-api/src/lib/monitoring/sentry.js#L1-L148)
-
-### Error Filtering and Context
-
-The Sentry integration includes intelligent filtering to reduce noise from non-actionable errors:
-
-- **Client errors (4xx)**: Expected client-side errors are filtered out
-- **Timeout errors**: Network timeout errors are filtered as they are often client-side issues
-- **Context enrichment**: User information, request details, and custom tags are added to provide context
-
-Custom error capture is available through utility functions that allow capturing specific errors with additional context. This enables targeted error reporting for business logic errors that may not result in HTTP 500 responses.
-
-**Section sources**
-- [src/lib/monitoring/sentry.js](file://apps/admin-api/src/lib/monitoring/sentry.js#L1-L148)
-- [MONITORING_README.md](file://apps/admin-api/MONITORING_README.md#L8-L10)
-
-## Health Checks and Diagnostic Tools
-
-The platform provides multiple endpoints for health checking and diagnostics to support monitoring and troubleshooting.
-
-### Health Check Endpoint
-
-The `/api/health` endpoint provides comprehensive health status including:
-
-- **Service status**: Overall service health
-- **Database connectivity**: Database connection status and response time
-- **Discord API health**: External service dependency checks
-- **System health**: Memory usage and uptime
-- **Metrics snapshot**: Current values of key metrics
-
-The health check performs actual connectivity tests rather than simply returning a static response, ensuring that monitoring systems can detect real issues with dependencies.
-
-### Diagnostic Endpoints
-
-Additional diagnostic endpoints provide detailed system information:
-
-- **`/api/diag`**: Detailed diagnostics including process information, memory usage, and uptime (admin only)
-- **`/api/diagnostics`**: System diagnostics with caching (admin only)
-- **`/api/metrics`**: Prometheus-formatted metrics for monitoring systems
-
-These endpoints support both automated monitoring and manual troubleshooting, providing different levels of detail based on the use case.
+The routing configuration directs alerts to different receivers based on severity, with critical alerts sent immediately and warnings potentially grouped to reduce noise.
 
 ```mermaid
 flowchart TD
-A[Monitoring System] --> B[/api/health]
-A --> C[/api/metrics]
-D[Administrator] --> E[/api/diag]
-D --> F[/api/diagnostics]
-B --> G{Health Checks}
-G --> H[Database]
-G --> I[External Services]
-G --> J[System Resources]
-C --> K[Prometheus]
-K --> L[Grafana]
-E --> M[Process Info]
-E --> N[Memory Usage]
-E --> O[Uptime]
-F --> P[Cached Diagnostics]
+A[Prometheus Alert] --> B[Alertmanager]
+B --> C{Severity}
+C --> |Critical| D[Email Receiver]
+C --> |Warning| E[Email Receiver]
+C --> |Info| F[Slack Receiver]
+D --> G[Admin Team Email]
+E --> G
+F --> H[Monitoring Slack Channel]
+```
+
+### Alert Routing
+
+The alert routing is configured to group alerts by alert name, which helps consolidate multiple instances of the same issue into a single notification. This prevents alert fatigue when multiple systems experience the same problem simultaneously.
+
+The system supports multiple notification channels, with email configured as the primary channel. Slack integration is available but commented out in the default configuration, allowing teams to enable it as needed.
+
+```mermaid
+classDiagram
+class Alertmanager {
++global : GlobalConfig
++route : Route
++receivers : Receiver[]
+}
+class GlobalConfig {
++smtp_smarthost : string
++smtp_from : string
++smtp_auth_username : string
++smtp_auth_password : string
+}
+class Route {
++group_by : string[]
++group_wait : string
++group_interval : string
++repeat_interval : string
++receiver : string
++routes : Route[]
+}
+class Receiver {
++name : string
++email_configs : EmailConfig[]
++slack_configs : SlackConfig[]
+}
+class EmailConfig {
++to : string
++send_resolved : boolean
+}
+class SlackConfig {
++api_url : string
++channel : string
+}
+Alertmanager --> GlobalConfig
+Alertmanager --> Route
+Alertmanager --> Receiver
 ```
 
 **Diagram sources**
-- [src/services/health.js](file://apps/admin-api/src/services/health.js#L1-L63)
-- [src/routes/diagnostics.js](file://apps/admin-api/src/routes/diagnostics.js#L1-L79)
-- [src/routes/diag.js](file://apps/admin-api/src/routes/diag.js#L1-L55)
+- [alertmanager.yml](file://apps/web/monitoring/alertmanager.yml#L1-L46)
+- [prometheus.yml](file://apps/admin-api/prometheus.yml#L31-L52)
 
 **Section sources**
-- [src/services/health.js](file://apps/admin-api/src/services/health.js#L1-L63)
-- [src/routes/diagnostics.js](file://apps/admin-api/src/routes/diagnostics.js#L1-L79)
-- [src/routes/diag.js](file://apps/admin-api/src/routes/diag.js#L1-L55)
+- [alertmanager.yml](file://apps/web/monitoring/alertmanager.yml#L1-L46)
+- [MONITORING_README.md](file://apps/admin-api/MONITORING_README.md#L29-L32)
+- [MONITORING_SETUP_GUIDE.md](file://apps/admin-api/MONITORING_SETUP_GUIDE.md#L117-L137)
 
-## Configuration Examples
+## Logging Strategy
 
-This section provides examples of key monitoring configuration files used in the platform.
+The monitoring system implements a structured logging strategy across services to facilitate log aggregation, analysis, and troubleshooting. The logging approach varies between development and production environments to optimize for different use cases.
 
-### Prometheus Configuration
+### Structured Logging Implementation
 
-The `prometheus.yml` file configures Prometheus to scrape metrics from the Admin API:
+The Admin API uses Pino as the logging library, configured to output JSON-formatted logs in production and pretty-printed logs in development. The JSON format includes structured fields that make logs easily parseable by log aggregation systems.
 
-```yaml
-global:
-  scrape_interval: 15s
-  evaluation_interval: 15s
+All log entries include consistent metadata:
+- Timestamp in ISO format
+- Log level (debug, info, warn, error)
+- Service name and version
+- Environment (development, staging, production)
+- Hostname and process ID
+- Request ID for correlation
 
-scrape_configs:
-  - job_name: 'slimy-admin-api'
-    static_configs:
-      - targets: ['admin-api:3080']
-    metrics_path: '/api/metrics'
-    scrape_interval: 15s
-    scrape_timeout: 10s
-
-  - job_name: 'docker'
-    static_configs:
-      - targets: ['docker.for.mac.host.internal:9323']
-    metrics_path: '/metrics'
-    scrape_interval: 30s
+```mermaid
+flowchart TD
+A[Log Event] --> B{Development?}
+B --> |Yes| C[Pretty Print]
+C --> D[Console Output]
+B --> |No| E[JSON Format]
+E --> F[Console and File]
+D --> G[Human Readable]
+F --> H[Machine Parseable]
 ```
 
-This configuration sets up two scrape jobs: one for the Admin API metrics endpoint and another for Docker container metrics.
+### Log Aggregation Patterns
+
+The logging system is designed to work with centralized log aggregation platforms. In production, logs are output in JSON format with consistent field names, enabling easy parsing and indexing by systems like ELK stack or similar.
+
+The system includes request correlation through request IDs, which are included in all logs for a given request. This allows operators to trace a request's path through the system by searching for the request ID across all log entries.
+
+For the Web application, the logging system supports multiple transports including console output and file logging in JSON Lines format. The file transport writes logs to dated files with log levels separated into different files (e.g., `info-2025-01-01.jsonl`), facilitating log rotation and archival.
+
+```mermaid
+classDiagram
+class Logger {
++config : LoggerConfig
++transports : LogTransport[]
++context : JSONObject
++debug(message, context)
++info(message, context)
++warn(message, context)
++error(message, error, context)
++fatal(message, error, context)
++child(context)
+}
+class LogTransport {
+<<interface>>
++log(entry : LogEntry)
+}
+class ConsoleTransport {
++log(entry : LogEntry)
+}
+class FileTransport {
++log(entry : LogEntry)
+}
+Logger --> LogTransport : "uses"
+LogTransport <|-- ConsoleTransport
+LogTransport <|-- FileTransport
+```
+
+**Diagram sources**
+- [logger.js](file://apps/admin-api/src/lib/logger.js#L1-L159)
+- [logger.ts](file://apps/web/lib/monitoring/logger.ts#L1-L310)
 
 **Section sources**
+- [logger.js](file://apps/admin-api/src/lib/logger.js#L1-L159)
+- [logger.ts](file://apps/web/lib/monitoring/logger.ts#L1-L310)
+- [MONITORING_README.md](file://apps/admin-api/MONITORING_README.md#L24-L28)
+- [MONITORING_SETUP_GUIDE.md](file://apps/admin-api/MONITORING_SETUP_GUIDE.md#L139-L149)
+
+## Monitoring Stack Setup
+
+The monitoring stack can be deployed in different environments using Docker Compose configurations. The setup includes Prometheus, Grafana, and Alertmanager services with appropriate networking and volume configurations.
+
+### Local Development Setup
+
+For local development, the monitoring stack is started using Docker Compose with the `docker-compose.monitoring.yml` file. This configuration exposes the services on standard ports:
+
+- Grafana: http://localhost:3000 (default credentials: admin/admin)
+- Prometheus: http://localhost:9090
+- Alertmanager: http://localhost:9093
+
+The setup process involves:
+1. Navigating to the web directory
+2. Starting the stack with Docker Compose
+3. Importing the Grafana dashboard
+4. Configuring Prometheus to scrape the Admin API metrics endpoint
+
+```mermaid
+flowchart TD
+A[Start Monitoring Stack] --> B[Docker Compose]
+B --> C[Start Grafana]
+C --> D[Access at http://localhost:3000]
+B --> E[Start Prometheus]
+E --> F[Scrape /api/metrics]
+B --> G[Start Alertmanager]
+G --> H[Configure Notifications]
+D --> I[Import Dashboard]
+I --> J[Monitor System]
+```
+
+### Production Deployment
+
+For production environments, the monitoring services should be deployed separately from the application services for better isolation and security. The production setup requires:
+
+- Configuring Prometheus with the production `prometheus.yml` file
+- Setting up persistent storage for Grafana
+- Configuring secure credentials for all services
+- Implementing appropriate network security and access controls
+
+The Docker Compose configuration for production includes volume mounts for persistent data storage and environment variables for secure configuration of admin passwords and notification credentials.
+
+```mermaid
+classDiagram
+class DockerCompose {
++version : string
++services : Service[]
++volumes : Volume[]
+}
+class Service {
++name : string
++image : string
++volumes : string[]
++ports : string[]
++environment : Map
+}
+class Volume {
++name : string
+}
+DockerCompose --> Service
+DockerCompose --> Volume
+```
+
+**Diagram sources**
+- [docker-compose.monitoring.yml](file://apps/web/docker-compose.monitoring.yml#L1-L50)
 - [prometheus.yml](file://apps/admin-api/prometheus.yml#L1-L52)
 
-### Alertmanager Configuration
+**Section sources**
+- [docker-compose.monitoring.yml](file://apps/web/docker-compose.monitoring.yml#L1-L50)
+- [MONITORING_README.md](file://apps/admin-api/MONITORING_README.md#L91-L111)
+- [MONITORING_SETUP_GUIDE.md](file://apps/admin-api/MONITORING_SETUP_GUIDE.md#L151-L242)
 
-The Alertmanager configuration defines notification routing and email settings:
+## Interpreting Key Metrics
 
-```yaml
-global:
-  smtp_smarthost: 'smtp.gmail.com:587'
-  smtp_from: 'alerts@yourdomain.com'
-  smtp_auth_username: 'your-email@gmail.com'
-  smtp_auth_password: 'your-app-password'
+Understanding the key metrics collected by the monitoring system is essential for maintaining system health and performance. This section explains how to interpret the most important metrics and identify potential issues.
 
-route:
-  group_by: ['alertname']
-  group_wait: 10s
-  group_interval: 10s
-  repeat_interval: 1h
-  receiver: 'email-notifications'
+### Error Rate Analysis
 
-receivers:
-- name: 'email-notifications'
-  email_configs:
-  - to: 'admin@yourdomain.com'
-    send_resolved: true
-```
+The error rate metric represents the percentage of requests that result in server errors (5xx status codes). Normal operation should maintain an error rate below 1%, with spikes indicating potential issues.
 
-This configuration routes all alerts to an email notification receiver with appropriate grouping and rate limiting.
+- **Warning threshold**: 5% error rate
+- **Critical threshold**: 10% error rate
+
+When the error rate exceeds thresholds, investigate:
+- Recent code deployments
+- Database connectivity issues
+- External service dependencies
+- Resource constraints (memory, CPU)
+
+### Response Time Percentiles
+
+Response time metrics are reported as percentiles (P50, P95, P99) to provide a complete picture of performance distribution. P50 represents median response time, P95 represents the response time for 95% of requests, and P99 represents the response time for 99% of requests.
+
+- **P95 warning**: 2 seconds
+- **P95 critical**: 5 seconds
+- **P99 warning**: 5 seconds
+- **P99 critical**: 10 seconds
+
+High P99 values with acceptable P50 values indicate that most users have good performance, but a small percentage experience significant delays. This pattern often indicates issues with specific requests or data patterns.
+
+### Memory Usage
+
+Memory usage is monitored as a percentage of heap memory utilization. High memory usage can lead to garbage collection pauses and performance degradation.
+
+- **Warning threshold**: 80% memory usage
+- **Critical threshold**: 90% memory usage
+
+Monitor memory trends over time to identify memory leaks. A steadily increasing memory usage pattern without corresponding increases in traffic may indicate a memory leak that requires investigation.
+
+### Database Performance
+
+Database metrics include query count, average query time, and connection count. Slow database queries are a common cause of performance issues.
+
+- **Query time warning**: 100ms average
+- **Query time critical**: 500ms average
+
+High query counts with low response times may indicate inefficient data access patterns, while high average query times suggest the need for query optimization or indexing improvements.
 
 **Section sources**
-- [monitoring/alertmanager.yml](file://apps/web/monitoring/alertmanager.yml#L1-L22)
+- [alerts.js](file://apps/admin-api/src/lib/alerts.js#L7-L42)
+- [MONITORING_README.md](file://apps/admin-api/MONITORING_README.md#L58-L62)
+- [MONITORING_SETUP_GUIDE.md](file://apps/admin-api/MONITORING_SETUP_GUIDE.md#L121-L125)
 
-## Storage and Retention
+## Troubleshooting Common Issues
 
-The monitoring system addresses storage considerations for both metrics and logs to balance observability with resource usage.
+This section provides guidance on diagnosing and resolving common issues encountered with the monitoring system.
 
-### Metric Storage Considerations
+### Metrics Not Appearing
 
-Prometheus stores metrics in a time-series database with configurable retention policies. The default configuration retains metrics for 15 days, with the ability to adjust based on storage capacity and historical analysis needs.
+When metrics are not appearing in Grafana, follow these steps:
 
-Key considerations include:
-- **Storage capacity**: Monitoring the disk usage of the Prometheus server
-- **Retention period**: Balancing historical data needs with storage costs
-- **Downsampling**: Configuring recording rules to aggregate older data
-- **Backup strategy**: Regular backups of the Prometheus data directory
+1. Verify the `/api/metrics` endpoint is accessible and returns data
+2. Check Prometheus configuration to ensure it's scraping the correct target
+3. Review Prometheus logs for scrape errors
+4. Verify network connectivity between Prometheus and the Admin API
+5. Check that the metrics middleware is properly registered in the application
 
-### Log Retention Policies
+The most common cause is incorrect target configuration in `prometheus.yml`, where the hostname or port doesn't match the running service.
 
-Log retention is managed through external log aggregation systems, with policies varying by environment:
+### Alerts Not Firing
 
-- **Development**: Logs are retained for 7 days
-- **Staging**: Logs are retained for 30 days
-- **Production**: Logs are retained for 90 days, with critical error logs retained for 1 year
+When expected alerts are not firing, investigate:
 
-Log rotation is configured to prevent individual log files from growing too large, with compression of archived logs to reduce storage footprint.
+1. Verify alert thresholds in `src/lib/alerts.js`
+2. Check that alert checking is running (look for "Alert monitoring started" in logs)
+3. Review alert cooldown periods (5 minutes default)
+4. Verify that the metrics being evaluated are being collected correctly
+5. Check Alertmanager configuration for routing issues
 
-**Section sources**
-- [MONITORING_README.md](file://apps/admin-api/MONITORING_README.md#L196-L199)
-- [MONITORING_SETUP_GUIDE.md](file://apps/admin-api/MONITORING_SETUP_GUIDE.md#L302-L304)
+The alert system includes cooldown periods to prevent alert spam, which may delay the initial firing of an alert when a threshold is first exceeded.
 
-## Troubleshooting
+### Health Check Failures
 
-This section provides guidance for diagnosing and resolving common monitoring issues.
+When health checks fail, diagnose by checking:
 
-### Common Monitoring Issues
+1. Database connectivity using `docker-compose logs postgres`
+2. External service credentials (Discord API, etc.)
+3. System resources (memory, disk space)
+4. Network connectivity between services
+5. Configuration files for correct settings
 
-#### Metrics Not Appearing
-- Verify the `/api/metrics` endpoint is accessible and returns data
-- Check Prometheus configuration for correct target and metrics path
-- Review service logs for metrics collection errors
-- Ensure the metrics middleware is properly registered in the application
+Health check failures often cascade, where one failing component causes multiple health checks to fail. Start with the underlying dependency (usually the database) and work upward.
 
-#### Alerts Not Firing
-- Verify alert thresholds in the configuration
-- Check alert cooldown periods (5 minutes default)
-- Ensure the alert checking process is running
-- Review Alertmanager configuration for routing issues
+### Sentry Integration Issues
 
-#### Health Check Failing
-- Check database connectivity and credentials
-- Verify external service dependencies (Discord API)
-- Monitor system resources (memory, disk space)
-- Review service logs for startup errors
+When Sentry is not capturing errors:
 
-#### Sentry Integration Issues
-- Verify SENTRY_DSN environment variable is set
-- Check network connectivity to Sentry
-- Review Sentry project configuration
-- Ensure the correct environment is specified
+1. Verify the SENTRY_DSN environment variable is correctly set
+2. Check Sentry project configuration in the Sentry dashboard
+3. Ensure network connectivity to Sentry's ingestion endpoints
+4. Review application logs for Sentry initialization messages
+5. Verify that error handling middleware is properly registered
+
+The Sentry SDK logs initialization status, which can help identify configuration issues.
 
 **Section sources**
 - [MONITORING_README.md](file://apps/admin-api/MONITORING_README.md#L177-L193)
 - [MONITORING_SETUP_GUIDE.md](file://apps/admin-api/MONITORING_SETUP_GUIDE.md#L277-L297)
+- [alerts.js](file://apps/admin-api/src/lib/alerts.js#L44-L83)
 
-## Performance Optimization
+## Conclusion
 
-The monitoring system is designed to minimize performance impact while providing comprehensive observability.
+The monitoring and observability system for the Slimy Monorepo provides comprehensive visibility into application health, performance, and errors. By integrating Sentry, Prometheus, Grafana, and Alertmanager, the system enables proactive issue detection, rapid incident response, and data-driven performance optimization.
 
-### Performance Impact Mitigation
+Key strengths of the implementation include:
+- Comprehensive error tracking with rich context
+- Detailed metrics collection across multiple dimensions
+- Intuitive visualizations through Grafana dashboards
+- Automated alerting with appropriate thresholds and cooldowns
+- Structured logging for effective troubleshooting
 
-Key strategies for optimizing monitoring performance include:
+The system is designed to be deployed across different environments with appropriate configuration for development, staging, and production use. Regular maintenance, including reviewing alert thresholds and monitoring storage usage, will ensure the system continues to provide value as the application evolves.
 
-- **Sampling**: Configurable sampling rates for Sentry transactions (10% in production)
-- **Efficient metrics collection**: Lightweight in-memory counters with minimal overhead
-- **Caching**: Cached responses for diagnostic endpoints
-- **Asynchronous operations**: Non-blocking metric updates and log writes
-- **Batching**: Batched operations where appropriate
-
-The system has been measured to have minimal performance impact:
-- Metrics: ~1-2ms per request
-- Logging: ~0.5ms per log entry
-- Health checks: ~50-100ms every 30 seconds
-- Sentry: Configurable sampling rates (10% in production)
-
-### Alert Fatigue Prevention
-
-To prevent alert fatigue, the system implements several strategies:
-
-- **Cooldown periods**: 5-minute cooldown between alert notifications
-- **Escalation policies**: Different notification methods based on severity
-- **Meaningful thresholds**: Thresholds based on historical baselines rather than arbitrary values
-- **Automated resolution**: Alerts automatically resolve when conditions normalize
-- **Noise reduction**: Filtering of non-actionable errors and transient issues
-
-These measures ensure that alerts remain meaningful and actionable, reducing the risk of important alerts being ignored due to excessive noise.
-
-**Section sources**
-- [MONITORING_SETUP_GUIDE.md](file://apps/admin-api/MONITORING_SETUP_GUIDE.md#L306-L312)
-- [src/lib/alerts.js](file://apps/admin-api/src/lib/alerts.js#L44-L47)
+Future enhancements could include distributed tracing across service boundaries, custom business metrics, and machine learning-based anomaly detection to further improve observability and reduce mean time to resolution for incidents.

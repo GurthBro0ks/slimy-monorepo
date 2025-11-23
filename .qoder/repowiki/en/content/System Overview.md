@@ -6,246 +6,405 @@
 - [package.json](file://package.json)
 - [pnpm-workspace.yaml](file://pnpm-workspace.yaml)
 - [apps/admin-api/README.md](file://apps/admin-api/README.md)
-- [apps/web/README.md](file://apps/web/README.md)
 - [apps/admin-ui/README.md](file://apps/admin-ui/README.md)
+- [apps/web/README.md](file://apps/web/README.md)
 - [apps/bot/README.md](file://apps/bot/README.md)
-- [docs/INFRA_OVERVIEW.md](file://docs/INFRA_OVERVIEW.md)
-- [docs/SERVICES_MATRIX.md](file://docs/SERVICES_MATRIX.md)
-- [docker-compose.yml](file://docker-compose.yml)
 - [apps/admin-api/src/app.js](file://apps/admin-api/src/app.js)
-- [apps/web/lib/api/admin-client.ts](file://apps/web/lib/api/admin-client.ts)
-- [apps/admin-api/src/config.js](file://apps/admin-api/src/config.js)
-- [apps/web/lib/config.ts](file://apps/web/lib/config.ts)
-- [apps/admin-api/src/lib/queues/index.js](file://apps/admin-api/src/lib/queues/index.js)
-- [apps/admin-api/lib/queue-manager.js](file://apps/admin-api/lib/queue-manager.js)
-- [apps/admin-api/lib/monitoring.js](file://apps/admin-api/lib/monitoring.js)
-- [apps/admin-api/MONITORING_SETUP_GUIDE.md](file://apps/admin-api/MONITORING_SETUP_GUIDE.md)
-- [apps/admin-api/MONITORING_README.md](file://apps/admin-api/MONITORING_README.md)
+- [apps/admin-api/server.js](file://apps/admin-api/server.js)
+- [apps/admin-ui/pages/_app.js](file://apps/admin-ui/pages/_app.js)
+- [apps/web/next.config.js](file://apps/web/next.config.js)
+- [apps/admin-api/src/routes/auth.js](file://apps/admin-api/src/routes/auth.js)
+- [apps/admin-api/src/routes/guilds.js](file://apps/admin-api/src/routes/guilds.js)
+- [apps/admin-ui/lib/api.js](file://apps/admin-ui/lib/api.js)
+- [apps/web/lib/api-client.ts](file://apps/web/lib/api-client.ts)
+- [infra/docker/docker-compose.slimy-nuc1.yml](file://infra/docker/docker-compose.slimy-nuc1.yml)
+- [docker-compose.yml](file://docker-compose.yml)
 </cite>
 
 ## Table of Contents
 1. [Introduction](#introduction)
-2. [Core Applications](#core-applications)
-3. [Shared Packages and Infrastructure](#shared-packages-and-infrastructure)
-4. [System Architecture](#system-architecture)
-5. [Component Interactions](#component-interactions)
-6. [Primary Use Cases](#primary-use-cases)
-7. [User Journeys](#user-journeys)
-8. [Technology Stack and Impact](#technology-stack-and-impact)
-9. [Monitoring and Observability](#monitoring-and-observability)
+2. [Project Structure](#project-structure)
+3. [Core Components](#core-components)
+4. [Architecture Overview](#architecture-overview)
+5. [Data Flow](#data-flow)
+6. [Monorepo Structure and Shared Packages](#monorepo-structure-and-shared-packages)
+7. [Deployment Topology](#deployment-topology)
+8. [Key Design Decisions](#key-design-decisions)
+9. [Conclusion](#conclusion)
 
 ## Introduction
 
-The slimy-monorepo platform is a comprehensive full-stack Discord community management system designed to streamline guild administration, club analytics, snail tools, chat processing, and usage monitoring. This monorepo architecture integrates multiple applications and services into a cohesive ecosystem that enables community managers, administrators, and end users to effectively manage and analyze their Discord communities.
+The Slimy Monorepo platform is a full-stack Discord bot ecosystem designed to provide administrative interfaces, data processing pipelines, and public web services for the Slimy.ai bot. The system enables Discord server administrators to configure and monitor bot behavior, analyze club performance metrics, and manage user interactions through a comprehensive suite of tools. The architecture is built around a monorepo structure using pnpm workspaces, which facilitates code sharing and consistent development workflows across multiple applications.
 
-The platform's primary purpose is to provide a unified interface for Discord bot administration, offering advanced analytics for club performance, tools for processing chat interactions, and comprehensive monitoring of system usage. By consolidating these capabilities into a single monorepo, the system ensures consistency across components, simplifies dependency management, and streamlines development workflows.
-
-The architecture follows a microservices-inspired pattern within a monorepo structure, with clearly defined applications serving specific functions while sharing common packages for authentication, configuration, and database access. This approach balances the benefits of code reuse and consistent tooling with the operational independence of separate services.
+The platform consists of four primary applications: admin-api (backend service), admin-ui (administrative dashboard), web (public-facing website), and bot (Discord integration). These components work together to process Discord events, store and analyze data, and present information through both administrative and public interfaces. The system is designed with separation of concerns, security, and scalability in mind, using modern web technologies and deployment practices.
 
 **Section sources**
-- [README.md](file://README.md#L1-L158)
-- [docs/INFRA_OVERVIEW.md](file://docs/INFRA_OVERVIEW.md#L1-L229)
+- [README.md](file://README.md)
+- [apps/admin-api/README.md](file://apps/admin-api/README.md)
+- [apps/admin-ui/README.md](file://apps/admin-ui/README.md)
+- [apps/web/README.md](file://apps/web/README.md)
+- [apps/bot/README.md](file://apps/bot/README.md)
 
-## Core Applications
+## Project Structure
 
-The slimy-monorepo platform consists of four primary applications that work together to deliver its comprehensive functionality. Each application serves a distinct purpose within the ecosystem, with well-defined responsibilities and interfaces.
+The Slimy Monorepo follows a well-organized directory structure that separates applications, shared packages, and infrastructure components. The root directory contains configuration files for the monorepo workspace, while the main components are organized into three top-level directories: apps, packages, and infra.
 
-The **admin-api** application is an Express.js REST API that serves as the backend for Discord bot administration. It handles authentication, guild management, club analytics, upload management, and health monitoring. This service acts as the central data hub, providing a secure interface for other applications to access and modify data.
+The `apps/` directory contains four distinct applications:
+- `admin-api`: Express.js backend service for administrative functions
+- `admin-ui`: Next.js dashboard for bot management
+- `web`: Public-facing website with documentation and tools
+- `bot`: Discord bot implementation
 
-The **web** application is a Next.js 16 web application that serves as the public-facing website for the Slimy.ai Discord bot. It features a codes aggregator that combines codes from multiple sources, an MDX documentation system, and role-based access control. This application provides user tools and information to the broader community.
-
-The **admin-ui** application is a Next.js 14 dashboard that offers a web-based interface for Discord bot administrators. It enables users to manage guilds, monitor bot health, upload screenshots, and access Google Sheet integrations for corrections and rescan operations. This admin panel provides a comprehensive view of bot operations and community metrics.
-
-The **bot** application is currently a placeholder for the Discord bot functionality. While the scaffolding exists, the actual bot logic needs to be migrated from existing services. This component will eventually handle Discord gateway connections, slash commands, and message processing.
-
-**Section sources**
-- [apps/admin-api/README.md](file://apps/admin-api/README.md#L1-L239)
-- [apps/web/README.md](file://apps/web/README.md#L1-L164)
-- [apps/admin-ui/README.md](file://apps/admin-ui/README.md#L1-L132)
-- [apps/bot/README.md](file://apps/bot/README.md#L1-L56)
-
-## Shared Packages and Infrastructure
-
-The slimy-monorepo platform includes a collection of shared packages and infrastructure components that support the core applications. These shared resources promote code reuse, ensure consistency across services, and provide essential functionality for the entire ecosystem.
-
-The **packages/** directory contains reusable libraries that can be shared across multiple applications. These include shared-auth for authentication utilities, shared-config for configuration management, shared-db for database helpers, and shared-snail for snail-related functionality. This modular approach allows common functionality to be maintained in a single location while being consumed by multiple applications.
-
-The **infra/docker/** directory contains Docker and Caddy configuration files that enable containerized deployment and reverse proxying. The platform uses Caddy as a reverse proxy with automatic HTTPS via Let's Encrypt, request routing by domain/path, and static file serving for uploads. Services are managed as systemd units for reliable operation.
-
-The monorepo structure is managed through pnpm workspaces, as defined in the pnpm-workspace.yaml file. This configuration enables efficient dependency management across the multiple applications and packages within the repository. The root package.json file provides workspace scripts for common operations like development, testing, and building.
-
-**Section sources**
-- [package.json](file://package.json#L1-L45)
-- [pnpm-workspace.yaml](file://pnpm-workspace.yaml#L1-L14)
-- [docker-compose.yml](file://docker-compose.yml#L1-L154)
-
-## System Architecture
-
-The slimy-monorepo platform follows a layered architecture with clear separation of concerns between frontend, backend, and data storage components. This architecture enables scalability, maintainability, and clear boundaries between system components.
+The `packages/` directory hosts shared libraries that can be consumed across multiple applications, promoting code reuse and consistency. The `infra/` directory contains Docker configuration and deployment scripts for containerized deployment.
 
 ```mermaid
-graph TB
-subgraph "Clients"
-Discord[Discord Platform]
-WebUsers[Web Users]
-AdminUsers[Admin Users]
-end
-subgraph "Frontend Applications"
-Web[Web App :3000]
-AdminUI[Admin UI :3081]
-end
-subgraph "Backend Services"
-AdminAPI[Admin API :3080]
-end
-subgraph "Data Storage"
-MySQL[(MySQL Database)]
-Redis[(Redis)]
-FileStorage[(File Storage)]
-end
-Discord --> AdminAPI
-WebUsers --> Web
-AdminUsers --> AdminUI
-Web --> AdminAPI
-AdminUI --> AdminAPI
-AdminAPI --> MySQL
-AdminAPI --> Redis
-AdminAPI --> FileStorage
-style AdminAPI fill:#f9f,stroke:#333
-style Web fill:#bbf,stroke:#333
-style AdminUI fill:#bbf,stroke:#333
+graph TD
+A[Root Directory] --> B[apps/]
+A --> C[packages/]
+A --> D[infra/]
+A --> E[Configuration Files]
+B --> B1[admin-api]
+B --> B2[admin-ui]
+B --> B3[web]
+B --> B4[bot]
+C --> C1[shared-auth]
+C --> C2[shared-config]
+C --> C3[shared-db]
+C --> C4[shared-snail]
+D --> D1[Docker Compose]
+D --> D2[Deployment Scripts]
+E --> E1[package.json]
+E --> E2[pnpm-workspace.yaml]
+E --> E3[README.md]
 ```
 
 **Diagram sources**
-- [docs/INFRA_OVERVIEW.md](file://docs/INFRA_OVERVIEW.md#L1-L229)
-- [docker-compose.yml](file://docker-compose.yml#L1-L154)
-
-The architecture consists of four main layers: clients, frontend applications, backend services, and data storage. The clients include Discord itself, web users accessing the public site, and admin users managing their communities. The frontend applications provide user interfaces for different user roles, with the Web app serving public users and the Admin UI serving administrators.
-
-The Admin API serves as the central backend service, providing RESTful endpoints for all data operations. It handles authentication, guild management, club analytics, and other core functionality. This service acts as the gateway between the frontend applications and the underlying data storage systems.
-
-Data storage is provided through multiple mechanisms: MySQL for persistent data storage via Prisma ORM, Redis for session caching and temporary data, and file storage for uploaded images and other binary content. This multi-tiered approach allows each data type to be stored in the most appropriate system.
+- [README.md](file://README.md)
+- [package.json](file://package.json)
+- [pnpm-workspace.yaml](file://pnpm-workspace.yaml)
 
 **Section sources**
-- [docs/INFRA_OVERVIEW.md](file://docs/INFRA_OVERVIEW.md#L1-L229)
-- [docker-compose.yml](file://docker-compose.yml#L1-L154)
+- [README.md](file://README.md)
+- [package.json](file://package.json)
+- [pnpm-workspace.yaml](file://pnpm-workspace.yaml)
 
-## Component Interactions
+## Core Components
 
-The components within the slimy-monorepo platform interact through well-defined interfaces using REST APIs, queues, and shared data stores. These interactions enable the system to function as a cohesive whole while maintaining loose coupling between components.
+The Slimy Monorepo platform consists of four core applications that work together to provide a comprehensive Discord bot ecosystem. Each component has a specific role and responsibility within the system architecture.
+
+The **admin-api** is an Express.js REST API that serves as the backend service for administrative functions. It handles authentication, session management, and provides endpoints for managing guild settings, club analytics, and file uploads. The API uses JWT tokens in httpOnly cookies for authentication and maintains server-side session storage to avoid cookie size limitations.
+
+The **admin-ui** is a Next.js 14 application that provides an administrative dashboard for managing the Discord bot. It communicates with the admin-api to display guild information, manage settings, and view diagnostics. The UI includes features like a multi-file uploader, Google Sheet integration, and real-time diagnostics.
+
+The **web** application is the public-facing website for Slimy.ai, built with Next.js 16, TypeScript, and Tailwind CSS. It serves as the primary interface for users, providing documentation, code aggregation from multiple sources, and role-based access to different features.
+
+The **bot** component is the Discord integration that listens to events and interacts with users. Currently in scaffold form, it will be migrated from existing services to handle club analytics, user interactions, and command processing.
 
 ```mermaid
-sequenceDiagram
-participant User as "End User"
-participant Web as "Web App"
-participant AdminUI as "Admin UI"
-participant AdminAPI as "Admin API"
-participant Database as "MySQL"
-participant Redis as "Redis"
-User->>Web : Access public website
-Web->>AdminAPI : Proxy request for auth/diagnostics
-AdminAPI->>Database : Query guild settings
-Database-->>AdminAPI : Return data
-AdminAPI-->>Web : Return response
-Web-->>User : Display content
-User->>AdminUI : Access admin dashboard
-AdminUI->>AdminAPI : API call for guild list
-AdminAPI->>Redis : Check session
-Redis-->>AdminAPI : Session data
-AdminAPI->>Database : Fetch guild data
-Database-->>AdminAPI : Guild information
-AdminAPI-->>AdminUI : Return guild list
-AdminUI-->>User : Display dashboard
-AdminUI->>AdminAPI : Upload screenshot
-AdminAPI->>FileStorage : Save image variants
-FileStorage-->>AdminAPI : Confirmation
-AdminAPI->>Database : Record upload metadata
-Database-->>AdminAPI : Success
-AdminAPI-->>AdminUI : Upload complete
+graph LR
+A[Discord Platform] --> B[bot]
+B --> C[admin-api]
+C --> D[admin-ui]
+C --> E[web]
+F[External Sources] --> E
+G[Database] --> C
+H[File Storage] --> C
+style B fill:#f9f,stroke:#333
+style C fill:#bbf,stroke:#333
+style D fill:#f96,stroke:#333
+style E fill:#6f9,stroke:#333
 ```
 
 **Diagram sources**
-- [apps/admin-api/README.md](file://apps/admin-api/README.md#L1-L239)
-- [apps/web/README.md](file://apps/web/README.md#L1-L164)
-- [apps/admin-ui/README.md](file://apps/admin-ui/README.md#L1-L132)
-
-The primary interaction pattern involves frontend applications communicating with the Admin API through REST endpoints. The Web app uses server-side proxies to securely access the Admin API, while the Admin UI makes direct API calls. This separation ensures that sensitive operations are properly authenticated and authorized.
-
-The Admin API serves as the central coordination point, interacting with multiple data stores based on the request type. For authentication and session management, it uses Redis to store session data and JWT tokens in httpOnly cookies. For persistent data storage, it uses MySQL via Prisma ORM to manage user data, guild configurations, and analytics metrics.
-
-Queues are used for asynchronous processing of tasks such as chat processing, database operations, and audit logging. The queue system allows long-running operations to be processed in the background without blocking API responses, improving overall system responsiveness and reliability.
+- [apps/admin-api/README.md](file://apps/admin-api/README.md)
+- [apps/admin-ui/README.md](file://apps/admin-ui/README.md)
+- [apps/web/README.md](file://apps/web/README.md)
+- [apps/bot/README.md](file://apps/bot/README.md)
 
 **Section sources**
-- [apps/admin-api/src/app.js](file://apps/admin-api/src/app.js#L1-L64)
-- [apps/web/lib/api/admin-client.ts](file://apps/web/lib/api/admin-client.ts#L1-L398)
-- [apps/admin-api/src/lib/queues/index.js](file://apps/admin-api/src/lib/queues/index.js#L132-L395)
+- [apps/admin-api/README.md](file://apps/admin-api/README.md)
+- [apps/admin-ui/README.md](file://apps/admin-ui/README.md)
+- [apps/web/README.md](file://apps/web/README.md)
+- [apps/bot/README.md](file://apps/bot/README.md)
 
-## Primary Use Cases
+## Architecture Overview
 
-The slimy-monorepo platform supports several primary use cases that address the needs of different user roles within the Discord community ecosystem. These use cases reflect the core functionality provided by the system and demonstrate how users interact with the various components.
+The Slimy Monorepo platform follows a microservices-inspired architecture with clear separation of concerns between components. The system is designed around an API Gateway pattern, where the admin-api serves as the central backend service that handles authentication, data processing, and integration with external systems.
 
-For **community managers**, the primary use case involves managing guild configurations and monitoring bot health. This includes viewing guild dashboards, configuring bot settings, managing channel permissions, and reviewing usage statistics. The Admin UI provides a comprehensive interface for these tasks, allowing managers to oversee multiple guilds from a single dashboard.
+The architecture consists of three main layers: presentation, application, and data. The presentation layer includes the admin-ui and web applications, which provide user interfaces for administrators and public users. The application layer is centered around the admin-api, which exposes REST endpoints for all functionality. The data layer includes database storage and file storage systems.
 
-For **administrators**, the key use case is system administration and user management. This includes managing user roles and permissions, configuring global settings, monitoring system diagnostics, and handling authentication. The role-based access control system enables administrators to define fine-grained permissions for different user groups.
+Communication between components follows a client-server pattern, with the frontend applications making HTTP requests to the admin-api. The admin-api validates requests, processes business logic, and interacts with the database and file storage systems. The Discord bot will eventually communicate with the admin-api to receive configuration and send processed data.
 
-For **end users**, the primary use case is accessing community tools and information. This includes viewing aggregated codes from multiple sources, accessing documentation, using snail tools, and participating in chat interactions. The Web app provides a user-friendly interface for these activities, with features like the codes aggregator and documentation system.
+Security is implemented at multiple levels, including JWT authentication with httpOnly cookies, CORS restrictions, and Helmet.js security headers. The system uses server-side session storage to maintain user sessions while keeping JWT tokens small and within browser size limits.
 
-Additional use cases include **club analytics**, where users can view member power metrics and trigger rescans of club data, and **diagnostic operations**, where administrators can access system health information and troubleshoot issues.
+```mermaid
+graph TD
+A[Client Devices] --> B[Reverse Proxy]
+B --> C[admin-ui]
+B --> D[web]
+B --> E[bot]
+C --> F[admin-api]
+D --> F
+E --> F
+F --> G[Database]
+F --> H[File Storage]
+F --> I[External APIs]
+subgraph "Security Layer"
+J[Authentication]
+K[Authorization]
+L[CORS]
+M[Helmet Headers]
+end
+J --> F
+K --> F
+L --> F
+M --> F
+style F fill:#bbf,stroke:#333,stroke-width:2px
+style G fill:#9cf,stroke:#333
+style H fill:#cf9,stroke:#333
+```
 
-**Section sources**
-- [apps/admin-api/README.md](file://apps/admin-api/README.md#L1-L239)
-- [apps/web/README.md](file://apps/web/README.md#L1-L164)
-- [apps/admin-ui/README.md](file://apps/admin-ui/README.md#L1-L132)
-
-## User Journeys
-
-The user journeys within the slimy-monorepo platform illustrate how different user roles interact with the system to accomplish their goals. These journeys demonstrate the flow of operations from initial access to task completion.
-
-The **authentication journey** begins when a user accesses the Admin UI and is redirected to the Admin API for Discord OAuth login. The Admin API initiates the OAuth flow with Discord, exchanges the authorization code for an access token, and creates a JWT with user information. The session data, including guilds and access tokens, is stored server-side to avoid cookie size limitations, and the user is redirected back to the appropriate dashboard based on their role.
-
-The **guild configuration journey** starts when an administrator selects a guild from their dashboard and navigates to the settings page. The Admin UI requests guild configuration data from the Admin API, which retrieves the information from the MySQL database. The administrator makes changes to the configuration, which are sent back to the Admin API for validation and storage. The updated settings are then reflected in the Discord bot's behavior.
-
-The **data analysis journey** occurs when a user accesses club analytics through either the Web app or Admin UI. The requesting application calls the Admin API endpoint for club data, which queries the MySQL database for member power metrics. The results are returned and displayed in a sortable table, with options to trigger a rescan of the data. The rescan operation is added to a processing queue for asynchronous execution.
-
-The **diagnostic operations journey** involves administrators accessing system health information through the diagnostics endpoint. The Admin API collects metrics on uptime, memory usage, and upload statistics, which are displayed in the Admin UI's sidebar widget. For more detailed diagnostics, administrators can access specific diagnostic endpoints that provide deeper system insights.
-
-**Section sources**
-- [apps/admin-api/README.md](file://apps/admin-api/README.md#L1-L239)
-- [apps/web/README.md](file://apps/web/README.md#L1-L164)
-- [apps/admin-ui/README.md](file://apps/admin-ui/README.md#L1-L132)
-
-## Technology Stack and Impact
-
-The technology choices in the slimy-monorepo platform have significant implications for system capabilities, performance, and maintainability. The selected technologies enable the platform to deliver robust functionality while maintaining developer productivity and system reliability.
-
-The use of a **monorepo architecture** with pnpm workspaces allows for efficient dependency management and code sharing across multiple applications. This approach reduces duplication, ensures consistency in tooling and configurations, and simplifies version management. The monorepo structure also facilitates atomic commits that can span multiple packages and applications.
-
-The **Express.js backend** provides a flexible and performant foundation for the Admin API. Its middleware architecture enables modular implementation of cross-cutting concerns like authentication, logging, and error handling. The integration with Prisma ORM simplifies database operations and provides type safety for data access patterns.
-
-The **Next.js frontend applications** leverage server-side rendering and API routes to deliver fast, SEO-friendly interfaces with secure backend integration. The App Router in Next.js 16 enables sophisticated routing patterns and layout management, while server-side proxies in the Web app ensure secure access to backend APIs.
-
-The **queue system** based on Redis and BullMQ enables reliable asynchronous processing of long-running operations. This architecture improves system responsiveness by offloading intensive tasks like chat processing and database operations to background workers. The queue system also provides resilience through job persistence and retry mechanisms.
-
-The **Docker and Caddy infrastructure** enables consistent deployment across environments and automated HTTPS configuration. This setup simplifies operations and ensures that security best practices are consistently applied.
+**Diagram sources**
+- [apps/admin-api/src/app.js](file://apps/admin-api/src/app.js)
+- [apps/admin-api/server.js](file://apps/admin-api/server.js)
+- [apps/admin-api/README.md](file://apps/admin-api/README.md)
 
 **Section sources**
-- [apps/admin-api/README.md](file://apps/admin-api/README.md#L1-L239)
-- [apps/web/README.md](file://apps/web/README.md#L1-L164)
-- [apps/admin-ui/README.md](file://apps/admin-ui/README.md#L1-L132)
-- [docker-compose.yml](file://docker-compose.yml#L1-L154)
+- [apps/admin-api/README.md](file://apps/admin-api/README.md)
+- [apps/admin-api/src/app.js](file://apps/admin-api/src/app.js)
+- [apps/admin-api/server.js](file://apps/admin-api/server.js)
 
-## Monitoring and Observability
+## Data Flow
 
-The slimy-monorepo platform includes comprehensive monitoring and observability features that provide insights into system health, performance, and user behavior. These capabilities enable proactive issue detection, performance optimization, and informed decision-making.
+The data flow in the Slimy Monorepo platform follows a structured path from user interaction through processing to storage and presentation. The system is designed to handle Discord events, user inputs, and external data sources, processing them through well-defined pipelines.
 
-The monitoring stack includes **Sentry** for error tracking and **Prometheus** for metrics collection, with **Grafana** providing visualization dashboards. The Admin API includes built-in metrics for job processing, API response times, and system resource usage. These metrics are exposed for collection by Prometheus and can be visualized in Grafana dashboards.
+When a user interacts with the Discord bot, events are captured and processed by the bot component. The bot validates the input and forwards relevant data to the admin-api for storage and further processing. For administrative actions, users interact with the admin-ui, which sends authenticated requests to the admin-api.
 
-The system implements structured logging with consistent formatting across components. Log entries include request IDs for tracing operations across service boundaries, timestamps for temporal analysis, and contextual information for debugging. The logging system is configurable by environment, with more verbose output in development and production-appropriate levels in production.
+The admin-api processes incoming requests through a middleware pipeline that includes authentication, logging, and validation. Authenticated requests are routed to appropriate handlers that interact with the database or perform business logic operations. For file uploads, the admin-api processes images and stores them in the designated upload directory.
 
-Health checks are implemented at multiple levels, from basic liveness probes to comprehensive readiness checks that verify database connectivity and external service availability. The `/api/diag` endpoint provides a lightweight diagnostics snapshot including uptime, memory usage, and upload statistics.
+Data from external sources, such as Reddit and Snelp API, is aggregated by the web application's codes aggregator. This data is deduplicated, cached, and made available through API endpoints. Club analytics data is processed from uploaded screenshots and stored in the database for later retrieval.
 
-Alerting is configured for critical system metrics, with notifications sent when thresholds are exceeded. The system monitors for issues such as high error rates, slow response times, and resource exhaustion. These alerts enable rapid response to potential problems before they impact users.
+The final presentation layer retrieves data from the admin-api through server-side proxies or direct API calls, formatting it for display in the admin-ui or public web interface. Caching is implemented at multiple levels to improve performance and reduce load on backend services.
+
+```mermaid
+flowchart TD
+A[Discord Event] --> B[bot]
+C[User Action] --> D[admin-ui]
+E[External Source] --> F[web]
+B --> G[admin-api]
+D --> G
+F --> G
+G --> H[Database]
+G --> I[File Storage]
+G --> J[Cache]
+H --> K[Data Processing]
+I --> K
+J --> K
+K --> L[admin-api Response]
+L --> M[admin-ui Display]
+L --> N[web Display]
+L --> O[bot Response]
+style G fill:#bbf,stroke:#333,stroke-width:2px
+style H fill:#9cf,stroke:#333
+style I fill:#cf9,stroke:#333
+style J fill:#fc9,stroke:#333
+```
+
+**Diagram sources**
+- [apps/admin-api/src/app.js](file://apps/admin-api/src/app.js)
+- [apps/admin-api/src/routes/auth.js](file://apps/admin-api/src/routes/auth.js)
+- [apps/admin-api/src/routes/guilds.js](file://apps/admin-api/src/routes/guilds.js)
+- [apps/admin-ui/lib/api.js](file://apps/admin-ui/lib/api.js)
+- [apps/web/lib/api-client.ts](file://apps/web/lib/api-client.ts)
 
 **Section sources**
-- [apps/admin-api/lib/monitoring.js](file://apps/admin-api/lib/monitoring.js#L1-L34)
-- [apps/admin-api/MONITORING_SETUP_GUIDE.md](file://apps/admin-api/MONITORING_SETUP_GUIDE.md#L337-L357)
-- [apps/admin-api/MONITORING_README.md](file://apps/admin-api/MONITORING_README.md#L201-L208)
+- [apps/admin-api/README.md](file://apps/admin-api/README.md)
+- [apps/admin-ui/README.md](file://apps/admin-ui/README.md)
+- [apps/web/README.md](file://apps/web/README.md)
+
+## Monorepo Structure and Shared Packages
+
+The Slimy Monorepo utilizes pnpm workspaces to manage multiple applications and shared packages within a single repository. This structure enables efficient code sharing, consistent dependency management, and streamlined development workflows across the entire platform.
+
+The monorepo is configured through the `pnpm-workspace.yaml` file, which defines the workspace patterns to include all applications and packages. The root `package.json` contains shared scripts that can operate on specific workspaces using pnpm filters, allowing developers to run commands like `pnpm dev:web` or `pnpm test:admin-api` to target individual applications.
+
+The `packages/` directory contains shared libraries that can be imported by any application in the monorepo. These include:
+- `shared-auth`: Authentication utilities and types
+- `shared-config`: Configuration management and environment variables
+- `shared-db`: Database connection and query utilities
+- `shared-snail`: Domain-specific logic for snail game analytics
+
+This shared package architecture promotes code reuse and ensures consistency across applications. For example, authentication logic can be implemented once in `shared-auth` and used by both the admin-api and web applications. Similarly, database utilities in `shared-db` provide a consistent interface for data access across the platform.
+
+The monorepo structure also facilitates coordinated versioning and deployment of related components. When changes are made to a shared package, all dependent applications can be tested and deployed together, reducing the risk of compatibility issues.
+
+```mermaid
+graph TD
+A[pnpm-workspace.yaml] --> B[Workspace Configuration]
+C[package.json] --> D[Shared Scripts]
+B --> E[apps/]
+B --> F[packages/]
+E --> G[admin-api]
+E --> H[admin-ui]
+E --> I[web]
+E --> J[bot]
+F --> K[shared-auth]
+F --> L[shared-config]
+F --> M[shared-db]
+F --> N[shared-snail]
+K --> G
+K --> H
+K --> I
+L --> G
+L --> H
+L --> I
+M --> G
+M --> I
+N --> G
+N --> I
+style F fill:#f96,stroke:#333,stroke-width:2px
+style K fill:#ff9,stroke:#333
+style L fill:#ff9,stroke:#333
+style M fill:#ff9,stroke:#333
+style N fill:#ff9,stroke:#333
+```
+
+**Diagram sources**
+- [package.json](file://package.json)
+- [pnpm-workspace.yaml](file://pnpm-workspace.yaml)
+- [packages/shared-auth/package.json](file://packages/shared-auth/package.json)
+- [packages/shared-config/package.json](file://packages/shared-config/package.json)
+- [packages/shared-db/package.json](file://packages/shared-db/package.json)
+- [packages/shared-snail/package.json](file://packages/shared-snail/package.json)
+
+**Section sources**
+- [package.json](file://package.json)
+- [pnpm-workspace.yaml](file://pnpm-workspace.yaml)
+- [README.md](file://README.md)
+
+## Deployment Topology
+
+The Slimy Monorepo platform is designed for containerized deployment using Docker and Docker Compose. The system can be deployed in various configurations depending on the environment, with separate compose files for monitoring, production, and testing scenarios.
+
+The primary deployment configuration is defined in `docker-compose.yml`, which orchestrates the core services. Additional specialized configurations are available in the `infra/docker/` directory, including `docker-compose.slimy-nuc1.yml` and `docker-compose.slimy-nuc2.yml` for specific hardware deployments.
+
+Each application is containerized with its own Dockerfile, allowing for independent scaling and deployment. The admin-api, admin-ui, and web applications are exposed through a reverse proxy (Caddy) that handles SSL termination and routing. The bot component runs as a separate service that connects to the Discord API.
+
+The deployment topology includes monitoring services such as Prometheus and Grafana, configured through dedicated compose files like `docker-compose.monitoring.yml`. These services collect metrics from the applications and provide dashboards for system observability.
+
+Database services and persistent storage are configured as separate containers with volume mounts to ensure data persistence across container restarts. The system is designed to run on Linux servers with systemd services for process management and automatic restarts.
+
+```mermaid
+graph TD
+A[Docker Host] --> B[Docker Engine]
+B --> C[Reverse Proxy]
+B --> D[admin-api]
+B --> E[admin-ui]
+B --> F[web]
+B --> G[bot]
+B --> H[Database]
+B --> I[Monitoring]
+C --> D
+C --> E
+C --> F
+H --> D
+H --> F
+I --> D
+I --> E
+I --> F
+I --> G
+J[External Network] --> C
+J --> G
+style C fill:#6af,stroke:#333,stroke-width:2px
+style D fill:#bbf,stroke:#333
+style E fill:#f96,stroke:#333
+style F fill:#6f9,stroke:#333
+style G fill:#f9f,stroke:#333
+style H fill:#9cf,stroke:#333
+style I fill:#9fc,stroke:#333
+```
+
+**Diagram sources**
+- [docker-compose.yml](file://docker-compose.yml)
+- [infra/docker/docker-compose.slimy-nuc1.yml](file://infra/docker/docker-compose.slimy-nuc1.yml)
+- [apps/admin-api/Dockerfile](file://apps/admin-api/Dockerfile)
+- [apps/admin-ui/Dockerfile](file://apps/admin-ui/Dockerfile)
+- [apps/web/Dockerfile](file://apps/web/Dockerfile)
+
+**Section sources**
+- [docker-compose.yml](file://docker-compose.yml)
+- [infra/docker/docker-compose.slimy-nuc1.yml](file://infra/docker/docker-compose.slimy-nuc1.yml)
+- [DOCKER_DEPLOYMENT.md](file://DOCKER_DEPLOYMENT.md)
+
+## Key Design Decisions
+
+The Slimy Monorepo platform incorporates several key design decisions that shape its architecture and functionality. These decisions reflect careful consideration of security, performance, maintainability, and user experience requirements.
+
+The **API Gateway pattern** is implemented through the admin-api, which serves as the single entry point for all backend functionality. This centralized approach simplifies authentication, logging, and rate limiting while providing a consistent interface for frontend applications. The admin-api handles all data validation, business logic, and integration with external services, ensuring that frontend applications remain focused on presentation.
+
+**Separation of concerns** is enforced through the distinct roles of each application. The admin-api handles backend logic, the admin-ui provides administrative functions, the web application serves public content, and the bot manages Discord interactions. This separation allows each component to be developed, tested, and deployed independently while maintaining clear interfaces between them.
+
+**Security by design** is implemented through multiple layers of protection. Authentication uses JWT tokens in httpOnly cookies with secure flags, preventing XSS attacks. The system recently addressed a cookie size issue by moving guild data to server-side session storage, reducing JWT size from 18KB to 307 bytes. CORS restrictions, Helmet.js security headers, and input validation further enhance the security posture.
+
+**Performance optimization** is achieved through caching at multiple levels. The codes aggregator implements 60-second server-side caching, while static file serving includes 7-day cache headers. Database queries are optimized, and guild loading was improved by changing from sequential to parallel processing, reducing load times from 10-20 seconds to 1-2 seconds.
+
+**Monorepo benefits** are leveraged through pnpm workspaces and shared packages, enabling code reuse and consistent development practices. This structure facilitates coordinated updates to related components and simplifies dependency management across the platform.
+
+```mermaid
+graph TD
+A[Key Design Decisions] --> B[API Gateway Pattern]
+A --> C[Separation of Concerns]
+A --> D[Security by Design]
+A --> E[Performance Optimization]
+A --> F[Monorepo Benefits]
+B --> B1[Single Entry Point]
+B --> B2[Consistent Interface]
+B --> B3[Centralized Auth]
+C --> C1[Independent Components]
+C --> C2[Clear Interfaces]
+C --> C3[Separate Deployment]
+D --> D1[JWT in httpOnly Cookies]
+D --> D2[Server-side Sessions]
+D --> D3[CORS Restrictions]
+D --> D4[Helmet Security Headers]
+E --> E1[Multi-level Caching]
+E --> E2[Parallel Processing]
+E --> E3[Database Optimization]
+F --> F1[Code Reuse]
+F --> F2[Consistent Practices]
+F --> F3[Coordinated Updates]
+style B fill:#f96,stroke:#333
+style C fill:#f96,stroke:#333
+style D fill:#f96,stroke:#333
+style E fill:#f96,stroke:#333
+style F fill:#f96,stroke:#333
+```
+
+**Diagram sources**
+- [apps/admin-api/README.md](file://apps/admin-api/README.md)
+- [apps/admin-api/src/app.js](file://apps/admin-api/src/app.js)
+- [apps/admin-api/src/middleware/auth.js](file://apps/admin-api/src/middleware/auth.js)
+- [apps/web/lib/codes-aggregator.ts](file://apps/web/lib/codes-aggregator.ts)
+
+**Section sources**
+- [apps/admin-api/README.md](file://apps/admin-api/README.md)
+- [apps/admin-api/src/app.js](file://apps/admin-api/src/app.js)
+- [apps/admin-api/src/middleware/auth.js](file://apps/admin-api/src/middleware/auth.js)
+
+## Conclusion
+
+The Slimy Monorepo platform represents a comprehensive full-stack Discord bot ecosystem with well-defined architecture and thoughtful design decisions. By leveraging a monorepo structure with pnpm workspaces, the system enables efficient code sharing and consistent development practices across multiple applications.
+
+The architecture follows a clear separation of concerns, with specialized components for backend services (admin-api), administrative interfaces (admin-ui), public web content (web), and Discord integration (bot). The API Gateway pattern implemented through the admin-api provides a centralized entry point for all functionality, simplifying security, logging, and maintenance.
+
+Key technical decisions, such as the use of server-side session storage to address cookie size limitations and the implementation of parallel processing for improved performance, demonstrate attention to both user experience and system efficiency. The containerized deployment model using Docker and Docker Compose ensures consistent environments across development, testing, and production.
+
+For developers, the platform offers a well-organized codebase with shared packages that promote code reuse and consistency. The comprehensive documentation and defined development workflows make it accessible for new contributors while providing the flexibility needed for ongoing enhancement and scaling.
+
+The Slimy Monorepo platform is positioned for continued growth and evolution, with a solid foundation that supports the addition of new features, integration with additional services, and expansion to support more Discord communities.
+
+**Section sources**
+- [README.md](file://README.md)
+- [apps/admin-api/README.md](file://apps/admin-api/README.md)
+- [apps/admin-ui/README.md](file://apps/admin-ui/README.md)
+- [apps/web/README.md](file://apps/web/README.md)

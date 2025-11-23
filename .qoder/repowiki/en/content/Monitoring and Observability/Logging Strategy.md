@@ -6,427 +6,384 @@
 - [logger.ts](file://apps/bot/src/lib/logger.ts)
 - [logger.ts](file://apps/web/lib/monitoring/logger.ts)
 - [request-id.js](file://apps/admin-api/src/middleware/request-id.js)
+- [auth.js](file://apps/admin-api/src/middleware/auth.js)
+- [index.js](file://apps/admin-api/src/lib/queues/index.js)
+- [auth.js](file://apps/admin-api/src/routes/auth.js)
 - [error-handler.js](file://apps/admin-api/src/middleware/error-handler.js)
-- [web-vitals.ts](file://apps/web/lib/monitoring/web-vitals.ts)
+- [sentry.js](file://apps/admin-api/src/lib/sentry.js)
+- [sentry.js](file://apps/admin-api/src/lib/monitoring/sentry.js)
 - [apm.ts](file://apps/web/lib/monitoring/apm.ts)
-- [common.ts](file://apps/web/lib/types/common.ts)
 </cite>
 
 ## Table of Contents
 1. [Introduction](#introduction)
 2. [Structured Logging Implementation](#structured-logging-implementation)
-3. [Log Levels and Usage Patterns](#log-levels-and-usage-patterns)
-4. [Log Rotation and Retention Policies](#log-rotation-and-retention-policies)
-5. [Middleware Integration and Context Capture](#middleware-integration-and-context-capture)
-6. [Error Context Capture](#error-context-capture)
-7. [Log Aggregation and Future ELK Integration](#log-aggregation-and-future-elk-integration)
-8. [Log Filtering and Troubleshooting](#log-filtering-and-troubleshooting)
-9. [Web Vitals Monitoring](#web-vitals-monitoring)
-10. [Conclusion](#conclusion)
+3. [Log Levels and Usage](#log-levels-and-usage)
+4. [Context Propagation](#context-propagation)
+5. [Log Aggregation and Collection](#log-aggregation-and-collection)
+6. [Sentry Integration and Distributed Tracing](#sentry-integration-and-distributed-tracing)
+7. [Logging Examples](#logging-examples)
+8. [Best Practices](#best-practices)
+9. [Performance Considerations](#performance-considerations)
 
 ## Introduction
-The slimy-monorepo platform implements a comprehensive logging strategy across its services to ensure observability, debugging capabilities, and performance monitoring. The logging system is designed with structured JSON format as its foundation, providing consistent fields for timestamp, log level, message, and contextual metadata. This document details the implementation of logging across the platform's various components, including the admin API, bot service, and web application.
-
-**Section sources**
-- [logger.js](file://apps/admin-api/src/lib/logger.js#L1-L169)
-- [logger.ts](file://apps/bot/src/lib/logger.ts#L1-L93)
-- [logger.ts](file://apps/web/lib/monitoring/logger.ts#L1-L310)
+The Slimy Monorepo implements a comprehensive centralized logging strategy across its microservices to ensure observability, debugging capabilities, and monitoring. The logging system is designed with structured JSON formatting, consistent log levels, contextual information propagation, and integration with monitoring tools like Sentry for error tracking and distributed tracing. This document details the implementation and best practices for logging across the monorepo's services.
 
 ## Structured Logging Implementation
-The platform employs structured logging with JSON format across all services, ensuring consistency and machine-readability of log data. Each service implements its own logging solution while maintaining common patterns and fields.
+The monorepo employs structured logging using JSON format across its services, with different implementations tailored to each application's needs. The primary approach involves custom logger wrappers that enhance console.log with structured data, timestamps, and context.
 
-The admin API uses Pino as its primary logging library, configured to output structured JSON logs with consistent fields including timestamp, level, message, and contextual metadata. The logger automatically includes service context such as service name, version, environment, hostname, and process ID in all log entries.
+The web application uses a sophisticated Logger class that supports multiple transports (console and file), configurable log levels, and structured JSON output. This implementation includes a ConsoleTransport for human-readable output during development and a FileTransport that writes JSONL (JSON Lines) format to log files in production.
 
 ```mermaid
 classDiagram
 class Logger {
-+level : string
-+service : string
-+version : string
-+env : string
-+hostname : string
-+pid : number
-+requestId : string
-+method : string
-+path : string
+-config : LoggerConfig
+-transports : LogTransport[]
+-context : JSONObject
++constructor(config : Partial~LoggerConfig~, initialContext : JSONObject)
++debug(message : string, context? : JSONObject) : void
++info(message : string, context? : JSONObject) : void
++warn(message : string, context? : JSONObject) : void
++error(message : string, error? : Error, context? : JSONObject) : void
++fatal(message : string, error? : Error, context? : JSONObject) : void
++child(context : JSONObject) : Logger
++addContext(context : JSONObject) : void
++clearContext() : void
 }
-class LogEntry {
-+timestamp : string
-+level : string
-+message : string
-+context : object
-+error : object
+class LoggerConfig {
++level : LogLevel
++enableConsole : boolean
++enableFile : boolean
++logDirectory : string
++prettyPrint : boolean
++includeTimestamp : boolean
++includeStackTrace : boolean
 }
-Logger --> LogEntry : "generates"
+class LogTransport {
+<<interface>>
++log(entry : LogEntry) : void | Promise~void~
+}
+class ConsoleTransport {
+-prettyPrint : boolean
++log(entry : LogEntry) : void
+}
+class FileTransport {
+-logDirectory : string
++log(entry : LogEntry) : void
+}
+Logger --> LoggerConfig : "uses"
+Logger --> LogTransport : "has"
+ConsoleTransport ..|> LogTransport
+FileTransport ..|> LogTransport
 ```
 
 **Diagram sources**
-- [logger.js](file://apps/admin-api/src/lib/logger.js#L8-L28)
-- [common.ts](file://apps/web/lib/types/common.ts#L109-L119)
-
-The web application implements a custom structured logger class that supports multiple transports (console and file) and provides type-safe logging with TypeScript. The logger writes to JSONL (JSON Lines) format files, with separate files for each log level and date.
-
-The bot service uses a simpler structured logging approach with a custom logger that formats messages with timestamp, level, and optional context in a consistent pattern. While not using a dedicated logging library, it maintains the structured approach with key-value pairs in the log output.
+- [logger.ts](file://apps/web/lib/monitoring/logger.ts#L1-L310)
 
 **Section sources**
-- [logger.js](file://apps/admin-api/src/lib/logger.js#L3-L28)
-- [logger.ts](file://apps/web/lib/monitoring/logger.ts#L8-L23)
-- [logger.ts](file://apps/bot/src/lib/logger.ts#L1-L35)
+- [logger.ts](file://apps/web/lib/monitoring/logger.ts#L1-L310)
+- [logger.js](file://apps/admin-api/src/lib/logger.js#L1-L160)
+- [logger.ts](file://apps/bot/src/lib/logger.ts#L1-L93)
 
-## Log Levels and Usage Patterns
-The platform utilizes a standard set of log levels across services, with consistent usage patterns to ensure predictable behavior and appropriate verbosity.
+## Log Levels and Usage
+The logging system implements a standard hierarchy of log levels with specific usage patterns across services. Each level serves a distinct purpose and is filtered based on the environment configuration.
 
-### Log Levels
-The following log levels are implemented across the platform:
-
-| Level | Purpose | Usage Pattern |
-|-------|-------|-------------|
-| debug | Detailed debugging information | Development and troubleshooting, typically disabled in production |
-| info | General operational information | Normal application flow, successful operations |
-| warn | Potential issues or unexpected behavior | Non-critical problems, deprecated features, recoverable errors |
-| error | Errors that prevent specific operations | Failed operations, caught exceptions, system errors |
-| fatal | Critical errors requiring immediate attention | System-wide failures, unrecoverable conditions |
-
-The admin API and web application both implement all five log levels, while the bot service uses the first four (excluding fatal). Log levels are configurable via the `LOG_LEVEL` environment variable, with default values set based on the environment (debug in development, info in production).
+### Log Level Hierarchy
+The monorepo uses the following log levels in descending order of severity:
 
 ```mermaid
 flowchart TD
-A[Log Message] --> B{Level Check}
-B --> |debug| C[Output if LOG_LEVEL ≤ debug]
-B --> |info| D[Output if LOG_LEVEL ≤ info]
-B --> |warn| E[Output if LOG_LEVEL ≤ warn]
-B --> |error| F[Output if LOG_LEVEL ≤ error]
-B --> |fatal| G[Output if LOG_LEVEL ≤ fatal]
+fatal["fatal: Critical system failures that require immediate attention"]
+error["error: Runtime errors and exceptional conditions"]
+warn["warn: Potentially harmful situations that don't prevent functionality"]
+info["info: Informational messages about application flow"]
+debug["debug: Detailed diagnostic information for debugging"]
+fatal --> error --> warn --> info --> debug
 ```
 
 **Diagram sources**
-- [logger.js](file://apps/admin-api/src/lib/logger.js#L5-L6)
-- [logger.ts](file://apps/web/lib/monitoring/logger.ts#L104-L124)
-- [common.ts](file://apps/web/lib/types/common.ts#L104)
-
-The usage patterns are consistent across services:
-- **debug**: Used for detailed debugging information, parameter values, and internal state during development
-- **info**: Records successful operations, system startup/shutdown, and important milestones
-- **warn**: Indicates potential issues, deprecated features, or recoverable errors
-- **error**: Logs errors that prevent specific operations from completing successfully
-- **fatal**: Reserved for critical system failures that may require immediate intervention
-
-**Section sources**
-- [logger.js](file://apps/admin-api/src/lib/logger.js#L5-L6)
-- [logger.ts](file://apps/web/lib/monitoring/logger.ts#L104-L124)
+- [logger.ts](file://apps/web/lib/monitoring/logger.ts#L144-L149)
+- [logger.js](file://apps/admin-api/src/lib/logger.js#L6-L7)
 - [logger.ts](file://apps/bot/src/lib/logger.ts#L14)
 
-## Log Rotation and Retention Policies
-The platform implements log rotation and retention policies to manage disk space and ensure log data is available for appropriate periods.
+### Level-Specific Usage Guidelines
+Each log level has specific use cases and implementation patterns across the monorepo:
 
-### File-Based Logging
-The web application implements file-based logging with JSONL format, with separate files for each log level and date. The file transport creates log files with the naming pattern `{level}-{date}.jsonl` in the configured log directory (default: 'logs').
+- **info**: Used for significant application events such as service startup, queue initialization, and successful operations. In the admin-api, info logs include service context like hostname, PID, and version information.
 
-```mermaid
-flowchart TD
-A[Log Entry] --> B{File Transport}
-B --> C[Create Directory]
-B --> D[Generate Filename]
-D --> E[level-date.jsonl]
-B --> F[Write Line]
-F --> G[Append to File]
-```
+- **warn**: Reserved for unexpected but recoverable conditions, such as missing configuration values, fallback behaviors, or potential performance issues. The system filters out non-actionable warnings in production.
 
-**Diagram sources**
-- [logger.ts](file://apps/web/lib/monitoring/logger.ts#L76-L104)
+- **error**: Reserved for runtime errors and exceptional conditions that affect functionality. Error logs include full error objects with message, name, and stack trace when appropriate.
 
-The file transport ensures the log directory exists and creates it if necessary. Each log entry is written as a separate line in the JSONL format, enabling efficient streaming and processing.
+- **debug**: Used exclusively for detailed diagnostic information during development. Debug logging is disabled in production environments to reduce log volume and potential performance impact.
 
-### Retention and Rotation
-The current implementation relies on date-based file naming for log rotation, with a new file created each day for each log level. This provides automatic rotation without requiring additional rotation logic.
+- **fatal**: Indicates critical system failures that may require immediate intervention. These logs typically precede service termination or critical failure states.
 
-For retention, the platform does not implement automatic log cleanup in the logging system itself. Instead, retention is managed externally through:
-- Infrastructure-level log rotation (e.g., Docker log drivers)
-- Backup and archival processes
-- Manual cleanup procedures
-
-The audit logging system implements its own retention policy, with audit logs stored in date-based files in the `data/audit-logs` directory. These logs are retained for compliance purposes and are subject to separate archival procedures.
+The log level filtering is implemented through a simple ordinal comparison, where messages are only logged if their level is equal to or more severe than the configured threshold level.
 
 **Section sources**
-- [logger.ts](file://apps/web/lib/monitoring/logger.ts#L84-L92)
-- [audit-log.ts](file://apps/web/lib/audit-log.ts#L112-L115)
+- [logger.ts](file://apps/web/lib/monitoring/logger.ts#L144-L149)
+- [logger.js](file://apps/admin-api/src/lib/logger.js#L6-L7)
+- [logger.ts](file://apps/bot/src/lib/logger.ts#L14)
 
-## Middleware Integration and Context Capture
-The platform implements comprehensive middleware integration to capture contextual information and ensure consistent logging across requests.
+## Context Propagation
+The logging system implements comprehensive context propagation to enable effective log correlation and debugging across distributed components. Contextual information is automatically captured and propagated through middleware and service layers.
 
-### Request ID Middleware
-The request ID middleware generates a unique identifier for each incoming request and propagates it through the request-response cycle. This enables distributed tracing and correlation of log entries across different services.
+### Request Context Propagation
+The system uses middleware to automatically capture and propagate request context across the application:
 
 ```mermaid
 sequenceDiagram
 participant Client
-participant Middleware
-participant Request
-participant Response
-Client->>Middleware : HTTP Request
-Middleware->>Request : Generate/Extract Request ID
-Request->>Response : Set X-Request-ID header
-Response->>Client : Include X-Request-ID in response
+participant LoadBalancer
+participant RequestIDMiddleware
+participant AuthMiddleware
+participant RequestLogger
+participant Service
+Client->>LoadBalancer : HTTP Request
+LoadBalancer->>RequestIDMiddleware : Forward Request
+RequestIDMiddleware->>RequestIDMiddleware : Generate/Extract X-Request-ID
+RequestIDMiddleware->>AuthMiddleware : Add requestId to req.id
+AuthMiddleware->>AuthMiddleware : Extract user context from auth
+AuthMiddleware->>RequestLogger : Pass request with context
+RequestLogger->>RequestLogger : Create request-specific logger
+RequestLogger->>Service : Attach logger to request
+Service->>Service : Use contextual logger for operations
 ```
 
 **Diagram sources**
-- [request-id.js](file://apps/admin-api/src/middleware/request-id.js#L9-L25)
+- [request-id.js](file://apps/admin-api/src/middleware/request-id.js#L1-L24)
+- [auth.js](file://apps/admin-api/src/middleware/auth.js#L24-L230)
+- [logger.js](file://apps/admin-api/src/lib/logger.js#L101-L127)
 
-The middleware first checks for an existing `X-Request-ID` header in the incoming request. If present, it uses that value; otherwise, it generates a new UUID or falls back to a timestamp-based identifier. The request ID is added to both the request object and the response headers, ensuring it's available throughout the request lifecycle and visible to clients.
+### Contextual Information
+The system propagates several key contextual elements through the logging pipeline:
 
-### Request Logging Middleware
-The admin API implements request logging middleware that creates a child logger with request-specific context and logs both the start and completion of each request.
+- **Request ID**: A unique identifier generated for each incoming request, used to correlate logs across services and components.
+- **User ID**: The authenticated user's identifier, captured from authentication tokens and headers.
+- **Guild ID**: The Discord guild context, extracted from route parameters, query strings, or request bodies.
+- **Session Information**: User session data including roles, permissions, and guild memberships.
+
+The request logger middleware automatically creates a child logger with request-specific context, including method, path, and IP address. This ensures that all logs generated during request processing include the necessary correlation information.
+
+**Section sources**
+- [request-id.js](file://apps/admin-api/src/middleware/request-id.js#L1-L24)
+- [auth.js](file://apps/admin-api/src/middleware/auth.js#L24-L230)
+- [logger.js](file://apps/admin-api/src/lib/logger.js#L101-L127)
+
+## Log Aggregation and Collection
+The monorepo implements a robust log aggregation strategy that collects logs from Docker containers and prepares them for monitoring and analysis.
+
+### Docker Container Logging
+Services are configured to output logs to stdout and stderr, following the twelve-factor app methodology. Docker's default json-file logging driver captures these streams and formats them for collection by monitoring systems.
+
+The production configuration enables file-based logging in JSONL format, with separate files for each log level rotated daily. This approach facilitates efficient log processing and querying by log aggregation tools.
+
+### Log Collection Architecture
+The log collection pipeline consists of multiple components working together:
 
 ```mermaid
-sequenceDiagram
-participant Request
-participant Logger
-participant Response
-Request->>Logger : Create child logger with requestId, method, path
-Logger->>Logger : Log "Incoming request" with query, ip
-Logger->>Response : Attach finish listener
-Response->>Logger : On finish, log "Request completed" with statusCode, duration
+graph TB
+subgraph "Application Services"
+A[Admin API]
+B[Bot Service]
+C[Web Application]
+end
+subgraph "Logging Infrastructure"
+D[Docker Logging Driver]
+E[Log Aggregator]
+F[Centralized Log Store]
+G[Monitoring Dashboard]
+end
+A --> |stdout/stderr| D
+B --> |stdout/stderr| D
+D --> |JSON/JSONL| E
+C --> |File/Console| D
+E --> |Stream| F
+F --> |Query| G
+G --> |Visualization| Users
+style A fill:#4CAF50,stroke:#388E3C
+style B fill:#4CAF50,stroke:#388E3C
+style C fill:#4CAF50,stroke:#388E3C
+style D fill:#2196F3,stroke:#1976D2
+style E fill:#2196F3,stroke:#1976D2
+style F fill:#9C27B0,stroke:#7B1FA2
+style G fill:#FF9800,stroke:#F57C00
 ```
 
 **Diagram sources**
-- [logger.js](file://apps/admin-api/src/lib/logger.js#L110-L136)
-
-The middleware creates a child logger with context including the request ID, HTTP method, and path. It logs the incoming request with details such as query parameters and client IP address. A listener is attached to the response's 'finish' event to log the completion of the request with the status code and duration.
-
-The web application implements a similar request logger that generates a random request ID and captures user agent and IP information from request headers.
-
-**Section sources**
-- [logger.js](file://apps/admin-api/src/lib/logger.js#L110-L136)
-- [request-id.js](file://apps/admin-api/src/middleware/request-id.js#L9-L25)
-- [logger.ts](file://apps/web/lib/monitoring/logger.ts#L274-L308)
-
-## Error Context Capture
-The platform implements comprehensive error context capture to facilitate debugging and troubleshooting of issues.
-
-### Error Handling Middleware
-The error handling middleware in the admin API captures detailed context about errors and logs them appropriately based on their severity.
-
-```mermaid
-sequenceDiagram
-participant Error
-participant Logger
-participant Response
-Error->>Logger : Pass to errorHandler
-Logger->>Logger : Extract requestId, method, path, query, body, user
-Logger->>Logger : Determine if operational error
-Logger->>Logger : Log error with context
-Logger->>Response : Send formatted error response
-```
-
-**Diagram sources**
-- [error-handler.js](file://apps/admin-api/src/middleware/error-handler.js#L10-L82)
-
-When an error occurs, the middleware extracts the request ID from the request and uses the request's logger if available, falling back to the default logger. It captures comprehensive context including the request method, path, query parameters, request body, and user ID. The error is logged using the `logError` function, which includes the error's name, message, code, status code, and stack trace.
-
-The middleware distinguishes between operational errors (expected errors like validation failures) and non-operational errors (unexpected system errors), logging client errors (4xx) as warnings and server errors (5xx) as errors.
-
-### Structured Error Logging
-The logging system captures errors in a structured format with consistent fields:
-
-```json
-{
-  "error": {
-    "name": "ErrorType",
-    "message": "Error message",
-    "code": "ERROR_CODE",
-    "statusCode": 500,
-    "stack": "Stack trace"
-  },
-  "context": {
-    "requestId": "req-123",
-    "method": "GET",
-    "path": "/api/users",
-    "user": "user-456"
-  }
-}
-```
-
-This structured approach enables effective filtering, searching, and analysis of error logs.
-
-**Section sources**
-- [error-handler.js](file://apps/admin-api/src/middleware/error-handler.js#L18-L25)
-- [logger.js](file://apps/admin-api/src/lib/logger.js#L141-L159)
-- [errors.js](file://apps/admin-api/src/lib/errors.js#L6-L255)
-
-## Log Aggregation and Future ELK Integration
-The platform currently uses file-based and console logging, with plans for centralized log aggregation through ELK stack integration.
-
-### Current Log Aggregation Challenges
-The distributed nature of the logging implementation presents several challenges:
-
-1. **Multiple Formats**: Different services use slightly different logging formats and structures
-2. **Decentralized Storage**: Logs are stored locally on each server instance
-3. **Limited Search Capabilities**: No centralized search across all services
-4. **Retention Management**: Manual processes for log rotation and archival
-
-The admin API's production configuration includes Datadog-specific fields in logs when a request ID is present, indicating existing integration with monitoring platforms:
-
-```javascript
-if (obj.requestId) {
-  base.dd = {
-    trace_id: obj.requestId,
-    span_id: obj.requestId,
-  };
-}
-```
-
-This suggests partial integration with external monitoring systems, but not a comprehensive log aggregation solution.
-
-### Future ELK Stack Integration
-The platform has plans to implement ELK (Elasticsearch, Logstash, Kibana) stack integration for centralized log management. This will address the current challenges by:
-
-1. **Centralized Storage**: All logs aggregated in a single Elasticsearch cluster
-2. **Unified Search**: Kibana interface for searching and analyzing logs across services
-3. **Advanced Filtering**: Complex queries and filters across structured log data
-4. **Visualization**: Dashboards for monitoring system health and performance
-5. **Alerting**: Automated alerts based on log patterns and error rates
-
-The structured JSON format used by the logging system is well-suited for ELK integration, requiring minimal transformation for ingestion into Elasticsearch.
-
-**Section sources**
-- [logger.js](file://apps/admin-api/src/lib/logger.js#L81-L93)
+- [Dockerfile](file://apps/admin-api/Dockerfile)
+- [docker-compose.yml](file://docker-compose.yml)
 - [logger.ts](file://apps/web/lib/monitoring/logger.ts#L76-L104)
 
-## Log Filtering and Troubleshooting
-The platform provides mechanisms for log filtering and troubleshooting common logging issues.
-
-### Log Filtering
-The logging system supports filtering through several mechanisms:
-
-1. **Log Level Filtering**: Configurable via `LOG_LEVEL` environment variable
-2. **Context-Based Filtering**: Logs can be filtered by specific context fields (requestId, userId, guildId)
-3. **Service-Specific Filtering**: Different services can have independent log level configurations
-
-The web application's logger implements a `shouldLog` method that determines whether a message should be logged based on the configured log level:
-
-```javascript
-private shouldLog(level: LogLevel): boolean {
-  const levels: LogLevel[] = ['debug', 'info', 'warn', 'error', 'fatal'];
-  const configLevel = levels.indexOf(this.config.level);
-  const messageLevel = levels.indexOf(level);
-  return messageLevel >= configLevel;
-}
-```
-
-This ensures that only messages at or above the configured level are output.
-
-### Troubleshooting Common Issues
-The platform addresses common logging issues through various strategies:
-
-#### Missing Context
-To prevent missing context in logs, the system uses child loggers that inherit context from parent loggers. The `createLogger` function in the admin API creates child loggers with request-specific context:
-
-```javascript
-function createLogger(context = {}) {
-  return logger.child(context);
-}
-```
-
-This ensures that contextual information like request ID, user ID, and guild ID is consistently included in log entries.
-
-#### Excessive Verbosity
-To prevent excessive verbosity, especially in production, the system:
-- Sets default log level to 'info' in production
-- Limits debug logs to development environment
-- Uses environment-specific configurations
-
-The bot service implements environment-based debug logging:
-
-```typescript
-if (process.env.NODE_ENV !== 'production') {
-  console.debug(formatLog('DEBUG', message, context));
-}
-```
-
-This prevents debug logs from appearing in production environments.
+The file transport implementation ensures atomic writes to log files using append mode, preventing data corruption in high-concurrency scenarios. Log files are organized by level and date, enabling efficient rotation and archival.
 
 **Section sources**
-- [logger.js](file://apps/admin-api/src/lib/logger.js#L103-L105)
-- [logger.ts](file://apps/web/lib/monitoring/logger.ts#L144-L149)
-- [logger.ts](file://apps/bot/src/lib/logger.ts#L73-L75)
+- [logger.ts](file://apps/web/lib/monitoring/logger.ts#L76-L104)
+- [Dockerfile](file://apps/admin-api/Dockerfile)
+- [docker-compose.yml](file://docker-compose.yml)
 
-## Web Vitals Monitoring
-The platform implements comprehensive web vitals monitoring to track frontend performance and user experience.
+## Sentry Integration and Distributed Tracing
+The logging strategy integrates with Sentry for comprehensive error tracking and distributed tracing, providing enhanced observability beyond traditional logging.
 
-### Core Web Vitals Tracking
-The web application tracks the following Core Web Vitals metrics:
-
-- **LCP (Largest Contentful Paint)**: Measures loading performance
-- **FID (First Input Delay)**: Measures interactivity
-- **CLS (Cumulative Layout Shift)**: Measures visual stability
-- **FCP (First Contentful Paint)**: Measures initial loading
-- **TTFB (Time to First Byte)**: Measures server response time
-- **INP (Interaction to Next Paint)**: Measures responsiveness
-
-```mermaid
-classDiagram
-class WebVitalsMetric {
-+name : string
-+value : number
-+rating : string
-+delta : number
-+id : string
-+navigationType : string
-}
-class THRESHOLDS {
-+LCP : object
-+FID : object
-+CLS : object
-+FCP : object
-+TTFB : object
-+INP : object
-}
-WebVitalsMetric --> THRESHOLDS : "uses"
-```
-
-**Diagram sources**
-- [web-vitals.ts](file://apps/web/lib/monitoring/web-vitals.ts#L13-L32)
-
-The system uses the web-vitals library to collect these metrics and sends them to an analytics endpoint. Each metric is evaluated against predefined thresholds to determine its rating (good, needs-improvement, or poor).
-
-### Data Collection and Transmission
-Web vitals data is collected and transmitted using the following process:
+### Sentry Error Correlation
+The system correlates logs with Sentry errors through shared context and request identifiers:
 
 ```mermaid
 sequenceDiagram
-participant Browser
-participant WebVitals
-participant Analytics
-Browser->>WebVitals : Page loads
-WebVitals->>WebVitals : Measure LCP, FID, CLS, etc.
-WebVitals->>Analytics : Send metric data
-Analytics->>Browser : Acknowledge receipt
+participant Service
+participant Logger
+participant Sentry
+participant Dashboard
+Service->>Logger : Log error with context
+Logger->>Logger : Include requestId, userId, guildId
+Logger->>Sentry : CaptureException with tags
+Sentry->>Sentry : Link to transaction via requestId
+Sentry->>Dashboard : Display correlated logs and errors
+Dashboard->>Developer : Show complete error context
 ```
 
 **Diagram sources**
-- [web-vitals.ts](file://apps/web/lib/monitoring/web-vitals.ts#L47-L82)
+- [sentry.js](file://apps/admin-api/src/lib/sentry.js#L45-L110)
+- [sentry.js](file://apps/admin-api/src/lib/monitoring/sentry.js#L42-L104)
 
-The data is sent to the `/api/web-vitals` endpoint using the `navigator.sendBeacon` method for reliability, with a fallback to `fetch` if sendBeacon is not available. The payload includes the metric name, value, rating, delta, ID, navigation type, URL, timestamp, user agent, connection type, and device memory.
+The integration uses Sentry's beforeSend hook to filter non-actionable errors (such as client-side 4xx errors and timeouts) while ensuring server-side errors are captured. Error context is enriched with user information, request details, and custom tags for better filtering and analysis.
 
-The system also provides a snapshot capability to retrieve current web vitals values programmatically, which can be useful for debugging and performance testing.
+### Distributed Tracing Implementation
+The system implements distributed tracing through a combination of request IDs and performance monitoring:
+
+```mermaid
+flowchart TD
+A[Incoming Request] --> B{Has X-Request-ID?}
+B --> |Yes| C[Use existing ID]
+B --> |No| D[Generate UUID]
+C --> E[Store in req.id]
+D --> E
+E --> F[Create Transaction]
+F --> G[Process Request]
+G --> H[Log with requestId]
+H --> I[Capture Errors with ID]
+I --> J[Complete Transaction]
+J --> K[Send to Sentry]
+```
+
+The tracing system generates or propagates a request ID for each incoming request, which is then used to correlate logs, metrics, and traces. This enables developers to follow the complete lifecycle of a request across multiple services and components.
 
 **Section sources**
-- [web-vitals.ts](file://apps/web/lib/monitoring/web-vitals.ts#L1-L207)
+- [sentry.js](file://apps/admin-api/src/lib/sentry.js#L45-L110)
+- [sentry.js](file://apps/admin-api/src/lib/monitoring/sentry.js#L42-L104)
+- [apm.ts](file://apps/web/lib/monitoring/apm.ts#L62-L121)
 
-## Conclusion
-The slimy-monorepo platform implements a robust logging strategy that balances structured data collection with practical implementation across multiple services. The use of JSON format with consistent fields enables effective log analysis and sets the foundation for future ELK stack integration.
+## Logging Examples
+The monorepo demonstrates consistent logging patterns across different components, with specific examples from key services.
 
-Key strengths of the current logging implementation include:
-- Structured JSON format for machine readability
-- Consistent contextual metadata across services
-- Comprehensive request and error context capture
-- Environment-appropriate log levels and verbosity
-- Support for distributed tracing via request IDs
+### Auth Middleware Logging
+The authentication middleware implements comprehensive logging to track user authentication flows:
 
-Areas for improvement include:
-- Centralized log aggregation to address current decentralization
-- Standardization of log formats across all services
-- Automated log rotation and retention policies
-- Enhanced alerting based on log patterns
+```mermaid
+flowchart TD
+A[Incoming Auth Request] --> B[Generate Request ID]
+B --> C[Check Authentication Cookie]
+C --> D{Cookie Present?}
+D --> |No| E[Log: Cookie Missing]
+D --> |Yes| F[Verify Session Token]
+F --> G{Verification Success?}
+G --> |No| H[Log: Token Verification Failed]
+G --> |Yes| I[Hydrate User Session]
+I --> J[Log: User Hydrated]
+J --> K[Attach User to Request]
+```
 
-The foundation is well-established for evolving the logging system into a comprehensive observability platform that supports both operational monitoring and user experience optimization.
+The auth middleware uses targeted logging statements to track the authentication process, including cookie presence, token verification status, and user hydration. These logs are critical for debugging authentication issues and monitoring security events.
+
+**Section sources**
+- [auth.js](file://apps/admin-api/src/middleware/auth.js#L16-L127)
+- [auth.js](file://apps/admin-api/src/routes/auth.js#L124-L372)
+
+### Queue Processor Logging
+Queue processors implement structured logging to monitor background job execution:
+
+```mermaid
+flowchart TD
+A[Job Received] --> B[Start Timer]
+B --> C[Process Job]
+C --> D{Success?}
+D --> |Yes| E[Record Success Metrics]
+D --> |No| F[Log Error with Context]
+E --> G[Record Duration]
+F --> G
+G --> H[Complete Job Processing]
+```
+
+The queue manager logs key events in the job lifecycle, including initialization, job queuing, processing success/failure, and shutdown. Error logs include the job ID and type, enabling correlation with specific background tasks.
+
+**Section sources**
+- [index.js](file://apps/admin-api/src/lib/queues/index.js#L58-L74)
+- [index.js](file://apps/admin-api/src/lib/queues/index.js#L124-L126)
+
+### API Route Logging
+API routes use contextual logging to track request processing:
+
+```mermaid
+flowchart TD
+A[Incoming API Request] --> B[Request Logger Middleware]
+B --> C[Log: Incoming Request]
+C --> D[Execute Route Handler]
+D --> E{Success?}
+E --> |Yes| F[Log: Request Completed]
+E --> |No| G[Error Handler Middleware]
+G --> H[Log: Server Error]
+H --> I[Send Error Response]
+```
+
+The request logger middleware automatically logs incoming requests and completion events, including method, path, query parameters, and response duration. This provides a comprehensive audit trail of API usage and performance.
+
+**Section sources**
+- [auth.js](file://apps/admin-api/src/routes/auth.js#L124-L372)
+- [logger.js](file://apps/admin-api/src/lib/logger.js#L107-L123)
+
+## Best Practices
+The monorepo follows several best practices for effective logging that ensure logs are useful, maintainable, and performant.
+
+### Log Message Formatting
+Log messages follow a consistent format with clear, descriptive text that can stand alone without context. Messages use complete sentences with proper grammar and avoid abbreviations. Contextual data is included as structured fields rather than embedded in the message text.
+
+### PII Protection
+The system strictly avoids logging personally identifiable information (PII) such as passwords, tokens, or sensitive user data. When necessary, sensitive data is redacted or hashed before logging. The error serialization process excludes sensitive properties from logged error objects.
+
+### Contextual Enrichment
+Loggers are enriched with relevant context at creation time, reducing the need to pass context through multiple function calls. Child loggers inherit parent context while allowing additional context to be added, creating a hierarchical context structure.
+
+### Error Logging
+Errors are logged with full context including the error object, stack trace (when appropriate), and relevant operational context. The system distinguishes between operational errors (expected exceptions) and programmer errors (bugs), handling them appropriately in logs and monitoring.
+
+**Section sources**
+- [logger.ts](file://apps/web/lib/monitoring/logger.ts#L164-L172)
+- [logger.js](file://apps/admin-api/src/lib/logger.js#L133-L142)
+- [logger.ts](file://apps/bot/src/lib/logger.ts#L55-L59)
+
+## Performance Considerations
+The logging implementation considers performance implications, especially when logging at scale in production environments.
+
+### Asynchronous Logging
+The system uses asynchronous operations for file-based logging to prevent blocking the main execution thread. The writeLog method returns a Promise that resolves when all transport operations complete, allowing non-blocking log writes.
+
+### Conditional Logging
+Debug-level logging is disabled in production environments to reduce log volume and I/O overhead. The log level filtering occurs early in the logging pipeline, preventing unnecessary string formatting and object serialization for filtered messages.
+
+### Memory Management
+The implementation avoids memory leaks by properly closing transports and cleaning up resources during application shutdown. The file transport ensures atomic writes using append mode, preventing data corruption during concurrent access.
+
+### Production Optimizations
+In production, the system optimizes logging by:
+- Disabling pretty printing and color codes
+- Using compact JSON format instead of human-readable output
+- Limiting stack trace inclusion to error and fatal levels
+- Implementing log rotation and retention policies
+
+These optimizations ensure that logging has minimal impact on application performance while maintaining sufficient observability.
+
+**Section sources**
+- [logger.ts](file://apps/web/lib/monitoring/logger.ts#L175-L178)
+- [logger.js](file://apps/admin-api/src/lib/logger.js#L52-L68)
+- [logger.ts](file://apps/bot/src/lib/logger.ts#L73-L75)
