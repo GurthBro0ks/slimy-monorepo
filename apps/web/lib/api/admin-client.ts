@@ -39,9 +39,18 @@ export class AdminApiClient {
   private lastNetworkErrorMessage?: string;
 
   constructor(baseUrl?: string) {
-    this.baseUrl = baseUrl || process.env.NEXT_PUBLIC_ADMIN_API_BASE || '';
-    
-    if (!this.baseUrl) {
+    // Determine the correct base URL based on environment
+    if (baseUrl) {
+      this.baseUrl = baseUrl;
+    } else if (typeof window === 'undefined') {
+      // Server-side: use internal backend URL
+      this.baseUrl = process.env.ADMIN_API_INTERNAL_URL || 'http://localhost:3080';
+    } else {
+      // Client-side: use relative URLs (empty string)
+      this.baseUrl = process.env.NEXT_PUBLIC_ADMIN_API_BASE || '';
+    }
+
+    if (!this.baseUrl && typeof window !== 'undefined') {
       console.warn('[AdminApiClient] NEXT_PUBLIC_ADMIN_API_BASE not configured');
     }
   }

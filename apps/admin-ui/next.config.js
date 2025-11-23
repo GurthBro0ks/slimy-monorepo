@@ -15,11 +15,28 @@ const nextConfig = {
     return `slimy-${timestamp}-${entropy}`;
   },
   env: {
-    // Use empty string in production for relative paths (Caddy proxies /api/* to 127.0.0.1:3080)
+    // Use empty string in production for relative paths (Next.js rewrites proxy to backend)
     NEXT_PUBLIC_ADMIN_API_BASE:
       process.env.NEXT_PUBLIC_ADMIN_API_BASE !== undefined
         ? process.env.NEXT_PUBLIC_ADMIN_API_BASE
-        : (process.env.NODE_ENV === 'production' ? '' : 'http://localhost:3080'),
+        : '',
+  },
+  async rewrites() {
+    const backendUrl = process.env.ADMIN_API_INTERNAL_URL || 'http://localhost:3080';
+    return {
+      beforeFiles: [
+        // API proxy - proxies /api/* to backend (runs before filesystem check)
+        {
+          source: '/api/:path*',
+          destination: `${backendUrl}/api/:path*`,
+        },
+        // Auth proxy - proxies /auth/* to backend (runs before filesystem check)
+        {
+          source: '/auth/:path*',
+          destination: `${backendUrl}/auth/:path*`,
+        },
+      ],
+    };
   },
 };
 

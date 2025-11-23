@@ -2,14 +2,30 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { useMemo } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/hooks/useAuth';
 
-type NavProps = {
-  onOpenLogin: () => void;
-};
+export function Nav() {
+  const router = useRouter();
+  const { isAuthenticated, isLoading, role } = useAuth();
 
-export function Nav({ onOpenLogin }: NavProps) {
-  const loginUrl = useMemo(() => process.env.NEXT_PUBLIC_LOGIN_URL, []);
+  const handleLogin = () => {
+    if (isAuthenticated) {
+      // User is already authenticated, redirect to appropriate dashboard
+      if (role === 'admin') {
+        router.push('/admin');
+      } else if (role === 'club') {
+        router.push('/club');
+      } else if (role === 'member') {
+        router.push('/snail');
+      } else {
+        router.push('/guilds');
+      }
+    } else {
+      // Not authenticated, proceed to login
+      window.location.href = '/api/auth/login';
+    }
+  };
 
   return (
     <nav className="sticky-nav">
@@ -29,15 +45,13 @@ export function Nav({ onOpenLogin }: NavProps) {
         <Link className="ghost-button" href="#cta">
           Early access
         </Link>
-        {loginUrl ? (
-          <a className="primary-button" href={loginUrl}>
-            Login
-          </a>
-        ) : (
-          <button className="primary-button" type="button" onClick={onOpenLogin}>
-            Login
-          </button>
-        )}
+        <button
+          className="primary-button"
+          onClick={handleLogin}
+          disabled={isLoading}
+        >
+          {isLoading ? 'Loading...' : isAuthenticated ? 'Dashboard' : 'Login'}
+        </button>
       </div>
     </nav>
   );
