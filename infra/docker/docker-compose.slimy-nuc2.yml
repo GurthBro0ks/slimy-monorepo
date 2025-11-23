@@ -72,7 +72,7 @@ services:
       dockerfile: apps/web/Dockerfile
       args:
         NEXT_PUBLIC_ADMIN_API_BASE: ${NEXT_PUBLIC_ADMIN_API_BASE:-https://admin.slimyai.xyz}
-        NEXT_PUBLIC_SNELP_CODES_URL: ${NEXT_PUBLIC_SNELP_CODES_URL:-https://www.snelp.com/codes}
+        NEXT_PUBLIC_SNELP_CODES_URL: ${NEXT_PUBLIC_SNELP_CODES_URL:-https://www.snelp.com/codes/codes.json}
         NEXT_PUBLIC_PLAUSIBLE_DOMAIN: ${NEXT_PUBLIC_PLAUSIBLE_DOMAIN:-slimy.ai}
     container_name: slimy-web
     restart: unless-stopped
@@ -81,8 +81,9 @@ services:
     environment:
       HOST: 0.0.0.0
       PORT: 3000
+      # Point Codes Aggregator at Snelp's published codes JSON feed.
+      NEXT_PUBLIC_SNELP_CODES_URL: https://www.snelp.com/codes/codes.json
       NEXT_TELEMETRY_DISABLED: "1"
-      NEXT_PUBLIC_SNELP_CODES_URL: https://www.snelp.com/codes
     depends_on:
       postgres:
         condition: service_healthy
