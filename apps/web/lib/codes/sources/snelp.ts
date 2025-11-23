@@ -59,7 +59,7 @@ export class SnelpSource implements CodeSource {
     }
 
     try {
-      const codes = await this.fetchWithRetry(snelpUrl);
+      const codes = await this.fetchWithRetry(this.resolveApiUrl(snelpUrl));
       const duration = Date.now() - startTime;
 
       this.fetchStats.successfulFetches++;
@@ -175,16 +175,39 @@ export class SnelpSource implements CodeSource {
    */
   private transformCodes(apiCodes: any[]): Code[] {
     return apiCodes
-      .filter(code => code && (code.code || code.text))
-      .map(code => ({
-        code: (code.code || code.text).toString().toUpperCase(),
-        source: "snelp" as const,
-        ts: code.timestamp || code.createdAt || code.updatedAt || new Date().toISOString(),
-        tags: code.active ? ["active"] : [],
-        expires: code.expiresAt || code.expiry || null,
-        region: code.region || "global",
-        description: code.description || code.notes || undefined,
-      }))
+      .filter(code => {
+        if (!code) {
+          return false;
+        }
+        if (typeof code === "string") {
+          return code.trim().length > 0;
+        }
+        return !!(code.code || code.text);
+      })
+      .map(raw => {
+        if (typeof raw === "string") {
+          const normalized = raw.trim();
+          return {
+            code: normalized.toUpperCase(),
+            source: "snelp" as const,
+            ts: new Date().toISOString(),
+            tags: ["active"],
+            expires: null,
+            region: "global",
+            description: undefined,
+          };
+        }
+
+        return {
+          code: (raw.code || raw.text).toString().toUpperCase(),
+          source: "snelp" as const,
+          ts: raw.timestamp || raw.createdAt || raw.updatedAt || new Date().toISOString(),
+          tags: raw.active ? ["active"] : [],
+          expires: raw.expiresAt || raw.expiry || null,
+          region: raw.region || "global",
+          description: raw.description || raw.notes || undefined,
+        };
+      })
       .filter(code => {
         // Basic validation
         if (code.code.length < 4 || code.code.length > 20) {
@@ -215,7 +238,7 @@ export class SnelpSource implements CodeSource {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout for health check
 
-      const response = await fetch(url, {
+      const response = await fetch(this.resolveApiUrl(url), {
         signal: controller.signal,
         headers: { "User-Agent": "Slimy.ai/1.0 (Health Check)" },
       });
@@ -223,7 +246,7 @@ export class SnelpSource implements CodeSource {
       clearTimeout(timeoutId);
 
       if (response.ok) {
-        return { healthy: true };
+      return { healthy: true };
       } else {
         return {
           healthy: false,
@@ -252,6 +275,24 @@ export class SnelpSource implements CodeSource {
       successfulFetches: this.fetchStats.successfulFetches,
       failedFetches: this.fetchStats.failedFetches,
     };
+  }
+
+  private resolveApiUrl(url: string): string {
+    if (!url) {
+      return url;
+    }
+
+    const trimmed = url.replace(/\/+$/, "");
+
+    if (trimmed.endsWith(".json") || trimmed.includes("/api/")) {
+      return trimmed;
+    }
+
+    if (trimmed.endsWith("/codes")) {
+      return `${trimmed}/codes.json`;
+    }
+
+    return trimmed;
   }
 }
 
