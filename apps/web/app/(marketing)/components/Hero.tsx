@@ -1,6 +1,5 @@
 'use client';
 
-import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import useFluidCanvas from '../hooks/useFluidCanvas';
 import { useAuth } from '@/hooks/useAuth';
@@ -33,32 +32,21 @@ export function Hero() {
       <canvas id="fluid-canvas" ref={canvasRef} aria-hidden="true" />
       <div className="floating-sparks" aria-hidden="true" />
       <div className="hero-content">
-        <div className="glow-pill" role="presentation">
-          <Image src="/brand/slimy-mark.png" alt="" width={20} height={20} />
-          <span>Neon-native AI workflows</span>
-        </div>
         <h1 className="hero-title">SLIMY.AI</h1>
-        <p className="hero-subtitle">
-          A Y2K-flavored agent workspace that automates onboarding, support, and growth ops with a slime-slick UI.
-          Blend retro chat vibes with modern AI orchestration.
-        </p>
         <div className="hero-actions">
           <button
-            className="primary-button"
+            className="primary-button slime-on-button"
             onClick={handleLogin}
             disabled={isLoading}
           >
             {isLoading ? 'Loading...' : isAuthenticated ? 'Go to Dashboard' : 'Slime on'}
           </button>
-          <a className="ghost-button" href="#features">
-            See how it flows
-          </a>
         </div>
         <div className="footer-marquee">
-          <span className="badge">Realtime agents</span>
-          <span className="badge">Playground-ready</span>
-          <span className="badge">No vendor lock</span>
-          <span className="badge">API-first</span>
+          <span className="badge">Discord Analytics</span>
+          <span className="badge">Club Management</span>
+          <span className="badge">Snelp Codes</span>
+          <span className="badge">Admin Dashboard</span>
         </div>
       </div>
     </header>

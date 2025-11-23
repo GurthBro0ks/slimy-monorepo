@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import './marketing.css';
 import Nav from './components/Nav';
 import Hero from './components/Hero';
@@ -10,10 +10,20 @@ import CTA from './components/CTA';
 import ChatWidget from './components/ChatWidget';
 
 export default function MarketingPage() {
-  const [chatOpen, setChatOpen] = useState(() => {
-    if (typeof window === 'undefined') return false;
-    return localStorage.getItem('slimySession') === 'true';
-  });
+  const [chatOpen, setChatOpen] = useState(false);
+  const [chatAllowed, setChatAllowed] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const syncChatAccess = () => {
+      const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
+      setChatAllowed(isLoggedIn);
+      setChatOpen(isLoggedIn);
+    };
+    syncChatAccess();
+    window.addEventListener('storage', syncChatAccess);
+    return () => window.removeEventListener('storage', syncChatAccess);
+  }, []);
 
   return (
     <>
@@ -25,7 +35,7 @@ export default function MarketingPage() {
         <CTA />
       </main>
       <div className="crt-overlay" aria-hidden="true" />
-      <ChatWidget open={chatOpen} onClose={() => setChatOpen(false)} />
+      <ChatWidget open={chatAllowed && chatOpen} onClose={() => setChatOpen(false)} />
     </>
   );
 }

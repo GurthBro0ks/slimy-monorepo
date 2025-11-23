@@ -29,8 +29,6 @@ export function ChatWidget({ open, onClose }: ChatWidgetProps) {
     if (el) el.scrollTop = el.scrollHeight;
   }, [messages]);
 
-  if (!open) return null;
-
   const send = (event?: FormEvent) => {
     event?.preventDefault();
     if (!input.trim()) return;
@@ -46,7 +44,10 @@ export function ChatWidget({ open, onClose }: ChatWidgetProps) {
   };
 
   return (
-    <div className="chat-interface">
+    <div
+      className={`chat-interface${open ? ' open' : ''}`}
+      aria-hidden={!open}
+    >
       <div className="chat-titlebar" data-test-id="chat-titlebar">
         <span>slimy_chat.exe</span>
         <button className="ghost-button" type="button" onClick={onClose}>
