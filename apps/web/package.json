@@ -7,7 +7,7 @@
     "build": "next build",
     "build:analyze": "ANALYZE=true next build",
     "build:check": "next build && tsx scripts/check-bundle-size.ts",
-    "start": "next start",
+    "start": "node .next/standalone/apps/web/server.js",
     "lint": "eslint .",
     "docs:import": "tsx scripts/import-docs.ts",
     "docs:check": "tsx scripts/import-docs.ts --dry-run",
