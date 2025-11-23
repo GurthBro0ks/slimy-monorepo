@@ -15,7 +15,7 @@ export function CaseStudies() {
   const [progress, setProgress] = useState<number[]>(kpis.map(() => 0));
   const observed = useRef(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const rafId = useRef<number>();
+  const rafId = useRef<number | null>(null);
 
   useEffect(() => {
     const node = containerRef.current;
