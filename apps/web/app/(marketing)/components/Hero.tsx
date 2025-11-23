@@ -1,14 +1,32 @@
 'use client';
 
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 import useFluidCanvas from '../hooks/useFluidCanvas';
+import { useAuth } from '@/hooks/useAuth';
 
-type HeroProps = {
-  onOpenLogin: () => void;
-};
-
-export function Hero({ onOpenLogin }: HeroProps) {
+export function Hero() {
   const { canvasRef } = useFluidCanvas();
+  const router = useRouter();
+  const { isAuthenticated, isLoading, role } = useAuth();
+
+  const handleLogin = () => {
+    if (isAuthenticated) {
+      // User is already authenticated, redirect to appropriate dashboard
+      if (role === 'admin') {
+        router.push('/admin');
+      } else if (role === 'club') {
+        router.push('/club');
+      } else if (role === 'member') {
+        router.push('/snail');
+      } else {
+        router.push('/guilds');
+      }
+    } else {
+      // Not authenticated, proceed to login
+      window.location.href = '/api/auth/login';
+    }
+  };
 
   return (
     <header className="hero">
@@ -25,8 +43,12 @@ export function Hero({ onOpenLogin }: HeroProps) {
           Blend retro chat vibes with modern AI orchestration.
         </p>
         <div className="hero-actions">
-          <button className="primary-button" type="button" onClick={onOpenLogin}>
-            Slime on
+          <button
+            className="primary-button"
+            onClick={handleLogin}
+            disabled={isLoading}
+          >
+            {isLoading ? 'Loading...' : isAuthenticated ? 'Go to Dashboard' : 'Slime on'}
           </button>
           <a className="ghost-button" href="#features">
             See how it flows

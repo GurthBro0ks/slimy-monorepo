@@ -188,13 +188,21 @@ const nextConfig: NextConfig = {
 
   // Redirects and rewrites for performance
   async rewrites() {
-    return [
-      // API proxy for development
-      {
-        source: '/api/:path*',
-        destination: `${process.env.NEXT_PUBLIC_ADMIN_API_BASE || 'http://admin-api:3080'}/api/:path*`,
-      },
-    ];
+    const backendUrl = process.env.ADMIN_API_INTERNAL_URL || 'http://localhost:3080';
+    return {
+      beforeFiles: [
+        // API proxy - proxies /api/* to backend (runs before filesystem check)
+        {
+          source: '/api/:path*',
+          destination: `${backendUrl}/api/:path*`,
+        },
+        // Auth proxy - proxies /auth/* to backend (runs before filesystem check)
+        {
+          source: '/auth/:path*',
+          destination: `${backendUrl}/auth/:path*`,
+        },
+      ],
+    };
   },
 };
 
