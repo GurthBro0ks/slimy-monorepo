@@ -1,8 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState, ReactNode, useCallback } from "react";
-import { apiClient } from "@/lib/api-client";
-import { AuthContextType, AuthState, AuthUser } from "./types";
+import { AuthContextType, AuthState } from "./types";
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -20,15 +19,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const refresh = useCallback(async () => {
     try {
-      setState(prev => ({ ...prev, loading: true, error: null }));
+      setState(prev => ({ ...prev, loading: true }));
+      const res = await fetch("/api/auth/me", { credentials: "include" });
 
-      const response = await apiClient.get<AuthUser>("/auth/me", {
-        useCache: false,
-      });
-
-      if (response.ok && response.data) {
+      if (res.ok) {
+        const user = await res.json();
         setState({
-          user: response.data,
+          user,
           loading: false,
           error: null,
           lastRefresh: Date.now(),
@@ -37,16 +34,16 @@ export function AuthProvider({ children }: AuthProviderProps) {
         setState({
           user: null,
           loading: false,
-          error: "Failed to authenticate",
+          error: null,
           lastRefresh: 0,
         });
       }
-    } catch (error) {
-      console.error("Auth refresh failed:", error);
+    } catch (err) {
+      console.error("[Auth] Refresh failed:", err);
       setState({
         user: null,
         loading: false,
-        error: error instanceof Error ? error.message : "Authentication failed",
+        error: err instanceof Error ? err : new Error("Auth check failed"),
         lastRefresh: 0,
       });
     }
@@ -61,21 +58,22 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   };
 
-  const logout = () => {
-    // Clear local state immediately for better UX
-    setState({
-      user: null,
-      loading: false,
-      error: null,
-      lastRefresh: 0,
-    });
-
-    const adminApiBase = process.env.NEXT_PUBLIC_ADMIN_API_BASE || "";
-    if (adminApiBase) {
-      // Redirect to admin API logout endpoint
-      window.location.href = `${adminApiBase}/api/auth/logout`;
-    } else {
-      console.error("NEXT_PUBLIC_ADMIN_API_BASE not configured");
+  const logout = async () => {
+    try {
+      // Call logout endpoint to clear cookies
+      await fetch("/api/auth/logout", { method: "POST" });
+    } catch (err) {
+      console.error("Logout failed", err);
+    } finally {
+      // Clear local state
+      setState({
+        user: null,
+        loading: false,
+        error: null,
+        lastRefresh: 0,
+      });
+      // Redirect to home
+      window.location.href = "/";
     }
   };
 

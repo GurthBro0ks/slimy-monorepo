@@ -31,36 +31,27 @@ export function useAuth(): UseAuthReturn {
   const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
-    async function checkAuth() {
+    const checkAuth = async () => {
       try {
-        setIsLoading(true);
-        const response = await fetch("/api/auth/me", {
-          credentials: "include", // Include cookies
-        });
-
-        if (response.ok) {
-          const data = await response.json();
+        const res = await fetch("/api/auth/me", { credentials: "include" });
+        if (res.ok) {
+          const data = await res.json();
+          setUser(data.user);
+          setRole(data.role);
           setIsAuthenticated(true);
-          setUser(data.user || null);
-          setRole(data.role || null);
-          setError(null);
         } else {
-          // 401/403 means not authenticated
           setIsAuthenticated(false);
           setUser(null);
           setRole(null);
-          setError(null);
         }
       } catch (err) {
-        // Network error or other issue
+        console.error("Auth check failed:", err);
+        setError(err instanceof Error ? err : new Error("Auth check failed"));
         setIsAuthenticated(false);
-        setUser(null);
-        setRole(null);
-        setError(err instanceof Error ? err : new Error("Failed to check authentication"));
       } finally {
         setIsLoading(false);
       }
-    }
+    };
 
     checkAuth();
   }, []);
