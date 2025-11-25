@@ -48,6 +48,10 @@ RUN pnpm install --frozen-lockfile --prefer-offline 2>&1 | tail -20 || true
 # Generate Prisma client before building
 RUN pnpm --filter @slimy/web run db:generate
 
+# Explicitly copy tailwind/postcss configs to ensure they are present for the build
+COPY apps/web/tailwind.config.ts ./apps/web/
+COPY apps/web/postcss.config.mjs ./apps/web/
+
 # Build the app
 RUN pnpm --filter @slimy/web build
 
