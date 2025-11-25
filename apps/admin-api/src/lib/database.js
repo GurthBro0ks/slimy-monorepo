@@ -211,12 +211,14 @@ class Database {
     return await prisma.user.upsert({
       where: { discordId: discordUser.id },
       update: {
+        email: discordUser.email || null,
         username: discordUser.username,
         globalName: discordUser.global_name || discordUser.username,
         avatar: discordUser.avatar,
       },
       create: {
         discordId: discordUser.id,
+        email: discordUser.email || null,
         username: discordUser.username,
         globalName: discordUser.global_name || discordUser.username,
         avatar: discordUser.avatar,

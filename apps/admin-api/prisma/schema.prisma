@@ -15,6 +15,7 @@ datasource db {
 model User {
   id          String   @id @default(cuid())
   discordId   String   @unique @map("discord_id")
+  email       String?  @unique
   username    String?
   globalName  String?  @map("global_name")
   avatar      String?

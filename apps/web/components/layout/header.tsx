@@ -2,18 +2,17 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth/context";
 import { UsageBadge } from "@/components/usage-badge";
-import { LogOut, Loader2 } from "lucide-react";
 
-import { SlimeLoginModal } from "@/app/_components/SlimeLoginModal";
+import { LoginButton } from "@/components/auth/login-button";
+import { UserNav } from "@/components/auth/user-nav";
 
 const navItems = [
   { href: "/", label: "Home", prefetch: true },
@@ -29,14 +28,14 @@ export function Header() {
   const pathname = usePathname();
   const router = useRouter();
   const { user, loading, logout } = useAuth();
-  const role = user?.role;
-  const [authActionLoading, setAuthActionLoading] = React.useState(false);
-  const [isLoginOpen, setIsLoginOpen] = React.useState(false);
-  const [hasTempSession, setHasTempSession] = React.useState(false);
+  const [logoutLoading, setLogoutLoading] = React.useState(false);
+
+  const resolvedUser = user && (user as any).user ? (user as any).user : user;
+  const role = (user as any)?.role ?? resolvedUser?.role;
 
   // Prefetch critical paths when user is authenticated
   React.useEffect(() => {
-    if (user && !loading) {
+    if (resolvedUser && !loading) {
       // Prefetch dashboard based on role
       const dashboardPath = role === "admin" ? "/guilds" : role === "club" ? "/club" : "/snail";
       router.prefetch(dashboardPath);
@@ -48,36 +47,15 @@ export function Header() {
         }
       });
     }
-  }, [user, loading, role, router]);
-
-  const handleLogin = () => {
-    if (hasTempSession) {
-      console.info("User is active");
-      return;
-    }
-    setIsLoginOpen(true);
-  };
-
-  React.useEffect(() => {
-    if (typeof document === "undefined") return;
-    const cookies = document.cookie.split(";").map(cookie => cookie.trim());
-    const hasSession = cookies.some(cookie => cookie.startsWith("slime_session_temp="));
-    setHasTempSession(hasSession);
-  }, []);
-
-  React.useEffect(() => {
-    if (hasTempSession) {
-      setIsLoginOpen(false);
-    }
-  }, [hasTempSession]);
+  }, [resolvedUser, loading, role, router]);
 
   const handleLogout = async () => {
-    setAuthActionLoading(true);
+    setLogoutLoading(true);
     try {
-      logout();
+      await logout();
     } finally {
       // Reset loading state after a short delay to show feedback
-      setTimeout(() => setAuthActionLoading(false), 1000);
+      setTimeout(() => setLogoutLoading(false), 1000);
     }
   };
 
@@ -119,13 +97,15 @@ export function Header() {
             <UsageBadge />
             {loading ? (
               <Skeleton className="h-8 w-24" />
-            ) : user ? (
-              <div className="flex items-center gap-3">
-                <span className="text-sm text-muted-foreground hidden sm:inline">
-                  {user.name}
-                </span>
+            ) : resolvedUser ? (
+              <div className="flex items-center gap-3 flex-wrap justify-end">
+                <UserNav
+                  user={{ ...resolvedUser, role: role || resolvedUser.role }}
+                  onLogout={handleLogout}
+                  loading={logoutLoading}
+                />
                 {role && role !== "user" && (
-                  <Badge variant={role as "admin" | "club"}>
+                  <Badge variant={role as "admin" | "club" | "user"}>
                     {role.toUpperCase()}
                   </Badge>
                 )}
@@ -137,51 +117,13 @@ export function Header() {
                     Dashboard
                   </Button>
                 </Link>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleLogout}
-                  disabled={authActionLoading}
-                  className="text-muted-foreground hover:text-foreground"
-                >
-                  {authActionLoading ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <LogOut className="h-4 w-4" />
-                  )}
-                  <span className="ml-1 hidden sm:inline">
-                    {authActionLoading ? "Logging out..." : "Logout"}
-                  </span>
-                </Button>
               </div>
             ) : (
-              <Button
-                variant="neon"
-                size="sm"
-                onClick={handleLogin}
-                disabled={authActionLoading}
-              >
-                {authActionLoading ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                    <span className="md:hidden">Loading...</span>
-                    <span className="hidden md:inline">Connecting...</span>
-                  </>
-                ) : (
-                  <>
-                    <span className="md:hidden">Login</span>
-                    <span className="hidden md:inline">Login with Discord</span>
-                  </>
-                )}
-              </Button>
+              <LoginButton />
             )}
           </div>
         </div>
       </header>
-      <SlimeLoginModal
-        isOpen={isLoginOpen && !hasTempSession}
-        onClose={() => setIsLoginOpen(false)}
-      />
     </>
   );
 }
