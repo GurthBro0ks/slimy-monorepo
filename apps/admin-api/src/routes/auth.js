@@ -215,94 +215,65 @@ router.get("/callback", async (req, res) => {
         });
       }
     } else {
-      // Parallel bot membership checks with timeout protection
-      const TIMEOUT_MS = 2000; // 2 second timeout per guild check
-
-      const checkGuild = async (guild) => {
-        const botHeaders = { Authorization: `Bot ${BOT_TOKEN}` };
-
-        // Timeout wrapper
-        const timeoutPromise = new Promise((_, reject) => {
-          setTimeout(() => reject(new Error("timeout")), TIMEOUT_MS);
+      // Optimized: Fetch bot's guilds once, then intersect with user's guilds
+      try {
+        const botGuildsResponse = await fetch(`${DISCORD.API}/users/@me/guilds?limit=200`, {
+          headers: { Authorization: `Bot ${BOT_TOKEN}` },
         });
 
-        const checkPromise = (async () => {
-          const detail = await fetch(`${DISCORD.API}/guilds/${guild.id}`, {
-            headers: botHeaders,
+        if (botGuildsResponse.ok) {
+          const botGuilds = await botGuildsResponse.json();
+          const botGuildIds = new Set(botGuilds.map((g) => g.id));
+
+          // Filter user's guilds to only those the bot is also in
+          const sharedGuilds = guilds.filter((g) => botGuildIds.has(g.id));
+
+          console.info("[auth] Guild intersection:", {
+            userGuilds: guilds.length,
+            botGuilds: botGuilds.length,
+            shared: sharedGuilds.length,
           });
 
-          if (!detail.ok) {
-            throw new Error(`guild_detail_${detail.status}`);
-          }
-
-          const memberRes = await fetch(
-            `${DISCORD.API}/guilds/${guild.id}/members/${me.id}`,
-            { headers: botHeaders },
-          );
-
-          let memberRoles = [];
-          if (memberRes.ok) {
-            const memberJson = await memberRes.json();
-            memberRoles = Array.isArray(memberJson.roles)
-              ? memberJson.roles
-              : [];
-          }
-
-          return memberRoles;
-        })();
-
-        return Promise.race([checkPromise, timeoutPromise]);
-      };
-
-      const checks = guilds.map(async (guild) => {
-        try {
-          const memberRoles = await checkGuild(guild);
-          let roleLevel = resolveRoleLevel(memberRoles);
-
-          try {
-            const perms = BigInt(guild.permissions || "0");
-            if (roleLevel === "member") {
+          for (const guild of sharedGuilds) {
+            let roleLevel = "member";
+            try {
+              const perms = BigInt(guild.permissions || "0");
               if ((perms & ADMINISTRATOR) === ADMINISTRATOR || guild.owner) {
                 roleLevel = "admin";
               } else if ((perms & MANAGE_GUILD) === MANAGE_GUILD) {
                 roleLevel = "admin";
               }
+            } catch {
+              roleLevel = "member";
             }
-          } catch {
-            /* ignore */
-          }
 
-          return {
-            success: true,
-            guild: {
+            if (ROLE_ORDER[roleLevel] > ROLE_ORDER[highestRole]) {
+              highestRole = roleLevel;
+            }
+
+            enrichedGuilds.push({
               id: guild.id,
               name: guild.name,
               icon: guild.icon,
-              roles: memberRoles,
+              roles: [], // Cannot fetch roles without O(N) calls
               role: roleLevel,
               permissions: guild.permissions,
               installed: true,
-            },
-            roleLevel,
-          };
-        } catch (err) {
-          console.warn(
-            `[auth] Failed to verify guild ${guild.id}:`,
-            err.message,
-          );
-          return { success: false, guild: null, roleLevel: null };
-        }
-      });
-
-      const results = await Promise.all(checks);
-
-      for (const result of results) {
-        if (result.success) {
-          if (ROLE_ORDER[result.roleLevel] > ROLE_ORDER[highestRole]) {
-            highestRole = result.roleLevel;
+            });
           }
-          enrichedGuilds.push(result.guild);
+        } else {
+          console.error(
+            "[auth] Failed to fetch bot guilds:",
+            botGuildsResponse.status,
+            await botGuildsResponse.text(),
+          );
+          // If bot guild fetch fails, we can't filter. 
+          // Fallback to empty enrichedGuilds (login proceeds but no servers shown)
+          // or we could try to fallback to the old method, but that caused 429s.
+          // Better to fail safe and log error.
         }
+      } catch (err) {
+        console.error("[auth] Error in guild intersection:", err);
       }
     }
 
