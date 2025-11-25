@@ -74,6 +74,10 @@ COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/standalone/node_mo
 # Copy static assets (css, js chunks) - Critical for styling!
 COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/static ./apps/web/.next/static
 
+# FIX: Copy to Root .next/static so the server finds them at /app/.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/static ./.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/apps/web/public ./public
+
 USER nextjs
 
 EXPOSE 3000
