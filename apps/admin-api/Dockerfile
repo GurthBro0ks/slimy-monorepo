@@ -12,4 +12,6 @@ RUN npm install --omit=dev
 # This COPY excludes node_modules due to .dockerignore patterns
 COPY apps/admin-api ./
 
+RUN npx prisma generate
+
 CMD ["node", "server.js"]

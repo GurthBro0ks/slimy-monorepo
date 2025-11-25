@@ -18,22 +18,24 @@ class Database {
         log: config.database.logLevel,
       });
 
-      // Add metrics middleware
-      this.prisma.$use(async (params, next) => {
-        const startTime = Date.now();
-        try {
-          const result = await next(params);
-          const duration = Date.now() - startTime;
-          metrics.recordDatabaseQuery(duration);
-          return result;
-        } catch (error) {
-          const duration = Date.now() - startTime;
-          metrics.recordDatabaseQuery(duration);
-          // Record database errors as application errors
-          metrics.recordError();
-          throw error;
-        }
-      });
+      // Add metrics middleware when supported by the Prisma client
+      if (typeof this.prisma.$use === 'function') {
+        this.prisma.$use(async (params, next) => {
+          const startTime = Date.now();
+          try {
+            const result = await next(params);
+            metrics.recordDatabaseQuery(Date.now() - startTime);
+            return result;
+          } catch (error) {
+            const duration = Date.now() - startTime;
+            metrics.recordDatabaseQuery(duration);
+            metrics.recordError();
+            throw error;
+          }
+        });
+      } else {
+        console.warn('[database] Prisma middleware API unavailable; skipping query instrumentation');
+      }
 
       // Test the connection
       await this.prisma.$connect();
