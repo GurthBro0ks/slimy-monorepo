@@ -23,7 +23,7 @@ export function Nav() {
       }
     } else {
       // Not authenticated, proceed to login
-      window.location.href = '/api/auth/login';
+      window.location.href = '/api/auth/discord/login';
     }
   };
 

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import { apiClient } from "@/lib/api-client";
 import { getUserRole } from "@/slimy.config";
 
@@ -16,8 +17,14 @@ interface AdminApiMeResponse {
 }
 
 export async function GET() {
+  const cookieStore = await cookies();
+  const cookieHeader = cookieStore.toString();
+
   const result = await apiClient.get<AdminApiMeResponse>("/api/auth/me", {
     useCache: false, // Don't cache auth data
+    headers: {
+      Cookie: cookieHeader,
+    },
   });
 
   if (!result.ok) {

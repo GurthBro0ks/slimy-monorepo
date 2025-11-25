@@ -1,26 +1,18 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: 'standalone',
-  images: {
-    domains: ['slimyai.xyz', 'www.slimyai.xyz', 'localhost', '127.0.0.1'],
-  },
-  async rewrites() {
-    const backendUrl = process.env.ADMIN_API_INTERNAL_URL || 'http://localhost:3080';
-    return {
-      beforeFiles: [
-        // API proxy - proxies /api/* to backend (runs before filesystem check)
-        {
-          source: '/api/:path*',
-          destination: `${backendUrl}/api/:path*`,
-        },
-        // Auth proxy - proxies /auth/* to backend (runs before filesystem check)
-        {
-          source: '/auth/:path*',
-          destination: `${backendUrl}/auth/:path*`,
-        },
-      ],
-    };
-  },
+    async rewrites() {
+        return [
+            {
+                // Map legacy Discord callback path to backend auth callback
+                source: '/api/auth/discord/callback',
+                destination: 'http://127.0.0.1:3080/api/auth/callback',
+            },
+            {
+                // Proxy ALL /api/ routes to the backend (including auth)
+                source: '/api/:path*',
+                destination: 'http://127.0.0.1:3080/api/:path*',
+            },
+        ];
+    },
 };
-
-module.exports = nextConfig;
+export default nextConfig;
