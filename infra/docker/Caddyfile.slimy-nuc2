@@ -81,3 +81,8 @@ slime.chat, www.slime.chat {
 
   reverse_proxy 127.0.0.1:3000
 }
+
+admin.slimyai.xyz {
+  import slime_common
+  reverse_proxy 127.0.0.1:3080
+}
