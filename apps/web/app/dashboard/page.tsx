@@ -1,4 +1,5 @@
 import { CommandShell } from "@/components/CommandShell";
+import { GuildList } from "@/components/dashboard/guild-list";
 
 export default function DashboardPage() {
   return (
@@ -36,6 +37,11 @@ export default function DashboardPage() {
         <div className="panel col-span-4">
           <div className="panel-header">Integrations</div>
           <div className="panel-empty-state">[OpenAI, Sheets, Discord]</div>
+        </div>
+
+        <div className="panel col-span-12">
+          <div className="panel-header">Your Servers</div>
+          <GuildList />
         </div>
       </div>
     </CommandShell>
