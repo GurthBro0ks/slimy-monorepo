@@ -43,7 +43,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       setState({
         user: null,
         loading: false,
-        error: err instanceof Error ? err : new Error("Auth check failed"),
+        error: err instanceof Error ? err.message : "Auth check failed",
         lastRefresh: 0,
       });
     }
