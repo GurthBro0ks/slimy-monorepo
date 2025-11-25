@@ -72,8 +72,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
         error: null,
         lastRefresh: 0,
       });
-      // Redirect to login entry point
-      window.location.href = "/api/auth/discord/login";
+      // Redirect to landing page
+      window.location.href = "/";
     }
   };
 
