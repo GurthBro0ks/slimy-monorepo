@@ -6,6 +6,7 @@ const { signSession, setAuthCookie, clearAuthCookie } = require("../../lib/jwt")
 const { storeSession, clearSession, getSession } = require("../../lib/session-store");
 const { resolveRoleLevel } = require("../lib/roles");
 const config = require("../config");
+const prismaDatabase = require("../lib/database");
 
 const router = express.Router();
 
@@ -27,14 +28,27 @@ const REDIRECT_URI =
   process.env.DISCORD_REDIRECT_URI ||
   "https://admin.slimyai.xyz/api/auth/callback";
 const BOT_TOKEN = process.env.DISCORD_BOT_TOKEN || null;
+const FRONTEND_URL =
+  process.env.CLIENT_URL ||
+  process.env.ADMIN_APP_URL ||
+  "http://localhost:3000";
 const COOKIE_DOMAIN =
   config.jwt.cookieDomain ||
   process.env.COOKIE_DOMAIN ||
   process.env.ADMIN_COOKIE_DOMAIN ||
   (process.env.NODE_ENV === "production" ? ".slimyai.xyz" : undefined);
-const SCOPES = Array.isArray(CONFIG_SCOPES)
+const DEFAULT_SCOPES = "identify email guilds";
+const requestedScopes = Array.isArray(CONFIG_SCOPES)
   ? CONFIG_SCOPES.join(" ")
-  : CONFIG_SCOPES || "identify guilds";
+  : CONFIG_SCOPES || DEFAULT_SCOPES;
+const scopeSet = new Set(
+  String(requestedScopes)
+    .split(/\s+/)
+    .filter(Boolean)
+    .concat(["identify", "email"]),
+);
+const SCOPES = Array.from(scopeSet).join(" ");
+const SESSION_COOKIE_NAME = process.env.SESSION_COOKIE_NAME || "slimy_session";
 
 const oauthStateCookieOptions = {
   httpOnly: true,
@@ -55,6 +69,7 @@ if (!REDIRECT_URI) missingAuthConfig.push("DISCORD_REDIRECT_URI");
 if (!COOKIE_DOMAIN && process.env.NODE_ENV === "production") {
   missingAuthConfig.push("COOKIE_DOMAIN");
 }
+if (!FRONTEND_URL) missingAuthConfig.push("CLIENT_URL");
 if (
   !config.jwt.secret &&
   !process.env.JWT_SECRET &&
@@ -332,11 +347,36 @@ router.get("/callback", async (req, res) => {
       username: me.username,
       globalName: me.global_name || me.username,
       avatar: me.avatar || null,
+      email: me.email || null,
       role: userRole,
       // SAFETY: Guilds list is too large for cookies (93+ guilds = header overflow).
       // Since DB is down, we cannot persist them. We must omit them to allow login.
       guilds: [],
     };
+
+    try {
+      const prismaUser = await prismaDatabase.findOrCreateUser(me);
+      await prismaDatabase.deleteUserSessions(prismaUser.id);
+      const sessionToken = crypto.randomBytes(32).toString("hex");
+      const expiresMs = Number(tokens.expires_in || 3600) * 1000;
+      const expiresAt = new Date(Date.now() + expiresMs);
+      await prismaDatabase.createSession(prismaUser.id, sessionToken, expiresAt);
+      res.cookie(SESSION_COOKIE_NAME, sessionToken, {
+        httpOnly: true,
+        secure: Boolean(
+          config.jwt.cookieSecure ?? process.env.NODE_ENV === "production",
+        ),
+        sameSite: "lax",
+        domain: COOKIE_DOMAIN,
+        maxAge: expiresMs,
+        path: "/",
+      });
+    } catch (dbErr) {
+      console.error("[auth/callback] failed to persist session", {
+        error: dbErr.message,
+      });
+      return res.redirect(`${FRONTEND_URL}/?error=session_error`);
+    }
 
     try {
       await storeSession(user.id, {
@@ -368,7 +408,8 @@ router.get("/callback", async (req, res) => {
     } else if (userRole === "member") {
       redirectPath = "/snail";
     }
-    return res.redirect(redirectPath);
+    const redirectUrl = new URL(redirectPath, FRONTEND_URL);
+    return res.redirect(redirectUrl.toString());
   } catch (err) {
     console.error("[auth/callback] failed:", err);
     return res.redirect("/?error=server_error");
