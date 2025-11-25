@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef } from 'react';
+import { useAuth } from '@/lib/auth/context';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { ChatWidget } from './ChatWidget';
@@ -21,6 +22,7 @@ const NAV_LINKS = [
 ];
 
 export function CommandShell({ title, breadcrumbs, statusText = 'System Status: Online', children }: CommandShellProps) {
+  const { logout } = useAuth();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const pathname = usePathname();
 
@@ -115,7 +117,7 @@ export function CommandShell({ title, breadcrumbs, statusText = 'System Status: 
 
         <div className="nav-user">
           <span className="user-pill">User #8841</span>
-          <button className="btn-logout" onClick={() => (window.location.href = '/')} type="button">
+          <button className="btn-logout" onClick={logout} type="button">
             Logout
           </button>
         </div>

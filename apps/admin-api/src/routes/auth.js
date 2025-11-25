@@ -333,7 +333,9 @@ router.get("/callback", async (req, res) => {
       globalName: me.global_name || me.username,
       avatar: me.avatar || null,
       role: userRole,
-      guilds: lightweightGuilds,
+      // SAFETY: Guilds list is too large for cookies (93+ guilds = header overflow).
+      // Since DB is down, we cannot persist them. We must omit them to allow login.
+      guilds: [],
     };
 
     try {
