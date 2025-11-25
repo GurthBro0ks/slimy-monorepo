@@ -205,8 +205,19 @@ class Database {
   }
 
   // User management methods
-  async findOrCreateUser(discordUser) {
+  async findOrCreateUser(discordUser, tokenData = {}) {
     const prisma = this.getClient();
+    const tokenUpdate = {};
+
+    if (tokenData.accessToken) {
+      tokenUpdate.discordAccessToken = tokenData.accessToken;
+    }
+    if (tokenData.refreshToken) {
+      tokenUpdate.discordRefreshToken = tokenData.refreshToken;
+    }
+    if (tokenData.expiresAt) {
+      tokenUpdate.tokenExpiresAt = new Date(tokenData.expiresAt);
+    }
 
     return await prisma.user.upsert({
       where: { discordId: discordUser.id },
@@ -215,6 +226,7 @@ class Database {
         username: discordUser.username,
         globalName: discordUser.global_name || discordUser.username,
         avatar: discordUser.avatar,
+        ...tokenUpdate,
       },
       create: {
         discordId: discordUser.id,
@@ -222,6 +234,7 @@ class Database {
         username: discordUser.username,
         globalName: discordUser.global_name || discordUser.username,
         avatar: discordUser.avatar,
+        ...tokenUpdate,
       },
     });
   }

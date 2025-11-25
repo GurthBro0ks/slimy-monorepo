@@ -168,8 +168,11 @@ router.get("/callback", async (req, res) => {
       return res.redirect("/?error=token_exchange_failed");
     }
     const tokens = await tokenResponse.json();
+    const accessToken = tokens.access_token;
+    const refreshToken = tokens.refresh_token;
+    const tokenExpiresAt = Date.now() + Number(tokens.expires_in || 3600) * 1000;
 
-    const headers = { Authorization: `Bearer ${tokens.access_token}` };
+    const headers = { Authorization: `Bearer ${accessToken}` };
     const me = await fetchJson(`${DISCORD.API}/users/@me`, { headers });
     const userGuilds = await fetchJson(`${DISCORD.API}/users/@me/guilds`, {
       headers,
@@ -355,7 +358,11 @@ router.get("/callback", async (req, res) => {
     };
 
     try {
-      const prismaUser = await prismaDatabase.findOrCreateUser(me);
+      const prismaUser = await prismaDatabase.findOrCreateUser(me, {
+        accessToken,
+        refreshToken,
+        expiresAt: tokenExpiresAt,
+      });
       await prismaDatabase.deleteUserSessions(prismaUser.id);
       const sessionToken = crypto.randomBytes(32).toString("hex");
       const expiresMs = Number(tokens.expires_in || 3600) * 1000;
