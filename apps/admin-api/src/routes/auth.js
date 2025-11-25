@@ -401,14 +401,8 @@ router.get("/callback", async (req, res) => {
       guildCount: lightweightGuilds.length,
     });
 
-    // Role-based redirect
-    let redirectPath = "/guilds"; // default for admin
-    if (userRole === "club") {
-      redirectPath = "/club";
-    } else if (userRole === "member") {
-      redirectPath = "/snail";
-    }
-    const redirectUrl = new URL(redirectPath, FRONTEND_URL);
+    // Redirect to dashboard after successful login
+    const redirectUrl = new URL("/dashboard", FRONTEND_URL);
     return res.redirect(redirectUrl.toString());
   } catch (err) {
     console.error("[auth/callback] failed:", err);
