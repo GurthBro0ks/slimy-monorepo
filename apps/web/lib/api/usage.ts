@@ -5,7 +5,7 @@
  * Includes error handling and type safety.
  */
 
-import { UsageData, getMockUsageData } from "@/lib/usage-thresholds";
+import { UsageData } from "@/lib/usage-thresholds";
 
 export interface UsageApiResponse {
   ok: boolean;
@@ -32,8 +32,84 @@ export class UsageApiError extends Error {
  * @returns {Promise<UsageData>} The usage data
  */
 export async function fetchUsageData(): Promise<UsageData> {
-  // Admin API proxy is unavailable in local dev, so return a mocked spend instead of calling fetch.
-  return getMockUsageData(0);
+  try {
+    const response = await fetch("/api/usage", {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    let payload: UsageApiResponse | null = null;
+
+    try {
+      payload = await response.json();
+    } catch (error) {
+      if (!response.ok) {
+        throw new UsageApiError(
+          `Failed to fetch usage data: ${response.status} ${response.statusText}`,
+          "USAGE_FETCH_ERROR",
+          response.status
+        );
+      }
+
+      throw new UsageApiError(
+        "Invalid usage response",
+        "INVALID_USAGE_RESPONSE",
+        response.status
+      );
+    }
+
+    if (!response.ok) {
+      throw new UsageApiError(
+        payload?.message || `${response.status} ${response.statusText}`,
+        payload?.code || "USAGE_FETCH_ERROR",
+        response.status
+      );
+    }
+
+    if (!payload?.ok) {
+      throw new UsageApiError(
+        payload?.message || "Failed to fetch usage data",
+        payload?.code || "USAGE_FETCH_ERROR",
+        response.status
+      );
+    }
+
+    if (!payload.data) {
+      throw new UsageApiError(
+        "No usage data returned",
+        "INVALID_USAGE_DATA",
+        response.status
+      );
+    }
+
+    const { level, currentSpend, limit, modelProbeStatus } = payload.data;
+
+    if (
+      typeof level !== "string" ||
+      typeof currentSpend !== "number" ||
+      typeof limit !== "number" ||
+      typeof modelProbeStatus !== "string"
+    ) {
+      throw new UsageApiError(
+        "Invalid usage data",
+        "INVALID_USAGE_DATA",
+        response.status
+      );
+    }
+
+    return payload.data;
+  } catch (error) {
+    if (error instanceof UsageApiError) {
+      throw error;
+    }
+
+    throw new UsageApiError(
+      error instanceof Error ? error.message : "Unknown error",
+      "UNKNOWN_ERROR"
+    );
+  }
 }
 
 /**
