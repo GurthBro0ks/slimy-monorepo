@@ -8,17 +8,19 @@ class GuildService {
    * Create a new guild
    */
   async createGuild(guildData) {
-    const { discordId, name, settings = {} } = guildData;
+    const { id, name, icon, ownerId, settings = {} } = guildData;
 
-    if (!discordId || !name) {
-      throw new Error("Missing required fields: discordId and name");
+    if (!id || !name || !ownerId) {
+      throw new Error("Missing required fields: id, name, ownerId");
     }
 
     try {
       const guild = await database.getClient().guild.create({
         data: {
-          discordId,
+          id,
           name,
+          icon,
+          ownerId,
           settings,
         },
       });
@@ -26,10 +28,59 @@ class GuildService {
       return guild;
     } catch (error) {
       if (error.code === 'P2002') {
-        throw new Error("Guild with this Discord ID already exists");
+        throw new Error("Guild with this ID already exists");
       }
       throw error;
     }
+  }
+
+  /**
+   * Connect a guild (upsert)
+   */
+  async connectGuild(userId, guildData) {
+    const { guildId, name, icon } = guildData;
+
+    if (!guildId || !name) {
+      throw new Error("Missing required fields: guildId, name");
+    }
+
+    // Upsert Guild
+    const guild = await database.getClient().guild.upsert({
+      where: { id: guildId },
+      update: {
+        name,
+        icon,
+        ownerId: userId,
+        updatedAt: new Date(),
+      },
+      create: {
+        id: guildId,
+        name,
+        icon,
+        ownerId: userId,
+        settings: {},
+      },
+    });
+
+    // Ensure UserGuild relation for owner
+    await database.getClient().userGuild.upsert({
+      where: {
+        userId_guildId: {
+          userId,
+          guildId,
+        },
+      },
+      update: {
+        roles: ['owner', 'admin'],
+      },
+      create: {
+        userId,
+        guildId,
+        roles: ['owner', 'admin'],
+      },
+    });
+
+    return this.formatGuildResponse(guild);
   }
 
   /**
@@ -72,38 +123,11 @@ class GuildService {
   /**
    * Get guild by Discord ID
    */
+  /**
+   * Get guild by Discord ID (alias for getGuildById since id is now discordId)
+   */
   async getGuildByDiscordId(discordId) {
-    const guild = await database.getClient().guild.findUnique({
-      where: { discordId },
-      include: {
-        userGuilds: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                discordId: true,
-                username: true,
-                globalName: true,
-                avatar: true,
-                createdAt: true,
-              },
-            },
-          },
-        },
-        _count: {
-          select: {
-            userGuilds: true,
-            chatMessages: true,
-          },
-        },
-      },
-    });
-
-    if (!guild) {
-      throw new Error("Guild not found");
-    }
-
-    return this.formatGuildResponse(guild);
+    return this.getGuildById(discordId);
   }
 
   /**
@@ -568,8 +592,10 @@ class GuildService {
   formatGuildResponse(guild, includeMembers = true) {
     const response = {
       id: guild.id,
-      discordId: guild.discordId,
+      discordId: guild.id, // id is now the discordId
       name: guild.name,
+      icon: guild.icon,
+      ownerId: guild.ownerId,
       settings: guild.settings || {},
       memberCount: guild._count?.userGuilds || 0,
       messageCount: guild._count?.chatMessages || 0,
