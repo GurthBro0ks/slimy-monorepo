@@ -103,13 +103,13 @@ router.post(
   })),
   async (req, res, next) => {
     try {
-      const userId = req.user?.id || req.user?.sub;
+      const userId = guildService.resolveUserId(req.user);
       if (!userId) {
         throw new AuthenticationError("User session missing id");
       }
 
       const guild = await guildService.connectGuild(
-        { ...req.user, id: userId },
+        { ...req.user, id: userId, sub: req.user?.sub || userId, discordId: req.user?.discordId || req.user?.discord_id || userId },
         req.validated.body,
       );
       res.json(guild);
