@@ -27,15 +27,30 @@ function resolveSecret() {
     "";
 
   if (!secret) {
-    console.warn(
-      "[jwt] JWT_SECRET not configured; using fallback development secret",
-    );
+    const errorMsg = "[jwt] CRITICAL: JWT_SECRET not configured. Cannot proceed without secure secret.";
+
+    // Allow development mode to continue with warning, but NEVER in production
+    if (process.env.NODE_ENV === "production") {
+      console.error(errorMsg);
+      throw new Error("JWT_SECRET must be set in production environment");
+    }
+
+    console.warn(errorMsg);
+    console.warn("[jwt] Using insecure fallback secret for development ONLY");
     cachedSecret = "dev-secret-change-me-please-use-real-value";
     return cachedSecret;
   }
 
   if (secret.length < MIN_SECRET_LENGTH) {
-    console.warn("[jwt] JWT_SECRET shorter than 32 characters");
+    const warnMsg = `[jwt] JWT_SECRET is ${secret.length} characters (recommended: ${MIN_SECRET_LENGTH}+)`;
+
+    if (process.env.NODE_ENV === "production") {
+      console.error(warnMsg);
+      throw new Error(`JWT_SECRET must be at least ${MIN_SECRET_LENGTH} characters in production`);
+    }
+
+    console.warn(warnMsg);
+    console.warn("[jwt] Using weak secret in development - DO NOT use in production");
   }
 
   cachedSecret = secret;

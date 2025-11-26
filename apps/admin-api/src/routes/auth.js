@@ -165,7 +165,13 @@ router.get("/callback", async (req, res) => {
       body,
     });
     if (!tokenResponse.ok) {
-      return res.redirect("/?error=token_exchange_failed");
+      const errorText = await tokenResponse.text().catch(() => 'Unable to read error');
+      console.error("[auth/callback] Discord token exchange failed", {
+        status: tokenResponse.status,
+        statusText: tokenResponse.statusText,
+        error: errorText,
+      });
+      return res.redirect(`${FRONTEND_URL}/?error=token_exchange_failed`);
     }
     const tokens = await tokenResponse.json();
     const accessToken = tokens.access_token;
@@ -262,18 +268,24 @@ router.get("/callback", async (req, res) => {
             });
           }
         } else {
-          console.error(
-            "[auth] Failed to fetch bot guilds:",
-            botGuildsResponse.status,
-            await botGuildsResponse.text(),
-          );
-          // If bot guild fetch fails, we can't filter. 
-          // Fallback to empty enrichedGuilds (login proceeds but no servers shown)
-          // or we could try to fallback to the old method, but that caused 429s.
-          // Better to fail safe and log error.
+          const errorText = await botGuildsResponse.text();
+          console.error("[auth] Failed to fetch bot guilds from Discord", {
+            status: botGuildsResponse.status,
+            error: errorText,
+            userGuildCount: guilds.length,
+          });
+          console.warn("[auth] Login will proceed but guilds list will be empty");
+          // If bot guild fetch fails, we can't filter guilds safely
+          // Showing unfiltered guilds could expose guilds where bot isn't installed
+          // Better to show none and log clear error for debugging
         }
       } catch (err) {
-        console.error("[auth] Error in guild intersection:", err);
+        console.error("[auth] Error in guild intersection", {
+          error: err.message,
+          stack: err.stack,
+          type: err.constructor.name,
+        });
+        console.warn("[auth] Unable to filter guilds, login will proceed with empty guild list");
       }
     }
 
@@ -340,11 +352,27 @@ router.get("/callback", async (req, res) => {
         refreshToken,
         expiresAt: tokenExpiresAt,
       });
-      await prismaDatabase.deleteUserSessions(prismaUser.id);
+
+      // Use transaction to prevent race condition between session deletion and creation
       const sessionToken = crypto.randomBytes(32).toString("hex");
       const expiresMs = Number(tokens.expires_in || 3600) * 1000;
       const expiresAt = new Date(Date.now() + expiresMs);
-      await prismaDatabase.createSession(prismaUser.id, sessionToken, expiresAt);
+
+      const prisma = prismaDatabase.getClient();
+      await prisma.$transaction(async (tx) => {
+        // Delete old sessions
+        await tx.session.deleteMany({
+          where: { userId: prismaUser.id }
+        });
+        // Create new session atomically
+        await tx.session.create({
+          data: {
+            userId: prismaUser.id,
+            token: sessionToken,
+            expiresAt,
+          }
+        });
+      });
       res.cookie(SESSION_COOKIE_NAME, sessionToken, {
         httpOnly: true,
         secure: Boolean(
@@ -380,8 +408,14 @@ router.get("/callback", async (req, res) => {
     const redirectUrl = new URL("/dashboard", FRONTEND_URL);
     return res.redirect(redirectUrl.toString());
   } catch (err) {
-    console.error("[auth/callback] failed:", err);
-    return res.redirect("/?error=server_error");
+    console.error("[auth/callback] Unexpected error during OAuth flow", {
+      error: err.message,
+      stack: err.stack,
+      type: err.constructor.name,
+      hasCode: Boolean(req.query?.code),
+      hasState: Boolean(req.query?.state),
+    });
+    return res.redirect(`${FRONTEND_URL}/?error=server_error`);
   }
 });
 
