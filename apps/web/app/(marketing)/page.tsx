@@ -10,10 +10,9 @@ import CTA from './components/CTA';
 import ChatWidget from './components/ChatWidget';
 
 export default function MarketingPage() {
-  const [chatOpen, setChatOpen] = useState(() => {
-    if (typeof window === 'undefined') return false;
-    return localStorage.getItem('slimySession') === 'true';
-  });
+  // Chat starts closed; only opens when user explicitly clicks to open it
+  // This prevents hydration mismatch from localStorage reads
+  const [chatOpen, setChatOpen] = useState(false);
 
   return (
     <>
