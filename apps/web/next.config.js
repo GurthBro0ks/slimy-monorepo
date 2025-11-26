@@ -9,8 +9,13 @@ const nextConfig = {
                 destination: 'http://127.0.0.1:3080/api/auth/callback',
             },
             {
-                // Proxy ALL /api/ routes to the backend (including auth)
-                source: '/api/:path*',
+                // Handle direct auth callback from Discord
+                source: '/auth/discord/callback',
+                destination: 'http://127.0.0.1:3080/api/auth/callback',
+            },
+            {
+                // Proxy ALL /api/ routes to the backend (including auth), EXCEPT local stream
+                source: '/api/:path((?!stats/events/stream).*)',
                 destination: 'http://127.0.0.1:3080/api/:path*',
             },
         ];

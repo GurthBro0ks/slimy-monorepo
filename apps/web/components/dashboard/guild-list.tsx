@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
@@ -21,6 +23,27 @@ export function GuildList({ className }: GuildListProps) {
   const [guilds, setGuilds] = useState<Guild[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
+
+  const handleConnect = async (guild: Guild) => {
+    try {
+      const res = await fetch("/api/guilds/connect", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          guildId: guild.id,
+          name: guild.name,
+          icon: guild.icon,
+        }),
+      });
+
+      if (!res.ok) throw new Error("Failed to connect");
+
+      router.push(`/dashboard/${guild.id}`);
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -111,6 +134,11 @@ export function GuildList({ className }: GuildListProps) {
                 ID: <span className="font-mono text-xs">{guild.id}</span>
               </p>
             </CardContent>
+            <CardFooter>
+              <Button className="w-full" onClick={() => handleConnect(guild)}>
+                Connect
+              </Button>
+            </CardFooter>
           </Card>
         ))}
       </div>

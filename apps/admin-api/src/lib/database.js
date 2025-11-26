@@ -1,4 +1,5 @@
-const { PrismaClient } = require('@prisma/client');
+console.log('[database] Resolving @prisma/client:', require.resolve('../../node_modules/.prisma/client'));
+const { PrismaClient } = require('../../node_modules/.prisma/client');
 const metrics = require('./monitoring/metrics');
 const config = require('./config');
 
