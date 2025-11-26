@@ -17,11 +17,22 @@ async function requireGuildAccess(req, res, next) {
     req.params?.guildId || req.body?.guildId || req.query?.guildId;
 
   if (!guildId) {
+    console.error("[requireGuildAccess] Missing guildId parameter", {
+      path: req.path,
+      method: req.method,
+      params: req.params,
+      query: req.query,
+    });
     return res.status(400).json({ error: "guildId-required" });
   }
 
   // Check if user is authenticated
   if (!req.user?.id) {
+    console.warn("[requireGuildAccess] Unauthenticated request", {
+      guildId,
+      path: req.path,
+      hasUser: !!req.user,
+    });
     return res.status(401).json({ error: "authentication-required" });
   }
 
@@ -37,8 +48,11 @@ async function requireGuildAccess(req, res, next) {
     });
 
     if (!user) {
-      console.warn(`[requireGuildAccess] User ${req.user.id} not found in DB`);
-      return res.status(403).json({ error: "guild-access-denied" });
+      console.warn(`[requireGuildAccess] User ${req.user.id} not found in DB`, {
+        guildId,
+        discordId: req.user.id,
+      });
+      return res.status(403).json({ error: "guild-access-denied", message: "User not found in database" });
     }
 
     // Check if user has a UserGuild relationship with this guild
@@ -55,17 +69,30 @@ async function requireGuildAccess(req, res, next) {
     });
 
     if (!userGuild) {
-      console.warn(`[requireGuildAccess] User ${user.id} is not a member of guild ${guildId}`);
-      return res.status(403).json({ error: "guild-access-denied" });
+      console.warn(`[requireGuildAccess] User ${user.id} (discord: ${req.user.id}) is not a member of guild ${guildId}`, {
+        userId: user.id,
+        discordId: req.user.id,
+        guildId,
+      });
+      return res.status(403).json({ error: "guild-access-denied", message: "You are not a member of this guild" });
     }
+
+    console.log(`[requireGuildAccess] Access granted for user ${user.id} to guild ${guildId}`, {
+      roles: userGuild.roles,
+    });
 
     // Attach guild info to request for downstream use
     req.guild = userGuild.guild;
     req.userRoles = userGuild.roles || [];
     return next();
   } catch (error) {
-    console.error("[requireGuildAccess] Database error:", error);
-    return res.status(500).json({ error: "internal-server-error" });
+    console.error("[requireGuildAccess] Database error:", {
+      error: error.message,
+      stack: error.stack,
+      guildId,
+      userId: req.user?.id,
+    });
+    return res.status(500).json({ error: "internal-server-error", message: "Database error while checking access" });
   }
 }
 
