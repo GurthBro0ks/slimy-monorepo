@@ -41,8 +41,9 @@ describe("Auth Middleware", () => {
       // Mock will return session data from jest.setup.js
 
       const result = resolveUser(mockReq);
-      expect(result).toEqual({
+      expect(result).toMatchObject({
         id: expect.any(String),
+        sub: expect.any(String),
         username: expect.any(String),
         globalName: expect.any(String),
         avatar: null,
@@ -66,8 +67,9 @@ describe("Auth Middleware", () => {
       // Restore original mock
       require("../../lib/session-store").getSession = originalGetSession;
 
-      expect(result).toEqual({
+      expect(result).toMatchObject({
         id: expect.any(String),
+        sub: expect.any(String),
         username: expect.any(String),
         globalName: expect.any(String),
         avatar: null,

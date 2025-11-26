@@ -2,6 +2,7 @@
 
 const database = require("../lib/database");
 const { v4: uuidv4 } = require("uuid");
+const { BadRequestError, ValidationError } = require("../lib/errors");
 
 class GuildService {
   /**
@@ -37,50 +38,90 @@ class GuildService {
   /**
    * Connect a guild (upsert)
    */
-  async connectGuild(userId, guildData) {
+  async connectGuild(authUser, guildData) {
     const { guildId, name, icon } = guildData;
+    const userId = authUser?.id || authUser?.sub;
 
     if (!guildId || !name) {
-      throw new Error("Missing required fields: guildId, name");
+      throw new BadRequestError("Missing required fields: guildId, name");
+    }
+
+    if (!userId) {
+      throw new BadRequestError("Missing user id in session");
+    }
+
+    const prisma = database.getClient();
+    let owner;
+    try {
+      owner = await prisma.user.upsert({
+        where: { discordId: userId },
+        update: {
+          username: authUser?.username || undefined,
+          globalName: authUser?.globalName || authUser?.username || undefined,
+          avatar: authUser?.avatar ?? undefined,
+        },
+        create: {
+          discordId: userId,
+          username: authUser?.username || null,
+          globalName: authUser?.globalName || authUser?.username || null,
+          avatar: authUser?.avatar || null,
+        },
+      });
+    } catch (err) {
+      throw new ValidationError("Unable to resolve guild owner record", {
+        code: err.code || "owner_upsert_failed",
+      });
     }
 
     // Upsert Guild
-    const guild = await database.getClient().guild.upsert({
-      where: { id: guildId },
-      update: {
-        name,
-        icon,
-        ownerId: userId,
-        updatedAt: new Date(),
-      },
-      create: {
-        id: guildId,
-        name,
-        icon,
-        ownerId: userId,
-        settings: {},
-      },
-    });
-
-    // Ensure UserGuild relation for owner
-    await database.getClient().userGuild.upsert({
-      where: {
-        userId_guildId: {
-          userId,
-          guildId,
+    try {
+      const guild = await prisma.guild.upsert({
+        where: { id: guildId },
+        update: {
+          name,
+          icon,
+          ownerId: owner.id,
+          updatedAt: new Date(),
         },
-      },
-      update: {
-        roles: ['owner', 'admin'],
-      },
-      create: {
-        userId,
-        guildId,
-        roles: ['owner', 'admin'],
-      },
-    });
+        create: {
+          id: guildId,
+          name,
+          icon,
+          ownerId: owner.id,
+          settings: {},
+        },
+      });
 
-    return this.formatGuildResponse(guild);
+      // Ensure UserGuild relation for owner
+      await prisma.userGuild.upsert({
+        where: {
+          userId_guildId: {
+            userId: owner.id,
+            guildId,
+          },
+        },
+        update: {
+          roles: ['owner', 'admin'],
+        },
+        create: {
+          userId: owner.id,
+          guildId,
+          roles: ['owner', 'admin'],
+        },
+      });
+
+      return this.formatGuildResponse(guild);
+    } catch (err) {
+      if (err.code === "P2003") {
+        throw new ValidationError("Owner record missing for guild connect", {
+          code: err.code,
+        });
+      }
+      if (err.code === "P2002") {
+        throw new ValidationError("Guild already exists", { code: err.code });
+      }
+      throw err;
+    }
   }
 
   /**

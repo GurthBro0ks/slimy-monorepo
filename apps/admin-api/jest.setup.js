@@ -99,53 +99,76 @@ const mockDatabase = {
   isConfigured: jest.fn(() => false),
   initialize: jest.fn(() => Promise.resolve(false)),
   getChatMessages: jest.fn(() => Promise.resolve([])),
-  getClient: jest.fn(() => ({
-    guild: {
-      create: jest.fn(() => Promise.resolve({ id: 'guild-123', discordId: '123', name: 'Test Guild' })),
-      findUnique: jest.fn(() => Promise.resolve({
-        id: 'guild-123',
-        discordId: '123',
-        name: 'Test Guild',
-        settings: {},
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        userGuilds: [],
-        _count: { userGuilds: 0, chatMessages: 0 }
-      })),
-      findMany: jest.fn(() => Promise.resolve([])),
-      count: jest.fn(() => Promise.resolve(0)),
-      update: jest.fn(() => Promise.resolve({ id: 'guild-123', discordId: '123', name: 'Updated Guild' })),
-      delete: jest.fn(() => Promise.resolve({})),
-    },
-    userGuild: {
-      create: jest.fn(() => Promise.resolve({
-        userId: 'user-123',
-        guildId: 'guild-123',
-        roles: ['member'],
-        user: { id: 'user-123', discordId: '123', username: 'testuser' }
-      })),
-      update: jest.fn(() => Promise.resolve({
-        userId: 'user-123',
-        guildId: 'guild-123',
-        roles: ['moderator']
-      })),
-      delete: jest.fn(() => Promise.resolve({})),
-      findUnique: jest.fn(() => Promise.resolve({
-        userId: 'user-123',
-        guildId: 'guild-123',
-        roles: ['member']
-      })),
-      findMany: jest.fn(() => Promise.resolve([])),
-      count: jest.fn(() => Promise.resolve(0)),
-    },
-    user: {
-      findUnique: jest.fn(() => Promise.resolve({
-        id: 'user-123',
-        discordId: '123',
-        username: 'testuser'
-      })),
-    },
-  })),
+  getClient: jest.fn(() => {
+    const ownerRecord = {
+      id: 'user-123',
+      discordId: '123',
+      username: 'testuser',
+      globalName: 'Test User',
+      avatar: null,
+    };
+
+    return {
+      guild: {
+        create: jest.fn(() => Promise.resolve({ id: 'guild-123', discordId: '123', name: 'Test Guild' })),
+        findUnique: jest.fn(() => Promise.resolve({
+          id: 'guild-123',
+          discordId: '123',
+          name: 'Test Guild',
+          settings: {},
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          userGuilds: [],
+          _count: { userGuilds: 0, chatMessages: 0 }
+        })),
+        findMany: jest.fn(() => Promise.resolve([])),
+        count: jest.fn(() => Promise.resolve(0)),
+        update: jest.fn(() => Promise.resolve({ id: 'guild-123', discordId: '123', name: 'Updated Guild' })),
+        delete: jest.fn(() => Promise.resolve({})),
+        upsert: jest.fn(({ where, update, create }) => Promise.resolve({
+          id: where?.id || create?.id || 'guild-123',
+          name: update?.name || create?.name || 'Test Guild',
+          icon: update?.icon || create?.icon || null,
+          ownerId: update?.ownerId || create?.ownerId || ownerRecord.id,
+          settings: create?.settings || {},
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          _count: { userGuilds: 0, chatMessages: 0 },
+        })),
+      },
+      userGuild: {
+        create: jest.fn(() => Promise.resolve({
+          userId: ownerRecord.id,
+          guildId: 'guild-123',
+          roles: ['member'],
+          user: ownerRecord,
+        })),
+        update: jest.fn(() => Promise.resolve({
+          userId: ownerRecord.id,
+          guildId: 'guild-123',
+          roles: ['moderator']
+        })),
+        delete: jest.fn(() => Promise.resolve({})),
+        findUnique: jest.fn(() => Promise.resolve({
+          userId: ownerRecord.id,
+          guildId: 'guild-123',
+          roles: ['member']
+        })),
+        findMany: jest.fn(() => Promise.resolve([])),
+        count: jest.fn(() => Promise.resolve(0)),
+        upsert: jest.fn(({ where, create, update }) => Promise.resolve({
+          userId: where?.userId_guildId?.userId || create?.userId || ownerRecord.id,
+          guildId: where?.userId_guildId?.guildId || create?.guildId || 'guild-123',
+          roles: update?.roles || create?.roles || ['owner', 'admin'],
+          user: ownerRecord,
+        })),
+      },
+      user: {
+        findUnique: jest.fn(() => Promise.resolve(ownerRecord)),
+        upsert: jest.fn(() => Promise.resolve(ownerRecord)),
+      },
+    };
+  }),
   findOrCreateGuild: jest.fn(),
   findGuildByDiscordId: jest.fn(),
   findGuildById: jest.fn(),
