@@ -30,6 +30,8 @@ export function ChatWidget({ open, onClose, onOpen }: ChatWidgetProps) {
     if (el) el.scrollTop = el.scrollHeight;
   }, [messages]);
 
+  if (isAuthenticated) return null;
+
   if (!open) {
     return (
       <button className="chat-bubble" onClick={onOpen} aria-label="Open chat">
