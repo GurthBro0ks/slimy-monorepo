@@ -1,4 +1,5 @@
 import { cookies } from "next/headers";
+import { apiClient } from "@/lib/api-client";
 
 type Guild = {
     id?: string;
@@ -16,8 +17,8 @@ async function getGuild(guildId: string): Promise<GuildResult> {
         return { success: false, error: 'not-found', status: 400 };
     }
 
+    // Forward cookies from the user's request to authenticate with admin-api
     let cookieHeader = "";
-
     try {
         const cookieStore = await cookies();
         cookieHeader = typeof cookieStore?.toString === "function" ? cookieStore.toString() : "";
@@ -27,26 +28,32 @@ async function getGuild(guildId: string): Promise<GuildResult> {
     }
 
     try {
-        const res = await fetch(`http://127.0.0.1:3080/api/guilds/${guildId}`, {
+        // Use apiClient which handles server-side vs client-side properly
+        // Server-side: connects directly to admin-api via ADMIN_API_INTERNAL_URL
+        // Client-side: uses relative URLs that get proxied by Next.js
+        const result = await apiClient.get(`/api/guilds/${guildId}`, {
+            useCache: false, // Dashboard should always be fresh
             headers: cookieHeader ? { Cookie: cookieHeader } : undefined,
-            cache: "no-store",
         });
 
-        if (!res.ok) {
-            console.error(`[dashboard] failed to load guild ${guildId}`, { status: res.status });
+        if (!result.ok) {
+            console.error(`[dashboard] failed to load guild ${guildId}`, {
+                status: result.status,
+                code: result.code,
+                message: result.message
+            });
 
-            // Map HTTP status codes to specific error types
-            if (res.status === 404) {
+            // Map error codes to specific error types
+            if (result.status === 404 || result.code === 'NOT_FOUND') {
                 return { success: false, error: 'not-found', status: 404 };
-            } else if (res.status === 401 || res.status === 403) {
-                return { success: false, error: 'access-denied', status: res.status };
+            } else if (result.status === 401 || result.status === 403 || result.code === 'UNAUTHORIZED') {
+                return { success: false, error: 'access-denied', status: result.status };
             } else {
-                return { success: false, error: 'server-error', status: res.status };
+                return { success: false, error: 'server-error', status: result.status };
             }
         }
 
-        const guild = await res.json();
-        return { success: true, guild };
+        return { success: true, guild: result.data as Guild };
     } catch (error) {
         console.error(`[dashboard] error loading guild ${guildId}`, { error });
         return { success: false, error: 'server-error' };
