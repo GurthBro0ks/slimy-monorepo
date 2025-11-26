@@ -17,6 +17,7 @@ const healthService = require("../services/health");
 const { rescanMember } = require("../services/rescan");
 const { recordAudit } = require("../services/audit");
 const guildService = require("../services/guild.service");
+const { AuthenticationError } = require("../lib/errors");
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -102,7 +103,15 @@ router.post(
   })),
   async (req, res, next) => {
     try {
-      const guild = await guildService.connectGuild(req.user.sub, req.validated.body);
+      const userId = req.user?.id || req.user?.sub;
+      if (!userId) {
+        throw new AuthenticationError("User session missing id");
+      }
+
+      const guild = await guildService.connectGuild(
+        { ...req.user, id: userId },
+        req.validated.body,
+      );
       res.json(guild);
     } catch (err) {
       next(err);
