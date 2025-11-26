@@ -7,8 +7,28 @@ export const runtime = "nodejs";
 const CHAT_LIMIT = 5; // 5 requests
 const CHAT_WINDOW = 60 * 1000; // per minute
 
+/**
+ * SECURITY NOTE: This endpoint is intentionally public for embedded chat widgets
+ * Rate limiting provides protection against abuse
+ * TODO: Consider adding optional authentication with guild access validation
+ */
 export async function POST(request: NextRequest) {
-  const ip = request.headers.get("x-forwarded-for") || request.headers.get("x-real-ip") || "anonymous";
+  // SECURITY: Extract IP with fallbacks, normalize to prevent rate limit bypass
+  // x-forwarded-for can contain multiple IPs (client, proxy1, proxy2, ...)
+  // Use the leftmost IP as the client IP, but validate format
+  let ip = "anonymous";
+  const forwardedFor = request.headers.get("x-forwarded-for");
+  if (forwardedFor) {
+    // Take the first IP in the chain (the original client)
+    const firstIp = forwardedFor.split(",")[0].trim();
+    // Basic validation: check if it looks like an IP address
+    if (/^[\d.:a-fA-F]+$/.test(firstIp)) {
+      ip = firstIp;
+    }
+  } else {
+    ip = request.headers.get("x-real-ip") || "anonymous";
+  }
+
   const rateLimitKey = `chat:${ip}`;
 
   if (isRateLimited(rateLimitKey, CHAT_LIMIT, CHAT_WINDOW)) {

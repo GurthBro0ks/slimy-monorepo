@@ -1,11 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { analyzeClubScreenshot, analyzeClubScreenshots, validateImageUrl, type ClubAnalysisResult } from '@/lib/club/vision';
 import { clubDatabase } from '@/lib/club/database';
+import { requireAuth } from '@/lib/auth/server';
+import { AuthenticationError } from '@/lib/errors';
 
 export async function POST(request: NextRequest) {
   try {
+    // SECURITY: Require authentication
+    const user = await requireAuth(request);
+
     const body = await request.json();
-    const { imageUrls, guildId, userId, options } = body;
+    const { imageUrls, guildId, options } = body;
 
     if (!imageUrls || !Array.isArray(imageUrls) || imageUrls.length === 0) {
       return NextResponse.json(
@@ -21,12 +26,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!userId) {
-      return NextResponse.json(
-        { error: 'User ID is required' },
-        { status: 400 }
-      );
-    }
+    // SECURITY: Use authenticated user's ID, not client-provided userId
+    const userId = user.id;
 
     // Validate all image URLs
     const validationPromises = imageUrls.map(url => validateImageUrl(url));
@@ -86,6 +87,14 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error) {
+    // Handle authentication errors specifically
+    if (error instanceof AuthenticationError) {
+      return NextResponse.json(
+        { error: 'Unauthorized', code: 'UNAUTHORIZED' },
+        { status: 401 }
+      );
+    }
+
     console.error('Error in club analysis:', error);
     return NextResponse.json(
       { error: 'Internal server error during analysis' },
@@ -97,6 +106,9 @@ export async function POST(request: NextRequest) {
 // GET endpoint to retrieve stored analysis results
 export async function GET(request: NextRequest) {
   try {
+    // SECURITY: Require authentication
+    await requireAuth(request);
+
     const { searchParams } = new URL(request.url);
     const guildId = searchParams.get('guildId');
     const limit = parseInt(searchParams.get('limit') || '10');
@@ -108,6 +120,8 @@ export async function GET(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    // TODO: Validate that authenticated user has access to this guild
 
     // Retrieve results from database
     const results = await clubDatabase.getAnalysesByGuild(guildId, limit, offset);
@@ -124,6 +138,14 @@ export async function GET(request: NextRequest) {
     });
 
   } catch (error) {
+    // Handle authentication errors specifically
+    if (error instanceof AuthenticationError) {
+      return NextResponse.json(
+        { error: 'Unauthorized', code: 'UNAUTHORIZED' },
+        { status: 401 }
+      );
+    }
+
     console.error('Error retrieving analysis results:', error);
     return NextResponse.json(
       { error: 'Failed to retrieve analysis results' },

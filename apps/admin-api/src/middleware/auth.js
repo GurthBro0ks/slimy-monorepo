@@ -112,7 +112,16 @@ function resolveUser(req) {
               req.session = value;
             }
           })
-          .catch(() => {});
+          .catch((err) => {
+            // Log session retrieval failures for debugging
+            console.error("[readAuth] Failed to retrieve session for user", {
+              sessionKey,
+              error: err.message,
+              stack: err.stack
+            });
+            // Session will remain null, which is expected behavior
+            // Do NOT swallow errors silently - log them for incident response
+          });
       } else if (maybeSession) {
         session = maybeSession;
       }
