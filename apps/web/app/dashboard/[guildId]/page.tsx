@@ -1,4 +1,4 @@
-import { cookies } from "next/headers";
+import { getAppUrl } from "@/lib/env";
 
 type Guild = {
     id?: string;
@@ -10,30 +10,35 @@ type GuildResult =
     | { success: true; guild: Guild }
     | { success: false; error: 'not-found' | 'access-denied' | 'server-error'; status?: number };
 
-// Fetch guild from admin-api with detailed error states for better UX
+// Fetch guild from Next.js API layer with detailed error states for better UX
 async function getGuild(guildId: string): Promise<GuildResult> {
     if (!guildId) {
+        console.error("[dashboard] getGuild called with empty guildId");
         return { success: false, error: 'not-found', status: 400 };
     }
 
-    let cookieHeader = "";
-
     try {
-        const cookieStore = await cookies();
-        cookieHeader = typeof cookieStore?.toString === "function" ? cookieStore.toString() : "";
-    } catch (error) {
-        console.error("[dashboard] unable to read cookies for guild fetch", { error });
-        // Continue without cookies - the backend will handle auth
-    }
+        // Use Next.js API route instead of direct admin-api call
+        // This properly handles auth, cookies, and environment-based routing
+        const baseUrl = getAppUrl();
+        const url = `${baseUrl}/api/guilds/${guildId}`;
 
-    try {
-        const res = await fetch(`http://127.0.0.1:3080/api/guilds/${guildId}`, {
-            headers: cookieHeader ? { Cookie: cookieHeader } : undefined,
+        console.log(`[dashboard] fetching guild from ${url}`);
+
+        const res = await fetch(url, {
             cache: "no-store",
+            headers: {
+                'Content-Type': 'application/json',
+            },
         });
 
         if (!res.ok) {
-            console.error(`[dashboard] failed to load guild ${guildId}`, { status: res.status });
+            const errorText = await res.text().catch(() => 'Unable to read error response');
+            console.error(`[dashboard] failed to load guild ${guildId}`, {
+                status: res.status,
+                statusText: res.statusText,
+                error: errorText
+            });
 
             // Map HTTP status codes to specific error types
             if (res.status === 404) {
@@ -46,9 +51,17 @@ async function getGuild(guildId: string): Promise<GuildResult> {
         }
 
         const guild = await res.json();
+        console.log(`[dashboard] successfully loaded guild ${guildId}`, { guildName: guild.name });
         return { success: true, guild };
     } catch (error) {
-        console.error(`[dashboard] error loading guild ${guildId}`, { error });
+        // Enhanced error logging to catch network failures, JSON parse errors, etc.
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        const errorStack = error instanceof Error ? error.stack : undefined;
+        console.error(`[dashboard] exception while loading guild ${guildId}`, {
+            error: errorMessage,
+            stack: errorStack,
+            type: error?.constructor?.name
+        });
         return { success: false, error: 'server-error' };
     }
 }
