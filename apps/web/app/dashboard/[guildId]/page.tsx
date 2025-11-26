@@ -27,7 +27,10 @@ async function getGuild(guildId: string): Promise<GuildResult> {
     }
 
     try {
-        const res = await fetch(`http://127.0.0.1:3080/api/guilds/${guildId}`, {
+        // Use Next.js API route which properly proxies to admin-api
+        // This ensures correct base URL resolution in all environments (dev/prod/Docker)
+        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+        const res = await fetch(`${baseUrl}/api/guilds/${guildId}`, {
             headers: cookieHeader ? { Cookie: cookieHeader } : undefined,
             cache: "no-store",
         });
