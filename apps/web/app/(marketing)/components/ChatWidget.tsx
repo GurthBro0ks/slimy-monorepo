@@ -8,9 +8,10 @@ type Message = { from: 'bot' | 'user'; text: string };
 type ChatWidgetProps = {
   open: boolean;
   onClose: () => void;
+  onOpen: () => void;
 };
 
-export function ChatWidget({ open, onClose }: ChatWidgetProps) {
+export function ChatWidget({ open, onClose, onOpen }: ChatWidgetProps) {
   const { isAuthenticated, isLoading } = useAuth();
   const [messages, setMessages] = useState<Message[]>([
     { from: 'bot', text: 'Welcome to slimy.ai — ready to drip into your workflow?' },
@@ -29,7 +30,13 @@ export function ChatWidget({ open, onClose }: ChatWidgetProps) {
     if (el) el.scrollTop = el.scrollHeight;
   }, [messages]);
 
-  if (!open) return null;
+  if (!open) {
+    return (
+      <button className="chat-bubble" onClick={onOpen} aria-label="Open chat">
+        <span role="img" aria-label="snail" style={{ fontSize: '28px' }}>🐌</span>
+      </button>
+    );
+  }
 
   const send = (event?: FormEvent) => {
     event?.preventDefault();
