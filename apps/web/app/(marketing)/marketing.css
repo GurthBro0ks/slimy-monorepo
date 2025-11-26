@@ -495,3 +495,31 @@ h1.hero-title {
     width: 90vw;
   }
 }
+
+.chat-bubble {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--neon-pink), var(--neon-purple));
+  border: 2px solid var(--glass-border);
+  box-shadow: 0 0 20px rgba(255, 92, 207, 0.5);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  z-index: 1090;
+  transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.chat-bubble:hover {
+  transform: scale(1.1);
+  box-shadow: 0 0 30px rgba(255, 92, 207, 0.7);
+}
+
+.chat-bubble img {
+  width: 32px;
+  height: 32px;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+}
