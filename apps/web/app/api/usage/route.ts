@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { getMockUsageData } from "@/lib/usage-thresholds";
 
-export const runtime = "edge";
+// Use Node.js runtime for better compatibility in production
+export const runtime = "nodejs";
 export const revalidate = 30; // Revalidate every 30 seconds
 
 /**

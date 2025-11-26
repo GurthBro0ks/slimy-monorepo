@@ -23,7 +23,7 @@ export function LoginModal({ open, onClose, onLogin }: LoginModalProps) {
   if (!open) return null;
 
   const handleLogin = () => {
-    localStorage.setItem('slimySession', 'true');
+    // Removed localStorage.setItem('slimySession', 'true') to prevent chat auto-open
     onLogin();
   };
 
