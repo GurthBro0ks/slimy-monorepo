@@ -9,14 +9,21 @@ import { ProtectedRoute } from "@/components/auth/protected-route";
 import { fetchClubLatest, getSandboxStatus, type ClubMemberMetrics } from "@/lib/api/club";
 import { CommandShell } from "@/components/CommandShell";
 
+import { useAuth } from "@/hooks/useAuth";
+
 export default function ClubPage() {
+  const { guilds, isLoading: authLoading } = useAuth();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [members, setMembers] = useState<ClubMemberMetrics[]>([]);
-  const guildId = "guild-123"; // TODO: Get from auth context
+  const guildId = guilds?.[0]?.id;
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const loadClubMetrics = useCallback(async () => {
+    if (!guildId) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     setError(null);
 
@@ -40,10 +47,13 @@ export default function ClubPage() {
 
   // Load club metrics on mount
   useEffect(() => {
-    loadClubMetrics();
-  }, [loadClubMetrics]);
+    if (!authLoading) {
+      loadClubMetrics();
+    }
+  }, [loadClubMetrics, authLoading]);
 
   const handleRefresh = async () => {
+    if (!guildId) return;
     setIsRefreshing(true);
     await loadClubMetrics();
     setIsRefreshing(false);
@@ -100,6 +110,19 @@ export default function ClubPage() {
                   <span>
                     <strong>Sandbox Mode:</strong> Showing example data. Configure NEXT_PUBLIC_ADMIN_API_BASE to connect to live data.
                   </span>
+                </div>
+              </Callout>
+            )}
+
+            {/* No Guilds State */}
+            {!loading && !guildId && (
+              <Callout variant="note" className="mb-6">
+                <div className="flex items-center gap-2">
+                  <AlertCircle className="h-4 w-4" />
+                  <div>
+                    <strong>No connected guilds found</strong>
+                    <p className="text-sm mt-1">Connect a Discord server to see club metrics.</p>
+                  </div>
                 </div>
               </Callout>
             )}
@@ -231,9 +254,8 @@ export default function ClubPage() {
                             <td className="py-3 px-4 text-right">
                               {member.changePercent !== null ? (
                                 <span
-                                  className={`font-semibold ${
-                                    member.changePercent >= 0 ? 'text-green-500' : 'text-red-500'
-                                  }`}
+                                  className={`font-semibold ${member.changePercent >= 0 ? 'text-green-500' : 'text-red-500'
+                                    }`}
                                 >
                                   {member.changePercent >= 0 ? '+' : ''}
                                   {member.changePercent.toFixed(1)}%

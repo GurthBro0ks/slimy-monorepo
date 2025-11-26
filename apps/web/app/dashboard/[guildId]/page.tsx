@@ -53,8 +53,8 @@ async function getGuild(guildId: string): Promise<GuildResult> {
     }
 }
 
-export default async function GuildDashboardPage({ params }: { params: { guildId: string } }) {
-    const guildId = params?.guildId;
+export default async function GuildDashboardPage({ params }: { params: Promise<{ guildId: string }> }) {
+    const { guildId } = await params;
     const result = await getGuild(guildId);
 
     if (!result.success) {
