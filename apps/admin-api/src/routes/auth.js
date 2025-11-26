@@ -329,6 +329,12 @@ router.get("/callback", async (req, res) => {
     };
 
     try {
+      const ready = await prismaDatabase.initialize();
+      if (!ready) {
+        console.error("[auth/callback] prisma not initialized");
+        return res.redirect(`${FRONTEND_URL}/?error=session_error`);
+      }
+
       const prismaUser = await prismaDatabase.findOrCreateUser(me, {
         accessToken,
         refreshToken,
