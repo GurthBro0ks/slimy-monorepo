@@ -8,12 +8,14 @@ const guildRoutes = require("./guilds");
 const guildSettingsRoutes = require("./guild-settings");
 const personalityRoutes = require("./personality");
 const uploadsRoutes = require("./uploads");
+const discordRoutes = require("./discord");
 const diagRoutes = require("./diag");
 const botRoutes = require("./bot");
 const statsRoutes = require("./stats");
 const snailRoutes = require("./snail");
 const chatRoutes = require("./chat");
 const clubRoutes = require("./club");
+const usageRoutes = require("./usage");
 
 // Track app start time for uptime calculation
 const APP_START_TIME = Date.now();
@@ -61,6 +63,9 @@ router.get("/api/status", (_req, res) => {
 router.use("/api", debugRoutes);
 router.use("/api/auth", authRoutes);
 router.use("/auth", authRoutes);
+router.use("/api/discord", discordRoutes);
+router.use("/api/club", clubRoutes);
+router.use("/api/snail", snailRoutes);
 router.use("/api/guilds/:guildId/snail", snailRoutes);
 router.use("/api/guilds/:guildId/club", clubRoutes);
 router.use("/api/guilds", guildRoutes);
@@ -71,5 +76,6 @@ router.use("/api/diag", diagRoutes);
 router.use("/api/bot", botRoutes);
 router.use("/api/stats", statsRoutes);
 router.use("/api/chat", chatRoutes);
+router.use("/api/usage", usageRoutes);
 
 module.exports = router;

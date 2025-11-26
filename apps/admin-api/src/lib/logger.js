@@ -48,10 +48,11 @@ const baseConfig = {
   },
 };
 
-// Development logger with pretty printing
-const devConfig = {
-  ...baseConfig,
-  transport: {
+// Development logger with pretty printing (if available)
+let transport;
+try {
+  require.resolve("pino-pretty");
+  transport = {
     target: "pino-pretty",
     options: {
       colorize: true,
@@ -59,7 +60,15 @@ const devConfig = {
       ignore: "pid,hostname,service,version,env",
       messageFormat: "{service} {level} {msg}",
     },
-  },
+  };
+} catch (e) {
+  // pino-pretty not found, fallback to default json logging
+  // console.warn("pino-pretty not found, using json logging");
+}
+
+const devConfig = {
+  ...baseConfig,
+  transport,
 };
 
 // Production logger with JSON output for monitoring platforms
@@ -102,10 +111,10 @@ function requestLogger(req, res, next) {
   const requestId = req.id || req.headers["x-request-id"] || `req-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   req.id = requestId;
   req.logger = createLogger({ requestId, method: req.method, path: req.path });
-  
+
   // Log request start
-  req.logger.info({ 
-    method: req.method, 
+  req.logger.info({
+    method: req.method,
     path: req.path,
     query: req.query,
     ip: req.ip,

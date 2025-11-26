@@ -92,10 +92,19 @@ function resolveUser(req) {
         }
       : null;
 
+    const normalizedUser = fallbackUser
+      ? {
+          ...fallbackUser,
+          id: fallbackUser.id || fallbackUser.sub || fallbackUser.discordId || null,
+          sub: fallbackUser.sub || fallbackUser.id || fallbackUser.discordId || null,
+        }
+      : null;
+
     // Attempt to hydrate session data; handle sync or async getters gracefully
     let session = null;
-    if (sessionUser?.id && typeof getSession === "function") {
-      const maybeSession = getSession(sessionUser.id);
+    const sessionKey = normalizedUser?.id || sessionUser?.id;
+    if (sessionKey && typeof getSession === "function") {
+      const maybeSession = getSession(sessionKey);
       if (maybeSession && typeof maybeSession.then === "function") {
         maybeSession
           .then((value) => {
@@ -110,7 +119,7 @@ function resolveUser(req) {
     }
 
     req.session = session || payload?.session || payload || null;
-    req.user = fallbackUser;
+    req.user = normalizedUser;
     req._cachedUser = req.user;
 
     if (req.user) {

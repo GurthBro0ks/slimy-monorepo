@@ -3,7 +3,7 @@
 import { usePathname } from "next/navigation";
 import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
-import { LazySlimeChatBar } from "@/components/lazy";
+import { AuthenticatedChatBar } from "@/components/layout/authenticated-chat-bar";
 import { AuthProvider } from "@/lib/auth/context";
 import { AuthErrorBoundary } from "@/components/auth/error-boundary";
 import { ServiceWorkerRegistration } from "@/components/service-worker-registration";
@@ -24,7 +24,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           {!isShellRoute && <Header />}
           <main className="flex-1">{children}</main>
           {!isShellRoute && <Footer />}
-          {!isShellRoute && <LazySlimeChatBar />}
+          {!isShellRoute && <AuthenticatedChatBar />}
           <ServiceWorkerRegistration />
         </div>
       </AuthProvider>

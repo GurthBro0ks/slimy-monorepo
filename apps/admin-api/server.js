@@ -2,14 +2,9 @@
 
 const fs = require("fs");
 const path = require("path");
-
 const dotenv = require("dotenv");
 
-const database = require("./lib/database");
-const prismaDatabase = require("./src/lib/database");
-const { applyDatabaseUrl } = require("./src/utils/apply-db-url");
-const logger = require("./lib/logger");
-
+// Load environment variables BEFORE requiring other modules
 function loadEnv() {
   const explicitEnvPath =
     process.env.ADMIN_ENV_FILE || process.env.ENV_FILE || null;
@@ -29,8 +24,19 @@ function loadEnv() {
   }
 }
 
+loadEnv();
+
+// Map DATABASE_URL (Prisma) to DB_URL (mysql2) if needed
+if (!process.env.DB_URL && process.env.DATABASE_URL) {
+  process.env.DB_URL = process.env.DATABASE_URL;
+}
+
+const database = require("./lib/database");
+const prismaDatabase = require("./src/lib/database");
+const { applyDatabaseUrl } = require("./src/utils/apply-db-url");
+const logger = require("./lib/logger");
+
 async function start() {
-  loadEnv();
   applyDatabaseUrl(process.env.DB_URL);
 
   if (!process.env.JWT_SECRET) {

@@ -7,7 +7,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "mysql"
   url      = env("DATABASE_URL")
 }
 
@@ -15,6 +15,10 @@ datasource db {
 model User {
   id          String   @id @default(cuid())
   discordId   String   @unique @map("discord_id")
+  email       String?  @unique
+  discordAccessToken  String? @map("discord_access_token")
+  discordRefreshToken String? @map("discord_refresh_token")
+  tokenExpiresAt      DateTime? @map("token_expires_at")
   username    String?
   globalName  String?  @map("global_name")
   avatar      String?
@@ -23,6 +27,7 @@ model User {
 
   // Relations
   sessions      Session[]
+  ownedGuilds   Guild[] @relation("GuildOwner")
   userGuilds    UserGuild[]
   conversations Conversation[]
   stats         Stat[]
@@ -62,23 +67,25 @@ model Session {
 
 // Discord guilds (servers)
 model Guild {
-  id        String   @id @default(cuid())
-  discordId String   @unique @map("discord_id")
+  id        String   @id // Discord Guild ID
   name      String
+  icon      String?
+  ownerId   String   @map("owner_id")
   settings  Json?    // JSON object for guild-specific settings
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
   // Relations
+  owner         User          @relation("GuildOwner", fields: [ownerId], references: [id], onDelete: Cascade)
   userGuilds    UserGuild[]
   stats         Stat[]
   chatMessages  ChatMessage[]
   clubAnalyses  ClubAnalysis[]
 
   // Performance indexes
+  @@index([ownerId])
   @@index([createdAt])
   @@index([updatedAt])
-  @@index([discordId, createdAt])
 
   @@map("guilds")
 }
