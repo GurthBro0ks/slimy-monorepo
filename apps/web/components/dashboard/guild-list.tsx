@@ -21,7 +21,6 @@ interface GuildListProps {
 }
 
 export function GuildList({ className }: GuildListProps) {
-  const discordClientId = process.env.NEXT_PUBLIC_DISCORD_CLIENT_ID;
   const [guilds, setGuilds] = useState<Guild[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -45,16 +44,6 @@ export function GuildList({ className }: GuildListProps) {
     } catch (err) {
       console.error(err);
     }
-  };
-
-  const handleInvite = (guild: Guild) => {
-    if (!discordClientId) {
-      setError("Discord client ID is not configured. Please set NEXT_PUBLIC_DISCORD_CLIENT_ID.");
-      return;
-    }
-
-    const url = `https://discord.com/api/oauth2/authorize?client_id=${discordClientId}&permissions=8&scope=bot&guild_id=${guild.id}`;
-    window.open(url, "_blank", "noopener,noreferrer");
   };
 
   useEffect(() => {
@@ -152,8 +141,13 @@ export function GuildList({ className }: GuildListProps) {
                   Dashboard
                 </Button>
               ) : (
-                <Button variant="secondary" className="w-full" onClick={() => handleInvite(guild)}>
-                  Setup
+                <Button
+                  variant="secondary"
+                  className="w-full opacity-50 cursor-not-allowed"
+                  disabled
+                  title="This bot is currently private."
+                >
+                  Invite Closed
                 </Button>
               )}
             </CardFooter>
