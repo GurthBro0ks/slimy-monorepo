@@ -1,8 +1,7 @@
 "use strict";
 
 const database = require("../lib/database");
-const { v4: uuidv4 } = require("uuid");
-const { BadRequestError, ValidationError } = require("../lib/errors");
+const { BadRequestError, ValidationError, ConfigurationError } = require("../lib/errors");
 
 class GuildService {
   /**
@@ -39,8 +38,10 @@ class GuildService {
    * Connect a guild (upsert)
    */
   async connectGuild(authUser, guildData) {
-    const { guildId, name, icon } = guildData;
-    const userId = authUser?.id || authUser?.sub;
+    const guildId = guildData?.guildId || guildData?.id;
+    const name = guildData?.name;
+    const icon = guildData?.icon ?? null;
+    const userId = this.resolveUserId(authUser);
 
     if (!guildId || !name) {
       throw new BadRequestError("Missing required fields: guildId, name");
@@ -50,33 +51,50 @@ class GuildService {
       throw new BadRequestError("Missing user id in session");
     }
 
-    const prisma = database.getClient();
+    const normalizedGuildId = String(guildId);
+    const normalizedUserId = String(userId);
+
+    let prisma;
+    try {
+      prisma = database.getClient();
+    } catch (err) {
+      throw new ConfigurationError("Database not initialized for guild connect", {
+        code: err.code || "db_not_ready",
+      });
+    }
     let owner;
     try {
       owner = await prisma.user.upsert({
-        where: { discordId: userId },
+        where: { discordId: normalizedUserId },
         update: {
           username: authUser?.username || undefined,
           globalName: authUser?.globalName || authUser?.username || undefined,
           avatar: authUser?.avatar ?? undefined,
         },
         create: {
-          discordId: userId,
+          discordId: normalizedUserId,
           username: authUser?.username || null,
           globalName: authUser?.globalName || authUser?.username || null,
           avatar: authUser?.avatar || null,
         },
       });
     } catch (err) {
-      throw new ValidationError("Unable to resolve guild owner record", {
-        code: err.code || "owner_upsert_failed",
-      });
+      if (err?.code) {
+        const mapped = new ValidationError("Unable to resolve guild owner record", {
+          code: err.code || "owner_upsert_failed",
+        });
+        if (err.code === "P2002") {
+          mapped.statusCode = 409;
+        }
+        throw mapped;
+      }
+      throw err;
     }
 
     // Upsert Guild
     try {
       const guild = await prisma.guild.upsert({
-        where: { id: guildId },
+        where: { id: normalizedGuildId },
         update: {
           name,
           icon,
@@ -84,7 +102,7 @@ class GuildService {
           updatedAt: new Date(),
         },
         create: {
-          id: guildId,
+          id: normalizedGuildId,
           name,
           icon,
           ownerId: owner.id,
@@ -97,7 +115,7 @@ class GuildService {
         where: {
           userId_guildId: {
             userId: owner.id,
-            guildId,
+            guildId: normalizedGuildId,
           },
         },
         update: {
@@ -105,7 +123,7 @@ class GuildService {
         },
         create: {
           userId: owner.id,
-          guildId,
+          guildId: normalizedGuildId,
           roles: ['owner', 'admin'],
         },
       });
@@ -118,7 +136,12 @@ class GuildService {
         });
       }
       if (err.code === "P2002") {
-        throw new ValidationError("Guild already exists", { code: err.code });
+        const conflict = new ValidationError("Guild already exists", { code: err.code });
+        conflict.statusCode = 409;
+        throw conflict;
+      }
+      if (err?.code) {
+        throw new ValidationError("Unable to connect guild", { code: err.code });
       }
       throw err;
     }
@@ -649,6 +672,16 @@ class GuildService {
     }
 
     return response;
+  }
+
+  resolveUserId(authUser) {
+    return (
+      authUser?.id ||
+      authUser?.sub ||
+      authUser?.discordId ||
+      authUser?.discord_id ||
+      null
+    );
   }
 
   /**
