@@ -16,6 +16,8 @@ const usageService = require("../services/usage");
 const healthService = require("../services/health");
 const { rescanMember } = require("../services/rescan");
 const { recordAudit } = require("../services/audit");
+const guildService = require("../services/guild.service");
+const { AuthenticationError } = require("../lib/errors");
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -90,6 +92,45 @@ router.use(requireAuth);
 router.get("/", (req, res) => {
   res.json({ guilds: req.user.guilds || [] });
 });
+
+router.post(
+  "/connect",
+  requireAuth,
+  validateBody(z.object({
+    guildId: z.string(),
+    name: z.string(),
+    icon: z.string().nullable().optional(),
+  })),
+  async (req, res, next) => {
+    try {
+      const userId = guildService.resolveUserId(req.user);
+      if (!userId) {
+        throw new AuthenticationError("User session missing id");
+      }
+
+      const guild = await guildService.connectGuild(
+        { ...req.user, id: userId, sub: req.user?.sub || userId, discordId: req.user?.discordId || req.user?.discord_id || userId },
+        req.validated.body,
+      );
+      res.json(guild);
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+router.get(
+  "/:guildId",
+  requireGuildAccess,
+  async (req, res, next) => {
+    try {
+      const guild = await guildService.getGuildById(req.params.guildId);
+      res.json(guild);
+    } catch (err) {
+      next(err);
+    }
+  }
+);
 
 router.get(
   "/:guildId/settings",

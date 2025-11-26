@@ -1,4 +1,5 @@
-const { PrismaClient } = require('@prisma/client');
+console.log('[database] Resolving @prisma/client:', require.resolve('../../node_modules/.prisma/client'));
+const { PrismaClient } = require('../../node_modules/.prisma/client');
 const metrics = require('./monitoring/metrics');
 const config = require('./config');
 
@@ -18,22 +19,24 @@ class Database {
         log: config.database.logLevel,
       });
 
-      // Add metrics middleware
-      this.prisma.$use(async (params, next) => {
-        const startTime = Date.now();
-        try {
-          const result = await next(params);
-          const duration = Date.now() - startTime;
-          metrics.recordDatabaseQuery(duration);
-          return result;
-        } catch (error) {
-          const duration = Date.now() - startTime;
-          metrics.recordDatabaseQuery(duration);
-          // Record database errors as application errors
-          metrics.recordError();
-          throw error;
-        }
-      });
+      // Add metrics middleware when supported by the Prisma client
+      if (typeof this.prisma.$use === 'function') {
+        this.prisma.$use(async (params, next) => {
+          const startTime = Date.now();
+          try {
+            const result = await next(params);
+            metrics.recordDatabaseQuery(Date.now() - startTime);
+            return result;
+          } catch (error) {
+            const duration = Date.now() - startTime;
+            metrics.recordDatabaseQuery(duration);
+            metrics.recordError();
+            throw error;
+          }
+        });
+      } else {
+        console.warn('[database] Prisma middleware API unavailable; skipping query instrumentation');
+      }
 
       // Test the connection
       await this.prisma.$connect();
@@ -203,21 +206,36 @@ class Database {
   }
 
   // User management methods
-  async findOrCreateUser(discordUser) {
+  async findOrCreateUser(discordUser, tokenData = {}) {
     const prisma = this.getClient();
+    const tokenUpdate = {};
+
+    if (tokenData.accessToken) {
+      tokenUpdate.discordAccessToken = tokenData.accessToken;
+    }
+    if (tokenData.refreshToken) {
+      tokenUpdate.discordRefreshToken = tokenData.refreshToken;
+    }
+    if (tokenData.expiresAt) {
+      tokenUpdate.tokenExpiresAt = new Date(tokenData.expiresAt);
+    }
 
     return await prisma.user.upsert({
       where: { discordId: discordUser.id },
       update: {
+        email: discordUser.email || null,
         username: discordUser.username,
         globalName: discordUser.global_name || discordUser.username,
         avatar: discordUser.avatar,
+        ...tokenUpdate,
       },
       create: {
         discordId: discordUser.id,
+        email: discordUser.email || null,
         username: discordUser.username,
         globalName: discordUser.global_name || discordUser.username,
         avatar: discordUser.avatar,
+        ...tokenUpdate,
       },
     });
   }

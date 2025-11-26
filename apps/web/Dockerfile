@@ -48,6 +48,10 @@ RUN pnpm install --frozen-lockfile --prefer-offline 2>&1 | tail -20 || true
 # Generate Prisma client before building
 RUN pnpm --filter @slimy/web run db:generate
 
+# Explicitly copy tailwind/postcss configs to ensure they are present for the build
+COPY apps/web/tailwind.config.ts ./apps/web/
+COPY apps/web/postcss.config.mjs ./apps/web/
+
 # Build the app
 RUN pnpm --filter @slimy/web build
 
@@ -62,10 +66,17 @@ RUN adduser --system --uid 1001 nextjs
 # Copy built artifacts from apps/web in the builder stage
 # Next.js 16+ with monorepo generates nested structure in .next/standalone/apps/web/
 # We need to run the server from that nested location since that's where the symlinks are set up
-COPY --from=builder /app/apps/web/public ./apps/web/public
+# Copy public assets (images, etc)
+COPY --from=builder --chown=nextjs:nodejs /app/apps/web/public ./apps/web/public
+# Copy standalone server output
 COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/standalone/apps/web ./apps/web/
 COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/standalone/node_modules ./node_modules
+# Copy static assets (css, js chunks) - Critical for styling!
 COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/static ./apps/web/.next/static
+
+# FIX: Copy to Root .next/static so the server finds them at /app/.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/static ./.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/apps/web/public ./public
 
 USER nextjs
 

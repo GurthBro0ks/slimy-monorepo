@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Callout } from "@/components/ui/callout";
 import { Shield } from "lucide-react";
 import { ProtectedRoute } from "@/components/auth/protected-route";
+import { GuildList } from "@/components/dashboard/guild-list";
 
 export default function GuildsPage() {
   return (
@@ -20,23 +21,9 @@ export default function GuildsPage() {
             </div>
           </div>
 
-          <Callout variant="info" className="mb-8">
-            Connect Admin API to view and manage guilds. This page requires admin role.
-          </Callout>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Guild Management</CardTitle>
-              <CardDescription>
-                View and configure bot settings for all connected guilds
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">
-                Guild list will appear here once Admin API is connected.
-              </p>
-            </CardContent>
-          </Card>
+          <div className="mb-8">
+            <GuildList />
+          </div>
         </div>
       </div>
     </ProtectedRoute>

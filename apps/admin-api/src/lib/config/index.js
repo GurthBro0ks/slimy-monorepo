@@ -84,9 +84,9 @@ function validateConfig(rawConfig) {
 
   // DATABASE_URL is optional in development, but if provided must be valid
   if (rawConfig.database.url) {
-    if (!rawConfig.database.url.startsWith('postgresql://') &&
-        !rawConfig.database.url.startsWith('postgres://')) {
-      errors.push('DATABASE_URL must be a valid PostgreSQL connection string');
+    const isMysqlUrl = /^mysqls?:\/\//i.test(rawConfig.database.url);
+    if (!isMysqlUrl) {
+      errors.push('DATABASE_URL must be a valid MySQL connection string (mysql://)');
     }
   } else if (rawConfig.server.nodeEnv === 'production') {
     // Required in production
@@ -259,4 +259,3 @@ function loadConfig() {
 const config = loadConfig();
 
 module.exports = config;
-

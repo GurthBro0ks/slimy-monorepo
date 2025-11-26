@@ -11,11 +11,17 @@ export interface AuthUser {
   role: "admin" | "club" | "member";
 }
 
+export interface GuildInfo {
+  id: string;
+  roles: string[];
+}
+
 export interface UseAuthReturn {
   isAuthenticated: boolean;
   isLoading: boolean;
   user: AuthUser | null;
   role: string | null;
+  guilds: GuildInfo[] | null;
   error: Error | null;
 }
 
@@ -28,6 +34,7 @@ export function useAuth(): UseAuthReturn {
   const [isLoading, setIsLoading] = useState(true);
   const [user, setUser] = useState<AuthUser | null>(null);
   const [role, setRole] = useState<string | null>(null);
+  const [guilds, setGuilds] = useState<GuildInfo[] | null>(null);
   const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
@@ -38,11 +45,13 @@ export function useAuth(): UseAuthReturn {
           const data = await res.json();
           setUser(data.user);
           setRole(data.role);
+          setGuilds(data.guilds || []);
           setIsAuthenticated(true);
         } else {
           setIsAuthenticated(false);
           setUser(null);
           setRole(null);
+          setGuilds(null);
         }
       } catch (err) {
         console.error("Auth check failed:", err);
@@ -61,6 +70,7 @@ export function useAuth(): UseAuthReturn {
     isLoading,
     user,
     role,
+    guilds,
     error,
   };
 }

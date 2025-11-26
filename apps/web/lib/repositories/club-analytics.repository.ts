@@ -4,8 +4,8 @@
  * Handles database operations for club analytics
  */
 
-import { db } from '../db';
-import type { ClubAnalysis, ClubAnalysisImage, ClubMetric } from '../db';
+import { db, Prisma } from '../db';
+import type { ClubAnalysis } from '../db';
 
 export interface CreateClubAnalysisInput {
   guildId: string;
@@ -26,10 +26,14 @@ export interface CreateClubAnalysisInput {
   }>;
 }
 
-export interface ClubAnalysisWithRelations extends ClubAnalysis {
-  images: ClubAnalysisImage[];
-  metrics: ClubMetric[];
-}
+const clubAnalysisInclude = Prisma.validator<Prisma.ClubAnalysisInclude>()({
+  images: true,
+  metrics: true,
+});
+
+export type ClubAnalysisWithRelations = Prisma.ClubAnalysisGetPayload<{
+  include: typeof clubAnalysisInclude;
+}>;
 
 /**
  * Club Analytics Repository
@@ -39,7 +43,7 @@ export class ClubAnalyticsRepository {
    * Create a new club analysis
    */
   async create(input: CreateClubAnalysisInput): Promise<ClubAnalysisWithRelations> {
-    return await db.clubAnalysis.create({
+    return db.clubAnalysis.create({
       data: {
         guildId: input.guildId,
         userId: input.userId,
@@ -56,24 +60,18 @@ export class ClubAnalyticsRepository {
           })),
         },
       },
-      include: {
-        images: true,
-        metrics: true,
-      },
-    });
+      include: clubAnalysisInclude,
+    }) as Promise<ClubAnalysisWithRelations>;
   }
 
   /**
    * Get analysis by ID
    */
   async findById(id: string): Promise<ClubAnalysisWithRelations | null> {
-    return await db.clubAnalysis.findUnique({
+    return db.clubAnalysis.findUnique({
       where: { id },
-      include: {
-        images: true,
-        metrics: true,
-      },
-    });
+      include: clubAnalysisInclude,
+    }) as Promise<ClubAnalysisWithRelations | null>;
   }
 
   /**
@@ -86,16 +84,13 @@ export class ClubAnalyticsRepository {
       offset?: number;
     }
   ): Promise<ClubAnalysisWithRelations[]> {
-    return await db.clubAnalysis.findMany({
+    return db.clubAnalysis.findMany({
       where: { guildId },
-      include: {
-        images: true,
-        metrics: true,
-      },
+      include: clubAnalysisInclude,
       orderBy: { createdAt: 'desc' },
       take: options?.limit || 20,
       skip: options?.offset || 0,
-    });
+    }) as Promise<ClubAnalysisWithRelations[]>;
   }
 
   /**
@@ -108,16 +103,13 @@ export class ClubAnalyticsRepository {
       offset?: number;
     }
   ): Promise<ClubAnalysisWithRelations[]> {
-    return await db.clubAnalysis.findMany({
+    return db.clubAnalysis.findMany({
       where: { userId },
-      include: {
-        images: true,
-        metrics: true,
-      },
+      include: clubAnalysisInclude,
       orderBy: { createdAt: 'desc' },
       take: options?.limit || 20,
       skip: options?.offset || 0,
-    });
+    }) as Promise<ClubAnalysisWithRelations[]>;
   }
 
   /**
@@ -164,14 +156,11 @@ export class ClubAnalyticsRepository {
    * Get recent analyses across all guilds
    */
   async findRecent(limit: number = 10): Promise<ClubAnalysisWithRelations[]> {
-    return await db.clubAnalysis.findMany({
-      include: {
-        images: true,
-        metrics: true,
-      },
+    return db.clubAnalysis.findMany({
+      include: clubAnalysisInclude,
       orderBy: { createdAt: 'desc' },
       take: limit,
-    });
+    }) as Promise<ClubAnalysisWithRelations[]>;
   }
 
   /**
@@ -186,27 +175,24 @@ export class ClubAnalyticsRepository {
       offset?: number;
     }
   ): Promise<ClubAnalysisWithRelations[]> {
-    return await db.clubAnalysis.findMany({
+    return db.clubAnalysis.findMany({
       where: {
         AND: [
           options?.guildId ? { guildId: options.guildId } : {},
           options?.userId ? { userId: options.userId } : {},
           {
             OR: [
-              { title: { contains: query, mode: 'insensitive' } },
-              { summary: { contains: query, mode: 'insensitive' } },
+              { title: { contains: query } },
+              { summary: { contains: query } },
             ],
           },
         ],
       },
-      include: {
-        images: true,
-        metrics: true,
-      },
+      include: clubAnalysisInclude,
       orderBy: { createdAt: 'desc' },
       take: options?.limit || 20,
       skip: options?.offset || 0,
-    });
+    }) as Promise<ClubAnalysisWithRelations[]>;
   }
 }
 

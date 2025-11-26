@@ -43,7 +43,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       setState({
         user: null,
         loading: false,
-        error: err instanceof Error ? err : new Error("Auth check failed"),
+        error: err instanceof Error ? err.message : "Auth check failed",
         lastRefresh: 0,
       });
     }
@@ -72,7 +72,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         error: null,
         lastRefresh: 0,
       });
-      // Redirect to home
+      // Redirect to landing page
       window.location.href = "/";
     }
   };
