@@ -6,6 +6,20 @@ const prismaDatabase = require("../lib/database");
 
 const router = express.Router();
 const DISCORD_GUILDS_URL = "https://discord.com/api/users/@me/guilds";
+const ADMIN_PERMISSION = 0x8n;
+const MANAGE_GUILD_PERMISSION = 0x20n;
+
+function hasAdminOrManagePermission(permissions) {
+  if (permissions === undefined || permissions === null) return false;
+  try {
+    const permsBigInt = BigInt(permissions);
+    const isAdmin = (permsBigInt & ADMIN_PERMISSION) === ADMIN_PERMISSION;
+    const canManage = (permsBigInt & MANAGE_GUILD_PERMISSION) === MANAGE_GUILD_PERMISSION;
+    return isAdmin || canManage;
+  } catch {
+    return false;
+  }
+}
 
 router.get("/guilds", requireAuth, async (req, res) => {
   try {
@@ -42,7 +56,7 @@ router.get("/guilds", requireAuth, async (req, res) => {
     const guilds = await response.json();
 
     const BOT_TOKEN = (process.env.DISCORD_BOT_TOKEN || "").trim();
-    let sanitized = [];
+    const botGuildIds = new Set();
 
     if (BOT_TOKEN) {
       try {
@@ -52,56 +66,28 @@ router.get("/guilds", requireAuth, async (req, res) => {
 
         if (botGuildsResponse.ok) {
           const botGuilds = await botGuildsResponse.json();
-          const botGuildIds = new Set(botGuilds.map((g) => g.id));
-
-          sanitized = Array.isArray(guilds)
-            ? guilds
-              .filter((guild) => {
-                const has = botGuildIds.has(guild.id);
-                return has;
-              })
-              .map((guild) => ({
-                id: guild.id,
-                name: guild.name,
-                icon: guild.icon,
-                permissions: guild.permissions,
-              }))
-            : [];
+          botGuilds.forEach((g) => botGuildIds.add(g.id));
         } else {
           console.warn("[discord/guilds] Failed to fetch bot guilds:", botGuildsResponse.status, await botGuildsResponse.text());
-          // Fallback to all guilds if bot fetch fails
-          sanitized = Array.isArray(guilds)
-            ? guilds.map((guild) => ({
-              id: guild.id,
-              name: guild.name,
-              icon: guild.icon,
-              permissions: guild.permissions,
-            }))
-            : [];
         }
       } catch (err) {
         console.error("[discord/guilds] Error filtering guilds:", err);
-        // Fallback
-        sanitized = Array.isArray(guilds)
-          ? guilds.map((guild) => ({
-            id: guild.id,
-            name: guild.name,
-            icon: guild.icon,
-            permissions: guild.permissions,
-          }))
-          : [];
       }
     } else {
-      console.warn("[discord/guilds] DISCORD_BOT_TOKEN not configured, returning all guilds");
-      sanitized = Array.isArray(guilds)
-        ? guilds.map((guild) => ({
+      console.warn("[discord/guilds] DISCORD_BOT_TOKEN not configured, unable to determine bot membership");
+    }
+
+    const sanitized = Array.isArray(guilds)
+      ? guilds
+        .filter((guild) => hasAdminOrManagePermission(guild?.permissions))
+        .map((guild) => ({
           id: guild.id,
           name: guild.name,
           icon: guild.icon,
           permissions: guild.permissions,
+          botInGuild: botGuildIds.has(guild.id),
         }))
-        : [];
-    }
+      : [];
 
     return res.json({ guilds: sanitized });
   } catch (err) {
@@ -111,4 +97,3 @@ router.get("/guilds", requireAuth, async (req, res) => {
 });
 
 module.exports = router;
-
