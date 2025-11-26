@@ -362,19 +362,10 @@ router.get("/callback", async (req, res) => {
       return res.redirect(`${FRONTEND_URL}/?error=session_error`);
     }
 
-    try {
-      await storeSession(user.id, {
-        token: tokens.access_token,
-        refreshToken: tokens.refresh_token,
-        guilds: enrichedGuilds,
-        role: userRole,
-      });
-    } catch (sessionErr) {
-      console.warn("[auth] failed to persist session data", {
-        userId: user.id,
-        error: sessionErr.message,
-      });
-    }
+    // NOTE: Session is already created above with prismaDatabase.createSession()
+    // The legacy storeSession() call was removed because it was passing user.id (Discord ID)
+    // instead of prismaUser.id (database UUID), causing foreign key constraint errors.
+    // All session data is now managed through the Prisma database layer.
 
     const signed = signSession({ user });
     setAuthCookie(res, signed);
