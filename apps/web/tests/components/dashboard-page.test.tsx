@@ -27,7 +27,7 @@ describe("GuildDashboardPage", () => {
 
     render(element as any);
 
-    expect(screen.getByText(/Unable to load guild/i)).toBeInTheDocument();
+    expect(screen.getByText(/Server error/i)).toBeInTheDocument();
     expect(screen.getByText(/Guild ID: 123/)).toBeInTheDocument();
   });
 });
