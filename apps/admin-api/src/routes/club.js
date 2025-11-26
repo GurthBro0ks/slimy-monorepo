@@ -13,6 +13,8 @@ const { rescanGuildClubMetrics } = require("../../lib/club-ingest");
 const logger = require("../../lib/logger");
 
 const router = express.Router({ mergeParams: true });
+const resolveGuildId = (req) =>
+  req.params?.guildId || req.query?.guildId || req.body?.guildId;
 
 /**
  * GET /api/guilds/:guildId/club/latest
@@ -21,7 +23,10 @@ const router = express.Router({ mergeParams: true });
  */
 router.get("/latest", requireAuth, requireGuildAccess, async (req, res, next) => {
   try {
-    const { guildId } = req.params;
+    const guildId = resolveGuildId(req);
+    if (!guildId) {
+      return res.status(400).json({ error: "guildId-required" });
+    }
 
     logger.info('Fetching latest club metrics', { guildId });
 
@@ -45,7 +50,7 @@ router.get("/latest", requireAuth, requireGuildAccess, async (req, res, next) =>
     });
   } catch (err) {
     logger.error('Failed to fetch latest club metrics', {
-      guildId: req.params.guildId,
+      guildId: resolveGuildId(req),
       error: err.message,
       stack: err.stack
     });
@@ -61,7 +66,10 @@ router.get("/latest", requireAuth, requireGuildAccess, async (req, res, next) =>
  */
 router.post("/rescan", requireAuth, requireGuildAccess, requireRole("admin"), async (req, res, next) => {
   try {
-    const { guildId } = req.params;
+    const guildId = resolveGuildId(req);
+    if (!guildId) {
+      return res.status(400).json({ error: "guildId-required" });
+    }
 
     logger.info('Triggering club metrics rescan', { guildId, user: req.user?.id });
 
@@ -75,7 +83,7 @@ router.post("/rescan", requireAuth, requireGuildAccess, requireRole("admin"), as
     });
   } catch (err) {
     logger.error('Failed to trigger club metrics rescan', {
-      guildId: req.params.guildId,
+      guildId: resolveGuildId(req),
       error: err.message,
       stack: err.stack
     });

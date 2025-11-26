@@ -63,6 +63,8 @@ router.use("/api", debugRoutes);
 router.use("/api/auth", authRoutes);
 router.use("/auth", authRoutes);
 router.use("/api/discord", discordRoutes);
+router.use("/api/club", clubRoutes);
+router.use("/api/snail", snailRoutes);
 router.use("/api/guilds/:guildId/snail", snailRoutes);
 router.use("/api/guilds/:guildId/club", clubRoutes);
 router.use("/api/guilds", guildRoutes);

@@ -33,6 +33,8 @@ const { snail, validateFileUploads } = require("../lib/validation/schemas");
 const { apiHandler } = require("../lib/errors");
 
 const router = express.Router({ mergeParams: true });
+const resolveGuildId = (req) =>
+  req.params?.guildId || req.query?.guildId || req.body?.guildId;
 
 // Upload configuration
 const MAX_FILES = 8;  // Maximum number of files per upload
@@ -58,7 +60,11 @@ fs.mkdirSync(CODES_ROOT, { recursive: true });
 const storage = multer.diskStorage({
   destination: (req, _file, cb) => {
     try {
-      const guildFolder = path.join(UPLOAD_ROOT, String(req.params.guildId));
+      const guildId = resolveGuildId(req);
+      if (!guildId) {
+        return cb(new Error("guildId-required"));
+      }
+      const guildFolder = path.join(UPLOAD_ROOT, String(guildId));
       fs.mkdirSync(guildFolder, { recursive: true });
       cb(null, guildFolder);
     } catch (err) {
@@ -139,12 +145,16 @@ router.post(
     if (!process.env.OPENAI_API_KEY) {
       return res.status(503).json({ error: "vision_unavailable" });
     }
+    const guildId = resolveGuildId(req);
+    if (!guildId) {
+      return res.status(400).json({ error: "guildId_required" });
+    }
+    const guildIdStr = String(guildId);
     const files = req.files || [];
     if (!files.length) {
       return res.status(400).json({ error: "missing_images" });
     }
     try {
-      const guildId = String(req.params.guildId);
       const userId = req.user.id;
       const prompt = String(req.body?.prompt || "").trim();
 
@@ -155,7 +165,7 @@ router.post(
           file.mimetype || mime.lookup(file.originalname) || "image/png";
         const dataUrl = `data:${mimeType};base64,${buffer.toString("base64")}`;
         const analysis = await analyzeSnailDataUrl(dataUrl, { prompt });
-        const publicUrl = `/api/uploads/files/snail/${guildId}/${path.basename(file.path)}`;
+        const publicUrl = `/api/uploads/files/snail/${guildIdStr}/${path.basename(file.path)}`;
         analyses.push({
           file: {
             name: file.originalname,
@@ -174,14 +184,14 @@ router.post(
       }
 
       const payload = {
-        guildId,
+        guildId: guildIdStr,
         userId,
         prompt,
         results: analyses,
         uploadedAt: new Date().toISOString(),
       };
 
-      const target = path.join(DATA_ROOT, guildId, userId, "latest.json");
+      const target = path.join(DATA_ROOT, guildIdStr, userId, "latest.json");
       await writeJson(target, payload);
 
       metrics.recordImages(files.length);
@@ -189,7 +199,7 @@ router.post(
       res.json({
         ok: true,
         saved: true,
-        guildId,
+        guildId: guildIdStr,
         userId,
         prompt,
         results: analyses,
@@ -219,9 +229,12 @@ router.post(
  */
 router.get("/stats", snail.stats, cacheGuildData(300, 600), async (req, res) => {
   try {
-    const guildId = String(req.params.guildId);
+    const guildId = resolveGuildId(req);
+    if (!guildId) {
+      return res.status(400).json({ error: "guildId_required" });
+    }
     const userId = req.user.id;
-    const target = path.join(DATA_ROOT, guildId, userId, "latest.json");
+    const target = path.join(DATA_ROOT, String(guildId), userId, "latest.json");
     const record = await readJson(target, null);
     if (!record) {
       return res.json({ ok: true, empty: true });
@@ -229,6 +242,53 @@ router.get("/stats", snail.stats, cacheGuildData(300, 600), async (req, res) => 
     return res.json({ ok: true, record });
   } catch (err) {
     console.error("[snail/stats] failed", err);
+    return res.status(500).json({ error: "server_error" });
+  }
+});
+
+/**
+ * GET /api/snail/:guildId/history
+ *
+ * Return the latest stored analyses for a guild (per user).
+ */
+router.get("/history", cacheGuildData(120, 300), async (req, res) => {
+  const guildId = resolveGuildId(req);
+  if (!guildId) {
+    return res.status(400).json({ error: "guildId_required" });
+  }
+  const guildIdStr = String(guildId);
+
+  try {
+    const guildDir = path.join(DATA_ROOT, guildIdStr);
+    const entries = await fsp.readdir(guildDir, { withFileTypes: true });
+    const history = [];
+
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue;
+      const record = await readJson(
+        path.join(guildDir, entry.name, "latest.json"),
+        null,
+      );
+      if (record) {
+        history.push({
+          userId: entry.name,
+          ...record,
+        });
+      }
+    }
+
+    history.sort((a, b) => {
+      const aTime = new Date(a.uploadedAt || a.savedAt || 0).getTime();
+      const bTime = new Date(b.uploadedAt || b.savedAt || 0).getTime();
+      return bTime - aTime;
+    });
+
+    return res.json({ ok: true, guildId: guildIdStr, history });
+  } catch (err) {
+    if (err.code === "ENOENT") {
+      return res.json({ ok: true, guildId: guildIdStr, history: [] });
+    }
+    console.error("[snail/history] failed", err);
     return res.status(500).json({ error: "server_error" });
   }
 });
@@ -304,13 +364,17 @@ router.post("/calc", requireCsrf, express.json(), snail.calc, (req, res) => {
  *   - Falls back to local cache if remote fails
  */
 router.get("/codes", snail.codes, cacheGuildData(1800, 3600), async (req, res) => {
-  const guildId = String(req.params.guildId);
+  const guildId = resolveGuildId(req);
+  if (!guildId) {
+    return res.status(400).json({ error: "guildId_required" });
+  }
+  const guildIdStr = String(guildId);
   const scope = ["active", "past7", "all"].includes(req.query.scope)
     ? req.query.scope
     : "active";
   try {
     const url = new URL(SNELP_CODES_URL);
-    url.searchParams.set("guildId", guildId);
+    url.searchParams.set("guildId", guildIdStr);
     url.searchParams.set("scope", scope);
     const response = await fetch(url.toString(), {
       headers: { Accept: "application/json" },
@@ -328,7 +392,7 @@ router.get("/codes", snail.codes, cacheGuildData(1800, 3600), async (req, res) =
   } catch (err) {
     console.warn("[snail/codes] falling back to local store:", err.message);
     const fallback = await readJson(
-      path.join(CODES_ROOT, `${guildId}.json`),
+      path.join(CODES_ROOT, `${guildIdStr}.json`),
       { codes: [] },
     );
     return res.json({ ok: true, source: "local", ...fallback });
