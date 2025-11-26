@@ -13,6 +13,7 @@ type Guild = {
   name: string;
   icon?: string | null;
   permissions?: string | number | null;
+  botInGuild?: boolean;
 };
 
 interface GuildListProps {
@@ -20,6 +21,7 @@ interface GuildListProps {
 }
 
 export function GuildList({ className }: GuildListProps) {
+  const discordClientId = process.env.NEXT_PUBLIC_DISCORD_CLIENT_ID;
   const [guilds, setGuilds] = useState<Guild[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -43,6 +45,16 @@ export function GuildList({ className }: GuildListProps) {
     } catch (err) {
       console.error(err);
     }
+  };
+
+  const handleInvite = (guild: Guild) => {
+    if (!discordClientId) {
+      setError("Discord client ID is not configured. Please set NEXT_PUBLIC_DISCORD_CLIENT_ID.");
+      return;
+    }
+
+    const url = `https://discord.com/api/oauth2/authorize?client_id=${discordClientId}&permissions=8&scope=bot&guild_id=${guild.id}`;
+    window.open(url, "_blank", "noopener,noreferrer");
   };
 
   useEffect(() => {
@@ -135,9 +147,15 @@ export function GuildList({ className }: GuildListProps) {
               </p>
             </CardContent>
             <CardFooter>
-              <Button className="w-full" onClick={() => handleConnect(guild)}>
-                Connect
-              </Button>
+              {guild.botInGuild ? (
+                <Button className="w-full" onClick={() => handleConnect(guild)}>
+                  Dashboard
+                </Button>
+              ) : (
+                <Button variant="secondary" className="w-full" onClick={() => handleInvite(guild)}>
+                  Setup
+                </Button>
+              )}
             </CardFooter>
           </Card>
         ))}
@@ -150,7 +168,7 @@ export function GuildList({ className }: GuildListProps) {
       <div className="space-y-1">
         <h2 className="text-xl font-semibold">Your Discord Servers</h2>
         <p className="text-sm text-muted-foreground">
-          Fetched directly from Discord using your stored session tokens.
+          Servers where you can administer settings. Invite the bot or jump straight to the dashboard.
         </p>
       </div>
       {renderContent()}
@@ -183,4 +201,3 @@ function GuildAvatar({ guild }: { guild: Guild }) {
     </div>
   );
 }
-
