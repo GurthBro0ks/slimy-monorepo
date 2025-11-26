@@ -24,7 +24,7 @@ export default function MarketingPage() {
         <CTA />
       </main>
       <div className="crt-overlay" aria-hidden="true" />
-      <ChatWidget open={chatOpen} onClose={() => setChatOpen(false)} />
+      <ChatWidget open={chatOpen} onClose={() => setChatOpen(false)} onOpen={() => setChatOpen(true)} />
     </>
   );
 }

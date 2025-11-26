@@ -27,13 +27,17 @@ async function requireGuildAccess(req, res, next) {
 
   try {
     // Query database to check if user has access to this guild
-    // First, find the user by their Discord ID to get the database UUID
     const prisma = database.getClient();
+
+    // Log the access attempt for debugging
+    console.log(`[requireGuildAccess] Checking access for user ${req.user.id} to guild ${guildId}`);
+
     const user = await prisma.user.findUnique({
       where: { discordId: req.user.id },
     });
 
     if (!user) {
+      console.warn(`[requireGuildAccess] User ${req.user.id} not found in DB`);
       return res.status(403).json({ error: "guild-access-denied" });
     }
 
@@ -51,6 +55,7 @@ async function requireGuildAccess(req, res, next) {
     });
 
     if (!userGuild) {
+      console.warn(`[requireGuildAccess] User ${user.id} is not a member of guild ${guildId}`);
       return res.status(403).json({ error: "guild-access-denied" });
     }
 
