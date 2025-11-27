@@ -33,6 +33,12 @@ const eslintConfig = defineConfig([
     },
   },
   {
+    files: ["lib/**/*.js"],
+    rules: {
+      "@typescript-eslint/no-require-imports": "off",
+    },
+  },
+  {
     files: ["tests/**/*", "**/*.test.{ts,tsx}", "test-auth.js"],
     rules: {
       "@typescript-eslint/no-unused-vars": "warn",
