@@ -121,10 +121,12 @@ router.post(
 
 router.get(
   "/:guildId",
-  requireGuildAccess,
+  requireAuth,
   async (req, res, next) => {
     try {
-      const guild = await guildService.getGuildById(req.params.guildId);
+      const { guildId } = req.params;
+      const guild = await guildService.getGuild(guildId);
+      if (!guild) return res.status(404).json({ error: 'Guild not found' });
       res.json(guild);
     } catch (err) {
       next(err);
