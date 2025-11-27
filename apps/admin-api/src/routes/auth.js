@@ -406,7 +406,7 @@ router.get("/me", async (req, res) => {
   try {
     if (prismaDatabase.client) {
       dbUser = await prismaDatabase.client.user.findUnique({
-        where: { id: req.user.id },
+        where: { discordId: req.user.id },
         include: { lastActiveGuild: true },
       });
     }
