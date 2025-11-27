@@ -1,16 +1,26 @@
-import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from "next/server";
 
-export function middleware(request: NextRequest) {
-  // SAFETY: Stop middleware from processing static files immediately
-  if (request.nextUrl.pathname.startsWith('/_next') ||
-    request.nextUrl.pathname.includes('.')) {
-    return NextResponse.next();
+export const config = {
+  matcher: [
+    "/((?!api/|_next/|_static/|[\\w-]+\\.\\w+).*)",
+  ],
+};
+
+export default async function middleware(req: NextRequest) {
+  const url = req.nextUrl;
+  const hostname = req.headers.get("host") || "";
+
+  // Adjust domains for production vs local
+  const currentHost =
+    process.env.NODE_ENV === "production"
+      ? hostname.replace(".slimyai.xyz", "")
+      : hostname.replace(".localhost:3000", "");
+
+  // Rewrite "chat" subdomain to /chat route
+  if (currentHost === "chat") {
+    url.pathname = `/chat${url.pathname}`;
+    return NextResponse.rewrite(url);
   }
 
   return NextResponse.next();
 }
-
-export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
-};
