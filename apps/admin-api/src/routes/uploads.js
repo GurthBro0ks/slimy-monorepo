@@ -101,7 +101,16 @@ async function buildVariants(filePath) {
     .jpeg({ quality: 75 })
     .toFile(thumb);
 
-  await fsp.unlink(filePath).catch(() => {});
+  // Clean up original file after processing variants
+  await fsp.unlink(filePath).catch((err) => {
+    // Log cleanup failures for debugging, but don't fail the upload
+    // File may have already been deleted or be inaccessible
+    console.warn("[uploads] Failed to delete original file after processing", {
+      filePath,
+      error: err.message,
+      code: err.code
+    });
+  });
   return { original, large, thumb };
 }
 
