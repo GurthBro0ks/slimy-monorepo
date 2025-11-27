@@ -73,6 +73,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         lastRefresh: 0,
       });
       // Redirect to landing page
+      // Force a hard refresh to clear client state
       window.location.href = "/";
     }
   };
