@@ -1,33 +1,23 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { analyzeClubScreenshot, analyzeClubScreenshots, validateImageUrl, type ClubAnalysisResult } from '@/lib/club/vision';
 import { clubDatabase } from '@/lib/club/database';
 import { requireAuth } from '@/lib/auth/server';
-import { AuthenticationError } from '@/lib/errors';
+import { ValidationError, errorResponse } from '@/lib/errors';
 
 export async function POST(request: NextRequest) {
   try {
-    // SECURITY: Require authentication
-    const user = await requireAuth(request);
-
+    // STEP 1: Parse request data
     const body = await request.json();
     const { imageUrls, guildId, options } = body;
 
+    // STEP 2: Validate ALL inputs BEFORE authentication
     if (!imageUrls || !Array.isArray(imageUrls) || imageUrls.length === 0) {
-      return NextResponse.json(
-        { error: 'At least one image URL is required' },
-        { status: 400 }
-      );
+      throw new ValidationError('At least one image URL is required');
     }
 
     if (!guildId) {
-      return NextResponse.json(
-        { error: 'Guild ID is required' },
-        { status: 400 }
-      );
+      throw new ValidationError('Guild ID is required');
     }
-
-    // SECURITY: Use authenticated user's ID, not client-provided userId
-    const userId = user.id;
 
     // Validate all image URLs
     const validationPromises = imageUrls.map(url => validateImageUrl(url));
@@ -37,13 +27,16 @@ export async function POST(request: NextRequest) {
     const invalidUrls = imageUrls.filter((_, index) => !validationResults[index]);
 
     if (validUrls.length === 0) {
-      return NextResponse.json(
-        { error: 'No valid image URLs provided' },
-        { status: 400 }
-      );
+      throw new ValidationError('No valid image URLs provided');
     }
 
-    // Analyze screenshots
+    // STEP 3: Authenticate user (throws AuthenticationError if invalid)
+    const user = await requireAuth();
+
+    // SECURITY: Use authenticated user's ID, not client-provided userId
+    const userId = user.id;
+
+    // STEP 4: Execute business logic - Analyze screenshots
     let results: ClubAnalysisResult[];
     try {
       if (validUrls.length === 1) {
@@ -54,10 +47,7 @@ export async function POST(request: NextRequest) {
       }
     } catch (error) {
       console.error('Analysis error:', error);
-      return NextResponse.json(
-        { error: 'Failed to analyze images with AI' },
-        { status: 500 }
-      );
+      throw error; // Re-throw to be handled by centralized error handler
     }
 
     // Store results in database
@@ -72,7 +62,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    return NextResponse.json({
+    return Response.json({
       success: true,
       results: storedResults,
       summary: {
@@ -87,46 +77,36 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error) {
-    // Handle authentication errors specifically
-    if (error instanceof AuthenticationError) {
-      return NextResponse.json(
-        { error: 'Unauthorized', code: 'UNAUTHORIZED' },
-        { status: 401 }
-      );
-    }
-
-    console.error('Error in club analysis:', error);
-    return NextResponse.json(
-      { error: 'Internal server error during analysis' },
-      { status: 500 }
-    );
+    // Handle all errors through centralized error handler
+    const { body, status, headers } = errorResponse(error);
+    return Response.json(body, { status, headers });
   }
 }
 
 // GET endpoint to retrieve stored analysis results
 export async function GET(request: NextRequest) {
   try {
-    // SECURITY: Require authentication
-    await requireAuth(request);
-
+    // STEP 1: Parse query parameters
     const { searchParams } = new URL(request.url);
     const guildId = searchParams.get('guildId');
     const limit = parseInt(searchParams.get('limit') || '10');
     const offset = parseInt(searchParams.get('offset') || '0');
 
+    // STEP 2: Validate inputs BEFORE authentication
     if (!guildId) {
-      return NextResponse.json(
-        { error: 'Guild ID is required' },
-        { status: 400 }
-      );
+      throw new ValidationError('Guild ID is required');
     }
 
+    // STEP 3: Authenticate user (throws AuthenticationError if invalid)
+    await requireAuth();
+
+    // STEP 4: Execute business logic
     // TODO: Validate that authenticated user has access to this guild
 
     // Retrieve results from database
     const results = await clubDatabase.getAnalysesByGuild(guildId, limit, offset);
 
-    return NextResponse.json({
+    return Response.json({
       success: true,
       results,
       pagination: {
@@ -138,18 +118,8 @@ export async function GET(request: NextRequest) {
     });
 
   } catch (error) {
-    // Handle authentication errors specifically
-    if (error instanceof AuthenticationError) {
-      return NextResponse.json(
-        { error: 'Unauthorized', code: 'UNAUTHORIZED' },
-        { status: 401 }
-      );
-    }
-
-    console.error('Error retrieving analysis results:', error);
-    return NextResponse.json(
-      { error: 'Failed to retrieve analysis results' },
-      { status: 500 }
-    );
+    // Handle all errors through centralized error handler
+    const { body, status, headers } = errorResponse(error);
+    return Response.json(body, { status, headers });
   }
 }

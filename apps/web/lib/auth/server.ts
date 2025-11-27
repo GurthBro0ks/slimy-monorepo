@@ -1,56 +1,83 @@
-import { NextRequest } from "next/server";
+import { cookies } from "next/headers";
 import { AuthenticationError } from "@/lib/errors";
+import { apiClient } from "@/lib/api-client";
+import { getUserRole } from "@/slimy.config";
 import type { AuthUser } from "./types";
-import type { Role } from "@/slimy.config";
+import { AUTH_COOKIE_NAME, AUTH_ERRORS } from "./constants";
+import { getRequestUser, setRequestUser } from "./request-context";
 
 export interface ServerAuthUser extends AuthUser {
   roles?: string[];
   email?: string;
 }
 
-const DEFAULT_ROLE: Role = "user";
-
-function normalizeRole(value: string | null): Role {
-  if (!value) return DEFAULT_ROLE;
-  const lowered = value.toLowerCase() as Role;
-  return ["admin", "club", "user"].includes(lowered) ? lowered : DEFAULT_ROLE;
-}
-
-function parseRoles(value: string | null, fallback: Role): string[] {
-  if (!value) {
-    return [fallback];
-  }
-  const roles = value
-    .split(",")
-    .map(role => role.trim())
-    .filter(Boolean);
-
-  if (!roles.includes(fallback)) {
-    roles.push(fallback);
-  }
-
-  return roles;
+interface AdminApiMeResponse {
+  user: {
+    id: string;
+    name: string;
+    email?: string;
+  };
+  guilds?: Array<{
+    id: string;
+    roles: string[];
+  }>;
 }
 
 /**
- * Minimal server-side auth helper that trusts upstream headers.
- * Throws when the caller is unauthenticated.
+ * Validates user session via cookie-based authentication.
+ * Caches result per request to avoid multiple Admin API calls.
+ *
+ * @throws {AuthenticationError} If session is invalid or missing
+ * @returns {Promise<ServerAuthUser>} Validated user information
  */
-export async function requireAuth(request: NextRequest): Promise<ServerAuthUser> {
-  const userId = request.headers.get("x-user-id");
-
-  if (!userId) {
-    throw new AuthenticationError("User not authenticated");
+export async function requireAuth(): Promise<ServerAuthUser> {
+  // Check request-scoped cache first
+  const cachedUser = getRequestUser();
+  if (cachedUser) {
+    return cachedUser;
   }
 
-  const primaryRole = normalizeRole(request.headers.get("x-user-role"));
-  const roles = parseRoles(request.headers.get("x-user-roles"), primaryRole);
+  // Get cookies from Next.js headers
+  const cookieStore = await cookies();
+  const sessionCookie = cookieStore.get(AUTH_COOKIE_NAME);
 
-  return {
-    id: userId,
-    name: request.headers.get("x-username") || userId,
-    role: primaryRole,
-    roles,
-    guilds: [],
+  if (!sessionCookie) {
+    throw new AuthenticationError(AUTH_ERRORS.NO_COOKIE);
+  }
+
+  // Forward all cookies to Admin API for validation
+  const cookieHeader = cookieStore.toString();
+
+  const result = await apiClient.get<AdminApiMeResponse>("/api/auth/me", {
+    useCache: false,
+    headers: {
+      Cookie: cookieHeader,
+    },
+  });
+
+  if (!result.ok) {
+    throw new AuthenticationError(
+      AUTH_ERRORS.INVALID_SESSION,
+      { code: result.code, status: result.status }
+    );
+  }
+
+  // Extract user data and determine role
+  const { user, guilds } = result.data;
+  const allRoles = guilds?.flatMap(g => g.roles) || [];
+  const role = getUserRole(allRoles);
+
+  const serverUser: ServerAuthUser = {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    role,
+    roles: allRoles,
+    guilds: guilds || [],
   };
+
+  // Cache for this request
+  setRequestUser(serverUser);
+
+  return serverUser;
 }

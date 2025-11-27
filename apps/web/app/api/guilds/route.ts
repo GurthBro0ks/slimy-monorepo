@@ -1,7 +1,7 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { apiClient } from "@/lib/api-client";
 import { requireAuth } from "@/lib/auth/server";
-import { AuthenticationError } from "@/lib/errors";
+import { errorResponse } from "@/lib/errors";
 
 export const dynamic = "force-dynamic"; // no-store
 
@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic"; // no-store
  */
 export async function GET(request: NextRequest) {
   try {
-    await requireAuth(request);
+    await requireAuth();
 
     const { searchParams } = new URL(request.url);
     const limit = searchParams.get("limit") || "50";
@@ -32,22 +32,13 @@ export async function GET(request: NextRequest) {
     });
 
     if (!result.ok) {
-      return NextResponse.json(result, { status: result.status || 503 });
+      return Response.json(result, { status: result.status || 503 });
     }
 
-    return NextResponse.json(result.data);
+    return Response.json(result.data);
   } catch (error) {
-    if (error instanceof AuthenticationError) {
-      return NextResponse.json(
-        { error: "Unauthorized", code: "UNAUTHORIZED" },
-        { status: 401 }
-      );
-    }
-    console.error("Failed to fetch guilds:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch guilds", code: "FETCH_ERROR" },
-      { status: 500 }
-    );
+    const { body, status, headers } = errorResponse(error);
+    return Response.json(body, { status, headers });
   }
 }
 
@@ -57,44 +48,33 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
-    await requireAuth(request);
-
     const body = await request.json();
     const { discordId, name, settings } = body;
 
-    // Basic validation
+    // Basic validation - BEFORE authentication
     if (!discordId || !name) {
-      return NextResponse.json(
-        {
-          error: "Validation error",
-          code: "VALIDATION_ERROR",
-          message: "discordId and name are required"
-        },
-        { status: 400 }
+      const { body: errBody, status, headers } = errorResponse(
+        new Error("discordId and name are required")
       );
+      return Response.json(errBody, { status: 400, headers });
     }
 
     if (typeof discordId !== "string" || typeof name !== "string") {
-      return NextResponse.json(
-        {
-          error: "Validation error",
-          code: "VALIDATION_ERROR",
-          message: "discordId and name must be strings"
-        },
-        { status: 400 }
+      const { body: errBody, status, headers } = errorResponse(
+        new Error("discordId and name must be strings")
       );
+      return Response.json(errBody, { status: 400, headers });
     }
 
     if (name.length < 2 || name.length > 100) {
-      return NextResponse.json(
-        {
-          error: "Validation error",
-          code: "VALIDATION_ERROR",
-          message: "Guild name must be between 2 and 100 characters"
-        },
-        { status: 400 }
+      const { body: errBody, status, headers } = errorResponse(
+        new Error("Guild name must be between 2 and 100 characters")
       );
+      return Response.json(errBody, { status: 400, headers });
     }
+
+    // THEN authenticate
+    await requireAuth();
 
     const result = await apiClient.post("/api/guilds", {
       discordId,
@@ -103,21 +83,12 @@ export async function POST(request: NextRequest) {
     });
 
     if (!result.ok) {
-      return NextResponse.json(result, { status: result.status || 500 });
+      return Response.json(result, { status: result.status || 500 });
     }
 
-    return NextResponse.json(result.data, { status: 201 });
+    return Response.json(result.data, { status: 201 });
   } catch (error) {
-    if (error instanceof AuthenticationError) {
-      return NextResponse.json(
-        { error: "Unauthorized", code: "UNAUTHORIZED" },
-        { status: 401 }
-      );
-    }
-    console.error("Failed to create guild:", error);
-    return NextResponse.json(
-      { error: "Failed to create guild", code: "CREATE_ERROR" },
-      { status: 500 }
-    );
+    const { body, status, headers } = errorResponse(error);
+    return Response.json(body, { status, headers });
   }
 }
