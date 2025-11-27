@@ -339,27 +339,27 @@ router.get("/callback", async (req, res) => {
         return res.redirect(`${FRONTEND_URL}/?error=session_error`);
       }
 
-    const prismaUser = await prismaDatabase.findOrCreateUser(me, {
-      accessToken,
-      refreshToken,
-      expiresAt: tokenExpiresAt,
-    });
-    console.log("User Upserted: ", prismaUser.id);
-    await prismaDatabase.deleteUserSessions(prismaUser.id);
-    const sessionToken = crypto.randomBytes(32).toString("hex");
-    const expiresMs = Number(tokens.expires_in || 3600) * 1000;
-    const expiresAt = new Date(Date.now() + expiresMs);
-    console.log("Creating Session...");
-    await prismaDatabase.createSession(prismaUser.id, sessionToken, expiresAt);
-    res.cookie(SESSION_COOKIE_NAME, sessionToken, {
-      httpOnly: true,
-      secure: Boolean(
-        config.jwt.cookieSecure ?? process.env.NODE_ENV === "production",
-      ),
-      sameSite: "lax",
-      domain: SESSION_COOKIE_DOMAIN_OVERRIDE,
-      maxAge: expiresMs,
-      path: "/",
+      const prismaUser = await prismaDatabase.findOrCreateUser(me, {
+        accessToken,
+        refreshToken,
+        expiresAt: tokenExpiresAt,
+      });
+      console.log("User Upserted: ", prismaUser.id);
+      await prismaDatabase.deleteUserSessions(prismaUser.id);
+      const sessionToken = crypto.randomBytes(32).toString("hex");
+      const expiresMs = Number(tokens.expires_in || 3600) * 1000;
+      const expiresAt = new Date(Date.now() + expiresMs);
+      console.log("Creating Session...");
+      await prismaDatabase.createSession(prismaUser.id, sessionToken, expiresAt);
+      res.cookie(SESSION_COOKIE_NAME, sessionToken, {
+        httpOnly: true,
+        secure: Boolean(
+          config.jwt.cookieSecure ?? process.env.NODE_ENV === "production",
+        ),
+        sameSite: "lax",
+        domain: SESSION_COOKIE_DOMAIN_OVERRIDE,
+        maxAge: expiresMs,
+        path: "/",
       });
     } catch (dbErr) {
       console.error("[auth/callback] failed to persist session", {
@@ -392,7 +392,7 @@ router.get("/callback", async (req, res) => {
   }
 });
 
-router.get("/me", (req, res) => {
+router.get("/me", async (req, res) => {
   console.info("[admin-api] /api/auth/me called", {
     hasUser: Boolean(req.user),
     userId: req.user?.id || null,
@@ -400,13 +400,32 @@ router.get("/me", (req, res) => {
   if (!req.user) {
     return res.status(401).json({ error: "unauthorized" });
   }
+
+  // Fetch fresh user data from DB to get lastActiveGuild
+  let dbUser = null;
+  try {
+    if (prismaDatabase.client) {
+      dbUser = await prismaDatabase.client.user.findUnique({
+        where: { id: req.user.id },
+        include: { lastActiveGuild: true },
+      });
+    }
+  } catch (err) {
+    console.warn("[auth] Failed to fetch fresh user data:", err);
+  }
+
   const session = getSession(req.user.id);
-  return res.json({
+
+  // Merge req.user (from token/session) with fresh DB data
+  const responseUser = {
     ...req.user,
-    lastActiveGuildId: req.user.lastActiveGuildId,
+    ...(dbUser || {}),
+    // Ensure these exist even if DB fetch fails
     guilds: req.user.guilds || [],
     sessionGuilds: session?.guilds || [],
-  });
+  };
+
+  return res.json(responseUser);
 });
 
 router.post("/logout", (req, res) => {

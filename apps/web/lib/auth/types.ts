@@ -13,6 +13,11 @@ export interface Guild {
 export interface AuthUser extends User {
   role: Role;
   guilds?: Guild[];
+  lastActiveGuild?: {
+    id: string;
+    name: string;
+    icon: string | null;
+  };
 }
 
 export interface AuthState {
