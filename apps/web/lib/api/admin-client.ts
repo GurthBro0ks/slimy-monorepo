@@ -44,10 +44,10 @@ export class AdminApiClient {
       this.baseUrl = baseUrl;
     } else if (typeof window === 'undefined') {
       // Server-side: use internal backend URL
-      this.baseUrl = process.env.ADMIN_API_INTERNAL_URL || 'http://localhost:3080';
+      this.baseUrl = process.env.ADMIN_API_INTERNAL_URL || process.env.ADMIN_API_URL || 'http://localhost:3080';
     } else {
       // Client-side: use relative URLs (empty string)
-      this.baseUrl = process.env.NEXT_PUBLIC_ADMIN_API_BASE || '';
+      this.baseUrl = process.env.NEXT_PUBLIC_ADMIN_API_BASE || '/api';
     }
 
     if (!this.baseUrl && typeof window !== 'undefined') {
@@ -83,7 +83,7 @@ export class AdminApiClient {
    */
   private getDefaultHeaders(customHeaders?: HeadersInit): HeadersInit {
     const headers = new Headers(customHeaders);
-    
+
     // Set Content-Type if not already set and body exists
     if (!headers.has('Content-Type') && !headers.has('content-type')) {
       headers.set('Content-Type', 'application/json');
@@ -109,7 +109,7 @@ export class AdminApiClient {
           status: 408,
         };
       }
-      
+
       return {
         ok: false,
         code: 'NETWORK_ERROR',
@@ -157,7 +157,7 @@ export class AdminApiClient {
 
     // Add timeout support
     const controller = new AbortController();
-    const timeoutId = timeout > 0 
+    const timeoutId = timeout > 0
       ? setTimeout(() => controller.abort(), timeout)
       : null;
 
@@ -367,7 +367,7 @@ export class AdminApiClient {
     } = config;
 
     const controller = new AbortController();
-    const timeoutId = timeout > 0 
+    const timeoutId = timeout > 0
       ? setTimeout(() => controller.abort(), timeout)
       : null;
 

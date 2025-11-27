@@ -148,6 +148,16 @@ class GuildService {
   }
 
   /**
+   * Get guild (raw)
+   */
+  async getGuild(guildId) {
+    return database.getClient().guild.findUnique({
+      where: { id: guildId },
+      include: { owner: true }
+    });
+  }
+
+  /**
    * Get guild by ID
    */
   async getGuildById(id) {
