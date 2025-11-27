@@ -51,6 +51,7 @@ services:
       - /opt/slimy/data/admin-api/uploads:/var/lib/slimy/uploads
       - /opt/slimy/backups/admin-api:/var/backups/slimy
       - /opt/slimy/logs/admin-api:/app/logs
+      - /opt/slimy/secrets/google-service-account.json:/app/google-service-account.json:ro
     healthcheck:
       test:
         - CMD-SHELL
