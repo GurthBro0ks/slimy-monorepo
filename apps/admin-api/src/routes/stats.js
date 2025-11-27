@@ -37,6 +37,20 @@ if (!SHEET_ID) {
     return { ok: true, selected, pinned: PINNED, stats };
   }, { routeName: "stats/summary" }));
 
+  // Handle root /api/stats with optional action param
+  router.get("/", (req, res) => {
+    const action = req.query.action;
+    if (action === "system-metrics" || !action) {
+      return res.json({
+        cpu: 10 + Math.random() * 5,
+        memory: 512 + Math.random() * 64,
+        uptime: process.uptime(),
+        load: [0.5, 0.3, 0.1]
+      });
+    }
+    res.status(400).json({ error: "unknown_action" });
+  });
+
   router.get("/system-metrics", (_req, res) => {
     // Mock system metrics for now
     res.json({
