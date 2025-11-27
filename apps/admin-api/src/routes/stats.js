@@ -37,5 +37,36 @@ if (!SHEET_ID) {
     return { ok: true, selected, pinned: PINNED, stats };
   }, { routeName: "stats/summary" }));
 
+  router.get("/system-metrics", (_req, res) => {
+    // Mock system metrics for now
+    res.json({
+      cpu: 10 + Math.random() * 5, // Mock CPU usage between 10-15%
+      memory: 512 + Math.random() * 64, // Mock memory usage
+      uptime: process.uptime(),
+      load: [0.5, 0.3, 0.1]
+    });
+  });
+
+  router.get("/events/stream", (req, res) => {
+    // Basic SSE setup
+    res.writeHead(200, {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+      "Connection": "keep-alive"
+    });
+
+    // Send initial ping
+    res.write("event: ping\ndata: \"pong\"\n\n");
+
+    // Keep connection open (optional: add heartbeat)
+    const interval = setInterval(() => {
+      res.write("event: heartbeat\ndata: \"tick\"\n\n");
+    }, 30000);
+
+    req.on("close", () => {
+      clearInterval(interval);
+    });
+  });
+
   module.exports = router;
 }
