@@ -78,7 +78,7 @@ class APICache {
 
           res.set('X-Cache-Status', 'MISS');
           res.set('Cache-Control', 'private, max-age=0'); // Don't cache at browser level for fresh responses
-          return originalJson.call(this, data);
+          return originalJson.call(res, data);
         }.bind(this);
 
         next();
