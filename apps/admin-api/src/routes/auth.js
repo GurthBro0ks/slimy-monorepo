@@ -32,8 +32,8 @@ const FRONTEND_URL =
   process.env.CLIENT_URL ||
   process.env.ADMIN_APP_URL ||
   "http://localhost:3000";
-const COOKIE_DOMAIN =
-  config.jwt.cookieDomain ||
+config.jwt.cookieDomain ||
+  process.env.SESSION_COOKIE_DOMAIN ||
   process.env.COOKIE_DOMAIN ||
   process.env.ADMIN_COOKIE_DOMAIN ||
   (process.env.NODE_ENV === "production" ? ".slimyai.xyz" : undefined);
@@ -48,7 +48,7 @@ const scopeSet = new Set(
     .concat(["identify", "email"]),
 );
 const SCOPES = Array.from(scopeSet).join(" ");
-const SESSION_COOKIE_NAME = process.env.SESSION_COOKIE_NAME || "slimy_session";
+const SESSION_COOKIE_NAME = process.env.SESSION_COOKIE_NAME || "slimy_admin";
 
 const oauthStateCookieOptions = {
   httpOnly: true,
