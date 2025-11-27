@@ -36,11 +36,14 @@ model User {
   screenshotAnalyses ScreenshotAnalysis[]
   screenshotComparisons ScreenshotComparison[]
   auditLogs     AuditLog[]
+  lastActiveGuildId String? @map("last_active_guild_id")
+  lastActiveGuild   Guild?  @relation("LastActiveGuild", fields: [lastActiveGuildId], references: [id], onDelete: SetNull)
 
   // Performance indexes
   @@index([createdAt])
   @@index([updatedAt])
   @@index([discordId, createdAt])
+  @@index([lastActiveGuildId])
 
   @@map("users")
 }
@@ -81,6 +84,7 @@ model Guild {
   stats         Stat[]
   chatMessages  ChatMessage[]
   clubAnalyses  ClubAnalysis[]
+  activeUsers   User[]        @relation("LastActiveGuild")
 
   // Performance indexes
   @@index([ownerId])

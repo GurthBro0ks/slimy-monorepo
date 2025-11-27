@@ -396,6 +396,7 @@ router.get("/me", (req, res) => {
   const session = getSession(req.user.id);
   return res.json({
     ...req.user,
+    lastActiveGuildId: req.user.lastActiveGuildId,
     guilds: req.user.guilds || [],
     sessionGuilds: session?.guilds || [],
   });
