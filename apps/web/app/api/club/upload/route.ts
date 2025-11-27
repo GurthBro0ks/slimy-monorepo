@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { writeFile, mkdir } from 'fs/promises';
-import { join, basename } from 'path';
+import { join } from 'path';
 import { analyzeClubScreenshots } from '@/lib/club/vision';
 import { requireAuth } from '@/lib/auth/server';
-import { AuthenticationError } from '@/lib/errors';
+import { ValidationError, errorResponse } from '@/lib/errors';
 
 // Maximum file size: 10MB per file
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
@@ -11,50 +11,53 @@ const MAX_FILES = 20;
 
 export async function POST(request: NextRequest) {
   try {
-    // SECURITY: Require authentication to prevent anonymous uploads
-    await requireAuth(request);
-
+    // STEP 1: Parse request data
     const formData = await request.formData();
     const screenshots = formData.getAll('screenshots') as File[];
     const guildId = formData.get('guildId') as string;
     const analyze = formData.get('analyze') === 'true';
 
+    // STEP 2: Validate inputs BEFORE authentication
     if (screenshots.length === 0) {
-      return NextResponse.json(
-        { error: 'No screenshots provided' },
-        { status: 400 }
-      );
+      throw new ValidationError('No screenshots provided');
     }
 
     if (!guildId) {
-      return NextResponse.json(
-        { error: 'Guild ID is required' },
-        { status: 400 }
-      );
+      throw new ValidationError('Guild ID is required');
     }
 
     // SECURITY: Sanitize guildId to prevent path traversal attacks
     // Only allow alphanumeric characters, hyphens, and underscores
     const sanitizedGuildId = guildId.replace(/[^a-zA-Z0-9_-]/g, '');
     if (!sanitizedGuildId || sanitizedGuildId !== guildId) {
-      return NextResponse.json(
-        { error: 'Invalid guild ID format' },
-        { status: 400 }
-      );
+      throw new ValidationError('Invalid guild ID format');
     }
-
-    // SECURITY: Validate guild access
-    // TODO: Add guild membership check via apiClient
-    // For now, we trust that authenticated users should have some access control
 
     // SECURITY: Limit number of files
     if (screenshots.length > MAX_FILES) {
-      return NextResponse.json(
-        { error: `Maximum ${MAX_FILES} files allowed` },
-        { status: 400 }
-      );
+      throw new ValidationError(`Maximum ${MAX_FILES} files allowed`);
     }
 
+    // Validate individual files
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    for (const file of screenshots) {
+      if (file.size > MAX_FILE_SIZE) {
+        throw new ValidationError(
+          `File ${file.name} exceeds maximum size of ${MAX_FILE_SIZE / 1024 / 1024}MB`
+        );
+      }
+
+      if (!allowedTypes.includes(file.type)) {
+        throw new ValidationError(
+          `File ${file.name} has invalid type. Only images allowed.`
+        );
+      }
+    }
+
+    // STEP 3: Authenticate user (throws AuthenticationError if invalid)
+    await requireAuth();
+
+    // STEP 4: Execute business logic
     // Create guild-specific upload directory
     const uploadDir = join(process.cwd(), 'public', 'uploads', 'club', sanitizedGuildId);
     await mkdir(uploadDir, { recursive: true });
@@ -64,23 +67,6 @@ export async function POST(request: NextRequest) {
     const imageUrls = [];
 
     for (const file of screenshots) {
-      // SECURITY: Validate file size
-      if (file.size > MAX_FILE_SIZE) {
-        return NextResponse.json(
-          { error: `File ${file.name} exceeds maximum size of ${MAX_FILE_SIZE / 1024 / 1024}MB` },
-          { status: 400 }
-        );
-      }
-
-      // SECURITY: Validate file type (images only)
-      const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
-      if (!allowedTypes.includes(file.type)) {
-        return NextResponse.json(
-          { error: `File ${file.name} has invalid type. Only images allowed.` },
-          { status: 400 }
-        );
-      }
-
       // Generate unique filename
       const timestamp = Date.now();
       const randomId = Math.random().toString(36).substr(2, 9);
@@ -133,18 +119,8 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(response);
   } catch (error) {
-    // Handle authentication errors specifically
-    if (error instanceof AuthenticationError) {
-      return NextResponse.json(
-        { error: 'Unauthorized', code: 'UNAUTHORIZED' },
-        { status: 401 }
-      );
-    }
-
-    console.error('Error uploading screenshots:', error);
-    return NextResponse.json(
-      { error: 'Failed to upload screenshots' },
-      { status: 500 }
-    );
+    // Handle all errors through centralized error handler
+    const { body, status, headers } = errorResponse(error);
+    return Response.json(body, { status, headers });
   }
 }

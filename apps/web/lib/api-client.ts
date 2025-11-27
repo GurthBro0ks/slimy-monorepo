@@ -66,12 +66,22 @@ export class ApiClient {
     this.baseUrl = baseUrl || process.env.NEXT_PUBLIC_ADMIN_API_BASE || '';
     this.defaultTimeout = 10000; // 10 seconds
 
-    this.retryConfig = {
-      maxRetries: 3,
-      baseDelay: 1000, // 1 second
-      maxDelay: 30000, // 30 seconds
-      backoffMultiplier: 2,
-    };
+    // Disable retries in test environment for fast failures
+    if (process.env.NODE_ENV === 'test') {
+      this.retryConfig = {
+        maxRetries: 0,
+        baseDelay: 0,
+        maxDelay: 0,
+        backoffMultiplier: 1,
+      };
+    } else {
+      this.retryConfig = {
+        maxRetries: 3,
+        baseDelay: 1000, // 1 second
+        maxDelay: 30000, // 30 seconds
+        backoffMultiplier: 2,
+      };
+    }
 
     // Add default request interceptor for JSON content-type
     this.addRequestInterceptor((config) => ({

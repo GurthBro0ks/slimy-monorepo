@@ -1,4 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { mockAuthUser } from '../../utils/auth-mock';
+
+// Mock authentication
+vi.mock('@/lib/auth/server', () => ({
+  requireAuth: vi.fn().mockResolvedValue(mockAuthUser),
+}));
 
 // Mock the file system operations
 vi.mock('fs/promises', () => {
@@ -74,7 +80,8 @@ describe('/api/club/upload', () => {
     const response = await POST(mockRequest);
     const data = await response.json();
 
-    expect(data.error).toBe('No screenshots provided');
+    expect(data.code).toBe('VALIDATION_ERROR');
+    expect(data.message).toBe('No screenshots provided');
     expect(response.status).toBe(400);
   });
 
@@ -92,7 +99,8 @@ describe('/api/club/upload', () => {
     const response = await POST(mockRequest);
     const data = await response.json();
 
-    expect(data.error).toBe('Guild ID is required');
+    expect(data.code).toBe('VALIDATION_ERROR');
+    expect(data.message).toBe('Guild ID is required');
     expect(response.status).toBe(400);
   });
 
@@ -177,8 +185,8 @@ describe('/api/club/upload', () => {
     const response = await POST(mockRequest);
     const data = await response.json();
 
-    expect(data.error).toBe('Failed to upload screenshots');
     expect(response.status).toBe(500);
+    expect(data.code).toBe('INTERNAL_ERROR');
   });
 
   it('should continue upload even if analysis fails', async () => {
