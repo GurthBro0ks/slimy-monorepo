@@ -32,7 +32,8 @@ const FRONTEND_URL =
   process.env.CLIENT_URL ||
   process.env.ADMIN_APP_URL ||
   "http://localhost:3000";
-config.jwt.cookieDomain ||
+const COOKIE_DOMAIN =
+  config.jwt.cookieDomain ||
   process.env.SESSION_COOKIE_DOMAIN ||
   process.env.COOKIE_DOMAIN ||
   process.env.ADMIN_COOKIE_DOMAIN ||
@@ -49,6 +50,8 @@ const scopeSet = new Set(
 );
 const SCOPES = Array.from(scopeSet).join(" ");
 const SESSION_COOKIE_NAME = process.env.SESSION_COOKIE_NAME || "slimy_admin";
+const SESSION_COOKIE_DOMAIN_OVERRIDE =
+  process.env.NODE_ENV === "production" ? ".slimyai.xyz" : COOKIE_DOMAIN;
 
 const oauthStateCookieOptions = {
   httpOnly: true,
@@ -135,6 +138,7 @@ router.get("/login", (_req, res) => {
 
 router.get("/callback", async (req, res) => {
   try {
+    console.log("Callback started");
     const { code, state } = req.query;
     console.info("[admin-api] /api/auth/callback start", {
       hasCode: Boolean(code),
@@ -335,25 +339,27 @@ router.get("/callback", async (req, res) => {
         return res.redirect(`${FRONTEND_URL}/?error=session_error`);
       }
 
-      const prismaUser = await prismaDatabase.findOrCreateUser(me, {
-        accessToken,
-        refreshToken,
-        expiresAt: tokenExpiresAt,
-      });
-      await prismaDatabase.deleteUserSessions(prismaUser.id);
-      const sessionToken = crypto.randomBytes(32).toString("hex");
-      const expiresMs = Number(tokens.expires_in || 3600) * 1000;
-      const expiresAt = new Date(Date.now() + expiresMs);
-      await prismaDatabase.createSession(prismaUser.id, sessionToken, expiresAt);
-      res.cookie(SESSION_COOKIE_NAME, sessionToken, {
-        httpOnly: true,
-        secure: Boolean(
-          config.jwt.cookieSecure ?? process.env.NODE_ENV === "production",
-        ),
-        sameSite: "lax",
-        domain: COOKIE_DOMAIN,
-        maxAge: expiresMs,
-        path: "/",
+    const prismaUser = await prismaDatabase.findOrCreateUser(me, {
+      accessToken,
+      refreshToken,
+      expiresAt: tokenExpiresAt,
+    });
+    console.log("User Upserted: ", prismaUser.id);
+    await prismaDatabase.deleteUserSessions(prismaUser.id);
+    const sessionToken = crypto.randomBytes(32).toString("hex");
+    const expiresMs = Number(tokens.expires_in || 3600) * 1000;
+    const expiresAt = new Date(Date.now() + expiresMs);
+    console.log("Creating Session...");
+    await prismaDatabase.createSession(prismaUser.id, sessionToken, expiresAt);
+    res.cookie(SESSION_COOKIE_NAME, sessionToken, {
+      httpOnly: true,
+      secure: Boolean(
+        config.jwt.cookieSecure ?? process.env.NODE_ENV === "production",
+      ),
+      sameSite: "lax",
+      domain: SESSION_COOKIE_DOMAIN_OVERRIDE,
+      maxAge: expiresMs,
+      path: "/",
       });
     } catch (dbErr) {
       console.error("[auth/callback] failed to persist session", {
@@ -380,6 +386,7 @@ router.get("/callback", async (req, res) => {
     const redirectUrl = new URL("/dashboard", FRONTEND_URL);
     return res.redirect(redirectUrl.toString());
   } catch (err) {
+    console.error("Callback Error Full: ", err);
     console.error("[auth/callback] failed:", err);
     return res.redirect("/?error=server_error");
   }
