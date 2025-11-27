@@ -44,7 +44,7 @@ export class AdminApiClient {
       this.baseUrl = baseUrl;
     } else if (typeof window === 'undefined') {
       // Server-side: use internal backend URL
-      this.baseUrl = process.env.ADMIN_API_INTERNAL_URL || process.env.ADMIN_API_URL || 'http://localhost:3080';
+      this.baseUrl = process.env.ADMIN_API_INTERNAL_URL || process.env.ADMIN_API_URL || 'http://slimy-admin-api:3080';
     } else {
       // Client-side: use relative URLs (empty string)
       this.baseUrl = process.env.NEXT_PUBLIC_ADMIN_API_BASE || '/api';
