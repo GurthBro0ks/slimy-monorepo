@@ -46,8 +46,9 @@ export class AdminApiClient {
       // Server-side: use internal backend URL
       this.baseUrl = process.env.ADMIN_API_INTERNAL_URL || process.env.ADMIN_API_URL || 'http://slimy-admin-api:3080';
     } else {
-      // Client-side: use relative URLs (empty string)
-      this.baseUrl = process.env.NEXT_PUBLIC_ADMIN_API_BASE || '/api';
+      // Client-side: ALWAYS use relative URLs to avoid CORS
+      // This forces requests to go through the Next.js rewrite proxy
+      this.baseUrl = '/api';
     }
 
     if (!this.baseUrl && typeof window !== 'undefined') {

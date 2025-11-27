@@ -1,0 +1,562 @@
+
+> @slimy/web@0.1.0 test /home/mint/slimy-dev/slimy-monorepo/apps/web
+> vitest
+
+
+[1m[44m DEV [49m[22m [34mv4.0.9 [39m[90m/home/mint/slimy-dev/slimy-monorepo/apps/web[39m
+
+[90mstdout[2m | tests/unit/codes-cache.test.ts[2m > [22m[2mCodesCache[2m > [22m[2mconnection management[2m > [22m[2mshould connect successfully
+[22m[39mRedis cache connected
+Redis cache connected
+
+[90mstderr[2m | tests/unit/codes-cache.test.ts[2m > [22m[2mCodesCache[2m > [22m[2mconnection management[2m > [22m[2mshould handle connection failures
+[22m[39mFailed to connect to Redis: Error: Connection failed
+    at [90m/home/mint/slimy-dev/slimy-monorepo/apps/web/[39mtests/unit/codes-cache.test.ts:88:26
+    at file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:157:11
+    at file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:753:26
+    at file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:1636:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:1602:10)
+    at runTest (file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:1309:12)
+[90m    at processTicksAndRejections (node:internal/process/task_queues:105:5)[39m
+    at runSuite (file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:1468:8)
+    at runSuite (file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:1468:8)
+
+[90mstderr[2m | tests/unit/codes-cache.test.ts[2m > [22m[2mCodesCache[2m > [22m[2mcache operations[2m > [22m[2mshould handle cache set failures
+[22m[39mCache set attempt 1 failed: Error: Set failed
+    at [90m/home/mint/slimy-dev/slimy-monorepo/apps/web/[39mtests/unit/codes-cache.test.ts:143:47
+    at file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:157:11
+    at file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:753:26
+    at file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:1636:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:1602:10)
+    at runTest (file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:1309:12)
+[90m    at processTicksAndRejections (node:internal/process/task_queues:105:5)[39m
+    at runSuite (file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:1468:8)
+    at runSuite (file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:1468:8)
+
+[90mstderr[2m | tests/components/usage-badge.test.tsx[2m > [22m[2mUsageBadge[2m > [22m[2mError handling[2m > [22m[2mshould not crash on error
+[22m[39mFailed to fetch usage: Error: Network error
+    at [90m/home/mint/slimy-dev/slimy-monorepo/apps/web/[39mtests/components/usage-badge.test.tsx:56:9
+    at file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:157:11
+    at file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:753:26
+    at file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:1636:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:1602:10)
+    at runTest (file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:1309:12)
+    at runSuite (file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:1468:8)
+    at runSuite (file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:1468:8)
+    at runSuite (file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:1468:8)
+
+[90mstderr[2m | tests/components/usage-page.test.tsx[2m > [22m[2mUsagePage[2m > [22m[2mError state[2m > [22m[2mshould display error message when API fails with 502
+[22m[39mFailed to fetch usage: Error: HTTP 502: Bad Gateway
+    at [90m/home/mint/slimy-dev/slimy-monorepo/apps/web/[39mtests/components/usage-page.test.tsx:75:9
+    at file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:157:11
+    at file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:753:26
+    at file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:1636:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:1602:10)
+    at runTest (file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:1309:12)
+[90m    at processTicksAndRejections (node:internal/process/task_queues:105:5)[39m
+    at runSuite (file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:1468:8)
+    at runSuite (file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:1468:8)
+
+ [32m✓[39m tests/components/club/results.test.tsx [2m([22m[2m12 tests[22m[2m)[22m[32m 261[2mms[22m[39m
+[90mstderr[2m | tests/components/usage-page.test.tsx[2m > [22m[2mUsagePage[2m > [22m[2mError state[2m > [22m[2mshould display error message when API fails with network error
+[22m[39mFailed to fetch usage: Error: Network error: Unable to connect to usage API
+    at [90m/home/mint/slimy-dev/slimy-monorepo/apps/web/[39mtests/components/usage-page.test.tsx:91:9
+    at file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:157:11
+    at file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:753:26
+    at file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:1636:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:1602:10)
+    at runTest (file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:1309:12)
+    at runSuite (file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:1468:8)
+    at runSuite (file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:1468:8)
+    at runSuite (file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:1468:8)
+
+[90mstderr[2m | tests/components/usage-page.test.tsx[2m > [22m[2mUsagePage[2m > [22m[2mError state[2m > [22m[2mshould not crash the page on error
+[22m[39mFailed to fetch usage: Error: Unexpected error
+    at [90m/home/mint/slimy-dev/slimy-monorepo/apps/web/[39mtests/components/usage-page.test.tsx:103:9
+    at file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:157:11
+    at file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:753:26
+    at file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:1636:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:1602:10)
+    at runTest (file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:1309:12)
+    at runSuite (file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:1468:8)
+    at runSuite (file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:1468:8)
+    at runSuite (file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:1468:8)
+
+[90mstderr[2m | tests/components/usage-page.test.tsx[2m > [22m[2mUsagePage[2m > [22m[2mError state[2m > [22m[2mshould handle unknown errors gracefully
+[22m[39mFailed to fetch usage: String error
+
+ [32m✓[39m tests/components/usage-badge.test.tsx [2m([22m[2m18 tests[22m[2m)[22m[33m 322[2mms[22m[39m
+ [32m✓[39m tests/components/button.test.tsx [2m([22m[2m9 tests[22m[2m)[22m[33m 607[2mms[22m[39m
+ [32m✓[39m tests/components/usage-page.test.tsx [2m([22m[2m22 tests[22m[2m)[22m[33m 552[2mms[22m[39m
+[90mstderr[2m | tests/unit/codes-cache.test.ts[2m > [22m[2mCodesCache[2m > [22m[2mcache operations[2m > [22m[2mshould handle cache set failures
+[22m[39mCache set attempt 2 failed: Error: Set failed
+    at [90m/home/mint/slimy-dev/slimy-monorepo/apps/web/[39mtests/unit/codes-cache.test.ts:143:47
+    at file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:157:11
+    at file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:753:26
+    at file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:1636:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:1602:10)
+    at runTest (file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:1309:12)
+[90m    at processTicksAndRejections (node:internal/process/task_queues:105:5)[39m
+    at runSuite (file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:1468:8)
+    at runSuite (file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:1468:8)
+
+[90mstderr[2m | tests/components/message-bubble.test.tsx[2m > [22m[2mMessageBubble[2m > [22m[2mcopies message content to clipboard when copy button is clicked
+[22m[39mAn update to MessageBubble inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ [32m✓[39m tests/components/message-bubble.test.tsx [2m([22m[2m11 tests[22m[2m)[22m[32m 168[2mms[22m[39m
+ [32m✓[39m tests/unit/lib/env.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 103[2mms[22m[39m
+[90mstderr[2m | tests/api/club/analyze.test.ts[2m > [22m[2m/api/club/analyze[2m > [22m[2mPOST /api/club/analyze[2m > [22m[2mshould return 400 when no imageUrls provided
+[22m[39mError occurred: {
+  name: [32m'ValidationError'[39m,
+  code: [32m'VALIDATION_ERROR'[39m,
+  message: [32m'At least one image URL is required'[39m,
+  statusCode: [33m400[39m,
+  details: [90mundefined[39m,
+  stack: [32m'ValidationError: At least one image URL is required\n'[39m +
+    [32m'    at Module.POST (/home/mint/slimy-dev/slimy-monorepo/apps/web/app/api/club/analyze/route.ts:15:13)\n'[39m +
+    [32m'    at processTicksAndRejections (node:internal/process/task_queues:105:5)\n'[39m +
+    [32m'    at /home/mint/slimy-dev/slimy-monorepo/apps/web/tests/api/club/analyze.test.ts:109:24\n'[39m +
+    [32m'    at file:///home/mint/slimy-dev/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.9/node_modules/@vitest/runner/dist/index.js:753:20'[39m,
+  context: [90mundefined[39m,
+  timestamp: [32m'2025-11-27T15:46:21.798Z'[39m
+}
+
+[90mstderr[2m | tests/api/club/analyze.test.ts[2m > [22m[2m/api/club/analyze[2m > [22m[2mPOST /api/club/analyze[2m > [22m[2mshould return 400 when no guildId provided
+[22m[39mError occurred: {
+  name: [32m'ValidationError'[39m,
+  code: [32m'VALIDATION_ERROR'[39m,
+  message: [32m'Guild ID is required'[39m,
+  statusCode: [33m400[39m,
+  details: [90mundefined[39m,
+  stack: [32m'ValidationError: Guild ID is required\n'[39m +
+    [32m'    at Module.POST (/home/mint/slimy-dev/slimy-monorepo/apps/web/app/api/club/analyze/route.ts:19:13)\n'[39m +
+    [32m'    at processTicksAndRejections (node:internal/process/task_queues:105:5)\n'[39m +
+    [32m'    at /home/mint/slimy-dev/slimy-monorepo/apps/web/tests/api/club/analyze.test.ts:124:24\n'[39m +
+    [32m'    at file:///home/mint/slimy-dev/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.9/node_modules/@vitest/runner/dist/index.js:753:20'[39m,
+  context: [90mundefined[39m,
+  timestamp: [32m'2025-11-27T15:46:21.807Z'[39m
+}
+
+[90mstderr[2m | tests/api/club/analyze.test.ts[2m > [22m[2m/api/club/analyze[2m > [22m[2mPOST /api/club/analyze[2m > [22m[2mshould return 400 when no valid image URLs
+[22m[39mError occurred: {
+  name: [32m'ValidationError'[39m,
+  code: [32m'VALIDATION_ERROR'[39m,
+  message: [32m'No valid image URLs provided'[39m,
+  statusCode: [33m400[39m,
+  details: [90mundefined[39m,
+  stack: [32m'ValidationError: No valid image URLs provided\n'[39m +
+    [32m'    at Module.POST (/home/mint/slimy-dev/slimy-monorepo/apps/web/app/api/club/analyze/route.ts:30:13)\n'[39m +
+    [32m'    at processTicksAndRejections (node:internal/process/task_queues:105:5)\n'[39m +
+    [32m'    at /home/mint/slimy-dev/slimy-monorepo/apps/web/tests/api/club/analyze.test.ts:142:24\n'[39m +
+    [32m'    at file:///home/mint/slimy-dev/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.9/node_modules/@vitest/runner/dist/index.js:753:20'[39m,
+  context: [90mundefined[39m,
+  timestamp: [32m'2025-11-27T15:46:21.809Z'[39m
+}
+
+[90mstderr[2m | tests/api/club/analyze.test.ts[2m > [22m[2m/api/club/analyze[2m > [22m[2mPOST /api/club/analyze[2m > [22m[2mshould handle analysis errors gracefully
+[22m[39mAnalysis error: Error: API Error
+    at [90m/home/mint/slimy-dev/slimy-monorepo/apps/web/[39mtests/api/club/analyze.test.ts:216:56
+    at file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:157:11
+    at file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:753:26
+    at file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:1636:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:1602:10)
+    at runTest (file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:1309:12)
+[90m    at processTicksAndRejections (node:internal/process/task_queues:105:5)[39m
+    at runSuite (file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:1468:8)
+    at runSuite (file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:1468:8)
+Error occurred: {
+  name: [32m'AppError'[39m,
+  code: [32m'INTERNAL_ERROR'[39m,
+  message: [32m'API Error'[39m,
+  statusCode: [33m500[39m,
+  details: { originalError: [32m'Error'[39m },
+  stack: [32m'AppError: API Error\n'[39m +
+    [32m'    at toAppError (/home/mint/slimy-dev/slimy-monorepo/apps/web/lib/errors.ts:147:12)\n'[39m +
+    [32m'    at errorResponse (/home/mint/slimy-dev/slimy-monorepo/apps/web/lib/errors.ts:186:20)\n'[39m +
+    [32m'    at Module.POST (/home/mint/slimy-dev/slimy-monorepo/apps/web/app/api/club/analyze/route.ts:81:39)\n'[39m +
+    [32m'    at processTicksAndRejections (node:internal/process/task_queues:105:5)\n'[39m +
+    [32m'    at /home/mint/slimy-dev/slimy-monorepo/apps/web/tests/api/club/analyze.test.ts:225:24\n'[39m +
+    [32m'    at file:///home/mint/slimy-dev/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.9/node_modules/@vitest/runner/dist/index.js:753:20'[39m,
+  context: [90mundefined[39m,
+  timestamp: [32m'2025-11-27T15:46:21.822Z'[39m
+}
+
+[90mstderr[2m | tests/api/club/analyze.test.ts[2m > [22m[2m/api/club/analyze[2m > [22m[2mGET /api/club/analyze[2m > [22m[2mshould return 400 when no guildId provided
+[22m[39mError occurred: {
+  name: [32m'ValidationError'[39m,
+  code: [32m'VALIDATION_ERROR'[39m,
+  message: [32m'Guild ID is required'[39m,
+  statusCode: [33m400[39m,
+  details: [90mundefined[39m,
+  stack: [32m'ValidationError: Guild ID is required\n'[39m +
+    [32m'    at Module.GET (/home/mint/slimy-dev/slimy-monorepo/apps/web/app/api/club/analyze/route.ts:97:13)\n'[39m +
+    [32m'    at /home/mint/slimy-dev/slimy-monorepo/apps/web/tests/api/club/analyze.test.ts:261:30\n'[39m +
+    [32m'    at file:///home/mint/slimy-dev/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.9/node_modules/@vitest/runner/dist/index.js:157:11\n'[39m +
+    [32m'    at file:///home/mint/slimy-dev/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.9/node_modules/@vitest/runner/dist/index.js:753:26\n'[39m +
+    [32m'    at file:///home/mint/slimy-dev/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.9/node_modules/@vitest/runner/dist/index.js:1636:20\n'[39m +
+    [32m'    at new Promise (<anonymous>)\n'[39m +
+    [32m'    at runWithTimeout (file:///home/mint/slimy-dev/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.9/node_modules/@vitest/runner/dist/index.js:1602:10)\n'[39m +
+    [32m'    at runTest (file:///home/mint/slimy-dev/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.9/node_modules/@vitest/runner/dist/index.js:1309:12)\n'[39m +
+    [32m'    at processTicksAndRejections (node:internal/process/task_queues:105:5)\n'[39m +
+    [32m'    at runSuite (file:///home/mint/slimy-dev/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.9/node_modules/@vitest/runner/dist/index.js:1468:8)'[39m,
+  context: [90mundefined[39m,
+  timestamp: [32m'2025-11-27T15:46:21.827Z'[39m
+}
+
+ [32m✓[39m tests/api/club/analyze.test.ts [2m([22m[2m11 tests[22m[2m)[22m[32m 51[2mms[22m[39m
+[90mstderr[2m | tests/api/club/upload.test.ts[2m > [22m[2m/api/club/upload[2m > [22m[2mshould return 400 when no screenshots provided
+[22m[39mError occurred: {
+  name: [32m'ValidationError'[39m,
+  code: [32m'VALIDATION_ERROR'[39m,
+  message: [32m'No screenshots provided'[39m,
+  statusCode: [33m400[39m,
+  details: [90mundefined[39m,
+  stack: [32m'ValidationError: No screenshots provided\n'[39m +
+    [32m'    at Module.POST (/home/mint/slimy-dev/slimy-monorepo/apps/web/app/api/club/upload/route.ts:22:13)\n'[39m +
+    [32m'    at processTicksAndRejections (node:internal/process/task_queues:105:5)\n'[39m +
+    [32m'    at /home/mint/slimy-dev/slimy-monorepo/apps/web/tests/api/club/upload.test.ts:80:22\n'[39m +
+    [32m'    at file:///home/mint/slimy-dev/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.9/node_modules/@vitest/runner/dist/index.js:753:20'[39m,
+  context: [90mundefined[39m,
+  timestamp: [32m'2025-11-27T15:46:21.867Z'[39m
+}
+
+[90mstderr[2m | tests/api/club/upload.test.ts[2m > [22m[2m/api/club/upload[2m > [22m[2mshould return 400 when no guildId provided
+[22m[39mError occurred: {
+  name: [32m'ValidationError'[39m,
+  code: [32m'VALIDATION_ERROR'[39m,
+  message: [32m'Guild ID is required'[39m,
+  statusCode: [33m400[39m,
+  details: [90mundefined[39m,
+  stack: [32m'ValidationError: Guild ID is required\n'[39m +
+    [32m'    at Module.POST (/home/mint/slimy-dev/slimy-monorepo/apps/web/app/api/club/upload/route.ts:26:13)\n'[39m +
+    [32m'    at processTicksAndRejections (node:internal/process/task_queues:105:5)\n'[39m +
+    [32m'    at /home/mint/slimy-dev/slimy-monorepo/apps/web/tests/api/club/upload.test.ts:99:22\n'[39m +
+    [32m'    at file:///home/mint/slimy-dev/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.9/node_modules/@vitest/runner/dist/index.js:753:20'[39m,
+  context: [90mundefined[39m,
+  timestamp: [32m'2025-11-27T15:46:21.875Z'[39m
+}
+
+[90mstderr[2m | tests/api/club/upload.test.ts[2m > [22m[2m/api/club/upload[2m > [22m[2mshould handle file upload errors gracefully
+[22m[39mError occurred: {
+  name: [32m'AppError'[39m,
+  code: [32m'INTERNAL_ERROR'[39m,
+  message: [32m'Disk full'[39m,
+  statusCode: [33m500[39m,
+  details: { originalError: [32m'Error'[39m },
+  stack: [32m'AppError: Disk full\n'[39m +
+    [32m'    at toAppError (/home/mint/slimy-dev/slimy-monorepo/apps/web/lib/errors.ts:147:12)\n'[39m +
+    [32m'    at errorResponse (/home/mint/slimy-dev/slimy-monorepo/apps/web/lib/errors.ts:186:20)\n'[39m +
+    [32m'    at Module.POST (/home/mint/slimy-dev/slimy-monorepo/apps/web/app/api/club/upload/route.ts:123:39)\n'[39m +
+    [32m'    at processTicksAndRejections (node:internal/process/task_queues:105:5)\n'[39m +
+    [32m'    at /home/mint/slimy-dev/slimy-monorepo/apps/web/tests/api/club/upload.test.ts:185:22\n'[39m +
+    [32m'    at file:///home/mint/slimy-dev/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.9/node_modules/@vitest/runner/dist/index.js:753:20'[39m,
+  context: [90mundefined[39m,
+  timestamp: [32m'2025-11-27T15:46:21.886Z'[39m
+}
+
+[90mstderr[2m | tests/api/club/upload.test.ts[2m > [22m[2m/api/club/upload[2m > [22m[2mshould continue upload even if analysis fails
+[22m[39mAnalysis failed: Error: Analysis failed
+    at [90m/home/mint/slimy-dev/slimy-monorepo/apps/web/[39mtests/api/club/upload.test.ts:200:55
+    at file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:157:11
+    at file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:753:26
+    at file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:1636:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:1602:10)
+    at runTest (file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:1309:12)
+[90m    at processTicksAndRejections (node:internal/process/task_queues:105:5)[39m
+    at runSuite (file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:1468:8)
+    at runSuite (file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:1468:8)
+
+ [32m✓[39m tests/api/club/upload.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 29[2mms[22m[39m
+[90mstderr[2m | tests/unit/club/vision.test.ts[2m > [22m[2mClub Vision Library[2m > [22m[2manalyzeClubScreenshot[2m > [22m[2mshould handle API errors gracefully
+[22m[39mError analyzing club screenshot: Error: API Error
+    at [90m/home/mint/slimy-dev/slimy-monorepo/apps/web/[39mtests/unit/club/vision.test.ts:109:60
+    at file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:157:11
+    at file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:753:26
+    at file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:1636:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:1602:10)
+    at runTest (file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:1309:12)
+[90m    at processTicksAndRejections (node:internal/process/task_queues:105:5)[39m
+    at runSuite (file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:1468:8)
+    at runSuite (file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:1468:8)
+
+[90mstderr[2m | tests/unit/club/vision.test.ts[2m > [22m[2mClub Vision Library[2m > [22m[2manalyzeClubScreenshot[2m > [22m[2mshould handle invalid JSON response
+[22m[39mError analyzing club screenshot: SyntaxError: Unexpected token 'I', "Invalid JS"... is not valid JSON
+    at JSON.parse (<anonymous>)
+    at Module.analyzeClubScreenshot [90m(/home/mint/slimy-dev/slimy-monorepo/apps/web/[39mlib/club/vision.ts:90:33[90m)[39m
+[90m    at processTicksAndRejections (node:internal/process/task_queues:105:5)[39m
+
+[90mstderr[2m | tests/unit/club/vision.test.ts[2m > [22m[2mClub Vision Library[2m > [22m[2manalyzeClubScreenshot[2m > [22m[2mshould handle empty response
+[22m[39mError analyzing club screenshot: Error: No response content from GPT-4 Vision
+    at Module.analyzeClubScreenshot [90m(/home/mint/slimy-dev/slimy-monorepo/apps/web/[39mlib/club/vision.ts:87:13[90m)[39m
+[90m    at processTicksAndRejections (node:internal/process/task_queues:105:5)[39m
+
+[90mstderr[2m | tests/unit/club/vision.test.ts[2m > [22m[2mClub Vision Library[2m > [22m[2manalyzeClubScreenshots[2m > [22m[2mshould handle partial failures gracefully
+[22m[39mError analyzing club screenshot: Error: API Error
+    at [90m/home/mint/slimy-dev/slimy-monorepo/apps/web/[39mtests/unit/club/vision.test.ts:189:32
+    at file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:157:11
+    at file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:753:26
+    at file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:1636:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:1602:10)
+    at runTest (file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:1309:12)
+[90m    at processTicksAndRejections (node:internal/process/task_queues:105:5)[39m
+    at runSuite (file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:1468:8)
+    at runSuite (file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:1468:8)
+
+[90mstderr[2m | tests/unit/club/vision.test.ts[2m > [22m[2mClub Vision Library[2m > [22m[2manalyzeClubScreenshots[2m > [22m[2mshould handle partial failures gracefully
+[22m[39mFailed to analyze http://example.com/image2.png: Error: Failed to analyze screenshot: API Error
+    at analyzeClubScreenshot [90m(/home/mint/slimy-dev/slimy-monorepo/apps/web/[39mlib/club/vision.ts:107:11[90m)[39m
+[90m    at processTicksAndRejections (node:internal/process/task_queues:105:5)[39m
+    at Module.analyzeClubScreenshots [90m(/home/mint/slimy-dev/slimy-monorepo/apps/web/[39mlib/club/vision.ts:123:22[90m)[39m
+    at [90m/home/mint/slimy-dev/slimy-monorepo/apps/web/[39mtests/unit/club/vision.test.ts:192:23
+    at file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:753:20
+
+[90mstderr[2m | tests/unit/club/vision.test.ts[2m > [22m[2mClub Vision Library[2m > [22m[2mvalidateImageUrl[2m > [22m[2mshould return false when fetch fails
+[22m[39mError validating image URL: Error: Network error
+    at [90m/home/mint/slimy-dev/slimy-monorepo/apps/web/[39mtests/unit/club/vision.test.ts:223:49
+    at Mock (file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+spy@4.0.9/node_modules/[4m@vitest/spy[24m/dist/index.js:280:34)
+    at Module.validateImageUrl [90m(/home/mint/slimy-dev/slimy-monorepo/apps/web/[39mlib/club/vision.ts:140:28[90m)[39m
+    at [90m/home/mint/slimy-dev/slimy-monorepo/apps/web/[39mtests/unit/club/vision.test.ts:225:28
+    at file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:157:11
+    at file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:753:26
+    at file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:1636:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:1602:10)
+    at runTest (file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:1309:12)
+
+ [32m✓[39m tests/unit/club/vision.test.ts [2m([22m[2m13 tests[22m[2m)[22m[32m 23[2mms[22m[39m
+[90mstderr[2m | tests/unit/codes-cache.test.ts[2m > [22m[2mCodesCache[2m > [22m[2mcache operations[2m > [22m[2mshould handle cache set failures
+[22m[39mCache set attempt 3 failed: Error: Set failed
+    at [90m/home/mint/slimy-dev/slimy-monorepo/apps/web/[39mtests/unit/codes-cache.test.ts:143:47
+    at file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:157:11
+    at file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:753:26
+    at file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:1636:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:1602:10)
+    at runTest (file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:1309:12)
+[90m    at processTicksAndRejections (node:internal/process/task_queues:105:5)[39m
+    at runSuite (file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:1468:8)
+    at runSuite (file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:1468:8)
+Cache set failed after 3 attempts
+
+[90mstderr[2m | tests/unit/codes-cache.test.ts[2m > [22m[2mCodesCache[2m > [22m[2merror handling[2m > [22m[2mshould handle redis operation failures gracefully
+[22m[39mCache get attempt 1 failed: Error: Redis error
+    at [90m/home/mint/slimy-dev/slimy-monorepo/apps/web/[39mtests/unit/codes-cache.test.ts:184:45
+    at file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:157:11
+    at file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:753:26
+    at file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:1636:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:1602:10)
+    at runTest (file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:1309:12)
+    at runSuite (file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:1468:8)
+    at runSuite (file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:1468:8)
+    at runSuite (file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:1468:8)
+
+[90mstderr[2m | tests/api/usage-route.test.ts[2m > [22m[2mGET /api/usage[2m > [22m[2mError handling[2m > [22m[2mshould handle errors from getMockUsageData gracefully
+[22m[39mUsage API error: Error: Mock error
+    at [90m/home/mint/slimy-dev/slimy-monorepo/apps/web/[39mtests/api/usage-route.test.ts:82:15
+    at Mock (file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+spy@4.0.9/node_modules/[4m@vitest/spy[24m/dist/index.js:280:34)
+    at Module.GET [90m(/home/mint/slimy-dev/slimy-monorepo/apps/web/[39mapp/api/usage/route.ts:19:23[90m)[39m
+    at [90m/home/mint/slimy-dev/slimy-monorepo/apps/web/[39mtests/api/usage-route.test.ts:85:30
+    at file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:157:11
+    at file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:753:26
+    at file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:1636:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:1602:10)
+    at runTest (file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:1309:12)
+
+[90mstderr[2m | tests/api/usage-route.test.ts[2m > [22m[2mGET /api/usage[2m > [22m[2mError handling[2m > [22m[2mshould return error response with correct structure
+[22m[39mUsage API error: Error: Test error
+    at [90m/home/mint/slimy-dev/slimy-monorepo/apps/web/[39mtests/api/usage-route.test.ts:116:15
+    at Mock (file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+spy@4.0.9/node_modules/[4m@vitest/spy[24m/dist/index.js:280:34)
+    at Module.GET [90m(/home/mint/slimy-dev/slimy-monorepo/apps/web/[39mapp/api/usage/route.ts:19:23[90m)[39m
+    at [90m/home/mint/slimy-dev/slimy-monorepo/apps/web/[39mtests/api/usage-route.test.ts:119:30
+    at file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:157:11
+    at file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:753:26
+    at file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:1636:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:1602:10)
+    at runTest (file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:1309:12)
+
+ [32m✓[39m tests/api/usage-route.test.ts [2m([22m[2m14 tests[22m[2m)[22m[32m 29[2mms[22m[39m
+[90mstderr[2m | tests/api/usage.test.ts[2m > [22m[2mUsage API Client[2m > [22m[2mfetchUsageDataSafe[2m > [22m[2mshould return null on error (default fallback)
+[22m[39mFailed to fetch usage data: UsageApiError: Network error
+    at fetchUsageData [90m(/home/mint/slimy-dev/slimy-monorepo/apps/web/[39mlib/api/usage.ts:108:11[90m)[39m
+[90m    at processTicksAndRejections (node:internal/process/task_queues:105:5)[39m
+    at fetchUsageDataSafe [90m(/home/mint/slimy-dev/slimy-monorepo/apps/web/[39mlib/api/usage.ts:126:12[90m)[39m
+    at [90m/home/mint/slimy-dev/slimy-monorepo/apps/web/[39mtests/api/usage.test.ts:345:22
+    at file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:753:20 {
+  code: [32m'UNKNOWN_ERROR'[39m,
+  status: [90mundefined[39m
+}
+
+[90mstderr[2m | tests/api/usage.test.ts[2m > [22m[2mUsage API Client[2m > [22m[2mfetchUsageDataSafe[2m > [22m[2mshould return custom fallback on error
+[22m[39mFailed to fetch usage data: UsageApiError: Network error
+    at fetchUsageData [90m(/home/mint/slimy-dev/slimy-monorepo/apps/web/[39mlib/api/usage.ts:108:11[90m)[39m
+[90m    at processTicksAndRejections (node:internal/process/task_queues:105:5)[39m
+    at fetchUsageDataSafe [90m(/home/mint/slimy-dev/slimy-monorepo/apps/web/[39mlib/api/usage.ts:126:12[90m)[39m
+    at [90m/home/mint/slimy-dev/slimy-monorepo/apps/web/[39mtests/api/usage.test.ts:359:22
+    at file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:753:20 {
+  code: [32m'UNKNOWN_ERROR'[39m,
+  status: [90mundefined[39m
+}
+
+ [32m✓[39m tests/api/usage.test.ts [2m([22m[2m25 tests[22m[2m)[22m[32m 26[2mms[22m[39m
+ [32m✓[39m tests/api/screenshot/route.test.ts [2m([22m[2m11 tests[22m[2m)[22m[32m 23[2mms[22m[39m
+[90mstderr[2m | tests/unit/screenshot/analyzer.test.ts[2m > [22m[2mScreenshot Analyzer[2m > [22m[2manalyzeScreenshot[2m > [22m[2mshould handle API errors gracefully
+[22m[39mError analyzing screenshot: Error: API Error
+    at [90m/home/mint/slimy-dev/slimy-monorepo/apps/web/[39mtests/unit/screenshot/analyzer.test.ts:134:60
+    at file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:157:11
+    at file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:753:26
+    at file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:1636:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:1602:10)
+    at runTest (file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:1309:12)
+[90m    at processTicksAndRejections (node:internal/process/task_queues:105:5)[39m
+    at runSuite (file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:1468:8)
+    at runSuite (file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:1468:8)
+
+[90mstderr[2m | tests/unit/screenshot/analyzer.test.ts[2m > [22m[2mScreenshot Analyzer[2m > [22m[2manalyzeScreenshots[2m > [22m[2mshould handle partial failures
+[22m[39mError analyzing screenshot: Error: API Error
+    at [90m/home/mint/slimy-dev/slimy-monorepo/apps/web/[39mtests/unit/screenshot/analyzer.test.ts:190:32
+    at file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:157:11
+    at file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:753:26
+    at file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:1636:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:1602:10)
+    at runTest (file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:1309:12)
+[90m    at processTicksAndRejections (node:internal/process/task_queues:105:5)[39m
+    at runSuite (file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:1468:8)
+    at runSuite (file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:1468:8)
+
+[90mstderr[2m | tests/unit/screenshot/analyzer.test.ts[2m > [22m[2mScreenshot Analyzer[2m > [22m[2manalyzeScreenshots[2m > [22m[2mshould handle partial failures
+[22m[39mFailed to analyze http://example.com/image2.png: Error: Failed to analyze screenshot: API Error
+    at analyzeScreenshot [90m(/home/mint/slimy-dev/slimy-monorepo/apps/web/[39mlib/screenshot/analyzer.ts:213:11[90m)[39m
+[90m    at processTicksAndRejections (node:internal/process/task_queues:105:5)[39m
+    at Module.analyzeScreenshots [90m(/home/mint/slimy-dev/slimy-monorepo/apps/web/[39mlib/screenshot/analyzer.ts:229:22[90m)[39m
+    at [90m/home/mint/slimy-dev/slimy-monorepo/apps/web/[39mtests/unit/screenshot/analyzer.test.ts:193:23
+    at file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:753:20
+
+ [32m✓[39m tests/unit/screenshot/analyzer.test.ts [2m([22m[2m13 tests[22m[2m)[22m[32m 31[2mms[22m[39m
+[90mstdout[2m | tests/unit/codes-aggregator.test.ts[2m > [22m[2mCodes Aggregator[2m > [22m[2mCodesAggregator[2m > [22m[2mshould aggregate codes from all sources
+[22m[39mStarted auto-refresh for aggregated_codes every 300s
+
+[90mstdout[2m | tests/unit/codes-aggregator.test.ts[2m > [22m[2mCodes Aggregator[2m > [22m[2mCodesAggregator[2m > [22m[2mshould handle source failures gracefully
+[22m[39mStarted auto-refresh for aggregated_codes every 300s
+
+[90mstdout[2m | tests/unit/codes-aggregator.test.ts[2m > [22m[2mCodes Aggregator[2m > [22m[2mCodesAggregator[2m > [22m[2mshould get health status
+[22m[39mStarted auto-refresh for aggregated_codes every 300s
+
+[90mstdout[2m | tests/unit/codes-aggregator.test.ts[2m > [22m[2mCodes Aggregator[2m > [22m[2mCodesAggregator[2m > [22m[2mshould deduplicate codes
+[22m[39mStarted auto-refresh for aggregated_codes every 300s
+
+[90mstdout[2m | tests/unit/codes-aggregator.test.ts[2m > [22m[2mCodes Aggregator[2m > [22m[2mgetAggregator[2m > [22m[2mshould return singleton instance
+[22m[39mStarted auto-refresh for aggregated_codes every 300s
+
+ [32m✓[39m tests/unit/codes-aggregator.test.ts [2m([22m[2m14 tests[22m[2m)[22m[32m 23[2mms[22m[39m
+[90mstderr[2m | tests/unit/codes-cache.test.ts[2m > [22m[2mCodesCache[2m > [22m[2merror handling[2m > [22m[2mshould handle redis operation failures gracefully
+[22m[39mCache get attempt 2 failed: Error: Redis error
+    at [90m/home/mint/slimy-dev/slimy-monorepo/apps/web/[39mtests/unit/codes-cache.test.ts:184:45
+    at file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:157:11
+    at file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:753:26
+    at file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:1636:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:1602:10)
+    at runTest (file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:1309:12)
+    at runSuite (file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:1468:8)
+    at runSuite (file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:1468:8)
+    at runSuite (file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:1468:8)
+
+ [32m✓[39m tests/unit/lib/admin-client.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 8[2mms[22m[39m
+ [32m✓[39m tests/unit/codes-deduplication.test.ts [2m([22m[2m18 tests[22m[2m)[22m[32m 11[2mms[22m[39m
+ [32m✓[39m tests/unit/lib/errors.test.ts [2m([22m[2m18 tests[22m[2m)[22m[32m 9[2mms[22m[39m
+ [32m✓[39m tests/api/diag.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 8[2mms[22m[39m
+ [32m✓[39m tests/unit/lib/config.test.ts [2m([22m[2m12 tests[22m[2m)[22m[32m 11[2mms[22m[39m
+[90mstderr[2m | tests/unit/codes-cache.test.ts[2m > [22m[2mCodesCache[2m > [22m[2merror handling[2m > [22m[2mshould handle redis operation failures gracefully
+[22m[39mCache get attempt 3 failed: Error: Redis error
+    at [90m/home/mint/slimy-dev/slimy-monorepo/apps/web/[39mtests/unit/codes-cache.test.ts:184:45
+    at file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:157:11
+    at file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:753:26
+    at file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:1636:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:1602:10)
+    at runTest (file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:1309:12)
+    at runSuite (file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:1468:8)
+    at runSuite (file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:1468:8)
+    at runSuite (file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:1468:8)
+Cache get failed after 3 attempts
+
+[90mstderr[2m | tests/unit/codes-cache.test.ts[2m > [22m[2mCodesCache[2m > [22m[2merror handling[2m > [22m[2mshould retry operations on failure
+[22m[39mCache get attempt 1 failed: Error: First failure
+    at [90m/home/mint/slimy-dev/slimy-monorepo/apps/web/[39mtests/unit/codes-cache.test.ts:201:32
+    at file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:157:11
+    at file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:753:26
+    at file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:1636:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:1602:10)
+    at runTest (file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:1309:12)
+    at runSuite (file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:1468:8)
+    at runSuite (file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:1468:8)
+    at runSuite (file:///home/mint/slimy-dev/slimy-monorepo/node_modules/[4m.pnpm[24m/@vitest+runner@4.0.9/node_modules/[4m@vitest/runner[24m/dist/index.js:1468:8)
+
+ [32m✓[39m tests/unit/rate-limiter.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 19[2mms[22m[39m
+ [32m✓[39m tests/unit/snelp-source.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 6[2mms[22m[39m
+ [32m✓[39m tests/unit/stats-scrubber.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 5[2mms[22m[39m
+ [32m✓[39m tests/unit/role-mapping.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 4[2mms[22m[39m
+ [32m✓[39m tests/unit/usage-thresholds.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 3[2mms[22m[39m
+ [32m✓[39m tests/unit/codes-cache.test.ts [2m([22m[2m14 tests[22m[2m)[22m[33m 5078[2mms[22m[39m
+       [33m[2m✓[22m[39m should handle cache set failures [33m 2003[2mms[22m[39m
+       [33m[2m✓[22m[39m should handle redis operation failures gracefully [33m 2005[2mms[22m[39m
+       [33m[2m✓[22m[39m should retry operations on failure [33m 1002[2mms[22m[39m
+
+[31m⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Suites 1 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m tests/components/dashboard-page.test.tsx[2m [ tests/components/dashboard-page.test.tsx ][22m
+[31m[1mError[22m: Failed to resolve import "@/app/dashboard/[guildId]/page" from "tests/components/dashboard-page.test.tsx". Does the file exist?[39m
+  Plugin: [35mvite:import-analysis[39m
+  File: [36m/home/mint/slimy-dev/slimy-monorepo/apps/web/tests/components/dashboard-page.test.tsx[39m:2:0
+[33m  4  |  }));
+  5  |  const __vi_import_0__ = await import("@testing-library/react");
+  6  |  const __vi_import_1__ = await import("@/app/dashboard/[guildId]/page");
+     |                                       ^
+  7  |  const __vi_import_2__ = await import("next/headers");
+  8  |  [39m
+[90m [2m❯[22m TransformPluginContext._formatLog ../../node_modules/.pnpm/vite@7.2.2_@types+node@20.19.25_jiti@2.6.1_lightningcss@1.30.2_tsx@4.20.6_yaml@2.8.1/node_modules/vite/dist/node/chunks/config.js:[2m29618:43[22m[39m
+[90m [2m❯[22m TransformPluginContext.error ../../node_modules/.pnpm/vite@7.2.2_@types+node@20.19.25_jiti@2.6.1_lightningcss@1.30.2_tsx@4.20.6_yaml@2.8.1/node_modules/vite/dist/node/chunks/config.js:[2m29615:14[22m[39m
+[90m [2m❯[22m normalizeUrl ../../node_modules/.pnpm/vite@7.2.2_@types+node@20.19.25_jiti@2.6.1_lightningcss@1.30.2_tsx@4.20.6_yaml@2.8.1/node_modules/vite/dist/node/chunks/config.js:[2m27738:18[22m[39m
+[90m [2m❯[22m ../../node_modules/.pnpm/vite@7.2.2_@types+node@20.19.25_jiti@2.6.1_lightningcss@1.30.2_tsx@4.20.6_yaml@2.8.1/node_modules/vite/dist/node/chunks/config.js:[2m27796:32[22m[39m
+[90m [2m❯[22m TransformPluginContext.transform ../../node_modules/.pnpm/vite@7.2.2_@types+node@20.19.25_jiti@2.6.1_lightningcss@1.30.2_tsx@4.20.6_yaml@2.8.1/node_modules/vite/dist/node/chunks/config.js:[2m27764:4[22m[39m
+[90m [2m❯[22m EnvironmentPluginContainer.transform ../../node_modules/.pnpm/vite@7.2.2_@types+node@20.19.25_jiti@2.6.1_lightningcss@1.30.2_tsx@4.20.6_yaml@2.8.1/node_modules/vite/dist/node/chunks/config.js:[2m29416:14[22m[39m
+[90m [2m❯[22m loadAndTransform ../../node_modules/.pnpm/vite@7.2.2_@types+node@20.19.25_jiti@2.6.1_lightningcss@1.30.2_tsx@4.20.6_yaml@2.8.1/node_modules/vite/dist/node/chunks/config.js:[2m23287:26[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯[22m[39m
+
+
+[2m Test Files [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m25 passed[39m[22m[90m (26)[39m
+[2m      Tests [22m [1m[32m267 passed[39m[22m[90m (267)[39m
+[2m   Start at [22m 10:46:18
+[2m   Duration [22m 6.44s[2m (transform 1.49s, setup 2.03s, collect 3.94s, tests 7.41s, environment 17.11s, prepare 312ms)[22m
+
+[1m[41m FAIL [49m[22m [31mTests failed. Watching for file changes...[39m
+       [2mpress [22m[1mh[22m[2m to show help[22m[2m, [22m[2mpress [22m[1mq[22m[2m to quit[22m
+[33mTest removed...[39m[2m [ tests/components/dashboard-page.test.tsx ]
+[22m
