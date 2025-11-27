@@ -40,7 +40,8 @@ export function GuildList({ className }: GuildListProps) {
 
       if (!res.ok) throw new Error("Failed to connect");
 
-      router.push(`/dashboard/${guild.id}`);
+      // Force a hard refresh/navigation to ensure context is updated
+      window.location.href = '/club';
     } catch (err) {
       console.error(err);
     }

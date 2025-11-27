@@ -127,7 +127,46 @@ router.get(
       const { guildId } = req.params;
       const guild = await guildService.getGuild(guildId);
       if (!guild) return res.status(404).json({ error: 'Guild not found' });
-      res.json(guild);
+
+      // Calculate user role based on permissions
+      // We need to fetch the user's permissions for this guild from Discord or cache
+      // Since we don't have easy access to Discord API here without a token, 
+      // we rely on the fact that only admins can connect/view this for now, 
+      // OR we check the cached UserGuild if it exists.
+
+      // However, the requirement is:
+      // If (permissions & 0x8) === 0x8 (Admin) or (permissions & 0x20) === 0x20 (Manage Guild), role is ADMIN. Else MEMBER.
+      // We can get this from the session or the UserGuild record if we had it.
+      // But getGuild(guildId) returns the guild.
+
+      // Let's fetch the UserGuild record to get roles/permissions if stored, 
+      // OR we might need to rely on what was passed during auth/connect.
+
+      // Actually, let's look at how we can get the permissions.
+      // In auth.js, we fetch guilds and permissions.
+      // But here we are just fetching the guild from DB.
+
+      // Let's check if the user is the owner.
+      let userRole = 'MEMBER';
+      if (guild.ownerId === req.user.id) {
+        userRole = 'ADMIN';
+      } else {
+        // Check UserGuild for roles
+        const userGuild = await guildService.checkPermission(req.user.id, guildId, 'view_members'); // Just to get the record? No, checkPermission returns boolean.
+
+        // We need to fetch UserGuild directly to check roles.
+        // But wait, the prompt says: "When fetching a guild, calculate the user's role based on their Discord Permissions in that guild."
+        // We don't store Discord Permissions in UserGuild, we store 'roles' (array of strings like 'admin', 'owner').
+        // And in auth.js we map Discord perms to these roles.
+
+        // So we should check if the user has 'admin' or 'owner' role in UserGuild.
+        const isAdmin = await guildService.checkPermission(req.user.id, guildId, 'manage_guild');
+        if (isAdmin) {
+          userRole = 'ADMIN';
+        }
+      }
+
+      res.json({ ...guild, userRole });
     } catch (err) {
       next(err);
     }

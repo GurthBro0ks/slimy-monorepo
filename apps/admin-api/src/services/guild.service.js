@@ -70,12 +70,14 @@ class GuildService {
           username: authUser?.username || undefined,
           globalName: authUser?.globalName || authUser?.username || undefined,
           avatar: authUser?.avatar ?? undefined,
+          lastActiveGuildId: normalizedGuildId,
         },
         create: {
           discordId: normalizedUserId,
           username: authUser?.username || null,
           globalName: authUser?.globalName || authUser?.username || null,
           avatar: authUser?.avatar || null,
+          lastActiveGuildId: normalizedGuildId,
         },
       });
     } catch (err) {
