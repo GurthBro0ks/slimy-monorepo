@@ -24,9 +24,25 @@ router.post("/rescan", requireAuth, requireCsrf, async (req, res) => {
     });
 
     const contentType = response.headers.get("content-type") || "";
-    const payload = contentType.includes("application/json")
-      ? await response.json().catch(() => ({}))
-      : await response.text();
+    let payload;
+    if (contentType.includes("application/json")) {
+      try {
+        payload = await response.json();
+      } catch (err) {
+        console.error("[bot] JSON parsing failed", {
+          status: response.status,
+          contentType,
+          error: err.message
+        });
+        // Return error instead of silently using empty object
+        return res.status(502).json({
+          error: "invalid-json-response",
+          message: "Bot service returned malformed JSON"
+        });
+      }
+    } else {
+      payload = await response.text();
+    }
 
     if (!response.ok) {
       return res.status(response.status).send(payload);
