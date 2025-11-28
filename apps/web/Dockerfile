@@ -1,4 +1,5 @@
 FROM node:22-slim AS base
+RUN apt-get update -y && apt-get install -y openssl
 
 ENV PNPM_HOME=/root/.local/share/pnpm
 ENV PATH=${PNPM_HOME}:${PATH}
