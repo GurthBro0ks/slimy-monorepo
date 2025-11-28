@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { usePathname } from 'next/navigation';
 import './marketing.css';
 import Nav from './components/Nav';
 import Hero from './components/Hero';
@@ -13,6 +14,10 @@ export default function MarketingPage() {
   // Chat starts closed; only opens when user explicitly clicks to open it
   // This prevents hydration mismatch from localStorage reads
   const [chatOpen, setChatOpen] = useState(false);
+  const pathname = usePathname();
+
+  // Don't show chat widget on the /chat page
+  const showChatWidget = pathname !== '/chat';
 
   return (
     <>
@@ -24,7 +29,7 @@ export default function MarketingPage() {
         <CTA />
       </main>
       <div className="crt-overlay" aria-hidden="true" />
-      <ChatWidget open={chatOpen} onClose={() => setChatOpen(false)} onOpen={() => setChatOpen(true)} />
+      {showChatWidget && <ChatWidget open={chatOpen} onClose={() => setChatOpen(false)} onOpen={() => setChatOpen(true)} />}
     </>
   );
 }

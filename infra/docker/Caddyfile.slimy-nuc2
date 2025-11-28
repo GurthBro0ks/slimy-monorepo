@@ -59,6 +59,25 @@ panel.slimyai.xyz {
   reverse_proxy 127.0.0.1:3000
 }
 
+chat.slimyai.xyz {
+  import slime_common
+  
+  @bedrock_api_chat path /api/bedrock-status /api/bedrock-status/*
+  reverse_proxy @bedrock_api_chat 127.0.0.1:3000 {
+    flush_interval -1
+  }
+
+  @admin_api_chat {
+    path /api/*
+    not path /api/bedrock-status /api/bedrock-status/*
+  }
+  reverse_proxy @admin_api_chat 127.0.0.1:3080 {
+    flush_interval -1
+  }
+
+  reverse_proxy 127.0.0.1:3000
+}
+
 slime.chat, www.slime.chat {
   import slime_common
   reverse_proxy 127.0.0.1:3000

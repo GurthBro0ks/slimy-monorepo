@@ -17,6 +17,7 @@ const SHELL_ROUTES = ["/dashboard", "/analytics", "/club", "/snail"];
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const isShellRoute = SHELL_ROUTES.some((route) => pathname?.startsWith(route));
+  const isChatPage = pathname === '/chat';
 
   return (
     <AuthErrorBoundary>
@@ -26,7 +27,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             {!isShellRoute && <Header />}
             <main className="flex-1">{children}</main>
             {!isShellRoute && <Footer />}
-            {!isShellRoute && <AuthenticatedChatBar />}
+            {!isShellRoute && !isChatPage && <AuthenticatedChatBar />}
             <ServiceWorkerRegistration />
           </div>
         </ActiveGuildProvider>
