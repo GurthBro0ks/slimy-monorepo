@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminApiClient } from '@/lib/api/admin-client';
+import { requireAuth } from '@/lib/auth/server';
+import { validateGuildAccess } from '@/lib/auth/permissions';
 
 export const runtime = 'edge';
 
@@ -11,7 +13,10 @@ export const runtime = 'edge';
  */
 export async function POST(request: NextRequest) {
   try {
-    // Extract guildId from query params
+    // STEP 1: Authenticate user FIRST
+    const user = await requireAuth();
+
+    // STEP 2: Extract guildId from query params
     const { searchParams } = new URL(request.url);
     const guildId = searchParams.get('guildId');
 
@@ -25,6 +30,9 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    // STEP 3: Validate user has access to this guild
+    validateGuildAccess(user, guildId);
 
     // Check if admin API is configured
     if (!adminApiClient.isConfigured()) {

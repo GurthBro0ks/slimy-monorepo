@@ -1,20 +1,30 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { clubDatabase } from '@/lib/club/database';
+import { requireAuth } from '@/lib/auth/server';
+import { validateGuildAccess, sanitizeGuildId } from '@/lib/auth/permissions';
+import { ValidationError, errorResponse } from '@/lib/errors';
 
 // TODO: Import MCP client when available
 // import { getMCPClient } from '@/lib/mcp-client';
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { guildId, includeAnalysis = true, dateRange } = body;
+    // STEP 1: Authenticate user FIRST
+    const user = await requireAuth();
 
-    if (!guildId) {
-      return NextResponse.json(
-        { error: 'Guild ID is required' },
-        { status: 400 }
-      );
+    // STEP 2: Parse and validate inputs
+    const body = await request.json();
+    const { guildId: rawGuildId, includeAnalysis = true, dateRange } = body;
+
+    if (!rawGuildId) {
+      throw new ValidationError('Guild ID is required');
     }
+
+    // STEP 3: Sanitize guildId to prevent injection attacks
+    const guildId = sanitizeGuildId(rawGuildId);
+
+    // STEP 4: Validate user has access to this guild
+    validateGuildAccess(user, guildId);
 
     // Fetch analysis results if requested
     let analysisData = null;
@@ -95,9 +105,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(result);
   } catch (error) {
     console.error('Error exporting to Google Sheets:', error);
-    return NextResponse.json(
-      { error: 'Failed to export to Google Sheets' },
-      { status: 500 }
-    );
+    const { body, status, headers } = errorResponse(error);
+    return NextResponse.json(body, { status, headers });
   }
 }

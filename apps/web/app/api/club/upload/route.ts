@@ -3,6 +3,7 @@ import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { analyzeClubScreenshots } from '@/lib/club/vision';
 import { requireAuth } from '@/lib/auth/server';
+import { validateGuildAccess, sanitizeGuildId } from '@/lib/auth/permissions';
 import { ValidationError, errorResponse } from '@/lib/errors';
 
 // Maximum file size: 10MB per file
@@ -14,7 +15,7 @@ export async function POST(request: NextRequest) {
     // STEP 1: Parse request data
     const formData = await request.formData();
     const screenshots = formData.getAll('screenshots') as File[];
-    const guildId = formData.get('guildId') as string;
+    const rawGuildId = formData.get('guildId') as string;
     const analyze = formData.get('analyze') === 'true';
 
     // STEP 2: Validate inputs BEFORE authentication
@@ -22,16 +23,13 @@ export async function POST(request: NextRequest) {
       throw new ValidationError('No screenshots provided');
     }
 
-    if (!guildId) {
+    if (!rawGuildId) {
       throw new ValidationError('Guild ID is required');
     }
 
-    // SECURITY: Sanitize guildId to prevent path traversal attacks
+    // STEP 2a: SECURITY: Sanitize guildId to prevent path traversal attacks
     // Only allow alphanumeric characters, hyphens, and underscores
-    const sanitizedGuildId = guildId.replace(/[^a-zA-Z0-9_-]/g, '');
-    if (!sanitizedGuildId || sanitizedGuildId !== guildId) {
-      throw new ValidationError('Invalid guild ID format');
-    }
+    const guildId = sanitizeGuildId(rawGuildId);
 
     // SECURITY: Limit number of files
     if (screenshots.length > MAX_FILES) {
@@ -55,11 +53,14 @@ export async function POST(request: NextRequest) {
     }
 
     // STEP 3: Authenticate user (throws AuthenticationError if invalid)
-    await requireAuth();
+    const user = await requireAuth();
 
-    // STEP 4: Execute business logic
+    // STEP 4: Validate user has access to this guild
+    validateGuildAccess(user, guildId);
+
+    // STEP 5: Execute business logic
     // Create guild-specific upload directory
-    const uploadDir = join(process.cwd(), 'public', 'uploads', 'club', sanitizedGuildId);
+    const uploadDir = join(process.cwd(), 'public', 'uploads', 'club', guildId);
     await mkdir(uploadDir, { recursive: true });
 
     // Process and store uploaded files
@@ -83,7 +84,7 @@ export async function POST(request: NextRequest) {
       await writeFile(filepath, buffer);
 
       // Create public URL using sanitized guildId
-      const imageUrl = `/uploads/club/${sanitizedGuildId}/${filename}`;
+      const imageUrl = `/uploads/club/${guildId}/${filename}`;
 
       uploadedFiles.push({
         name: file.name,

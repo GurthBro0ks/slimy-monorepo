@@ -1,3 +1,10 @@
+/**
+ * @deprecated This file contains a mock database implementation.
+ * Use ClubAnalyticsRepository from @/lib/repositories/club-analytics.repository instead.
+ *
+ * This file is kept for reference only and should not be used in production code.
+ */
+
 import { ClubAnalysisResult } from './vision';
 
 // Types for database operations
