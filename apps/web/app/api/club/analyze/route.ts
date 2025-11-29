@@ -1,23 +1,28 @@
 import { NextRequest } from 'next/server';
 import { analyzeClubScreenshot, analyzeClubScreenshots, validateImageUrl, type ClubAnalysisResult } from '@/lib/club/vision';
 import { clubDatabase } from '@/lib/club/database';
+import { getClubAnalyticsRepository } from '@/lib/repositories/club-analytics.repository';
 import { requireAuth } from '@/lib/auth/server';
+import { validateGuildAccess, sanitizeGuildId } from '@/lib/auth/permissions';
 import { ValidationError, errorResponse } from '@/lib/errors';
 
 export async function POST(request: NextRequest) {
   try {
     // STEP 1: Parse request data
     const body = await request.json();
-    const { imageUrls, guildId, options } = body;
+    const { imageUrls, guildId: rawGuildId, options } = body;
 
     // STEP 2: Validate ALL inputs BEFORE authentication
     if (!imageUrls || !Array.isArray(imageUrls) || imageUrls.length === 0) {
       throw new ValidationError('At least one image URL is required');
     }
 
-    if (!guildId) {
+    if (!rawGuildId) {
       throw new ValidationError('Guild ID is required');
     }
+
+    // STEP 2a: Sanitize guildId to prevent injection attacks
+    const guildId = sanitizeGuildId(rawGuildId);
 
     // Validate all image URLs
     const validationPromises = imageUrls.map(url => validateImageUrl(url));
@@ -32,6 +37,9 @@ export async function POST(request: NextRequest) {
 
     // STEP 3: Authenticate user (throws AuthenticationError if invalid)
     const user = await requireAuth();
+
+    // STEP 4: Validate user has access to this guild
+    validateGuildAccess(user, guildId);
 
     // SECURITY: Use authenticated user's ID, not client-provided userId
     const userId = user.id;
@@ -50,11 +58,31 @@ export async function POST(request: NextRequest) {
       throw error; // Re-throw to be handled by centralized error handler
     }
 
-    // Store results in database
+    // STEP 6: Store results in database using repository
+    const repository = getClubAnalyticsRepository();
     const storedResults = [];
+
     for (const result of results) {
       try {
-        const stored = await clubDatabase.storeAnalysis(guildId, userId, result, [result.imageUrl]);
+        // Map ClubAnalysisResult to CreateClubAnalysisInput
+        const stored = await repository.create({
+          guildId,
+          userId,
+          title: `Club Analysis ${new Date().toLocaleDateString()}`,
+          summary: result.analysis.summary,
+          confidence: result.confidence,
+          images: [{
+            imageUrl: result.imageUrl,
+            originalName: result.imageUrl.split('/').pop() || 'screenshot.png',
+            fileSize: 0, // File size not available from vision analysis
+          }],
+          metrics: Object.entries(result.analysis.metrics).map(([name, value]) => ({
+            name,
+            value, // Repository handles JSON.stringify internally
+            category: categorizeMetric(name),
+          })),
+        });
+
         storedResults.push(stored);
       } catch (error) {
         console.error('Failed to store analysis result:', error);
@@ -83,37 +111,60 @@ export async function POST(request: NextRequest) {
   }
 }
 
+/**
+ * Categorizes metrics for storage
+ */
+function categorizeMetric(metricName: string): string {
+  const categories: Record<string, string> = {
+    totalMembers: 'membership',
+    activeMembers: 'activity',
+    performanceScore: 'performance',
+    averageScore: 'performance',
+    winRate: 'performance',
+    participationRate: 'activity',
+  };
+
+  return categories[metricName] || 'general';
+}
+
 // GET endpoint to retrieve stored analysis results
 export async function GET(request: NextRequest) {
   try {
     // STEP 1: Parse query parameters
     const { searchParams } = new URL(request.url);
-    const guildId = searchParams.get('guildId');
+    const rawGuildId = searchParams.get('guildId');
     const limit = parseInt(searchParams.get('limit') || '10');
     const offset = parseInt(searchParams.get('offset') || '0');
 
     // STEP 2: Validate inputs BEFORE authentication
-    if (!guildId) {
+    if (!rawGuildId) {
       throw new ValidationError('Guild ID is required');
     }
 
+    // STEP 2a: Sanitize guildId
+    const guildId = sanitizeGuildId(rawGuildId);
+
     // STEP 3: Authenticate user (throws AuthenticationError if invalid)
-    await requireAuth();
+    const user = await requireAuth();
 
-    // STEP 4: Execute business logic
-    // TODO: Validate that authenticated user has access to this guild
+    // STEP 4: Validate that authenticated user has access to this guild
+    validateGuildAccess(user, guildId);
 
-    // Retrieve results from database
-    const results = await clubDatabase.getAnalysesByGuild(guildId, limit, offset);
+    // STEP 5: Execute business logic - Retrieve results from database
+    const repository = getClubAnalyticsRepository();
+
+    // Fetch analyses with proper pagination
+    const results = await repository.findByGuild(guildId, { limit, offset });
+    const totalCount = await repository.countByGuild(guildId);
 
     return Response.json({
       success: true,
       results,
       pagination: {
-        total: results.length, // TODO: Implement proper count query
+        total: totalCount,
         limit,
         offset,
-        hasMore: results.length === limit
+        hasMore: (offset + limit) < totalCount,
       }
     });
 
