@@ -5,15 +5,30 @@ import { getUserRole } from "@/slimy.config";
 
 export const dynamic = "force-dynamic"; // no-store
 
+// Backend response is the user object directly (not wrapped in { user: ... })
 interface AdminApiMeResponse {
-  user: {
+  id: string;
+  username: string;
+  globalName?: string;
+  avatar?: string;
+  email?: string;
+  role: string;
+  discordId: string;
+  guilds?: Array<{
     id: string;
     name: string;
-  };
-  guilds?: Array<{
+    icon?: string;
+    role?: string;
+    permissions?: string;
+    installed?: boolean;
+  }>;
+  sessionGuilds?: Array<{
     id: string;
     roles: string[];
   }>;
+  lastActiveGuild?: {
+    id: string;
+  };
 }
 
 export async function GET() {
@@ -31,13 +46,26 @@ export async function GET() {
     return NextResponse.json(result, { status: result.status || 401 });
   }
 
-  // Extract roles from guilds and determine user role
-  const allRoles = result.data.guilds?.flatMap(g => g.roles) || [];
-  const role = getUserRole(allRoles);
+  // Backend returns user data directly, transform it to match frontend expectations
+  const backendUser = result.data;
+  const transformedUser = {
+    id: backendUser.id,
+    discordId: backendUser.discordId,
+    username: backendUser.username,
+    globalName: backendUser.globalName,
+    avatar: backendUser.avatar,
+    role: backendUser.role,
+  };
+
+  // Extract guild info for the frontend
+  const guilds = (backendUser.sessionGuilds || []).map(g => ({
+    id: g.id,
+    roles: g.roles,
+  }));
 
   return NextResponse.json({
-    user: result.data.user,
-    role,
-    guilds: result.data.guilds,
+    user: transformedUser,
+    role: backendUser.role,
+    guilds,
   });
 }
