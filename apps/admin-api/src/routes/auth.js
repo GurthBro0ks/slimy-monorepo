@@ -351,6 +351,30 @@ router.get("/callback", async (req, res) => {
       const expiresAt = new Date(Date.now() + expiresMs);
       console.log("Creating Session...");
       await prismaDatabase.createSession(prismaUser.id, sessionToken, expiresAt);
+
+      // Store user's guilds in the database
+      console.log("Storing guilds in database...");
+      for (const guild of enrichedGuilds) {
+        try {
+          // Ensure guild exists in database (returns guild with database ID)
+          const dbGuild = await prismaDatabase.findOrCreateGuild({
+            id: guild.id,
+            name: guild.name,
+          });
+
+          // Create or update user-guild relationship using database guild ID
+          await prismaDatabase.addUserToGuild(
+            prismaUser.id,
+            dbGuild.id,
+            guild.roles || []
+          );
+        } catch (guildErr) {
+          console.error(`[auth/callback] Failed to store guild ${guild.id}:`, guildErr.message);
+          // Continue with other guilds even if one fails
+        }
+      }
+      console.log(`Stored ${enrichedGuilds.length} guilds for user`);
+
       res.cookie(SESSION_COOKIE_NAME, sessionToken, {
         httpOnly: true,
         secure: Boolean(
@@ -404,8 +428,9 @@ router.get("/me", async (req, res) => {
   // Fetch fresh user data from DB to get lastActiveGuild
   let dbUser = null;
   try {
-    if (prismaDatabase.client) {
-      dbUser = await prismaDatabase.client.user.findUnique({
+    const prisma = prismaDatabase.getClient();
+    if (prisma) {
+      dbUser = await prisma.user.findUnique({
         where: { discordId: req.user.id },
         include: { lastActiveGuild: true },
       });
@@ -414,7 +439,24 @@ router.get("/me", async (req, res) => {
     console.warn("[auth] Failed to fetch fresh user data:", err);
   }
 
-  const session = getSession(req.user.id);
+  const session = await getSession(req.user.id);
+
+  // Fetch guilds from database if not in session
+  let sessionGuilds = session?.guilds || [];
+  if (sessionGuilds.length === 0 && dbUser) {
+    try {
+      const userGuilds = await prismaDatabase.getUserGuilds(dbUser.id);
+      if (userGuilds && userGuilds.length > 0) {
+        sessionGuilds = userGuilds.map(ug => ({
+          id: ug.guild.discordId || ug.guild.id,
+          roles: ug.roles || [],
+        }));
+        console.log(`[auth/me] Loaded ${sessionGuilds.length} guilds from database for user ${req.user.id}`);
+      }
+    } catch (err) {
+      console.warn('[auth/me] Failed to fetch guilds from database:', err);
+    }
+  }
 
   // Merge req.user (from token/session) with fresh DB data
   const responseUser = {
@@ -422,7 +464,7 @@ router.get("/me", async (req, res) => {
     ...(dbUser || {}),
     // Ensure these exist even if DB fetch fails
     guilds: req.user.guilds || [],
-    sessionGuilds: session?.guilds || [],
+    sessionGuilds,
   };
 
   return res.json(responseUser);

@@ -5,6 +5,7 @@ const { hasRole } = require("../services/rbac");
 const { verifySessionToken, getCookieOptions } = require("../services/token");
 const { verifySession, COOKIE_NAME } = require("../../lib/jwt");
 const { getSession } = require("../../lib/session-store");
+const prismaDatabase = require("../lib/database");
 
 const FALLBACK_COOKIE_NAMES = [
   config.jwt.cookieName,
@@ -12,6 +13,8 @@ const FALLBACK_COOKIE_NAMES = [
   "slimy_admin",
   "slimy_admin_token",
 ].filter(Boolean);
+
+const SESSION_TOKEN_COOKIE = "slimy_admin";
 
 function logReadAuth(message, meta = {}) {
   try {
@@ -21,7 +24,7 @@ function logReadAuth(message, meta = {}) {
   }
 }
 
-function resolveUser(req) {
+async function resolveUser(req) {
   if ("_cachedUser" in req) {
     return req._cachedUser;
   }
@@ -39,6 +42,68 @@ function resolveUser(req) {
   logReadAuth("cookie present", { cookieName: token.name });
 
   try {
+    // Check if this is a session token (from slimy_admin cookie)
+    if (token.name === SESSION_TOKEN_COOKIE) {
+      logReadAuth("validating session token from database");
+
+      // Validate session token against database
+      const session = await prismaDatabase.findSessionByToken(token.value);
+
+      if (!session || !session.user) {
+        logReadAuth("session token invalid or expired");
+        req._cachedUser = null;
+        return null;
+      }
+
+      // Check if session is expired
+      if (session.expiresAt && new Date(session.expiresAt) < new Date()) {
+        logReadAuth("session token expired");
+        req._cachedUser = null;
+        return null;
+      }
+
+      // Build user object from database session
+      const normalizedUser = {
+        id: session.user.discordId,
+        discordId: session.user.discordId,
+        username: session.user.username,
+        globalName: session.user.globalName,
+        avatar: session.user.avatar,
+        email: session.user.email,
+        role: session.user.role || "member",
+        guilds: [],
+      };
+
+      // Load guilds from database for this user
+      try {
+        const userGuilds = await prismaDatabase.getUserGuilds(session.user.id);
+        if (userGuilds && userGuilds.length > 0) {
+          normalizedUser.guilds = userGuilds.map(ug => ({
+            id: ug.guild.discordId || ug.guild.id,
+            roles: ug.roles || [],
+          }));
+          logReadAuth("loaded guilds from database", {
+            userId: req.user.id,
+            guildCount: normalizedUser.guilds.length
+          });
+        }
+      } catch (guildErr) {
+        logReadAuth("failed to load guilds from database", {
+          userId: session.user.discordId,
+          error: guildErr.message
+        });
+        // Continue with empty guilds array
+      }
+
+      req.user = normalizedUser;
+      req.session = session;
+      req._cachedUser = req.user;
+
+      logReadAuth("user authenticated via session token", { userId: req.user.id });
+      return req.user;
+    }
+
+    // Otherwise, this is a JWT token - verify it normally
     // Prefer lib/jwt verifySession when available (Jest mocks), fall back to service token verification.
     // In test environments, accept well-known fixture tokens to avoid strict JWT parsing failures.
     const fixturePayload =
@@ -145,8 +210,8 @@ function resolveUser(req) {
   }
 }
 
-function attachSession(req, res, next) {
-  const user = resolveUser(req);
+async function attachSession(req, res, next) {
+  const user = await resolveUser(req);
   if (!user && req.cookies?.[config.jwt.cookieName]) {
     res.clearCookie(config.jwt.cookieName, getCookieOptions());
   }
@@ -169,8 +234,8 @@ function forbidden(res, message = "Insufficient role") {
   });
 }
 
-function requireAuth(req, res, next) {
-  const user = req.user || resolveUser(req);
+async function requireAuth(req, res, next) {
+  const user = req.user || await resolveUser(req);
   if (!user) {
     return unauthorized(res);
   }
@@ -178,8 +243,8 @@ function requireAuth(req, res, next) {
 }
 
 function requireRole(minRole = "admin") {
-  return (req, res, next) => {
-    const user = req.user || resolveUser(req);
+  return async (req, res, next) => {
+    const user = req.user || await resolveUser(req);
     if (!user) {
       return unauthorized(res);
     }
@@ -203,8 +268,8 @@ function resolveGuildId(req, paramKey = "guildId") {
 }
 
 function requireGuildMember(paramKey = "guildId") {
-  return (req, res, next) => {
-    const user = req.user || resolveUser(req);
+  return async (req, res, next) => {
+    const user = req.user || await resolveUser(req);
     if (!user) {
       return unauthorized(res);
     }
@@ -233,8 +298,8 @@ function requireGuildMember(paramKey = "guildId") {
   };
 }
 
-function readAuth(req, _res, next) {
-  resolveUser(req);
+async function readAuth(req, _res, next) {
+  await resolveUser(req);
   return next();
 }
 
