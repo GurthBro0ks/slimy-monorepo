@@ -28,8 +28,8 @@ const nextConfig = {
                 destination: 'http://127.0.0.1:3080/api/auth/callback',
             },
             {
-                // Proxy ALL /api/ routes to the backend (including auth), EXCEPT local stream
-                source: '/api/:path((?!stats/events/stream).*)',
+                // Proxy ALL /api/ routes to the backend (including auth), EXCEPT local stream, auth handlers, and club routes
+                source: '/api/:path((?!stats/events/stream|auth/me|auth/logout|club/).*)',
                 destination: 'http://127.0.0.1:3080/api/:path*',
             },
         ];

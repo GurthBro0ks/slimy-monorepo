@@ -9,6 +9,7 @@ export interface AuthUser {
   globalName?: string;
   avatar?: string;
   role: "admin" | "club" | "member";
+  lastActiveGuildId?: string;
 }
 
 export interface GuildInfo {
@@ -43,11 +44,28 @@ export function useAuth(): UseAuthReturn {
         const res = await fetch("/api/auth/me", { credentials: "include" });
         if (res.ok) {
           const data = await res.json();
-          setUser(data.user);
-          setRole(data.role);
-          setGuilds(data.guilds || []);
-          setIsAuthenticated(true);
+          console.log("[useAuth] /api/auth/me response:", data);
+
+          // Handle both nested { user: ... } (Next.js API) and flat user object (Backend Proxy)
+          const userData = data.user || data;
+
+          if (userData && userData.id) {
+            // Map backend's lastActiveGuild object to lastActiveGuildId if needed
+            if (userData.lastActiveGuild && !userData.lastActiveGuildId) {
+              userData.lastActiveGuildId = userData.lastActiveGuild.id;
+            }
+
+            setUser(userData);
+            setRole(userData.role || data.role);
+            setGuilds(userData.guilds || data.guilds || []);
+            setIsAuthenticated(true);
+          } else {
+            console.warn("[useAuth] Invalid user data structure:", data);
+            setIsAuthenticated(false);
+            setUser(null);
+          }
         } else {
+          console.warn("[useAuth] Auth check failed with status:", res.status);
           setIsAuthenticated(false);
           setUser(null);
           setRole(null);

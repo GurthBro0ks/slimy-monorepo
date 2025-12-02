@@ -10,9 +10,9 @@ const vt323 = VT323({ weight: '400', subsets: ['latin'] });
 const pressStart = Press_Start_2P({ weight: '400', subsets: ['latin'] });
 
 export default function ClubPage() {
-  const { user, guilds } = useAuth();
-  // TODO: Add proper guild selector. Defaulting to first guild for prototype.
-  const guildId = guilds?.[0]?.id || '';
+  const { user, guilds, isLoading } = useAuth();
+  // Default to last active guild, or first available guild
+  const guildId = user?.lastActiveGuildId || guilds?.[0]?.id || '';
 
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -38,7 +38,22 @@ export default function ClubPage() {
     if (guildId) loadData();
   }, [guildId]);
 
-  if (!user) return <div className="bg-[#050010] min-h-screen text-[#00ff00] p-10 font-mono">AUTHENTICATING...</div>;
+  if (isLoading) return <div className="bg-[#050010] min-h-screen text-[#00ff00] p-10 font-mono">AUTHENTICATING...</div>;
+
+  if (!user) {
+    return (
+      <div className={`min-h-screen bg-[#050010] text-[#ff0000] p-10 font-mono flex flex-col items-center justify-center gap-5 ${vt323.className}`}>
+        <div className="text-4xl animate-pulse">ACCESS DENIED</div>
+        <div className="text-xl text-[#e0aaff]">SECURE TERMINAL REQUIRES AUTHORIZATION</div>
+        <a
+          href="/api/auth/login"
+          className="mt-5 px-8 py-3 bg-[#240046] border-2 border-[#ff0000] text-[#ff0000] hover:bg-[#ff0000] hover:text-[#050010] transition-all text-2xl uppercase tracking-widest"
+        >
+          Login via Discord
+        </a>
+      </div>
+    );
+  }
 
   return (
     <div className={`min-h-screen bg-[#050010] text-[#e0aaff] flex flex-col relative overflow-x-hidden ${vt323.className}`}>
