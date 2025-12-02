@@ -40,14 +40,22 @@ async function storeSession(userId, data) {
 
 async function getSession(userId) {
   try {
-    // For backward compatibility, we need to find the session by token
-    // This is a limitation - we'd ideally store sessions by userId
-    // For now, we'll return a mock session structure
-    // TODO: Update to properly query sessions by userId when JWT token is available
+    // Fetch user's guilds from the database
+    const userGuilds = await database.getUserGuilds(userId);
 
-    // Since we don't have direct userId lookup, we'll need to get this from the JWT middleware
-    // For now, return null and let the JWT middleware handle it
-    return null;
+    if (!userGuilds || userGuilds.length === 0) {
+      return null;
+    }
+
+    // Transform to the format expected by the auth system
+    const guilds = userGuilds.map(ug => ({
+      id: ug.guild.discordId || ug.guild.id,
+      roles: ug.roles || [],
+    }));
+
+    return {
+      guilds,
+    };
   } catch (err) {
     console.error('[session-store] Failed to get session:', err.message);
     return null;
