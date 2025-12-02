@@ -1,7 +1,6 @@
 'use client';
-import React, { useEffect, useRef } from 'react';
-import Spreadsheet from 'x-data-spreadsheet/dist/xspreadsheet.js';
-import 'x-data-spreadsheet/dist/xspreadsheet.css';
+import React, { useEffect, useRef, useState } from 'react';
+import Script from 'next/script';
 
 interface SheetViewProps {
     data: any[];
@@ -11,6 +10,7 @@ interface SheetViewProps {
 export function SheetView({ data, isLoading }: SheetViewProps) {
     const sheetRef = useRef<HTMLDivElement>(null);
     const spreadsheetInstance = useRef<any>(null);
+    const [libLoaded, setLibLoaded] = useState(false);
 
     const transformData = (analyses: any[]) => {
         // 1. Identify Columns
@@ -58,33 +58,42 @@ export function SheetView({ data, isLoading }: SheetViewProps) {
     };
 
     useEffect(() => {
-        if (!sheetRef.current) return;
-        if (!spreadsheetInstance.current) {
-            spreadsheetInstance.current = new Spreadsheet(sheetRef.current, {
-                mode: 'edit',
-                showToolbar: false,
-                showGrid: true,
-                view: {
-                    height: () => 600,
-                    width: () => sheetRef.current!.clientWidth,
-                },
-                style: {
-                    bgcolor: '#ffffff',
-                    align: 'left',
-                    valign: 'middle',
-                    textwrap: false,
-                    color: '#0a0a0a',
-                },
-            });
+        if (libLoaded && sheetRef.current && !spreadsheetInstance.current) {
+            const Spreadsheet = (window as any).x_spreadsheet;
+            if (Spreadsheet) {
+                spreadsheetInstance.current = new Spreadsheet(sheetRef.current, {
+                    mode: 'edit',
+                    showToolbar: false,
+                    showGrid: true,
+                    view: {
+                        height: () => 600,
+                        width: () => sheetRef.current!.clientWidth,
+                    },
+                    style: {
+                        bgcolor: '#ffffff',
+                        align: 'left',
+                        valign: 'middle',
+                        textwrap: false,
+                        color: '#0a0a0a',
+                    },
+                });
+            }
         }
-        if (data.length > 0) {
+
+        if (spreadsheetInstance.current && data.length > 0) {
             const formatted = transformData(data);
             spreadsheetInstance.current.loadData(formatted);
         }
-    }, [data]);
+    }, [libLoaded, data]);
 
     return (
         <div className="w-full h-full bg-white border border-black relative">
+            <link rel="stylesheet" href="https://unpkg.com/x-data-spreadsheet@1.1.5/dist/xspreadsheet.css" />
+            <Script
+                src="https://unpkg.com/x-data-spreadsheet@1.1.5/dist/xspreadsheet.js"
+                strategy="lazyOnload"
+                onLoad={() => setLibLoaded(true)}
+            />
             {isLoading && (
                 <div className="absolute inset-0 bg-black/50 z-10 flex items-center justify-center text-[#00ff00] font-mono">
                     LOADING_GRID_DATA...

@@ -44,7 +44,6 @@
     "remark-gfm": "^4.0.1",
     "sharp": "^0.33.5",
     "web-vitals": "^5.1.0",
-    "x-data-spreadsheet": "^1.1.9",
     "zod": "^4.1.12"
   },
   "devDependencies": {

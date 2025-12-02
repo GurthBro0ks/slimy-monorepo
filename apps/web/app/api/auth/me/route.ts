@@ -55,6 +55,7 @@ export async function GET() {
     globalName: backendUser.globalName,
     avatar: backendUser.avatar,
     role: backendUser.role,
+    lastActiveGuildId: backendUser.lastActiveGuild?.id,
   };
 
   // Extract guild info for the frontend
