@@ -2,6 +2,10 @@
   "name": "@slimy/shared-codes",
   "version": "0.0.0",
   "private": true,
+  "main": "src/index.ts",
+  "exports": {
+    "./src": "./src/index.ts"
+  },
   "scripts": {
     "build": "echo \"TODO: build shared-codes\"",
     "test": "echo \"TODO: test shared-codes\""
