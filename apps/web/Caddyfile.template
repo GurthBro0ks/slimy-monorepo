@@ -2,15 +2,10 @@
 # Place this in /etc/caddy/Caddyfile on your server
 
 admin.slimyai.xyz {
-    # Handle API routes - proxy to admin API backend
+    # Handle API routes - proxy to Next.js first so it can serve club/auth endpoints
     handle_path /api/* {
-        reverse_proxy localhost:3080 {
-            # Health check
-            health_uri /api/health
-            health_interval 10s
-            health_timeout 5s
-            
-            # Headers
+        reverse_proxy localhost:3001 {
+            # Allow Next.js rewrites to proxy remaining routes to the Admin API
             header_up Host {host}
             header_up X-Real-IP {remote_host}
             header_up X-Forwarded-For {remote_host}

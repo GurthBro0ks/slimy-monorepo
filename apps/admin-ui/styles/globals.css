@@ -1,16 +1,41 @@
 @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=VT323&display=swap');
 
 :root {
-  --bg-deep: #0d0720;
+  /* Enhanced Cyberpunk/Slime Design System */
+  /* Dark Backgrounds - deeper, more dramatic */
+  --bg-deep: #0d001a;
   --bg-panel: #120a2e;
-  --neon-pink: #ff5ccf;
-  --neon-purple: #b875ff;
-  --neon-green: #3dff8c;
+  --bg-terminal: #050010;
+
+  /* Neon Colors - Primary: Green/Purple, Accent: Pink */
+  --neon-green: #00ff00;        /* Terminal green - primary */
+  --neon-green-dim: #3dff8c;    /* Softer green */
+  --neon-purple: #9d4edd;       /* Electric purple - primary */
+  --neon-purple-bright: #b875ff;
+  --neon-pink: #ff5ccf;         /* Pink accent - kept */
   --neon-blue: #4d4dff;
-  --glass-border: rgba(255, 255, 255, 0.1);
+
+  /* Slime Colors */
+  --slime-green: #00ff64;
+  --slime-glow: rgba(0, 255, 100, 0.4);
+
+  /* Glass/UI Elements */
+  --glass-border: rgba(148, 163, 184, 0.2);
+  --glass-bg: rgba(0, 0, 0, 0.6);
+
+  /* Text Colors */
+  --color-text-main: #e0aaff;
+  --color-text-bright: #ffffff;
+  --color-text-dim: #9ca3af;
+
+  /* Fonts */
   --font-main: 'Space Grotesk', system-ui, -apple-system, sans-serif;
   --font-pixel: 'VT323', monospace;
+  --font-terminal: 'VT323', 'Courier New', monospace;
+
+  /* Animation */
   --ease-elastic: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+
   color-scheme: dark;
 }
 
@@ -379,6 +404,66 @@ aside[data-open="true"] {
   z-index: 0;
   pointer-events: none;
   opacity: 0.5;
+}
+
+/* Cyberpunk/Terminal Utility Classes */
+.terminal-header {
+  font-family: var(--font-terminal);
+  text-transform: uppercase;
+  color: var(--neon-green);
+  letter-spacing: 0.1em;
+  text-shadow: 0 0 10px var(--slime-glow);
+}
+
+.glowing-border {
+  border: 2px solid var(--neon-purple);
+  box-shadow: 0 0 15px rgba(157, 78, 221, 0.4),
+              inset 0 0 10px rgba(157, 78, 221, 0.2);
+  animation: pulse-glow 3s ease-in-out infinite;
+}
+
+.glowing-border-green {
+  border: 2px solid var(--neon-green);
+  box-shadow: 0 0 15px var(--slime-glow),
+              inset 0 0 10px var(--slime-glow);
+  animation: pulse-glow-green 3s ease-in-out infinite;
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 15px rgba(157, 78, 221, 0.4),
+                inset 0 0 10px rgba(157, 78, 221, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 25px rgba(157, 78, 221, 0.6),
+                inset 0 0 15px rgba(157, 78, 221, 0.3);
+  }
+}
+
+@keyframes pulse-glow-green {
+  0%, 100% {
+    box-shadow: 0 0 15px var(--slime-glow),
+                inset 0 0 10px var(--slime-glow);
+  }
+  50% {
+    box-shadow: 0 0 25px rgba(0, 255, 100, 0.6),
+                inset 0 0 15px rgba(0, 255, 100, 0.4);
+  }
+}
+
+.text-slime {
+  color: var(--neon-green);
+  text-shadow: 0 0 8px var(--slime-glow);
+}
+
+.text-purple-glow {
+  color: var(--neon-purple);
+  text-shadow: 0 0 8px rgba(157, 78, 221, 0.6);
+}
+
+.text-pink-accent {
+  color: var(--neon-pink);
+  text-shadow: 0 0 8px rgba(255, 92, 207, 0.6);
 }
 
 @media (max-width: 960px) {

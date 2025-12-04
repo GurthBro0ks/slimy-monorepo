@@ -461,3 +461,14 @@ model AuditLog {
 
   @@map("audit_logs")
 }
+
+// Club Sheet Data
+model ClubSheet {
+  id        String   @id @default(cuid())
+  guildId   String   @unique @map("guild_id")
+  data      Json
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([guildId])
+  @@map("club_sheets")
+}

@@ -1,18 +1,15 @@
-/**
- * @deprecated This file contains a mock database implementation.
- * Use ClubAnalyticsRepository from @/lib/repositories/club-analytics.repository instead.
- *
- * This file is kept for reference only and should not be used in production code.
- */
-
-import { ClubAnalysisResult } from './vision';
+import type { ClubAnalysisResult } from './vision';
+import {
+  getClubAnalyticsRepository,
+  type ClubAnalysisWithRelations,
+} from '@/lib/repositories/club-analytics.repository';
 
 // Types for database operations
 export interface StoredClubAnalysis {
   id: string;
   guildId: string;
   userId: string;
-  title?: string;
+  title?: string | null;
   summary: string;
   confidence: number;
   createdAt: Date;
@@ -33,81 +30,124 @@ export interface StoredClubMetric {
   id: string;
   name: string;
   value: any;
-  unit?: string;
-  category: string;
+  unit?: string | null;
+  category: string | null;
 }
 
-// Database client - placeholder for now
-// TODO: Integrate with actual database connection
 class ClubDatabaseClient {
-  private isConnected = false;
+  private repository = getClubAnalyticsRepository();
 
-  async connect(): Promise<void> {
-    if (this.isConnected) return;
-
-    // TODO: Initialize database connection
-    // For now, we'll use local storage or in-memory storage
-    this.isConnected = true;
-  }
-
+  /**
+   * Persist an analysis result for a guild/user pair
+   */
   async storeAnalysis(
     guildId: string,
     userId: string,
     analysisResult: ClubAnalysisResult,
     imageUrls: string[]
   ): Promise<StoredClubAnalysis> {
-    await this.connect();
+    const images = (imageUrls.length ? imageUrls : [analysisResult.imageUrl]).map((url, index) => ({
+      imageUrl: url,
+      originalName: this.extractFilename(url, index),
+      fileSize: 0,
+    }));
 
-    // TODO: Implement actual database storage
-    // For now, return a mock stored analysis
-    const storedAnalysis: StoredClubAnalysis = {
-      id: analysisResult.id,
+    const metrics = Object.entries(analysisResult.analysis.metrics || {}).map(([name, value]) => ({
+      name,
+      value,
+      category: this.categorizeMetric(name),
+    }));
+
+    const stored = await this.repository.create({
       guildId,
       userId,
-      title: `Club Analysis ${new Date().toLocaleDateString()}`,
+      title: analysisResult.analysis.summary || `Club Analysis ${new Date().toLocaleDateString()}`,
       summary: analysisResult.analysis.summary,
       confidence: analysisResult.confidence,
-      createdAt: analysisResult.timestamp,
-      updatedAt: new Date(),
-      images: imageUrls.map((url, index) => ({
-        id: `img_${analysisResult.id}_${index}`,
-        imageUrl: url,
-        originalName: `screenshot_${index + 1}.png`,
-        fileSize: 1024000, // Mock file size
-        uploadedAt: new Date()
-      })),
-      metrics: Object.entries(analysisResult.analysis.metrics).map(([key, value], index) => ({
-        id: `metric_${analysisResult.id}_${index}`,
-        name: key,
-        value,
-        category: this.categorizeMetric(key)
-      }))
-    };
+      images,
+      metrics,
+    });
 
-    console.log('Stored analysis:', storedAnalysis);
-    return storedAnalysis;
+    return this.mapAnalysis(stored);
   }
 
-  async getAnalysesByGuild(guildId: string, limit = 10, offset = 0): Promise<StoredClubAnalysis[]> {
-    await this.connect();
-
-    // TODO: Implement actual database query
-    // Return empty array for now
-    return [];
+  /**
+   * Fetch analyses for a guild with pagination
+   */
+  async getAnalysesByGuild(
+    guildId: string,
+    limit = 10,
+    offset = 0
+  ): Promise<StoredClubAnalysis[]> {
+    const analyses = await this.repository.findByGuild(guildId, { limit, offset });
+    return analyses.map((analysis) => this.mapAnalysis(analysis));
   }
 
+  /**
+   * Count analyses for a guild
+   */
+  async countAnalysesByGuild(guildId: string): Promise<number> {
+    return this.repository.countByGuild(guildId);
+  }
+
+  /**
+   * Retrieve single analysis
+   */
   async getAnalysisById(id: string): Promise<StoredClubAnalysis | null> {
-    await this.connect();
-
-    // TODO: Implement actual database query
-    return null;
+    const analysis = await this.repository.findById(id);
+    return analysis ? this.mapAnalysis(analysis) : null;
   }
 
+  /**
+   * Delete analysis record
+   */
   async deleteAnalysis(id: string): Promise<boolean> {
-    await this.connect();
-
-    // TODO: Implement actual database deletion
+    await this.repository.delete(id);
     return true;
+  }
+
+  private mapAnalysis(record: ClubAnalysisWithRelations): StoredClubAnalysis {
+    return {
+      id: record.id,
+      guildId: record.guildId,
+      userId: record.userId,
+      title: record.title,
+      summary: record.summary,
+      confidence: record.confidence,
+      createdAt: record.createdAt,
+      updatedAt: record.updatedAt,
+      images: record.images.map((image) => ({
+        id: image.id,
+        imageUrl: image.imageUrl,
+        originalName: image.originalName,
+        fileSize: image.fileSize,
+        uploadedAt: image.uploadedAt,
+      })),
+      metrics: record.metrics.map((metric) => ({
+        id: metric.id,
+        name: metric.name,
+        value: this.parseMetricValue(metric.value),
+        unit: metric.unit,
+        category: metric.category,
+      })),
+    };
+  }
+
+  private parseMetricValue(value: unknown) {
+    if (typeof value !== 'string') return value;
+    try {
+      return JSON.parse(value);
+    } catch {
+      return value;
+    }
+  }
+
+  private extractFilename(url: string, index: number): string {
+    const fromUrl = url.split('/').pop();
+    if (fromUrl && fromUrl.trim().length > 0) {
+      return fromUrl;
+    }
+    return `screenshot_${index + 1}.png`;
   }
 
   private categorizeMetric(metricName: string): string {
@@ -117,12 +157,11 @@ class ClubDatabaseClient {
       performanceScore: 'performance',
       averageScore: 'performance',
       winRate: 'performance',
-      participationRate: 'activity'
+      participationRate: 'activity',
     };
 
     return categories[metricName as keyof typeof categories] || 'general';
   }
 }
 
-// Export singleton instance
 export const clubDatabase = new ClubDatabaseClient();

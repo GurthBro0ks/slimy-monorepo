@@ -14,9 +14,14 @@ export interface ServerAuthUser extends AuthUser {
 interface AdminApiMeResponse {
   user: {
     id: string;
-    name: string;
-    email?: string;
+    username?: string;
+    globalName?: string;
+    discordId: string;
+    avatar?: string;
+    role: string;
+    lastActiveGuildId?: string;
   };
+  role: string;
   guilds?: Array<{
     id: string;
     roles: string[];
@@ -64,13 +69,22 @@ export async function requireAuth(): Promise<ServerAuthUser> {
 
   // Extract user data and determine role
   const { user, guilds } = result.data;
+
+  // Defensive check: ensure user object exists
+  if (!user || !user.id) {
+    throw new AuthenticationError(
+      'Invalid session: user data missing',
+      { received: result.data }
+    );
+  }
+
   const allRoles = guilds?.flatMap(g => g.roles) || [];
   const role = getUserRole(allRoles);
 
   const serverUser: ServerAuthUser = {
     id: user.id,
-    name: user.name,
-    email: user.email,
+    name: user.globalName || user.username || user.id,
+    email: undefined, // Email is not included in transformed response
     role,
     roles: allRoles,
     guilds: guilds || [],

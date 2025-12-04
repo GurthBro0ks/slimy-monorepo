@@ -185,3 +185,14 @@ model UserSession {
   @@index([expiresAt])
   @@map("user_sessions")
 }
+
+// Club Sheet Data
+model ClubSheet {
+  id        String   @id @default(cuid())
+  guildId   String   @unique
+  data      Json
+  updatedAt DateTime @updatedAt
+
+  @@index([guildId])
+  @@map("club_sheets")
+}

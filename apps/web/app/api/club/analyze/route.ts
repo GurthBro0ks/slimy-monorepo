@@ -1,10 +1,12 @@
 import { NextRequest } from 'next/server';
 import { analyzeClubScreenshot, analyzeClubScreenshots, validateImageUrl, type ClubAnalysisResult } from '@/lib/club/vision';
 import { clubDatabase } from '@/lib/club/database';
-import { getClubAnalyticsRepository } from '@/lib/repositories/club-analytics.repository';
 import { requireAuth } from '@/lib/auth/server';
 import { validateGuildAccess, sanitizeGuildId } from '@/lib/auth/permissions';
 import { ValidationError, errorResponse } from '@/lib/errors';
+
+// Force dynamic rendering - no caching
+export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
   try {
@@ -58,31 +60,17 @@ export async function POST(request: NextRequest) {
       throw error; // Re-throw to be handled by centralized error handler
     }
 
-    // STEP 6: Store results in database using repository
-    const repository = getClubAnalyticsRepository();
+    // STEP 6: Store results in database
     const storedResults = [];
 
     for (const result of results) {
       try {
-        // Map ClubAnalysisResult to CreateClubAnalysisInput
-        const stored = await repository.create({
+        const stored = await clubDatabase.storeAnalysis(
           guildId,
           userId,
-          title: `Club Analysis ${new Date().toLocaleDateString()}`,
-          summary: result.analysis.summary,
-          confidence: result.confidence,
-          images: [{
-            imageUrl: result.imageUrl,
-            originalName: result.imageUrl.split('/').pop() || 'screenshot.png',
-            fileSize: 0, // File size not available from vision analysis
-          }],
-          metrics: Object.entries(result.analysis.metrics).map(([name, value]) => ({
-            name,
-            value, // Repository handles JSON.stringify internally
-            category: categorizeMetric(name),
-          })),
-        });
-
+          result,
+          [result.imageUrl]
+        );
         storedResults.push(stored);
       } catch (error) {
         console.error('Failed to store analysis result:', error);
@@ -111,22 +99,6 @@ export async function POST(request: NextRequest) {
   }
 }
 
-/**
- * Categorizes metrics for storage
- */
-function categorizeMetric(metricName: string): string {
-  const categories: Record<string, string> = {
-    totalMembers: 'membership',
-    activeMembers: 'activity',
-    performanceScore: 'performance',
-    averageScore: 'performance',
-    winRate: 'performance',
-    participationRate: 'activity',
-  };
-
-  return categories[metricName] || 'general';
-}
-
 // GET endpoint to retrieve stored analysis results
 export async function GET(request: NextRequest) {
   try {
@@ -151,11 +123,8 @@ export async function GET(request: NextRequest) {
     validateGuildAccess(user, guildId);
 
     // STEP 5: Execute business logic - Retrieve results from database
-    const repository = getClubAnalyticsRepository();
-
-    // Fetch analyses with proper pagination
-    const results = await repository.findByGuild(guildId, { limit, offset });
-    const totalCount = await repository.countByGuild(guildId);
+    const results = await clubDatabase.getAnalysesByGuild(guildId, limit, offset);
+    const totalCount = await clubDatabase.countAnalysesByGuild(guildId);
 
     return Response.json({
       success: true,

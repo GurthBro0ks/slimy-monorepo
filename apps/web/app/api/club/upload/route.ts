@@ -6,6 +6,9 @@ import { requireAuth } from '@/lib/auth/server';
 import { validateGuildAccess, sanitizeGuildId } from '@/lib/auth/permissions';
 import { ValidationError, errorResponse } from '@/lib/errors';
 
+// Force dynamic rendering - no caching
+export const dynamic = 'force-dynamic';
+
 // Maximum file size: 10MB per file
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 const MAX_FILES = 20;

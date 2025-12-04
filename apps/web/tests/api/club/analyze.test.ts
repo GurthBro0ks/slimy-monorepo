@@ -26,6 +26,7 @@ vi.mock('@/lib/club/database', () => ({
   clubDatabase: {
     storeAnalysis: vi.fn(),
     getAnalysesByGuild: vi.fn(),
+    countAnalysesByGuild: vi.fn(),
   },
 }));
 
@@ -92,6 +93,7 @@ describe('/api/club/analyze', () => {
       images: []
     });
     (clubDatabase.getAnalysesByGuild as any).mockResolvedValue([]);
+    (clubDatabase.countAnalysesByGuild as any).mockResolvedValue(0);
   });
 
   afterEach(() => {

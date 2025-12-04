@@ -56,6 +56,15 @@ export function GuildList({ className }: GuildListProps) {
           credentials: "include",
         });
 
+        if (res.status === 401) {
+          // 401 means not authenticated with Discord or no guilds found
+          if (!cancelled) {
+            setGuilds([]);
+            setLoading(false);
+          }
+          return;
+        }
+
         if (!res.ok) {
           throw new Error(`Failed to load guilds (${res.status})`);
         }

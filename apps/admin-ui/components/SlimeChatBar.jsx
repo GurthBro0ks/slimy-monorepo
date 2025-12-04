@@ -17,6 +17,7 @@ export default function SlimeChatBar({ guildId }) {
   const [connecting, setConnecting] = useState(true);
   const socketRef = useRef(null);
   const messagesEndRef = useRef(null);
+  const [currentPath, setCurrentPath] = useState("");
 
   const isAdmin = user?.role === "admin";
   const roleLabel = isAdmin ? "(admin)" : "";
@@ -24,6 +25,13 @@ export default function SlimeChatBar({ guildId }) {
   // Room-scoped cache key
   const roomKey = isAdmin ? "admin-global" : `guild-${guildId || "unknown"}`;
   const cacheKey = `slimeChatCache:${roomKey}`;
+
+  // Detect current path
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setCurrentPath(window.location.pathname);
+    }
+  }, []);
 
   // Load cached messages on mount
   useEffect(() => {
@@ -136,6 +144,11 @@ export default function SlimeChatBar({ guildId }) {
   };
 
   if (!user) return null;
+
+  // Don't render on homepage or chat page
+  if (currentPath === "/" || currentPath === "/chat") {
+    return null;
+  }
 
   return (
     <div

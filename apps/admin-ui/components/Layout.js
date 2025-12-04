@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Head from "next/head";
 import Link from "next/link";
 import { useRouter } from "next/router";
@@ -9,6 +9,8 @@ import { useApi } from "../lib/api";
 import DiagWidget from "./DiagWidget";
 import SlimeChatBar from "./SlimeChatBar";
 import SlimeChatWidget from "./SlimeChatWidget";
+import MatrixBackground from "./MatrixBackground";
+import ScrollingMarquee from "./ScrollingMarquee";
 
 const NAV_SECTIONS = [
   { href: (id) => `/guilds/${id}`, label: "Dashboard" },
@@ -23,7 +25,6 @@ export default function Layout({ guildId, children, title, hideSidebar = false }
   const api = useApi();
   const { user, refresh } = useSession();
   const [open, setOpen] = useState(false);
-  const canvasRef = useRef(null);
   const closeMenu = () => setOpen(false);
   const baseRole = user?.role || "member";
   const effectiveRole = useMemo(() => {
@@ -38,6 +39,9 @@ export default function Layout({ guildId, children, title, hideSidebar = false }
     if (!router.asPath) return "";
     return router.asPath.split("?")[0];
   }, [router.asPath]);
+
+  // Determine if we should hide chat on this page
+  const shouldHideChat = currentPath === "/" || currentPath === "/chat";
 
   const navLinks = useMemo(() => {
     if (!guildId || !isAdmin) return [];
@@ -67,58 +71,18 @@ export default function Layout({ guildId, children, title, hideSidebar = false }
     return router.asPath.startsWith("/club");
   }, [router.asPath]);
 
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-
-    let width = window.innerWidth;
-    let height = window.innerHeight;
-    canvas.width = width;
-    canvas.height = height;
-
-    const particles = Array.from({ length: 70 }).map(() => ({
-      x: Math.random() * width,
-      y: Math.random() * height,
-      r: Math.random() * 2 + 0.5,
-      vx: (Math.random() - 0.5) * 0.25,
-      vy: (Math.random() - 0.5) * 0.25,
-    }));
-
-    const draw = () => {
-      ctx.clearRect(0, 0, width, height);
-      ctx.fillStyle = "rgba(61, 255, 140, 0.4)";
-      particles.forEach((p) => {
-        p.x += p.vx;
-        p.y += p.vy;
-        if (p.x < 0) p.x = width;
-        if (p.x > width) p.x = 0;
-        if (p.y < 0) p.y = height;
-        if (p.y > height) p.y = 0;
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-        ctx.fill();
-      });
-      requestAnimationFrame(draw);
-    };
-    draw();
-
-    const handleResize = () => {
-      width = window.innerWidth;
-      height = window.innerHeight;
-      canvas.width = width;
-      canvas.height = height;
-    };
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
-
   return (
     <>
       <Head><title>{title || "slimy.ai – Admin Panel"}</title></Head>
-      <canvas id="bg-canvas" ref={canvasRef} aria-hidden />
+
+      {/* Matrix Rain Background */}
+      <MatrixBackground />
+
+      {/* CRT Overlay Effect */}
       <div className="crt-overlay" aria-hidden />
+
+      {/* Scrolling Marquee (excludes homepage) */}
+      <ScrollingMarquee excludeOnPaths={["/"]} />
 
       <nav className="sticky-nav">
         <div className="nav-left">
@@ -359,9 +323,11 @@ export default function Layout({ guildId, children, title, hideSidebar = false }
         </div>
       )}
 
-      {/* Slime Chat bottom bar (shows for all logged-in users) */}
-      {user && <SlimeChatBar guildId={guildId} />}
-      <SlimeChatWidget />
+      {/* Slime Chat bottom bar (shows for all logged-in users, except on / and /chat) */}
+      {user && !shouldHideChat && <SlimeChatBar guildId={guildId} />}
+
+      {/* Slime Chat Widget (floating bubble, except on / and /chat) */}
+      {!shouldHideChat && <SlimeChatWidget />}
     </>
   );
 }
