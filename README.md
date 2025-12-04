@@ -126,6 +126,26 @@ pnpm prisma:generate
 pnpm dev:web
 ```
 
+## Development & Quality
+
+We maintain code quality through automated checks and clear workflows:
+
+- **[Deprecation Workflow](docs/deprecation-workflow.md)** - How to safely mark, track, and remove obsolete code from the monorepo
+- **[CI Documentation](docs/CI.md)** - Automated testing and validation pipeline
+
+### Code Quality Commands
+
+```bash
+# Check for deprecated code usage
+pnpm run lint:deprecations
+
+# Run all linting
+pnpm run lint
+
+# Run all tests
+pnpm run test:all
+```
+
 ## Structure
 
 - `apps/` holds runnable Slimy.ai applications (web, admin, bot, etc.).
