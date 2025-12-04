@@ -18,10 +18,15 @@
     "lint:web": "pnpm --filter @slimy/web run lint",
     "lint": "pnpm -r run lint || echo \"TODO: lint\"",
     "lint:core": "pnpm --filter admin-api --filter web --filter admin-ui run lint || echo \"TODO: lint\"",
+    "lint:deprecations": "tsx scripts/check-deprecation.ts",
     "build": "pnpm -r run build",
     "build:core": "pnpm --filter admin-api --filter web --filter admin-ui run build",
     "test": "pnpm -r run test || echo \"TODO: wire tests\"",
     "test:core": "pnpm --filter admin-api --filter web --filter admin-ui run test || echo \"TODO: wire tests\"",
     "prisma:generate": "pnpm --filter admin-api --filter web run prisma:generate"
+  },
+  "devDependencies": {
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
   }
 }
