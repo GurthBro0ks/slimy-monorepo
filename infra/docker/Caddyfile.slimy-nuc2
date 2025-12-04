@@ -15,6 +15,11 @@ slimyai.xyz, www.slimyai.xyz {
   @admin_api_slime {
     path /api/*
     not path /api/bedrock-status /api/bedrock-status/*
+    not path /api/auth/me /api/auth/me/*
+    not path /api/auth/logout /api/auth/logout/*
+    not path /api/club/* /api/club/*
+    not path /api/discord/guilds /api/discord/guilds/*
+    not path /api/stats/events/stream /api/stats/events/stream/*
   }
   reverse_proxy @admin_api_slime 127.0.0.1:3080 {
     flush_interval -1
@@ -33,6 +38,11 @@ login.slimyai.xyz {
   @admin_api_login {
     path /api/*
     not path /api/bedrock-status /api/bedrock-status/*
+    not path /api/auth/me /api/auth/me/*
+    not path /api/auth/logout /api/auth/logout/*
+    not path /api/club/* /api/club/*
+    not path /api/discord/guilds /api/discord/guilds/*
+    not path /api/stats/events/stream /api/stats/events/stream/*
   }
   reverse_proxy @admin_api_login 127.0.0.1:3080 {
     flush_interval -1
@@ -51,6 +61,11 @@ panel.slimyai.xyz {
   @admin_api_panel {
     path /api/*
     not path /api/bedrock-status /api/bedrock-status/*
+    not path /api/auth/me /api/auth/me/*
+    not path /api/auth/logout /api/auth/logout/*
+    not path /api/club/* /api/club/*
+    not path /api/discord/guilds /api/discord/guilds/*
+    not path /api/stats/events/stream /api/stats/events/stream/*
   }
   reverse_proxy @admin_api_panel 127.0.0.1:3080 {
     flush_interval -1
@@ -61,7 +76,7 @@ panel.slimyai.xyz {
 
 chat.slimyai.xyz {
   import slime_common
-  
+
   @bedrock_api_chat path /api/bedrock-status /api/bedrock-status/*
   reverse_proxy @bedrock_api_chat 127.0.0.1:3000 {
     flush_interval -1
@@ -70,6 +85,11 @@ chat.slimyai.xyz {
   @admin_api_chat {
     path /api/*
     not path /api/bedrock-status /api/bedrock-status/*
+    not path /api/auth/me /api/auth/me/*
+    not path /api/auth/logout /api/auth/logout/*
+    not path /api/club/* /api/club/*
+    not path /api/discord/guilds /api/discord/guilds/*
+    not path /api/stats/events/stream /api/stats/events/stream/*
   }
   reverse_proxy @admin_api_chat 127.0.0.1:3080 {
     flush_interval -1
@@ -93,6 +113,11 @@ slime.chat, www.slime.chat {
   @admin_api_local {
     path /api/*
     not path /api/bedrock-status /api/bedrock-status/*
+    not path /api/auth/me /api/auth/me/*
+    not path /api/auth/logout /api/auth/logout/*
+    not path /api/club/* /api/club/*
+    not path /api/discord/guilds /api/discord/guilds/*
+    not path /api/stats/events/stream /api/stats/events/stream/*
   }
   reverse_proxy @admin_api_local 127.0.0.1:3080 {
     flush_interval -1

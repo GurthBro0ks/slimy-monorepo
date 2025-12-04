@@ -71,7 +71,7 @@ export function Results({ analyses, onExport, onViewDetails, loading }: ResultsP
     return <Badge variant="default" className="bg-red-500">Low</Badge>;
   };
 
-  const formatMetricValue = (value: any, unit?: string) => {
+  const formatMetricValue = (value: any, unit?: string | null) => {
     if (typeof value === 'number') {
       if (unit === 'percentage') return `${(value * 100).toFixed(1)}%`;
       if (unit === 'count') return value.toLocaleString();

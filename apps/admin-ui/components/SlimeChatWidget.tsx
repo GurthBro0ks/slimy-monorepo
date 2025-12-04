@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useState, useEffect } from "react";
 
 export default function SlimeChatWidget() {
   const [open, setOpen] = useState(false);
@@ -9,6 +9,18 @@ export default function SlimeChatWidget() {
     { from: "bot", text: "Welcome back, Admin. System is ready." },
   ]);
   const [input, setInput] = useState("");
+  const [currentPath, setCurrentPath] = useState("");
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setCurrentPath(window.location.pathname);
+    }
+  }, []);
+
+  // Don't render on homepage or chat page
+  if (currentPath === "/" || currentPath === "/chat") {
+    return null;
+  }
 
   const send = (event?: FormEvent) => {
     event?.preventDefault();

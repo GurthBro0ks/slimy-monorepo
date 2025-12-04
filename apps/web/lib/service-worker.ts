@@ -6,53 +6,64 @@ import { useEffect } from 'react';
  * Service Worker Registration Hook
  * Registers the service worker for offline caching and performance
  */
+const ENABLE_SERVICE_WORKER =
+  process.env.NEXT_PUBLIC_ENABLE_SERVICE_WORKER === 'true';
+
 export function useServiceWorker() {
   useEffect(() => {
+    if (!ENABLE_SERVICE_WORKER) {
+      return;
+    }
+
     if (
       typeof window !== 'undefined' &&
       'serviceWorker' in navigator &&
       process.env.NODE_ENV === 'production'
     ) {
-      // Register service worker
-      navigator.serviceWorker
-        .register('/sw.js', {
-          scope: '/',
-        })
-        .then((registration) => {
-          console.log('Service Worker registered:', registration.scope);
+      try {
+        // Register service worker
+        navigator.serviceWorker
+          .register('/sw.js', {
+            scope: '/',
+          })
+          .then((registration) => {
+            console.log('Service Worker registered:', registration.scope);
 
-          // Check for updates periodically
-          setInterval(() => {
-            registration.update();
-          }, 60 * 60 * 1000); // Check every hour
+            // Check for updates periodically
+            setInterval(() => {
+              registration.update();
+            }, 60 * 60 * 1000); // Check every hour
 
-          // Handle updates
-          registration.addEventListener('updatefound', () => {
-            const newWorker = registration.installing;
-            if (newWorker) {
-              newWorker.addEventListener('statechange', () => {
-                if (
-                  newWorker.state === 'installed' &&
-                  navigator.serviceWorker.controller
-                ) {
-                  // New service worker available, prompt user to refresh
-                  console.log('New service worker available. Refresh to update.');
-                  // You can show a toast notification here
-                }
-              });
-            }
+            // Handle updates
+            registration.addEventListener('updatefound', () => {
+              const newWorker = registration.installing;
+              if (newWorker) {
+                newWorker.addEventListener('statechange', () => {
+                  if (
+                    newWorker.state === 'installed' &&
+                    navigator.serviceWorker.controller
+                  ) {
+                    // New service worker available, prompt user to refresh
+                    console.log('New service worker available. Refresh to update.');
+                    // You can show a toast notification here
+                  }
+                });
+              }
+            });
+          })
+          .catch((error) => {
+            console.error('Service Worker registration failed:', error);
           });
-        })
-        .catch((error) => {
-          console.error('Service Worker registration failed:', error);
-        });
 
-      // Handle service worker messages
-      navigator.serviceWorker.addEventListener('message', (event) => {
-        if (event.data && event.data.type === 'CACHE_UPDATED') {
-          console.log('Cache updated:', event.data.payload);
-        }
-      });
+        // Handle service worker messages
+        navigator.serviceWorker.addEventListener('message', (event) => {
+          if (event.data && event.data.type === 'CACHE_UPDATED') {
+            console.log('Cache updated:', event.data.payload);
+          }
+        });
+      } catch (error) {
+        console.error('Service Worker setup failed:', error);
+      }
     }
   }, []);
 }
@@ -69,4 +80,3 @@ export function unregisterServiceWorker() {
     });
   }
 }
-

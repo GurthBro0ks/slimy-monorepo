@@ -1,16 +1,30 @@
-'use client';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useImperativeHandle, forwardRef } from 'react';
+import dynamic from 'next/dynamic';
 import Script from 'next/script';
+
 
 interface SheetViewProps {
     data: any[];
     isLoading: boolean;
 }
 
-export function SheetView({ data, isLoading }: SheetViewProps) {
+export interface SheetViewHandle {
+    getData: () => any;
+}
+
+export const SheetView = forwardRef<SheetViewHandle, SheetViewProps>(({ data, isLoading }, ref) => {
     const sheetRef = useRef<HTMLDivElement>(null);
     const spreadsheetInstance = useRef<any>(null);
     const [libLoaded, setLibLoaded] = useState(false);
+
+    useImperativeHandle(ref, () => ({
+        getData: () => {
+            if (spreadsheetInstance.current) {
+                return spreadsheetInstance.current.getData();
+            }
+            return null;
+        }
+    }));
 
     const transformData = (analyses: any[]) => {
         // 1. Identify Columns
@@ -63,7 +77,7 @@ export function SheetView({ data, isLoading }: SheetViewProps) {
             if (Spreadsheet) {
                 spreadsheetInstance.current = new Spreadsheet(sheetRef.current, {
                     mode: 'edit',
-                    showToolbar: false,
+                    showToolbar: true,
                     showGrid: true,
                     view: {
                         height: () => 600,
@@ -81,6 +95,9 @@ export function SheetView({ data, isLoading }: SheetViewProps) {
         }
 
         if (spreadsheetInstance.current && data.length > 0) {
+            // Only load data if it's the initial load or if we want to overwrite
+            // For now, we'll assume we only load once or when data changes significantly
+            // But be careful not to overwrite user edits if data prop changes unexpectedly
             const formatted = transformData(data);
             spreadsheetInstance.current.loadData(formatted);
         }
@@ -102,4 +119,6 @@ export function SheetView({ data, isLoading }: SheetViewProps) {
             <div id="x-spreadsheet-demo" ref={sheetRef} className="w-full h-full" />
         </div>
     );
-}
+});
+
+SheetView.displayName = 'SheetView';

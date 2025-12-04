@@ -53,6 +53,7 @@ export function Header() {
     setLogoutLoading(true);
     try {
       await logout();
+      router.push("/");
     } finally {
       // Reset loading state after a short delay to show feedback
       setTimeout(() => setLogoutLoading(false), 1000);

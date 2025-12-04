@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { mockAuthUser } from '../../utils/auth-mock';
+import { requireAuth } from '@/lib/auth/server';
 
 // Mock authentication
 vi.mock('@/lib/auth/server', () => ({
@@ -60,6 +61,7 @@ describe('/api/club/upload', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    (requireAuth as any).mockResolvedValue(mockAuthUser);
     (mkdir as any).mockResolvedValue(undefined);
     (writeFile as any).mockResolvedValue(undefined);
     (analyzeClubScreenshots as any).mockResolvedValue([]);

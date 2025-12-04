@@ -1,8 +1,11 @@
 import { useState, useRef, useEffect } from 'react';
-import { INITIAL_HISTORY, EMOJIS, COLORS, CURRENT_USER } from '../constants';
+import { EMOJIS, COLORS } from '../constants';
 import type { Theme, TextSize, UserProfile, AwayMessage } from '../types';
+import { useAuth } from '@/lib/auth/context';
 
 export function useChatState(mode: 'widget' | 'page') {
+   const { user } = useAuth();
+   const username = (user as any)?.globalName || (user as any)?.username || (user as any)?.name || 'Operator';
    const [mounted, setMounted] = useState(false);
 
    // Settings
@@ -29,7 +32,11 @@ export function useChatState(mode: 'widget' | 'page') {
    const [currentColorMode, setCurrentColorMode] = useState<'foreColor' | 'hiliteColor'>('foreColor');
 
    // Chat State
-   const [history, setHistory] = useState(INITIAL_HISTORY);
+   const [history, setHistory] = useState<Record<string, string>>({
+      'Lounge': '',
+      'Club': '',
+      'Admin': ''
+   });
    const [awayMessages, setAwayMessages] = useState<AwayMessage[]>([{ id: 1, title: "Lunch", text: "Out to lunch." }]);
    const [activeAwayId, setActiveAwayId] = useState(1);
    const [editStatus, setEditStatus] = useState('');
@@ -46,7 +53,7 @@ export function useChatState(mode: 'widget' | 'page') {
       if (!txt) return;
 
       const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      const newMsg = `<div class="msg-line"><span class="msg-timestamp">${time}</span><span class="msg-self text-admin">${CURRENT_USER}:</span> <span class="msg-text">${txt}</span></div>`;
+      const newMsg = `<div class="msg-line"><span class="msg-timestamp">${time}</span><span class="msg-self text-admin">${username}:</span> <span class="msg-text">${txt}</span></div>`;
 
       setHistory(prev => ({
          ...prev,
@@ -120,7 +127,7 @@ export function useChatState(mode: 'widget' | 'page') {
    };
 
    const openEditProfile = () => {
-      setProfileViewUser(CURRENT_USER);
+      setProfileViewUser(username);
       setShowProfile(true);
       setProfileEditMode(true);
       setEditStatus(userProfile.status);

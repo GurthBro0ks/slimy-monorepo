@@ -72,9 +72,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         error: null,
         lastRefresh: 0,
       });
-      // Redirect to landing page
-      // Force a hard refresh to clear client state
-      window.location.href = "/";
+      // Redirect is now handled by the caller (e.g. Header component)
     }
   };
 

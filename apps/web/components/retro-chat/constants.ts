@@ -2,7 +2,7 @@ import type { UserGroup } from './types';
 
 export const INITIAL_HISTORY: Record<string, string> = {
    'Lounge': '<div class="msg-line"><span class="msg-timestamp">12:00 AM</span><span class="msg-user text-guild">L8rSk8r:</span> <span class="msg-text">Is the server lagging?</span></div>',
-   'Club': '<div class="msg-line"><span class="msg-timestamp">11:55 PM</span><span class="msg-user text-club">DJ_Spin:</span> <span class="msg-text">New track dropping in 5!</span></div>',
+   'Club': '<div class="msg-line"><span class="msg-timestamp">11:55 PM</span><span class="msg-user text-club">System:</span> <span class="msg-text">Welcome to the Club.</span></div>',
    'Admin': '<div class="msg-line"><span class="msg-timestamp">09:00 AM</span><span class="msg-user text-admin">System:</span> <span class="msg-text">Log started.</span></div>'
 };
 

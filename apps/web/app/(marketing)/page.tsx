@@ -12,8 +12,9 @@ import ChatWidget from '@/components/ChatWidget';
 export default function MarketingPage() {
   const pathname = usePathname();
 
-  // Don't show chat widget on the /chat page
-  const showChatWidget = pathname !== '/chat';
+  // Don't show chat widget on the landing page (/) or /chat page
+  // Chat widgets are handled by AppShell for authenticated users
+  const showChatWidget = false;
 
   return (
     <>

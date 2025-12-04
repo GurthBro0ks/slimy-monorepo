@@ -23,7 +23,7 @@ export const LazySnailTimeline = lazyLoadHeavy(
 
 // Lazy load SlimeChatBar - heavy component with chat window
 export const LazySlimeChatBar = lazyLoadHeavy(
-  () => import('../slime-chat/slime-chat-bar').then(mod => ({ default: mod.SlimeChatBar }))
+  () => import('../ChatWidget').then(mod => ({ default: mod.ChatWidget }))
 );
 
 // Lazy load ScreenshotViewer - heavy component with image processing
