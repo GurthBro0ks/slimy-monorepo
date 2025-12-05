@@ -66,6 +66,18 @@ model ClubMetric {
   @@map("club_metrics")
 }
 
+// Club Sheet (spreadsheet data)
+model ClubSheet {
+  id        String   @id @default(cuid())
+  guildId   String   @unique
+  data      Json     // Stores the spreadsheet cells
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([guildId])
+  @@map("club_sheets")
+}
+
 // User Preferences
 model UserPreferences {
   id                String   @id @default(cuid())

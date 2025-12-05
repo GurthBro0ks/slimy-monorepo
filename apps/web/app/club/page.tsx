@@ -1,7 +1,8 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import dynamic from 'next/dynamic';
 const SheetView = dynamic(() => import('@/components/club/sheet-view').then(mod => mod.SheetView), { ssr: false });
+import type { SheetViewHandle } from '@/components/club/sheet-view';
 import { ScannerPanel } from '@/components/club/scanner-panel';
 import { useAuth } from '@/hooks/useAuth';
 import { VT323, Press_Start_2P } from 'next/font/google';
@@ -16,6 +17,8 @@ export default function ClubPage() {
 
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const sheetRef = useRef<SheetViewHandle>(null);
 
   const loadData = async () => {
     if (!guildId) return;
@@ -31,6 +34,33 @@ export default function ClubPage() {
       console.error("Failed to load sheet data", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const saveData = async () => {
+    if (!guildId || !sheetRef.current) return;
+    setSaving(true);
+    try {
+      const sheetData = sheetRef.current.getData();
+      const res = await fetch('/api/club/sheet', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ guildId, data: sheetData }),
+      });
+      if (res.ok) {
+        const json = await res.json();
+        console.log('Sheet saved successfully', json);
+        alert('Sheet saved successfully!');
+      } else {
+        const error = await res.json();
+        console.error('Failed to save sheet', error);
+        alert(`Failed to save sheet: ${error.message || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error("Failed to save sheet data", error);
+      alert(`Error saving sheet: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -99,13 +129,16 @@ export default function ClubPage() {
           </div>
 
           <div className="bg-[#10002b] border-b border-[#9d4edd] p-1 flex gap-2">
-            <button onClick={loadData} className="bg-[#240046] border border-[#9d4edd] text-[#e0aaff] px-3 py-1 hover:bg-[#3c096c] hover:text-white transition-all text-lg">
-              RELOAD
+            <button onClick={loadData} className="bg-[#240046] border border-[#9d4edd] text-[#e0aaff] px-3 py-1 hover:bg-[#3c096c] hover:text-white transition-all text-lg" disabled={loading}>
+              {loading ? 'LOADING...' : 'RELOAD'}
+            </button>
+            <button onClick={saveData} className="bg-[#240046] border border-[#9d4edd] text-[#00ff00] px-3 py-1 hover:bg-[#3c096c] hover:text-white transition-all text-lg" disabled={saving}>
+              {saving ? 'SAVING...' : 'SAVE'}
             </button>
           </div>
 
           <div className="flex-1 relative">
-            <SheetView data={data} isLoading={loading} />
+            <SheetView ref={sheetRef} data={data} isLoading={loading} />
           </div>
         </div>
       </main>
