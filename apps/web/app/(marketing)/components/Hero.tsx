@@ -3,12 +3,11 @@
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
-import useFluidCanvas from '../hooks/useFluidCanvas';
+import MatrixBackground from '@/components/MatrixBackground';
 import { useAuth } from '@/hooks/useAuth';
 import { SlimeLoginModal } from '@/app/_components/SlimeLoginModal';
 
 export function Hero() {
-  const { canvasRef } = useFluidCanvas();
   const router = useRouter();
   const { isAuthenticated, isLoading, role } = useAuth();
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -33,7 +32,7 @@ export function Hero() {
   return (
     <>
       <header className="hero">
-        <canvas id="fluid-canvas" ref={canvasRef} aria-hidden="true" />
+        <MatrixBackground />
         <div className="floating-sparks" aria-hidden="true" />
         <div className="hero-content">
           <div className="glow-pill" role="presentation">
