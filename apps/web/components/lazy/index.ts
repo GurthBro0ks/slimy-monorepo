@@ -26,6 +26,11 @@ export const LazySlimeChatBar = lazyLoadHeavy(
   () => import('../slime-chat/slime-chat-bar').then(mod => ({ default: mod.SlimeChatBar }))
 );
 
+// Lazy load RetroChatWidget - retro-styled chat widget with Matrix aesthetic
+export const LazyRetroChatWidget = lazyLoadHeavy(
+  () => import('../retro-chat/RetroChatWidget').then(mod => ({ default: mod.RetroChatWidget }))
+);
+
 // Lazy load ScreenshotViewer - heavy component with image processing
 export const LazyScreenshotViewer = lazyLoadHeavy(
   () => import('../screenshot/Viewer').then(mod => ({ default: mod.ScreenshotViewer }))
