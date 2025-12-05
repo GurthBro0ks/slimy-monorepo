@@ -4,6 +4,6 @@
   "private": true,
   "scripts": {
     "build": "echo \"TODO: build shared-auth\"",
-    "test": "echo \"TODO: test shared-auth\""
+    "test": "vitest run"
   }
 }
