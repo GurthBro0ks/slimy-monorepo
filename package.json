@@ -23,11 +23,22 @@
     "build:core": "pnpm --filter admin-api --filter web --filter admin-ui run build",
     "test": "pnpm -r run test || echo \"TODO: wire tests\"",
     "test:core": "pnpm --filter admin-api --filter web --filter admin-ui run test || echo \"TODO: wire tests\"",
-    "prisma:generate": "pnpm --filter admin-api --filter web run prisma:generate"
+    "prisma:generate": "pnpm --filter admin-api --filter web run prisma:generate",
+    "prepare": "husky"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.1",
+    "eslint": "^9.39.1",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.2.7",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
+    "typescript-eslint": "^8.48.1",
     "vitest": "^4.0.15"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,jsx}": [
+      "pnpm exec eslint --fix"
+    ]
   }
 }
