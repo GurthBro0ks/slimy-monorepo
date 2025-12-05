@@ -1,5 +1,5 @@
 'use client';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useImperativeHandle, forwardRef } from 'react';
 import Script from 'next/script';
 
 interface SheetViewProps {
@@ -7,10 +7,24 @@ interface SheetViewProps {
     isLoading: boolean;
 }
 
-export function SheetView({ data, isLoading }: SheetViewProps) {
+export interface SheetViewHandle {
+    getData: () => any;
+}
+
+export const SheetView = forwardRef<SheetViewHandle, SheetViewProps>(({ data, isLoading }, ref) => {
     const sheetRef = useRef<HTMLDivElement>(null);
     const spreadsheetInstance = useRef<any>(null);
     const [libLoaded, setLibLoaded] = useState(false);
+
+    // Expose getData method to parent
+    useImperativeHandle(ref, () => ({
+        getData: () => {
+            if (spreadsheetInstance.current) {
+                return spreadsheetInstance.current.getData();
+            }
+            return null;
+        }
+    }));
 
     const transformData = (analyses: any[]) => {
         // 1. Identify Columns
@@ -102,4 +116,6 @@ export function SheetView({ data, isLoading }: SheetViewProps) {
             <div id="x-spreadsheet-demo" ref={sheetRef} className="w-full h-full" />
         </div>
     );
-}
+});
+
+SheetView.displayName = 'SheetView';
