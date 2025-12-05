@@ -1,0 +1,153 @@
+version: '3.8'
+
+services:
+  # MySQL Database
+  db:
+    image: mysql:8.0
+    container_name: slimy-db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpassword}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-slimyai}
+      MYSQL_USER: ${MYSQL_USER:-slimyai}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-slimypassword}
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - slimy-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-rootpassword}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Admin API (Backend)
+  admin-api:
+    build:
+      context: .
+      dockerfile: apps/admin-api/Dockerfile
+    container_name: slimy-admin-api
+    restart: unless-stopped
+    ports:
+      - "3080:3080"
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: 3080
+      DATABASE_URL: mysql://${MYSQL_USER:-slimyai}:${MYSQL_PASSWORD:-slimypassword}@db:3306/${MYSQL_DATABASE:-slimyai}
+      
+      # Discord OAuth
+      DISCORD_CLIENT_ID: ${DISCORD_CLIENT_ID}
+      DISCORD_CLIENT_SECRET: ${DISCORD_CLIENT_SECRET}
+      DISCORD_REDIRECT_URI: ${DISCORD_REDIRECT_URI:-http://localhost:3000/api/auth/callback}
+      DISCORD_OAUTH_SCOPES: ${DISCORD_OAUTH_SCOPES:-identify guilds}
+      DISCORD_BOT_TOKEN: ${DISCORD_BOT_TOKEN}
+      
+      # Security
+      SESSION_SECRET: ${SESSION_SECRET:-change_this_session_secret_minimum_32_chars}
+      JWT_SECRET: ${JWT_SECRET:-change_this_jwt_secret_minimum_32_chars}
+      SESSION_COOKIE_DOMAIN: ${SESSION_COOKIE_DOMAIN:-.localhost}
+      COOKIE_DOMAIN: ${COOKIE_DOMAIN:-.localhost}
+      
+      # CORS
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
+      CLIENT_URL: ${CLIENT_URL:-http://localhost:3000}
+      
+      # Admin users
+      ADMIN_USER_IDS: ${ADMIN_USER_IDS:-}
+      CLUB_USER_IDS: ${CLUB_USER_IDS:-}
+      
+      # External APIs
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      STATS_SHEET_ID: ${STATS_SHEET_ID:-}
+      SNELP_CODES_URL: ${SNELP_CODES_URL:-https://snelp.com/api/codes}
+      
+      # Service info
+      ADMIN_API_SERVICE_NAME: ${ADMIN_API_SERVICE_NAME:-slimy-admin-api}
+      ADMIN_API_VERSION: ${ADMIN_API_VERSION:-docker}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - slimy-network
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3080/api/health', (r) => process.exit(r.statusCode === 200 ? 0 : 1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Web Frontend (Public)
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        NEXT_PUBLIC_ADMIN_API_BASE: ${NEXT_PUBLIC_ADMIN_API_BASE:-http://localhost:3080}
+        NEXT_PUBLIC_SNELP_CODES_URL: ${NEXT_PUBLIC_SNELP_CODES_URL:-}
+        NEXT_PUBLIC_PLAUSIBLE_DOMAIN: ${NEXT_PUBLIC_PLAUSIBLE_DOMAIN:-}
+    container_name: slimy-web
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: 3000
+      HOSTNAME: "0.0.0.0"
+      DATABASE_URL: mysql://${MYSQL_USER:-slimyai}:${MYSQL_PASSWORD:-slimypassword}@db:3306/${MYSQL_DATABASE:-slimyai}
+      NEXT_PUBLIC_ADMIN_API_BASE: ${NEXT_PUBLIC_ADMIN_API_BASE:-http://localhost:3080}
+      NEXT_PUBLIC_SNELP_CODES_URL: ${NEXT_PUBLIC_SNELP_CODES_URL:-}
+      NEXT_PUBLIC_PLAUSIBLE_DOMAIN: ${NEXT_PUBLIC_PLAUSIBLE_DOMAIN:-}
+    depends_on:
+      admin-api:
+        condition: service_healthy
+      db:
+        condition: service_healthy
+    networks:
+      - slimy-network
+
+  # Admin UI Frontend
+  admin-ui:
+    build:
+      context: .
+      dockerfile: apps/admin-ui/Dockerfile
+      args:
+        NEXT_PUBLIC_ADMIN_API_BASE: ${ADMIN_UI_API_BASE:-}
+        ADMIN_API_INTERNAL_URL: ${ADMIN_API_INTERNAL_URL:-http://admin-api:3080}
+    container_name: slimy-admin-ui
+    restart: unless-stopped
+    ports:
+      - "3001:3000"
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: 3000
+      HOSTNAME: "0.0.0.0"
+      NEXT_PUBLIC_ADMIN_API_BASE: ${ADMIN_UI_API_BASE:-}
+      ADMIN_API_INTERNAL_URL: ${ADMIN_API_INTERNAL_URL:-http://admin-api:3080}
+    depends_on:
+      admin-api:
+        condition: service_healthy
+    networks:
+      - slimy-network
+
+  # Discord Bot
+  bot:
+    build:
+      context: .
+      dockerfile: apps/bot/Dockerfile
+    container_name: slimy-bot
+    restart: unless-stopped
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      DISCORD_BOT_TOKEN: ${DISCORD_BOT_TOKEN}
+    networks:
+      - slimy-network
+
+networks:
+  slimy-network:
+    driver: bridge
+
+volumes:
+  mysql_data:
+    driver: local
