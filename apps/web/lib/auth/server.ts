@@ -30,7 +30,9 @@ interface AdminApiMeResponse {
  * @throws {AuthenticationError} If session is invalid or missing
  * @returns {Promise<ServerAuthUser>} Validated user information
  */
-export async function requireAuth(): Promise<ServerAuthUser> {
+export async function requireAuth(
+  cookieStoreOverride?: ReturnType<typeof cookies>
+): Promise<ServerAuthUser> {
   // Check request-scoped cache first
   const cachedUser = getRequestUser();
   if (cachedUser) {
@@ -38,7 +40,7 @@ export async function requireAuth(): Promise<ServerAuthUser> {
   }
 
   // Get cookies from Next.js headers
-  const cookieStore = await cookies();
+  const cookieStore = await (cookieStoreOverride ?? cookies());
   const sessionCookie = cookieStore.get(AUTH_COOKIE_NAME);
 
   if (!sessionCookie) {
