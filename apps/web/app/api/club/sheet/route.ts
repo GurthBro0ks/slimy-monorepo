@@ -6,11 +6,10 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 import { requireAuth } from '@/lib/auth/server';
 import { validateGuildAccess } from '@/lib/auth/permissions';
 import { getClubSheetRepository } from '@/lib/repositories/club-sheet.repository';
-
-export const runtime = 'edge';
 
 /**
  * GET /api/club/sheet
@@ -21,7 +20,18 @@ export const runtime = 'edge';
 export async function GET(request: NextRequest) {
   try {
     // STEP 1: Authenticate user
-    const user = await requireAuth();
+    const cookieStore = cookies();
+    const user = await requireAuth(cookieStore);
+    if (!user || !user.id) {
+      return NextResponse.json(
+        {
+          ok: false,
+          code: 'UNAUTHORIZED',
+          message: 'Authentication required',
+        },
+        { status: 401 }
+      );
+    }
 
     // STEP 2: Extract guildId from query params
     const { searchParams } = new URL(request.url);
@@ -72,7 +82,18 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     // STEP 1: Authenticate user
-    const user = await requireAuth();
+    const cookieStore = cookies();
+    const user = await requireAuth(cookieStore);
+    if (!user || !user.id) {
+      return NextResponse.json(
+        {
+          ok: false,
+          code: 'UNAUTHORIZED',
+          message: 'Authentication required',
+        },
+        { status: 401 }
+      );
+    }
 
     // STEP 2: Parse request body
     const body = await request.json();

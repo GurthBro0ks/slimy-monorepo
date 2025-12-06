@@ -1,3 +1,4 @@
+import { cookies } from "next/headers";
 import { NextRequest } from "next/server";
 import { apiClient } from "@/lib/api-client";
 import { requireAuth } from "@/lib/auth/server";
@@ -12,6 +13,8 @@ export const dynamic = "force-dynamic"; // no-store
 export async function GET(request: NextRequest) {
   try {
     await requireAuth();
+    const cookieStore = await cookies();
+    const cookieHeader = cookieStore.toString();
 
     const { searchParams } = new URL(request.url);
     const limit = searchParams.get("limit") || "50";
@@ -29,6 +32,9 @@ export async function GET(request: NextRequest) {
     const result = await apiClient.get(`/api/guilds?${queryParams}`, {
       useCache: true,
       cacheTtl: 300000, // 5 minutes TTL
+      headers: {
+        Cookie: cookieHeader,
+      },
     });
 
     if (!result.ok) {
@@ -53,21 +59,21 @@ export async function POST(request: NextRequest) {
 
     // Basic validation - BEFORE authentication
     if (!discordId || !name) {
-      const { body: errBody, status, headers } = errorResponse(
+      const { body: errBody, headers } = errorResponse(
         new Error("discordId and name are required")
       );
       return Response.json(errBody, { status: 400, headers });
     }
 
     if (typeof discordId !== "string" || typeof name !== "string") {
-      const { body: errBody, status, headers } = errorResponse(
+      const { body: errBody, headers } = errorResponse(
         new Error("discordId and name must be strings")
       );
       return Response.json(errBody, { status: 400, headers });
     }
 
     if (name.length < 2 || name.length > 100) {
-      const { body: errBody, status, headers } = errorResponse(
+      const { body: errBody, headers } = errorResponse(
         new Error("Guild name must be between 2 and 100 characters")
       );
       return Response.json(errBody, { status: 400, headers });
@@ -75,11 +81,17 @@ export async function POST(request: NextRequest) {
 
     // THEN authenticate
     await requireAuth();
+    const cookieStore = await cookies();
+    const cookieHeader = cookieStore.toString();
 
     const result = await apiClient.post("/api/guilds", {
       discordId,
       name,
       settings: settings || {},
+    }, {
+      headers: {
+        Cookie: cookieHeader,
+      },
     });
 
     if (!result.ok) {
