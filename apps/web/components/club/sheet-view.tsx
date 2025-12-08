@@ -16,7 +16,6 @@ export const SheetView = forwardRef<SheetViewHandle, SheetViewProps>(({ data, is
     const spreadsheetInstance = useRef<any>(null);
     const [libLoaded, setLibLoaded] = useState(false);
 
-    // Expose getData method to parent
     useImperativeHandle(ref, () => ({
         getData: () => {
             if (spreadsheetInstance.current) {
@@ -27,14 +26,18 @@ export const SheetView = forwardRef<SheetViewHandle, SheetViewProps>(({ data, is
     }));
 
     const transformData = (analyses: any[]) => {
-        // 1. Identify Columns
+        if (analyses.length > 0 && (analyses[0] as any).rows) {
+            return analyses;
+        }
+
         const metricKeys = new Set<string>();
         analyses.forEach((a) => {
-            a.metrics.forEach((m: any) => metricKeys.add(m.name));
+            if (a.metrics) {
+                a.metrics.forEach((m: any) => metricKeys.add(m.name));
+            }
         });
         const columns = Array.from(metricKeys).sort();
 
-        // 2. Build Header
         const rows: Record<number, any> = {};
         rows[0] = {
             cells: {
@@ -48,19 +51,17 @@ export const SheetView = forwardRef<SheetViewHandle, SheetViewProps>(({ data, is
             }
         };
 
-        // 3. Build Rows
         analyses.forEach((analysis, idx) => {
             const rowIdx = idx + 1;
             const cells: Record<number, any> = {
-                0: { text: analysis.id.substring(0, 8) },
-                1: { text: new Date(analysis.createdAt).toLocaleDateString() },
+                0: { text: analysis.id ? analysis.id.substring(0, 8) : '?' },
+                1: { text: analysis.createdAt ? new Date(analysis.createdAt).toLocaleDateString() : '-' },
                 2: { text: analysis.summary || 'N/A' },
             };
 
             columns.forEach((col, colIdx) => {
-                const metric = analysis.metrics.find((m: any) => m.name === col);
+                const metric = analysis.metrics ? analysis.metrics.find((m: any) => m.name === col) : null;
                 let val = metric ? metric.value : '-';
-                // Handle object values from Prisma JSON
                 if (typeof val === 'object' && val !== null) val = JSON.stringify(val);
                 cells[colIdx + 3] = { text: String(val) };
             });
@@ -91,6 +92,28 @@ export const SheetView = forwardRef<SheetViewHandle, SheetViewProps>(({ data, is
                         color: '#0a0a0a',
                     },
                 });
+
+                // FIX: Load saved data from API on startup
+                console.log("Fetching saved sheet data...");
+                fetch('/api/club/sheet', { cache: 'no-store' })
+                    .then(res => res.json())
+                    .then(rawResponse => {
+                        console.log("Raw Server Response:", rawResponse);
+
+                        let cleanData = rawResponse;
+                        if (!Array.isArray(rawResponse) && rawResponse.data && Array.isArray(rawResponse.data)) {
+                            console.log("Unwrapping data object...");
+                            cleanData = rawResponse.data;
+                        }
+
+                        if (Array.isArray(cleanData) && cleanData.length > 0) {
+                            console.log("Loading rows into Grid:", cleanData.length);
+                            spreadsheetInstance.current.loadData(cleanData);
+                        } else {
+                            console.log("No saved data found, starting empty.");
+                        }
+                    })
+                    .catch(err => console.error("Failed to load sheet data:", err));
             }
         }
 

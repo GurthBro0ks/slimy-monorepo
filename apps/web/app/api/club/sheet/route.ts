@@ -1,148 +1,87 @@
-/**
- * Club Sheet API Route
- *
- * GET  /api/club/sheet?guildId=xxx - Load club sheet data
- * POST /api/club/sheet              - Save club sheet data
- */
+import { NextRequest, NextResponse } from "next/server";
+import { requireAuth } from "@/lib/auth/server";
+import { db as prisma } from "@/lib/db";
+import { cookies } from "next/headers";
 
-import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { requireAuth } from '@/lib/auth/server';
-import { validateGuildAccess } from '@/lib/auth/permissions';
-import { getClubSheetRepository } from '@/lib/repositories/club-sheet.repository';
+export const dynamic = "force-dynamic";
 
-/**
- * GET /api/club/sheet
- *
- * Returns the club sheet data for a specific guild.
- * If no sheet exists, returns an empty sheet object.
- */
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
-    // STEP 1: Authenticate user
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     const user = await requireAuth(cookieStore);
-    if (!user || !user.id) {
-      return NextResponse.json(
-        {
-          ok: false,
-          code: 'UNAUTHORIZED',
-          message: 'Authentication required',
-        },
-        { status: 401 }
-      );
+
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // STEP 2: Extract guildId from query params
-    const { searchParams } = new URL(request.url);
-    const guildId = searchParams.get('guildId');
+    // Use first guild as context
+    const guildId = user.guilds[0]?.id;
+    console.log(`[Sheet API] READ Request. User: ${user.username}, Guild: ${guildId}`);
 
     if (!guildId) {
-      return NextResponse.json(
-        {
-          ok: false,
-          code: 'MISSING_GUILD_ID',
-          message: 'Guild ID is required',
-        },
-        { status: 400 }
-      );
+        return NextResponse.json({ error: "No guild found" }, { status: 400 });
     }
 
-    // STEP 3: Validate user has access to this guild
-    validateGuildAccess(user, guildId);
-
-    // STEP 4: Get or create sheet data
-    const repository = getClubSheetRepository();
-    const sheet = await repository.getOrCreate(guildId);
-
-    return NextResponse.json({
-      ok: true,
-      data: sheet.data,
-      updatedAt: sheet.updatedAt,
+    const sheet = await prisma.clubSheet.findUnique({
+      where: { guildId: guildId },
     });
-  } catch (error) {
-    console.error('[ClubSheetAPI] Error in GET /api/club/sheet:', error);
 
-    return NextResponse.json(
-      {
-        ok: false,
-        code: 'INTERNAL_ERROR',
-        message: error instanceof Error ? error.message : 'Internal server error',
-      },
-      { status: 500 }
-    );
+    let returnData = [];
+    if (sheet && sheet.data) {
+        // CRITICAL FIX: Deep clone the data to remove Prisma proxies
+        // This prevents the 'TypeError: ... reading aa' crash in Next.js 15
+        try {
+            returnData = JSON.parse(JSON.stringify(sheet.data));
+            console.log(`[Sheet API] FOUND Data. Size: ${JSON.stringify(returnData).length}`);
+        } catch (e) {
+            console.error("[Sheet API] JSON Parse Error:", e);
+            returnData = [];
+        }
+    } else {
+        console.log(`[Sheet API] NO Data found for guild ${guildId}.`);
+    }
+
+    return NextResponse.json(returnData);
+
+  } catch (error) {
+    console.error("[Sheet API] GET Error:", error);
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }
 
-/**
- * POST /api/club/sheet
- *
- * Saves club sheet data for a specific guild.
- */
-export async function POST(request: NextRequest) {
+export async function POST(req: NextRequest) {
   try {
-    // STEP 1: Authenticate user
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     const user = await requireAuth(cookieStore);
-    if (!user || !user.id) {
-      return NextResponse.json(
-        {
-          ok: false,
-          code: 'UNAUTHORIZED',
-          message: 'Authentication required',
-        },
-        { status: 401 }
-      );
+
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // STEP 2: Parse request body
-    const body = await request.json();
-    const { guildId, data } = body;
+    const body = await req.json();
+    const guildId = user.guilds[0]?.id;
 
     if (!guildId) {
-      return NextResponse.json(
-        {
-          ok: false,
-          code: 'MISSING_GUILD_ID',
-          message: 'Guild ID is required',
-        },
-        { status: 400 }
-      );
+        return NextResponse.json({ error: "No guild found" }, { status: 400 });
     }
 
-    if (!data) {
-      return NextResponse.json(
-        {
-          ok: false,
-          code: 'MISSING_DATA',
-          message: 'Sheet data is required',
-        },
-        { status: 400 }
-      );
-    }
+    console.log(`[Sheet API] WRITE Request. Guild: ${guildId}`);
 
-    // STEP 3: Validate user has access to this guild
-    validateGuildAccess(user, guildId);
-
-    // STEP 4: Upsert sheet data
-    const repository = getClubSheetRepository();
-    const sheet = await repository.upsert(guildId, data);
-
-    return NextResponse.json({
-      ok: true,
-      data: sheet.data,
-      updatedAt: sheet.updatedAt,
-    });
-  } catch (error) {
-    console.error('[ClubSheetAPI] Error in POST /api/club/sheet:', error);
-
-    return NextResponse.json(
-      {
-        ok: false,
-        code: 'INTERNAL_ERROR',
-        message: error instanceof Error ? error.message : 'Internal server error',
+    await prisma.clubSheet.upsert({
+      where: { guildId: guildId },
+      create: {
+        guildId: guildId,
+        data: body,
       },
-      { status: 500 }
-    );
+      update: {
+        data: body,
+      },
+    });
+
+    return NextResponse.json({ success: true });
+
+  } catch (error) {
+    console.error("[Sheet API] POST Error:", error);
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }
