@@ -14,13 +14,13 @@ datasource db {
 // Club Analysis
 model ClubAnalysis {
   id          String   @id @default(cuid())
-  guildId     String
-  userId      String
+  guildId     String   @map("guild_id")
+  userId      String   @map("user_id")
   title       String?
   summary     String
   confidence  Float
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
 
   // Relations
   images      ClubAnalysisImage[]
@@ -35,11 +35,11 @@ model ClubAnalysis {
 // Club Analysis Images
 model ClubAnalysisImage {
   id           String   @id @default(cuid())
-  analysisId   String
-  imageUrl     String
-  originalName String
-  fileSize     Int
-  uploadedAt   DateTime @default(now())
+  analysisId   String   @map("analysis_id")
+  imageUrl     String   @map("image_url")
+  originalName String   @map("original_name")
+  fileSize     Int      @map("file_size")
+  uploadedAt   DateTime @default(now()) @map("uploaded_at")
 
   // Relations
   analysis     ClubAnalysis @relation(fields: [analysisId], references: [id], onDelete: Cascade)
@@ -51,12 +51,12 @@ model ClubAnalysisImage {
 // Club Metrics
 model ClubMetric {
   id         String   @id @default(cuid())
-  analysisId String
+  analysisId String   @map("analysis_id")
   name       String
   value      String   // Stored as JSON string for flexibility
   unit       String?
   category   String
-  createdAt  DateTime @default(now())
+  createdAt  DateTime @default(now()) @map("created_at")
 
   // Relations
   analysis   ClubAnalysis @relation(fields: [analysisId], references: [id], onDelete: Cascade)
@@ -69,10 +69,10 @@ model ClubMetric {
 // Club Sheet (spreadsheet data)
 model ClubSheet {
   id        String   @id @default(cuid())
-  guildId   String   @unique
+  guildId   String   @unique @map("guild_id")
   data      Json     // Stores the spreadsheet cells
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   @@index([guildId])
   @@map("club_sheets")
