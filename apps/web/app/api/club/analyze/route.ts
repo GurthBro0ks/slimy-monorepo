@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
+import { cookies } from 'next/headers';
 import { analyzeClubScreenshot, analyzeClubScreenshots, validateImageUrl, type ClubAnalysisResult } from '@/lib/club/vision';
-import { clubDatabase } from '@/lib/club/database';
 import { getClubAnalyticsRepository } from '@/lib/repositories/club-analytics.repository';
 import { requireAuth } from '@/lib/auth/server';
 import { validateGuildAccess, sanitizeGuildId } from '@/lib/auth/permissions';
@@ -36,7 +36,17 @@ export async function POST(request: NextRequest) {
     }
 
     // STEP 3: Authenticate user (throws AuthenticationError if invalid)
-    const user = await requireAuth();
+    const cookieStore = cookies();
+    const user = await requireAuth(cookieStore);
+    if (!user || !user.id) {
+      return Response.json(
+        {
+          success: false,
+          error: 'Unauthorized',
+        },
+        { status: 401 }
+      );
+    }
 
     // STEP 4: Validate user has access to this guild
     validateGuildAccess(user, guildId);
@@ -145,7 +155,17 @@ export async function GET(request: NextRequest) {
     const guildId = sanitizeGuildId(rawGuildId);
 
     // STEP 3: Authenticate user (throws AuthenticationError if invalid)
-    const user = await requireAuth();
+    const cookieStore = cookies();
+    const user = await requireAuth(cookieStore);
+    if (!user || !user.id) {
+      return Response.json(
+        {
+          success: false,
+          error: 'Unauthorized',
+        },
+        { status: 401 }
+      );
+    }
 
     // STEP 4: Validate that authenticated user has access to this guild
     validateGuildAccess(user, guildId);
