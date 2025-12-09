@@ -55,6 +55,10 @@ export async function POST(request: NextRequest) {
     // STEP 3: Authenticate user (throws AuthenticationError if invalid)
     const user = await requireAuth();
 
+    if (!user) {
+      throw new ValidationError('Authentication required');
+    }
+
     // STEP 4: Validate user has access to this guild
     validateGuildAccess(user, guildId);
 

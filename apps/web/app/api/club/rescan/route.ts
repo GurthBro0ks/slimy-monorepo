@@ -16,6 +16,17 @@ export async function POST(request: NextRequest) {
     // STEP 1: Authenticate user FIRST
     const user = await requireAuth();
 
+    if (!user) {
+      return NextResponse.json(
+        {
+          ok: false,
+          code: 'UNAUTHORIZED',
+          message: 'Authentication required',
+        },
+        { status: 401 }
+      );
+    }
+
     // STEP 2: Extract guildId from query params
     const { searchParams } = new URL(request.url);
     const guildId = searchParams.get('guildId');
