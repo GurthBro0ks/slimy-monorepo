@@ -18,16 +18,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const isShellRoute = SHELL_ROUTES.some((route) => pathname?.startsWith(route));
   const isChatPage = pathname === '/chat';
+  const isHomePage = pathname === '/';
 
   return (
     <AuthErrorBoundary>
       <AuthProvider>
         <ActiveGuildProvider>
           <div className="flex min-h-screen flex-col">
-            {!isShellRoute && <Header />}
+            {!isShellRoute && !isHomePage && <Header />}
             <main className="flex-1">{children}</main>
-            {!isShellRoute && <Footer />}
-            {!isShellRoute && !isChatPage && <AuthenticatedChatBar />}
+            {!isShellRoute && !isHomePage && <Footer />}
+            {!isShellRoute && !isChatPage && !isHomePage && <AuthenticatedChatBar />}
             <ServiceWorkerRegistration />
           </div>
         </ActiveGuildProvider>
