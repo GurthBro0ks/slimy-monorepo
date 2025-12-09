@@ -11,7 +11,6 @@ export interface SheetViewHandle {
     getData: () => any;
 }
 
-// 1. DEFINE SHARED STYLES & STRUCTURE
 const HEADER_STYLE = {
     bgcolor: '#f3f3f3',
     color: '#000000',
@@ -36,14 +35,6 @@ const TEMPLATE_HEADER_ROW = {
     }
 };
 
-const TEMPLATE_COLUMNS = [
-    { key: 'name', label: 'Name' },
-    { key: 'simPower', label: 'SIM Power' },
-    { key: 'totalPower', label: 'Total Power' },
-    { key: 'change', label: 'Change % from last week' },
-];
-
-// 2. DEFINE THE DEFAULT WORKBOOK (Two Tabs)
 const DEFAULT_WORKBOOK = [
     {
         name: 'Current',
@@ -64,6 +55,7 @@ const DEFAULT_WORKBOOK = [
 export const SheetView = forwardRef<SheetViewHandle, SheetViewProps>(({ data, isLoading }, ref) => {
     const sheetRef = useRef<HTMLDivElement>(null);
     const spreadsheetInstance = useRef<any>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
     const [libLoaded, setLibLoaded] = useState(false);
 
     useImperativeHandle(ref, () => ({
@@ -75,16 +67,69 @@ export const SheetView = forwardRef<SheetViewHandle, SheetViewProps>(({ data, is
         }
     }));
 
-    // 3. TRANSFORM DATA (Smart Merge)
-    // Updates "Current" tab but PRESERVES "Baseline" tab if it exists
-    const transformData = (analyses: any[]) => {
-        // Generate the new "Current" sheet from incoming data
+    // CSV PARSER
+    const parseCSV = (text: string) => {
+        const lines = text.split(/\r?\n/).filter(line => line.trim() !== '');
         const rows: Record<number, any> = {};
-        rows[0] = JSON.parse(JSON.stringify(TEMPLATE_HEADER_ROW)); // Copy Headers
+
+        rows[0] = JSON.parse(JSON.stringify(TEMPLATE_HEADER_ROW));
+
+        let startIndex = 0;
+        if (lines[0].toLowerCase().includes('power') || lines[0].toLowerCase().includes('name')) {
+            startIndex = 1;
+        }
+
+        lines.slice(startIndex).forEach((line, idx) => {
+            const cols = line.split(',');
+            const rowIdx = idx + 1;
+            rows[rowIdx] = {
+                cells: {
+                    0: { text: cols[0]?.trim() || '' },
+                    1: { text: cols[1]?.trim() || '' },
+                    2: { text: cols[2]?.trim() || '' },
+                    3: { text: cols[3]?.trim() || '' }
+                }
+            };
+        });
+        return rows;
+    };
+
+    const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file || !spreadsheetInstance.current) return;
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            const text = event.target?.result as string;
+            const newRows = parseCSV(text);
+            const workbook = spreadsheetInstance.current.getData();
+
+            let baselineIndex = workbook.findIndex((s: any) => s.name === 'Baseline');
+            if (baselineIndex === -1) {
+                workbook.push({ ...DEFAULT_WORKBOOK[1], rows: newRows });
+            } else {
+                workbook[baselineIndex].rows = newRows;
+            }
+
+            console.log("Uploaded Baseline Data:", Object.keys(newRows).length, "rows");
+            spreadsheetInstance.current.loadData(workbook);
+        };
+        reader.readAsText(file);
+    };
+
+    const transformData = (analyses: any[]) => {
+        const rows: Record<number, any> = {};
+        rows[0] = JSON.parse(JSON.stringify(TEMPLATE_HEADER_ROW));
 
         analyses.forEach((analysis, idx) => {
             const rowIdx = idx + 1;
             const cells: Record<number, any> = {};
+            const TEMPLATE_COLUMNS = [
+                { key: 'name', label: 'Name' },
+                { key: 'simPower', label: 'SIM Power' },
+                { key: 'totalPower', label: 'Total Power' },
+                { key: 'change', label: 'Change % from last week' },
+            ];
 
             TEMPLATE_COLUMNS.forEach((col, colIdx) => {
                 let value = '';
@@ -110,26 +155,14 @@ export const SheetView = forwardRef<SheetViewHandle, SheetViewProps>(({ data, is
             rows: rows
         };
 
-        // PRESERVE BASELINE LOGIC
-        let baselineSheet = DEFAULT_WORKBOOK[1]; // Start with default empty baseline
+        let baselineSheet = DEFAULT_WORKBOOK[1];
         if (spreadsheetInstance.current) {
             const currentData = spreadsheetInstance.current.getData();
-            // Try to find existing baseline in current workbook
             const existingBaseline = currentData.find((s: any) => s.name === 'Baseline');
-            if (existingBaseline) {
-                baselineSheet = existingBaseline;
-            }
+            if (existingBaseline) baselineSheet = existingBaseline;
         }
 
-        // Return Workbook: [New Current, Preserved Baseline]
         return [newCurrentSheet, baselineSheet];
-    };
-
-    const loadTemplate = () => {
-        if (spreadsheetInstance.current) {
-            console.log("Resetting to Default Workbook...");
-            spreadsheetInstance.current.loadData(DEFAULT_WORKBOOK);
-        }
     };
 
     useEffect(() => {
@@ -138,57 +171,47 @@ export const SheetView = forwardRef<SheetViewHandle, SheetViewProps>(({ data, is
             if (Spreadsheet) {
                 spreadsheetInstance.current = new Spreadsheet(sheetRef.current, {
                     mode: 'edit',
-                    showToolbar: false,
+                    showToolbar: true,
                     showGrid: true,
                     view: {
-                        height: () => 600,
-                        width: () => sheetRef.current!.clientWidth,
+                        // FIX: Strict fallback height of 800px if clientHeight fails
+                        height: () => sheetRef.current ? Math.max(sheetRef.current.clientHeight, 800) : 800,
+                        width: () => sheetRef.current ? sheetRef.current.clientWidth : 1000,
                     },
                     style: { bgcolor: '#ffffff', color: '#0a0a0a' },
                 });
 
-                console.log("Fetching saved workbook...");
                 fetch('/api/club/sheet', { cache: 'no-store' })
                     .then(res => res.json())
                     .then(rawResponse => {
                         let cleanData = rawResponse;
-                        // Unwrap { data: [...] } if necessary
-                        if (!Array.isArray(rawResponse) && rawResponse.data) {
-                            cleanData = rawResponse.data;
-                        }
+                        if (!Array.isArray(rawResponse) && rawResponse.data) cleanData = rawResponse.data;
 
-                        // Check if we have valid data (Array of sheets)
+                        let finalWorkbook = DEFAULT_WORKBOOK;
                         if (Array.isArray(cleanData) && cleanData.length > 0) {
-                            // Validate it looks like a workbook (has 'name' property)
-                            if (cleanData[0].name) {
-                                console.log("Loading saved workbook:", cleanData.length, "sheets");
-                                spreadsheetInstance.current.loadData(cleanData);
-                            } else {
-                                // Old single-sheet data format? Upgrade it.
-                                console.log("Upgrading old data to workbook format...");
-                                spreadsheetInstance.current.loadData(DEFAULT_WORKBOOK);
+                            if (cleanData.length >= 2) {
+                                finalWorkbook = cleanData;
+                            } else if (cleanData.length === 1) {
+                                const oldSheet = cleanData[0];
+                                const upgradedCurrent = { ...oldSheet, name: 'Current' };
+                                finalWorkbook = [upgradedCurrent, DEFAULT_WORKBOOK[1]];
                             }
-                        } else {
-                            console.log("No saved data. Loading Default Workbook.");
-                            spreadsheetInstance.current.loadData(DEFAULT_WORKBOOK);
                         }
+                        spreadsheetInstance.current.loadData(finalWorkbook);
                     })
-                    .catch(err => {
-                        console.error("Failed to load sheet data:", err);
-                        spreadsheetInstance.current.loadData(DEFAULT_WORKBOOK);
-                    });
+                    .catch(() => spreadsheetInstance.current.loadData(DEFAULT_WORKBOOK));
             }
         }
 
-        // Handle incoming scan data
         if (spreadsheetInstance.current && data.length > 0) {
-            const formattedWorkbook = transformData(data);
-            spreadsheetInstance.current.loadData(formattedWorkbook);
+            const formatted = transformData(data);
+            spreadsheetInstance.current.loadData(formatted);
         }
     }, [libLoaded, data]);
 
     return (
-        <div className="w-full h-full bg-white border border-black relative group">
+        // FIX: Added min-h-[800px] to FORCE height
+        <div className="w-full h-full min-h-[800px] bg-white border border-black relative group">
             <link rel="stylesheet" href="https://unpkg.com/x-data-spreadsheet@1.1.5/dist/xspreadsheet.css" />
             <Script
                 src="https://unpkg.com/x-data-spreadsheet@1.1.5/dist/xspreadsheet.js"
@@ -196,12 +219,27 @@ export const SheetView = forwardRef<SheetViewHandle, SheetViewProps>(({ data, is
                 onLoad={() => setLibLoaded(true)}
             />
 
-            <button
-                onClick={loadTemplate}
-                className="absolute top-2 right-2 z-20 bg-red-600 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-700"
-            >
-                Reset Workbook
-            </button>
+            <div className="absolute top-2 right-2 z-20 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                <input
+                    type="file"
+                    accept=".csv"
+                    ref={fileInputRef}
+                    className="hidden"
+                    onChange={handleFileUpload}
+                />
+                <button
+                    onClick={() => fileInputRef.current?.click()}
+                    className="bg-blue-600 text-white text-xs px-2 py-1 rounded hover:bg-blue-700"
+                >
+                    Upload Baseline CSV
+                </button>
+                <button
+                    onClick={() => spreadsheetInstance.current?.loadData(DEFAULT_WORKBOOK)}
+                    className="bg-red-600 text-white text-xs px-2 py-1 rounded hover:bg-red-700"
+                >
+                    Reset Workbook
+                </button>
+            </div>
 
             {isLoading && (
                 <div className="absolute inset-0 bg-black/50 z-10 flex items-center justify-center text-[#00ff00] font-mono">
