@@ -1,22 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth/server";
 import { db as prisma } from "@/lib/db";
-import { cookies } from "next/headers";
 
+// FIX: Force Node.js runtime to prevent "global is not defined" error with Prisma
+export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
-    const cookieStore = await cookies();
-    const user = await requireAuth(cookieStore);
+    const user = await requireAuth();
 
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    // Use first guild as context
-    const guildId = user.guilds[0]?.id;
-    console.log(`[Sheet API] READ Request. User: ${user.username}, Guild: ${guildId}`);
+    const guildId = user.guilds?.[0]?.id;
+    console.log(`[Sheet API] READ Request. User: ${user.name}, Guild: ${guildId}`);
 
     if (!guildId) {
         return NextResponse.json({ error: "No guild found" }, { status: 400 });
@@ -28,17 +23,13 @@ export async function GET() {
 
     let returnData = [];
     if (sheet && sheet.data) {
-        // CRITICAL FIX: Deep clone the data to remove Prisma proxies
-        // This prevents the 'TypeError: ... reading aa' crash in Next.js 15
         try {
+            // Deep clone to safely handle Prisma JSON types
             returnData = JSON.parse(JSON.stringify(sheet.data));
-            console.log(`[Sheet API] FOUND Data. Size: ${JSON.stringify(returnData).length}`);
         } catch (e) {
             console.error("[Sheet API] JSON Parse Error:", e);
             returnData = [];
         }
-    } else {
-        console.log(`[Sheet API] NO Data found for guild ${guildId}.`);
     }
 
     return NextResponse.json(returnData);
@@ -51,15 +42,10 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
-    const cookieStore = await cookies();
-    const user = await requireAuth(cookieStore);
-
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const user = await requireAuth();
 
     const body = await req.json();
-    const guildId = user.guilds[0]?.id;
+    const guildId = user.guilds?.[0]?.id;
 
     if (!guildId) {
         return NextResponse.json({ error: "No guild found" }, { status: 400 });
@@ -67,14 +53,15 @@ export async function POST(req: NextRequest) {
 
     console.log(`[Sheet API] WRITE Request. Guild: ${guildId}`);
 
+    // Use explicit type casting for Prisma JSON compatibility
     await prisma.clubSheet.upsert({
       where: { guildId: guildId },
       create: {
         guildId: guildId,
-        data: body,
+        data: body as any, // Cast to any to bypass strict InputJsonValue checks during build
       },
       update: {
-        data: body,
+        data: body as any,
       },
     });
 
