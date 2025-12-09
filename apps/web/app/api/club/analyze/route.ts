@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
     }
 
     // STEP 3: Authenticate user (throws AuthenticationError if invalid)
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     const user = await requireAuth(cookieStore);
     if (!user || !user.id) {
       return Response.json(
@@ -155,7 +155,7 @@ export async function GET(request: NextRequest) {
     const guildId = sanitizeGuildId(rawGuildId);
 
     // STEP 3: Authenticate user (throws AuthenticationError if invalid)
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     const user = await requireAuth(cookieStore);
     if (!user || !user.id) {
       return Response.json(
