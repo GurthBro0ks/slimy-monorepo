@@ -5,7 +5,8 @@ import Image from "next/image";
 
 export default function HomePage() {
   const handleDiscordLogin = () => {
-    window.location.href = "/api/auth/discord/login";
+    // FIX: Updated to correct backend route (removed /discord segment)
+    window.location.href = "/api/auth/login";
   };
 
   return (
@@ -32,6 +33,12 @@ export default function HomePage() {
           overflow-y: auto;
           user-select: none;
           color: #e0aaff;
+        }
+
+        /* FORCE TRANSPARENCY on Snail Logos */
+        img[alt="Snail"], .hero-snail img, .web-logo img {
+          mix-blend-mode: screen !important;
+          background-color: transparent !important;
         }
 
         /* Slime Drip Animation */
@@ -150,6 +157,7 @@ export default function HomePage() {
         .hero-snail {
           width: 120px;
           height: 120px;
+          /* Note: mix-blend-mode applied via global img selector above */
           filter: drop-shadow(0 0 10px #00ff00);
           margin-bottom: 20px;
         }
