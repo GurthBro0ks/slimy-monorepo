@@ -1,127 +1,74 @@
-/**
- * Club Sheet API Route
- *
- * GET  /api/club/sheet?guildId=xxx - Load club sheet data
- * POST /api/club/sheet              - Save club sheet data
- */
+import { NextRequest, NextResponse } from "next/server";
+import { requireAuth } from "@/lib/auth/server";
+import { db as prisma } from "@/lib/db";
 
-import { NextRequest, NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/auth/server';
-import { validateGuildAccess } from '@/lib/auth/permissions';
-import { getClubSheetRepository } from '@/lib/repositories/club-sheet.repository';
+// FIX: Force Node.js runtime to prevent "global is not defined" error with Prisma
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
-export const runtime = 'edge';
-
-/**
- * GET /api/club/sheet
- *
- * Returns the club sheet data for a specific guild.
- * If no sheet exists, returns an empty sheet object.
- */
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
-    // STEP 1: Authenticate user
     const user = await requireAuth();
 
-    // STEP 2: Extract guildId from query params
-    const { searchParams } = new URL(request.url);
-    const guildId = searchParams.get('guildId');
+    const guildId = user.guilds?.[0]?.id;
+    console.log(`[Sheet API] READ Request. User: ${user.name}, Guild: ${guildId}`);
 
     if (!guildId) {
-      return NextResponse.json(
-        {
-          ok: false,
-          code: 'MISSING_GUILD_ID',
-          message: 'Guild ID is required',
-        },
-        { status: 400 }
-      );
+        return NextResponse.json({ error: "No guild found" }, { status: 400 });
     }
 
-    // STEP 3: Validate user has access to this guild
-    validateGuildAccess(user, guildId);
-
-    // STEP 4: Get or create sheet data
-    const repository = getClubSheetRepository();
-    const sheet = await repository.getOrCreate(guildId);
-
-    return NextResponse.json({
-      ok: true,
-      data: sheet.data,
-      updatedAt: sheet.updatedAt,
+    const sheet = await prisma.clubSheet.findUnique({
+      where: { guildId: guildId },
     });
-  } catch (error) {
-    console.error('[ClubSheetAPI] Error in GET /api/club/sheet:', error);
 
-    return NextResponse.json(
-      {
-        ok: false,
-        code: 'INTERNAL_ERROR',
-        message: error instanceof Error ? error.message : 'Internal server error',
-      },
-      { status: 500 }
-    );
+    let returnData = [];
+    if (sheet && sheet.data) {
+        try {
+            // Deep clone to safely handle Prisma JSON types
+            returnData = JSON.parse(JSON.stringify(sheet.data));
+        } catch (e) {
+            console.error("[Sheet API] JSON Parse Error:", e);
+            returnData = [];
+        }
+    }
+
+    return NextResponse.json(returnData);
+
+  } catch (error) {
+    console.error("[Sheet API] GET Error:", error);
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }
 
-/**
- * POST /api/club/sheet
- *
- * Saves club sheet data for a specific guild.
- */
-export async function POST(request: NextRequest) {
+export async function POST(req: NextRequest) {
   try {
-    // STEP 1: Authenticate user
     const user = await requireAuth();
 
-    // STEP 2: Parse request body
-    const body = await request.json();
-    const { guildId, data } = body;
+    const body = await req.json();
+    const guildId = user.guilds?.[0]?.id;
 
     if (!guildId) {
-      return NextResponse.json(
-        {
-          ok: false,
-          code: 'MISSING_GUILD_ID',
-          message: 'Guild ID is required',
-        },
-        { status: 400 }
-      );
+        return NextResponse.json({ error: "No guild found" }, { status: 400 });
     }
 
-    if (!data) {
-      return NextResponse.json(
-        {
-          ok: false,
-          code: 'MISSING_DATA',
-          message: 'Sheet data is required',
-        },
-        { status: 400 }
-      );
-    }
+    console.log(`[Sheet API] WRITE Request. Guild: ${guildId}`);
 
-    // STEP 3: Validate user has access to this guild
-    validateGuildAccess(user, guildId);
-
-    // STEP 4: Upsert sheet data
-    const repository = getClubSheetRepository();
-    const sheet = await repository.upsert(guildId, data);
-
-    return NextResponse.json({
-      ok: true,
-      data: sheet.data,
-      updatedAt: sheet.updatedAt,
-    });
-  } catch (error) {
-    console.error('[ClubSheetAPI] Error in POST /api/club/sheet:', error);
-
-    return NextResponse.json(
-      {
-        ok: false,
-        code: 'INTERNAL_ERROR',
-        message: error instanceof Error ? error.message : 'Internal server error',
+    // Use explicit type casting for Prisma JSON compatibility
+    await prisma.clubSheet.upsert({
+      where: { guildId: guildId },
+      create: {
+        guildId: guildId,
+        data: body as any, // Cast to any to bypass strict InputJsonValue checks during build
       },
-      { status: 500 }
-    );
+      update: {
+        data: body as any,
+      },
+    });
+
+    return NextResponse.json({ success: true });
+
+  } catch (error) {
+    console.error("[Sheet API] POST Error:", error);
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }

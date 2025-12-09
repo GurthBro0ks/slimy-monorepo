@@ -6,7 +6,7 @@
 
 import { db } from '../db';
 import type { ClubSheet } from '@prisma/client';
-import type { Prisma } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 
 export interface UpdateClubSheetInput {
   data: Prisma.JsonValue;
@@ -35,7 +35,7 @@ export class ClubSheetRepository {
       sheet = await db.clubSheet.create({
         data: {
           guildId,
-          data: {},
+          data: {} as Prisma.InputJsonValue,
         },
       });
     }
@@ -49,10 +49,10 @@ export class ClubSheetRepository {
   async upsert(guildId: string, data: Prisma.JsonValue): Promise<ClubSheet> {
     return await db.clubSheet.upsert({
       where: { guildId },
-      update: { data },
+      update: { data: data as Prisma.InputJsonValue },
       create: {
         guildId,
-        data,
+        data: data as Prisma.InputJsonValue,
       },
     });
   }
