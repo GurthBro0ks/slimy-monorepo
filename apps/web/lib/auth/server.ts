@@ -1,83 +1,53 @@
 import { cookies } from "next/headers";
-import { AuthenticationError } from "@/lib/errors";
-import { apiClient } from "@/lib/api-client";
-import { getUserRole } from "@/slimy.config";
-import type { AuthUser } from "./types";
-import { AUTH_COOKIE_NAME, AUTH_ERRORS } from "./constants";
-import { getRequestUser, setRequestUser } from "./request-context";
+import { AdminApiClient } from "@/lib/api/admin-client";
 
-export interface ServerAuthUser extends AuthUser {
-  roles?: string[];
-  email?: string;
+export interface ServerAuthUser {
+  id: string;
+  username: string;
+  role: 'admin' | 'club' | 'member';
+  guilds: any[];
+  email?: string; 
 }
 
-interface AdminApiMeResponse {
-  user: {
-    id: string;
-    name: string;
-    email?: string;
-  };
-  guilds?: Array<{
-    id: string;
-    roles: string[];
-  }>;
-}
+export async function requireAuth(cookieStoreOverride?: any): Promise<ServerAuthUser | null> {
+  try {
+    const cookieStore = await (cookieStoreOverride ? Promise.resolve(cookieStoreOverride) : cookies());
+    
+    // Look for ANY valid session cookie
+    const sessionToken = 
+      cookieStore.get("slimy_admin") || 
+      cookieStore.get("slimy_session") || 
+      cookieStore.get("connect.sid");
 
-/**
- * Validates user session via cookie-based authentication.
- * Caches result per request to avoid multiple Admin API calls.
- *
- * @throws {AuthenticationError} If session is invalid or missing
- * @returns {Promise<ServerAuthUser>} Validated user information
- */
-export async function requireAuth(): Promise<ServerAuthUser> {
-  // Check request-scoped cache first
-  const cachedUser = getRequestUser();
-  if (cachedUser) {
-    return cachedUser;
+    if (!sessionToken) {
+        console.log("[Auth] FAILED: No valid session cookie found.");
+        return null;
+    }
+
+    const client = new AdminApiClient();
+    const headers = { Cookie: `${sessionToken.name}=${sessionToken.value}` };
+    
+    // Request the user profile
+    const response = await client.get<any>("/api/auth/me", { headers });
+
+    if (!response.ok) {
+      console.log(`[Auth] FAILED: Admin API rejected token with status ${response.status}`);
+      return null;
+    }
+
+    // FIX: Support both { user: ... } AND { id: ... } structures
+    const userData = response.data?.user || response.data;
+
+    if (!userData || !userData.id) {
+      console.log("[Auth] FAILED: Admin API returned OK (200) but invalid user data structure:", JSON.stringify(response.data));
+      return null;
+    }
+
+    console.log(`[Auth] SUCCESS: Authenticated as ${userData.username} (${userData.id})`);
+    return userData as ServerAuthUser;
+
+  } catch (error) {
+    console.error("[Auth] CRITICAL ERROR:", error);
+    return null;
   }
-
-  // Get cookies from Next.js headers
-  const cookieStore = await cookies();
-  const sessionCookie = cookieStore.get(AUTH_COOKIE_NAME);
-
-  if (!sessionCookie) {
-    throw new AuthenticationError(AUTH_ERRORS.NO_COOKIE);
-  }
-
-  // Forward all cookies to Admin API for validation
-  const cookieHeader = cookieStore.toString();
-
-  const result = await apiClient.get<AdminApiMeResponse>("/api/auth/me", {
-    useCache: false,
-    headers: {
-      Cookie: cookieHeader,
-    },
-  });
-
-  if (!result.ok) {
-    throw new AuthenticationError(
-      AUTH_ERRORS.INVALID_SESSION,
-      { code: result.code, status: result.status }
-    );
-  }
-
-  // Extract user data and determine role
-  const { user, guilds } = result.data;
-  const allRoles = guilds?.flatMap(g => g.roles) || [];
-  const role = getUserRole(allRoles);
-
-  const serverUser: ServerAuthUser = {
-    id: user.id,
-    name: user.name,
-    email: user.email,
-    role,
-    roles: allRoles,
-    guilds: guilds || [],
-  };
-
-  // Cache for this request
-  setRequestUser(serverUser);
-
-  return serverUser;
 }
