@@ -10,7 +10,6 @@ const nextConfig = {
   async rewrites() {
     return [
       {
-        // Proxy auth callbacks to the backend container on port 3080
         source: '/api/auth/discord/callback',
         destination: 'http://admin-api:3080/api/auth/callback',
       },
@@ -19,13 +18,12 @@ const nextConfig = {
         destination: 'http://admin-api:3080/api/auth/callback',
       },
       {
-        // Proxy all other API routes to backend on port 3080
         source: '/api/:path((?!stats/events/stream|auth/me|auth/logout|club/).*)',
         destination: 'http://admin-api:3080/api/:path*',
       },
     ];
   },
   typescript: { ignoreBuildErrors: true },
-  eslint: { ignoreDuringBuilds: true },
+  // eslint config removed as it is deprecated in next.config.js
 };
 module.exports = nextConfig;

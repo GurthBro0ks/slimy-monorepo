@@ -5,10 +5,6 @@ const SheetView = dynamic(() => import('@/components/club/sheet-view').then(mod 
 import type { SheetViewHandle } from '@/components/club/sheet-view';
 import { ScannerPanel } from '@/components/club/scanner-panel';
 import { useAuth } from '@/hooks/useAuth';
-import { VT323, Press_Start_2P } from 'next/font/google';
-
-const vt323 = VT323({ weight: '400', subsets: ['latin'] });
-const pressStart = Press_Start_2P({ weight: '400', subsets: ['latin'] });
 
 export default function ClubPage() {
   const { user, guilds, isLoading } = useAuth();
@@ -72,7 +68,7 @@ export default function ClubPage() {
 
   if (!user) {
     return (
-      <div className={`min-h-screen bg-[#050010] text-[#ff0000] p-10 font-mono flex flex-col items-center justify-center gap-5 ${vt323.className}`}>
+      <div className="min-h-screen bg-[#050010] text-[#ff0000] p-10 font-mono flex flex-col items-center justify-center gap-5">
         <div className="text-4xl animate-pulse">ACCESS DENIED</div>
         <div className="text-xl text-[#e0aaff]">SECURE TERMINAL REQUIRES AUTHORIZATION</div>
         <a
@@ -86,8 +82,7 @@ export default function ClubPage() {
   }
 
   return (
-    <div className={`min-h-screen bg-[#050010] text-[#e0aaff] flex flex-col relative overflow-x-hidden ${vt323.className}`}>
-
+    <div className="min-h-screen flex flex-col relative overflow-x-hidden">
       {/* Grid Background */}
       <div
         className="fixed inset-0 pointer-events-none z-0"
@@ -97,32 +92,12 @@ export default function ClubPage() {
         }}
       />
 
-      {/* Header */}
-      <header className="relative z-10 h-16 bg-[#10002b] border-b-2 border-[#9d4edd] flex items-center justify-between px-6 shadow-[0_0_20px_rgba(157,78,221,0.3)] shrink-0">
-        <div className={`text-[#00ff00] text-xl flex items-center gap-3 ${pressStart.className}`}>
-          <span className="text-2xl">🐌</span>
-          <span className="drop-shadow-[2px_2px_#ff00ff]">slimyai.xyz</span>
-        </div>
-        <nav className="flex gap-6 text-xl">
-          <a href="#" className="hover:text-[#00ff00] hover:underline">Grid</a>
-          <a href="#" className="hover:text-[#00ff00] hover:underline">Cloud</a>
-          <button onClick={loadData} className="hover:text-[#00ff00] hover:underline">Reset</button>
-        </nav>
-      </header>
-
-      {/* Marquee */}
-      <div className="relative z-10 h-8 bg-[#240046] border-b border-[#5a189a] text-[#00ff00] flex items-center overflow-hidden whitespace-nowrap">
-        <div className="animate-marquee pl-4">
-          Initializing SlimeSheets v2.1... Secure Connection Established... Database: PRISMA... User: {user.username}...
-        </div>
-      </div>
-
       <main className="relative z-10 flex-1 p-5 flex flex-col gap-5">
         <ScannerPanel guildId={guildId} onScanComplete={loadData} />
 
         <div className="flex-1 flex flex-col bg-[#240046] border-2 border-[#9d4edd] shadow-[0_0_15px_rgba(157,78,221,0.4)] min-h-[500px]">
           <div className="h-8 bg-gradient-to-r from-[#3c096c] to-[#10002b] flex items-center justify-between px-2 border-b-2 border-[#10002b] text-[#ff00ff] font-mono text-xs">
-            <div className={`flex items-center gap-2 ${pressStart.className} text-[10px]`}>
+            <div className="flex items-center gap-2 text-[10px]">
               <span>SLIMESHEETS_V2.XLS</span>
             </div>
             <div className="text-[#00ff00]">CONNECTED: {guildId ? 'SECURE_DB' : 'WAITING_FOR_GUILD'}</div>
