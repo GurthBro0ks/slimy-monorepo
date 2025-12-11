@@ -23,7 +23,6 @@ const nextConfig = {
       },
     ];
   },
-  typescript: { ignoreBuildErrors: true },
   // eslint config removed as it is deprecated in next.config.js
 };
 module.exports = nextConfig;

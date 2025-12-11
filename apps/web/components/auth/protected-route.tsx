@@ -30,13 +30,13 @@ export function ProtectedRoute({
   redirectTo = "/",
   requireAuth = true,
 }: ProtectedRouteProps) {
-  const { user, loading, error } = useAuth();
+  const { user, isLoading, error } = useAuth();
   const router = useRouter();
 
   // Handle redirects with useEffect - always call hooks in same order
   useEffect(() => {
     // Check authentication requirement
-    if (!loading && requireAuth && !user) {
+    if (!isLoading && requireAuth && !user) {
       if (error) {
         console.error("Authentication error:", error);
       }
@@ -57,7 +57,7 @@ export function ProtectedRoute({
     }
 
     // Check role-based access
-    if (!loading && requiredRole && user) {
+    if (!isLoading && requiredRole && user) {
       const roleHierarchy: Record<Role, number> = {
         user: 0,
         club: 1,
@@ -71,10 +71,10 @@ export function ProtectedRoute({
         router.push(redirectTo);
       }
     }
-  }, [loading, user, error, requireAuth, requiredRole, fallback, redirectTo, router]);
+  }, [isLoading, user, error, requireAuth, requiredRole, fallback, redirectTo, router]);
 
   // Show loading state while checking authentication
-  if (loading) {
+  if (isLoading) {
     return (
       fallback || (
         <div className="flex items-center justify-center min-h-[200px]">

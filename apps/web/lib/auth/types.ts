@@ -7,10 +7,14 @@ export interface User {
 
 export interface Guild {
   id: string;
+  name: string;
+  icon: string | null;
+  installed: boolean;
   roles: string[];
 }
 
 export interface AuthUser extends User {
+  username: string;
   role: Role;
   guilds?: Guild[];
   lastActiveGuild?: {
@@ -22,7 +26,7 @@ export interface AuthUser extends User {
 
 export interface AuthState {
   user: AuthUser | null;
-  loading: boolean;
+  isLoading: boolean;
   error: string | null;
   lastRefresh: number;
 }

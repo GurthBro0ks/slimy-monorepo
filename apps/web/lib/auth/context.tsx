@@ -12,28 +12,28 @@ interface AuthProviderProps {
 export function AuthProvider({ children }: AuthProviderProps) {
   const [state, setState] = useState<AuthState>({
     user: null,
-    loading: true,
+    isLoading: true,
     error: null,
     lastRefresh: 0,
   });
 
   const refresh = useCallback(async () => {
     try {
-      setState(prev => ({ ...prev, loading: true }));
+      setState(prev => ({ ...prev, isLoading: true }));
       const res = await fetch("/api/auth/me", { credentials: "include" });
 
       if (res.ok) {
         const user = await res.json();
         setState({
           user,
-          loading: false,
+          isLoading: false,
           error: null,
           lastRefresh: Date.now(),
         });
       } else {
         setState({
           user: null,
-          loading: false,
+          isLoading: false,
           error: null,
           lastRefresh: 0,
         });
@@ -42,7 +42,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       console.error("[Auth] Refresh failed:", err);
       setState({
         user: null,
-        loading: false,
+        isLoading: false,
         error: err instanceof Error ? err.message : "Auth check failed",
         lastRefresh: 0,
       });
@@ -68,7 +68,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       // Clear local state
       setState({
         user: null,
-        loading: false,
+        isLoading: false,
         error: null,
         lastRefresh: 0,
       });

@@ -10,8 +10,12 @@ export async function GET() {
   try {
     const user = await requireAuth();
 
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const guildId = user.guilds?.[0]?.id;
-    console.log(`[Sheet API] READ Request. User: ${user.name}, Guild: ${guildId}`);
+    console.log(`[Sheet API] READ Request. User: ${user.username}, Guild: ${guildId}`);
 
     if (!guildId) {
         return NextResponse.json({ error: "No guild found" }, { status: 400 });
@@ -43,6 +47,10 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   try {
     const user = await requireAuth();
+
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
     const body = await req.json();
     const guildId = user.guilds?.[0]?.id;
