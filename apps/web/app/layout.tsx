@@ -1,11 +1,10 @@
 import type { Metadata } from "next";
-import "./globals.css";
+import { RetroShell } from "@/components/layout/retro-shell";
 import { AppShell } from "@/components/layout/app-shell";
-
-export const metadata: Metadata = {
-  title: "Slimy.ai - AI-Powered Discord Bot",
-  description: "Your AI-powered Discord companion for Super Snail and more",
-};
+// import { AuthProvider } from "@/lib/auth/auth-context"; // Original path was wrong
+import { AuthProvider } from "@/lib/auth/context";
+import { ChatProvider } from "@/components/retro-chat/chat-context";
+// ... imports
 
 export default function RootLayout({
   children,
@@ -13,14 +12,19 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark">
+    <html lang="en">
       <head>
         <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet" />
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
       </head>
-
-      <body className="font-sans antialiased">
-        <AppShell>{children}</AppShell>
+      <body className="antialiased">
+        <AuthProvider>
+          <ChatProvider>
+            <RetroShell>
+              <AppShell>{children}</AppShell>
+            </RetroShell>
+          </ChatProvider>
+        </AuthProvider>
       </body>
     </html>
   );

@@ -1,38 +1,25 @@
-"use client";
+'use client';
 
-import { usePathname } from "next/navigation";
-import { Header } from "@/components/layout/header";
-import { Footer } from "@/components/layout/footer";
-import { AuthenticatedChatBar } from "@/components/layout/authenticated-chat-bar";
-import { AuthProvider } from "@/lib/auth/context";
-import { ActiveGuildProvider } from "@/components/providers/active-guild-provider";
-import { AuthErrorBoundary } from "@/components/auth/error-boundary";
-import { ServiceWorkerRegistration } from "@/components/service-worker-registration";
+import { useState } from 'react';
+import { usePathname } from 'next/navigation';
 
-const SHELL_ROUTES = ["/dashboard", "/analytics", "/club", "/snail"];
+interface AppShellProps {
+  children: React.ReactNode;
+}
 
-/**
- * Renders the authenticated application chrome and hides marketing UI for shell routes.
- */
-export function AppShell({ children }: { children: React.ReactNode }) {
+export function AppShell({ children }: AppShellProps) {
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const pathname = usePathname();
-  const isShellRoute = SHELL_ROUTES.some((route) => pathname?.startsWith(route));
-  const isChatPage = pathname === '/chat';
-  const isHomePage = pathname === '/';
+
+  // RetroShell handles the outer layout (Header, Nav, Background, Chat Widget).
+  // AppShell now focuses strictly on inner content layout if needed.
+  // Legacy AuthenticatedChatBar/RetroChatWidget has been REMOVED to prevent duplicates.
 
   return (
-    <AuthErrorBoundary>
-      <AuthProvider>
-        <ActiveGuildProvider>
-          <div className="flex min-h-screen flex-col">
-            {!isShellRoute && !isHomePage && <Header />}
-            <main className="flex-1">{children}</main>
-            {!isShellRoute && !isHomePage && <Footer />}
-            {!isShellRoute && !isChatPage && !isHomePage && <AuthenticatedChatBar />}
-            <ServiceWorkerRegistration />
-          </div>
-        </ActiveGuildProvider>
-      </AuthProvider>
-    </AuthErrorBoundary>
+    <div className="flex h-full flex-col">
+      <main className="flex-1 overflow-hidden relative z-10">
+        {children}
+      </main>
+    </div>
   );
 }

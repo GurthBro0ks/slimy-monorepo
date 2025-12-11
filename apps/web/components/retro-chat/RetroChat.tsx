@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect } from 'react';
-import { useChatState } from './hooks';
+import { useChatContext } from './chat-context';
 import { getStyles } from './styles';
 import { ProfileModal } from './components/ProfileModal';
 import { SettingsModal } from './components/SettingsModal';
@@ -22,7 +22,7 @@ interface RetroChatProps {
 }
 
 export function RetroChat({ mode, isOpen = true, onClose }: RetroChatProps) {
-   const state = useChatState(mode);
+   const state = useChatContext();
 
    // Page mode: always show
    // Widget mode: only show if isOpen
