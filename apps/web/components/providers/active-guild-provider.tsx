@@ -18,7 +18,7 @@ interface ActiveGuildContextType {
 const ActiveGuildContext = createContext<ActiveGuildContextType | undefined>(undefined);
 
 export function ActiveGuildProvider({ children }: { children: ReactNode }) {
-    const { user, loading: authLoading } = useAuth();
+    const { user, isLoading: authLoading } = useAuth();
     const [activeGuild, setActiveGuild] = useState<ActiveGuild | null>(null);
     const [isInitialized, setIsInitialized] = useState(false);
 

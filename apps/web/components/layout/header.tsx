@@ -27,7 +27,7 @@ const criticalPaths = ["/snail", "/club", "/chat"];
 export function Header() {
   const pathname = usePathname();
   const router = useRouter();
-  const { user, loading, logout } = useAuth();
+  const { user, isLoading, logout } = useAuth();
   const [logoutLoading, setLogoutLoading] = React.useState(false);
 
   const resolvedUser = user && (user as any).user ? (user as any).user : user;
@@ -35,7 +35,7 @@ export function Header() {
 
   // Prefetch critical paths when user is authenticated
   React.useEffect(() => {
-    if (resolvedUser && !loading) {
+    if (resolvedUser && !isLoading) {
       // Prefetch dashboard based on role
       const dashboardPath = role === "admin" ? "/guilds" : role === "club" ? "/club" : "/snail";
       router.prefetch(dashboardPath);
@@ -47,7 +47,7 @@ export function Header() {
         }
       });
     }
-  }, [resolvedUser, loading, role, router]);
+  }, [resolvedUser, isLoading, role, router]);
 
   const handleLogout = async () => {
     setLogoutLoading(true);
@@ -95,7 +95,7 @@ export function Header() {
 
           <div className="flex items-center gap-4">
             <UsageBadge />
-            {loading ? (
+            {isLoading ? (
               <Skeleton className="h-8 w-24" />
             ) : resolvedUser ? (
               <div className="flex items-center gap-3 flex-wrap justify-end">
