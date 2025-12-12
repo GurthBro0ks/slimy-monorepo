@@ -81,6 +81,9 @@ COPY --from=builder /app/apps/admin-api/node_modules/.prisma ./apps/admin-api/no
 
 # Copy admin-api source code
 COPY apps/admin-api/ ./apps/admin-api/
+# Explicitly copy source to ensure runtime uses latest JS (avoids stale dist usage)
+COPY apps/admin-api/src ./apps/admin-api/src
+COPY apps/admin-api/server.js ./apps/admin-api/server.js
 
 # Set working directory to admin-api
 WORKDIR /app/apps/admin-api

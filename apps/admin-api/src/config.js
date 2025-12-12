@@ -1,6 +1,6 @@
 "use strict";
 
-const DEFAULT_ALLOWED_ORIGINS = ["http://localhost:3081"];
+const DEFAULT_ALLOWED_ORIGINS = ["http://localhost:3000"];
 const ROLE_ORDER = ["viewer", "editor", "admin", "owner"];
 
 function parseBoolean(value, fallback = false) {
@@ -26,6 +26,35 @@ function resolveOrigins() {
   if (fromEnv.length) return fromEnv;
   return DEFAULT_ALLOWED_ORIGINS;
 }
+
+function resolveClientBaseUrl() {
+  const candidate =
+    process.env.CLIENT_URL ||
+    process.env.FRONTEND_URL ||
+    process.env.WEB_URL ||
+    process.env.NEXT_PUBLIC_BASE_URL ||
+    (process.env.NODE_ENV === "production"
+      ? "https://slimyai.xyz"
+      : "http://localhost:3000");
+
+  return String(candidate).replace(/\/$/, "");
+}
+
+function resolveRedirectUrl(envValue, fallback) {
+  if (envValue) {
+    const value = String(envValue).trim();
+    if (value.includes("localhost:3081") || value.includes(":3081")) {
+      console.warn("[admin-config] Ignoring redirect URL pointing at :3081", {
+        value,
+      });
+    } else {
+      return value;
+    }
+  }
+  return fallback;
+}
+
+const CLIENT_BASE_URL = resolveClientBaseUrl();
 
 const config = {
   discord: {
@@ -72,10 +101,14 @@ const config = {
   },
   ui: {
     origins: resolveOrigins(),
-    successRedirect:
-      process.env.ADMIN_REDIRECT_SUCCESS || "http://localhost:3081",
-    failureRedirect:
-      process.env.ADMIN_REDIRECT_FAILURE || "http://localhost:3081/login",
+    successRedirect: resolveRedirectUrl(
+      process.env.ADMIN_REDIRECT_SUCCESS,
+      `${CLIENT_BASE_URL}/dashboard`,
+    ),
+    failureRedirect: resolveRedirectUrl(
+      process.env.ADMIN_REDIRECT_FAILURE,
+      `${CLIENT_BASE_URL}/?error=login_failed`,
+    ),
   },
   rateLimit: {
     tasks: {
@@ -96,7 +129,8 @@ const config = {
   security: {
     hstsMaxAge: Number(process.env.HSTS_MAX_AGE || 31536000),
   },
-  baseUrl: process.env.ADMIN_BASE_URL || "http://localhost:3081",
+  baseUrl: process.env.ADMIN_BASE_URL || CLIENT_BASE_URL,
+  clientUrl: CLIENT_BASE_URL,
   backup: {
     root: process.env.BACKUP_ROOT || "/var/backups/slimy",
     mysqlDir:

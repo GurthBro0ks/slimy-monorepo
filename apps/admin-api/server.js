@@ -4,6 +4,8 @@ const fs = require("fs");
 const path = require("path");
 const dotenv = require("dotenv");
 
+console.log("[admin-api] Entrypoint file:", __filename);
+
 // Load environment variables BEFORE requiring other modules
 function loadEnv() {
   const explicitEnvPath =
