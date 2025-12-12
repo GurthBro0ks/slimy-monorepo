@@ -126,5 +126,14 @@ retry "admin-api /api/health" "curl -fsS http://127.0.0.1:3080/api/health" 60 2
 retry "web /" "curl -fsS http://127.0.0.1:3000/" 60 2
 retry "admin-ui /" "curl -fsS http://127.0.0.1:3001/" 60 2
 
+retry "admin-ui -> admin-api bridge /api/admin-api/health" "curl -fsS http://127.0.0.1:3001/api/admin-api/health >/dev/null" 60 2
+log ""
+log "=== admin-ui -> admin-api bridge response ==="
+if command -v jq >/dev/null 2>&1; then
+  curl -fsS http://127.0.0.1:3001/api/admin-api/health | jq .
+else
+  curl -fsS http://127.0.0.1:3001/api/admin-api/health
+fi
+
 log ""
 log "PASS: Docker baseline smoke test"
