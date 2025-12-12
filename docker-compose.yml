@@ -67,6 +67,7 @@ services:
       ADMIN_API_SERVICE_NAME: ${ADMIN_API_SERVICE_NAME:-slimy-admin-api}
       ADMIN_API_VERSION: ${ADMIN_API_VERSION:-docker}
       LOG_LEVEL: ${LOG_LEVEL:-info}
+      HOST: "0.0.0.0"
     depends_on:
       db:
         condition: service_healthy
