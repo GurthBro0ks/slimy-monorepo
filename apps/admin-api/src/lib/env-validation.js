@@ -47,8 +47,8 @@ const VALIDATION_RULES = {
     }
   },
   DATABASE_URL: (value) => {
-    if (!value.startsWith('postgresql://') && !value.startsWith('postgres://')) {
-      throw new Error('DATABASE_URL must be a valid PostgreSQL connection string');
+    if (!value.startsWith('mysql://') && !value.startsWith('mysqls://')) {
+      throw new Error('DATABASE_URL must be a valid MySQL connection string (mysql://)');
     }
   },
   PORT: (value) => {
@@ -119,7 +119,7 @@ function validateEnvironment() {
   }
 
   // Check optional variables with validation rules
-  for (const [envVar, validator] of Object.entries(VALIDATION_RULES)) {
+  for (const envVar of Object.keys(VALIDATION_RULES)) {
     if (!REQUIRED_ENV_VARS.includes(envVar) && process.env[envVar]) {
       try {
         validateEnvVar(envVar, process.env[envVar], false);
