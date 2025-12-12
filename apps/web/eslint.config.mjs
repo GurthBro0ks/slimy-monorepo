@@ -1,35 +1,28 @@
-import { defineConfig, globalIgnores } from "eslint/config";
-import nextVitals from "eslint-config-next/core-web-vitals";
-import nextTs from "eslint-config-next/typescript";
+import { FlatCompat } from "@eslint/eslintrc";
+import tseslintPlugin from "@typescript-eslint/eslint-plugin";
+import tseslintParser from "@typescript-eslint/parser";
 import deprecation from "eslint-plugin-deprecation";
-import tseslint from "typescript-eslint";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
-const eslintConfig = defineConfig([
-  ...nextVitals,
-  ...nextTs,
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const compat = new FlatCompat({ baseDirectory: __dirname });
+
+export default [
+  ...compat.extends("next/core-web-vitals"),
   {
-    plugins: {
-      deprecation,
-    },
+    ignores: [".next/**", "out/**", "build/**", "next-env.d.ts", "vitest.config.ts"],
+  },
+  {
+    files: ["**/*.{ts,tsx,mts,cts}"],
+    plugins: { "@typescript-eslint": tseslintPlugin, deprecation },
     languageOptions: {
+      parser: tseslintParser,
       parserOptions: {
         project: "./tsconfig.json",
-        tsconfigRootDir: import.meta.dirname,
+        tsconfigRootDir: __dirname,
       },
     },
-    rules: {
-      "deprecation/deprecation": "warn",
-    },
-  },
-  // Override default ignores of eslint-config-next.
-  globalIgnores([
-    // Default ignores of eslint-config-next:
-    ".next/**",
-    "out/**",
-    "build/**",
-    "next-env.d.ts",
-  ]),
-  {
     rules: {
       "@typescript-eslint/no-explicit-any": "off",
       "@typescript-eslint/no-unsafe-function-type": "off",
@@ -37,30 +30,9 @@ const eslintConfig = defineConfig([
     },
   },
   {
-    files: [
-      "**/*.config.{js,ts,mjs}",
-      "next.config.ts",
-      "next.config.js",
-      "tailwind.config.ts",
-      "scripts/**/*",
-      "test-auth.js",
-    ],
-    rules: {
-      "@typescript-eslint/no-require-imports": "off",
-    },
-  },
-  {
-    files: ["lib/**/*.js"],
-    rules: {
-      "@typescript-eslint/no-require-imports": "off",
-    },
-  },
-  {
-    files: ["tests/**/*", "**/*.test.{ts,tsx}", "test-auth.js"],
+    files: ["tests/**/*.{ts,tsx}", "**/*.test.{ts,tsx}"],
     rules: {
       "@typescript-eslint/no-unused-vars": "warn",
     },
   },
-]);
-
-export default eslintConfig;
+];
