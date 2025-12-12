@@ -43,7 +43,14 @@ class Database {
       metrics.recordDatabaseConnection(1); // Increment connection count
       this.isInitialized = true;
 
-      console.log('[database] Connected to PostgreSQL database');
+      const scheme = (config.database.url || '').split('://')[0].toLowerCase();
+      const dbName =
+        scheme === 'mysql' || scheme === 'mysqls'
+          ? 'MySQL'
+          : scheme === 'postgres' || scheme === 'postgresql'
+            ? 'PostgreSQL'
+            : 'database';
+      console.log(`[database] Connected to ${dbName} database`);
       return true;
     } catch (err) {
       console.error('[database] Initialization failed:', err.message || err);
@@ -104,7 +111,7 @@ class Database {
     });
   }
 
-  async getAuditLogs(filters = {}, options = {}) {
+  async getAuditLogs(filters = {}) {
     const prisma = this.getClient();
 
     const {
