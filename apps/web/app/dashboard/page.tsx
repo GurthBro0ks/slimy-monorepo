@@ -36,7 +36,7 @@ export default function DashboardPage() {
 
   return (
     <div className="p-8 max-w-6xl mx-auto">
-       <h1 className="text-3xl font-bold text-[#d400ff] mb-8 font-mono text-center tracking-widest text-shadow-neon">// COMMAND CENTER</h1>
+       <h1 className="text-3xl font-bold text-[#d400ff] mb-8 font-mono text-center tracking-widest text-shadow-neon">{"// COMMAND CENTER"}</h1>
        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           {/* User Card */}
           <div className="bg-[#240046] border-2 border-[#9d4edd] p-6 shadow-[0_0_15px_rgba(157,78,221,0.4)] relative">
