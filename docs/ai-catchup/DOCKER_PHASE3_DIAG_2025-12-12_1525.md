@@ -1527,3 +1527,6 @@ Keep-Alive: timeout=5
  M docker-compose.yml
 ?? docs/ai-catchup/DOCKER_PHASE3_DIAG_2025-12-12_1525.md
 ```
+
+## Admin UI
+- Verified: http://localhost:3001 (HTTP 200)
