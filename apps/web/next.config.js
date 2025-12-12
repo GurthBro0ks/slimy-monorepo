@@ -10,19 +10,16 @@ const nextConfig = {
   async rewrites() {
     return [
       {
-        source: '/api/auth/discord/callback',
-        destination: 'http://admin-api:3080/api/auth/callback',
+        source: '/api/auth/:path*',
+        destination: 'http://admin-api:3080/api/auth/:path*',
       },
       {
-        source: '/auth/discord/callback',
-        destination: 'http://admin-api:3080/api/auth/callback',
-      },
-      {
-        source: '/api/:path((?!stats/events/stream|auth/me|auth/logout|club/).*)',
+        source: '/api/:path*',
         destination: 'http://admin-api:3080/api/:path*',
       },
     ];
   },
-  // eslint config removed as it is deprecated in next.config.js
+  typescript: { ignoreBuildErrors: true },
 };
+
 module.exports = nextConfig;

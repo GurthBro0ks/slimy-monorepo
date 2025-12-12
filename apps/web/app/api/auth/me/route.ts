@@ -8,23 +8,25 @@ export const dynamic = "force-dynamic"; // no-store
 // Backend response is the user object directly (not wrapped in { user: ... })
 interface AdminApiMeResponse {
   id: string;
+  discordId?: string;
   username: string;
   globalName?: string;
   avatar?: string;
   email?: string;
   role: string;
-  discordId: string;
   guilds?: Array<{
     id: string;
-    name: string;
-    icon?: string;
-    role?: string;
-    permissions?: string;
+    name?: string;
+    icon?: string | null;
     installed?: boolean;
+    roles?: string[];
   }>;
   sessionGuilds?: Array<{
     id: string;
-    roles: string[];
+    name?: string;
+    icon?: string | null;
+    installed?: boolean;
+    roles?: string[];
   }>;
   lastActiveGuild?: {
     id: string;
@@ -50,7 +52,7 @@ export async function GET() {
   const backendUser = result.data;
   const transformedUser = {
     id: backendUser.id,
-    discordId: backendUser.discordId,
+    discordId: backendUser.discordId || backendUser.id,
     username: backendUser.username,
     globalName: backendUser.globalName,
     avatar: backendUser.avatar,
@@ -58,15 +60,21 @@ export async function GET() {
     lastActiveGuildId: backendUser.lastActiveGuild?.id,
   };
 
-  // Extract guild info for the frontend
-  const guilds = (backendUser.sessionGuilds || []).map(g => ({
-    id: g.id,
-    roles: g.roles,
-  }));
+  const normalizeGuild = (g: any) => ({
+    id: String(g?.id || ""),
+    name: g?.name ? String(g.name) : undefined,
+    icon: g?.icon ?? null,
+    installed: Boolean(g?.installed),
+    roles: Array.isArray(g?.roles) ? g.roles : [],
+  });
+
+  const sessionGuilds = (backendUser.sessionGuilds || []).map(normalizeGuild);
+  const guilds = (backendUser.guilds || sessionGuilds).map(normalizeGuild);
 
   return NextResponse.json({
     user: transformedUser,
     role: backendUser.role,
     guilds,
+    sessionGuilds,
   });
 }

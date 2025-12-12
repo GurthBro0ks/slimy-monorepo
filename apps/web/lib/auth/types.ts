@@ -17,6 +17,7 @@ export interface AuthUser extends User {
   username: string;
   role: Role;
   guilds?: Guild[];
+  sessionGuilds?: Guild[];
   lastActiveGuild?: {
     id: string;
     name: string;

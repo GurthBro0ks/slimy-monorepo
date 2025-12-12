@@ -1,14 +1,12 @@
 "use strict";
-
 const express = require("express");
 const crypto = require("crypto");
-const { signSession, setAuthCookie, clearAuthCookie } = require("../../lib/jwt");
-const { storeSession, clearSession, getSession } = require("../../lib/session-store");
-const { resolveRoleLevel } = require("../lib/roles");
 const config = require("../config");
 const prismaDatabase = require("../lib/database");
-
+const { signSession, setAuthCookie, clearAuthCookie } = require("../lib/jwt");
 const router = express.Router();
+
+console.log("!!! AUTH LOGIC LOADED v303 (DATA INTEGRITY) !!!");
 
 const DISCORD = {
   API: "https://discord.com/api/v10",
@@ -16,142 +14,64 @@ const DISCORD = {
   AUTH_URL: "https://discord.com/oauth2/authorize",
 };
 
-const {
-  clientId: CLIENT_ID,
-  clientSecret: CLIENT_SECRET,
-  redirectUri: CONFIG_REDIRECT_URI,
-  scopes: CONFIG_SCOPES,
-} = config.discord;
-
-const REDIRECT_URI =
-  CONFIG_REDIRECT_URI ||
-  process.env.DISCORD_REDIRECT_URI ||
-  "https://admin.slimyai.xyz/api/auth/callback";
-const BOT_TOKEN = process.env.DISCORD_BOT_TOKEN || null;
-const FRONTEND_URL =
-  process.env.CLIENT_URL ||
-  process.env.ADMIN_APP_URL ||
-  "http://localhost:3000";
-const COOKIE_DOMAIN =
-  config.jwt.cookieDomain ||
-  process.env.SESSION_COOKIE_DOMAIN ||
-  process.env.COOKIE_DOMAIN ||
-  process.env.ADMIN_COOKIE_DOMAIN ||
-  (process.env.NODE_ENV === "production" ? ".slimyai.xyz" : undefined);
-const DEFAULT_SCOPES = "identify email guilds";
-const requestedScopes = Array.isArray(CONFIG_SCOPES)
-  ? CONFIG_SCOPES.join(" ")
-  : CONFIG_SCOPES || DEFAULT_SCOPES;
-const scopeSet = new Set(
-  String(requestedScopes)
-    .split(/\s+/)
-    .filter(Boolean)
-    .concat(["identify", "email"]),
-);
-const SCOPES = Array.from(scopeSet).join(" ");
-const SESSION_COOKIE_NAME = process.env.SESSION_COOKIE_NAME || "slimy_admin";
-const SESSION_COOKIE_DOMAIN_OVERRIDE =
-  process.env.NODE_ENV === "production" ? ".slimyai.xyz" : COOKIE_DOMAIN;
-
-const oauthStateCookieOptions = {
-  httpOnly: true,
-  secure: Boolean(
-    config.jwt.cookieSecure ?? process.env.NODE_ENV === "production",
-  ),
-  sameSite: "lax",
-  path: "/",
-};
-if (COOKIE_DOMAIN) {
-  oauthStateCookieOptions.domain = COOKIE_DOMAIN;
+function getCookieDomain() {
+  return config.jwt.cookieDomain || (process.env.NODE_ENV === "production" ? ".slimyai.xyz" : undefined);
 }
-
-const missingAuthConfig = [];
-if (!CLIENT_ID) missingAuthConfig.push("DISCORD_CLIENT_ID");
-if (!CLIENT_SECRET) missingAuthConfig.push("DISCORD_CLIENT_SECRET");
-if (!REDIRECT_URI) missingAuthConfig.push("DISCORD_REDIRECT_URI");
-if (!COOKIE_DOMAIN && process.env.NODE_ENV === "production") {
-  missingAuthConfig.push("COOKIE_DOMAIN");
-}
-if (!FRONTEND_URL) missingAuthConfig.push("CLIENT_URL");
-if (
-  !config.jwt.secret &&
-  !process.env.JWT_SECRET &&
-  !process.env.SESSION_SECRET
-) {
-  missingAuthConfig.push("JWT_SECRET");
-}
-if (missingAuthConfig.length && process.env.NODE_ENV !== "test") {
-  console.warn("[auth] Missing env vars for Discord auth", {
-    missing: missingAuthConfig,
-  });
-}
-
-const ROLE_ORDER = { member: 0, club: 1, admin: 2 };
 
 function issueState(res) {
-  const payload = {
-    nonce: crypto.randomBytes(16).toString("base64url"),
-    ts: Date.now(),
-  };
-  res.cookie("oauth_state", payload.nonce, {
-    ...oauthStateCookieOptions,
+  const state = crypto.randomBytes(16).toString("base64url");
+  res.cookie("oauth_state", state, {
+    httpOnly: true,
+    secure: !!config.jwt.cookieSecure,
+    sameSite: config.jwt.cookieSameSite || "lax",
+    domain: getCookieDomain(),
+    path: "/",
     maxAge: 5 * 60 * 1000,
   });
-  return Buffer.from(JSON.stringify(payload)).toString("base64url");
+  return state;
 }
 
-function parseState(value) {
-  if (!value) return null;
+router.get("/login", (req, res) => {
   try {
-    return JSON.parse(
-      Buffer.from(String(value), "base64url").toString("utf8"),
-    );
+    const CLIENT_ID = config.discord.clientId;
+    const REDIRECT_URI = config.discord.redirectUri;
+    const SCOPES = (config.discord.scopes || ["identify", "guilds"]).join(" ");
+
+    if (!CLIENT_ID || !REDIRECT_URI) {
+      throw new Error("Discord OAuth not configured (missing clientId/redirectUri)");
+    }
+
+    const state = issueState(res);
+    const params = new URLSearchParams({
+      client_id: CLIENT_ID,
+      redirect_uri: REDIRECT_URI,
+      response_type: "code",
+      scope: SCOPES,
+      state,
+      prompt: "consent",
+    });
+
+    return res.redirect(302, `${DISCORD.AUTH_URL}?${params.toString()}`);
   } catch (err) {
-    return null;
+    console.error("[auth/login] CRITICAL ERROR:", err);
+    return res.redirect("/?error=login_not_configured");
   }
-}
-
-async function fetchJson(url, options) {
-  const response = await fetch(url, options);
-  if (!response.ok) {
-    const text = await response.text().catch(() => "");
-    const error = new Error(`Request failed: ${response.status} ${text}`);
-    error.status = response.status;
-    error.raw = text;
-    throw error;
-  }
-  return response.json();
-}
-
-router.get("/login", (_req, res) => {
-  const state = issueState(res);
-  const params = new URLSearchParams({
-    client_id: CLIENT_ID,
-    redirect_uri: REDIRECT_URI,
-    response_type: "code",
-    scope: SCOPES,
-    state,
-    prompt: "consent",
-  });
-  res.redirect(302, `${DISCORD.AUTH_URL}?${params.toString()}`);
 });
 
 router.get("/callback", async (req, res) => {
   try {
-    console.log("Callback started");
+    const CLIENT_ID = config.discord.clientId;
+    const CLIENT_SECRET = config.discord.clientSecret;
+    const REDIRECT_URI = config.discord.redirectUri;
+
+    if (!CLIENT_ID || !CLIENT_SECRET || !REDIRECT_URI) {
+      throw new Error("Discord OAuth not configured (missing clientId/clientSecret/redirectUri)");
+    }
+
     const { code, state } = req.query;
-    console.info("[admin-api] /api/auth/callback start", {
-      hasCode: Boolean(code),
-    });
-    const savedNonce = req.cookies?.oauth_state;
-    const parsed = parseState(state);
-    if (
-      !code ||
-      !parsed ||
-      !parsed.nonce ||
-      !savedNonce ||
-      parsed.nonce !== savedNonce
-    ) {
+    const saved = req.cookies && req.cookies.oauth_state;
+    if (!code || !state || !saved || state !== saved) {
+      console.warn("[auth/callback] State mismatch", { hasCode: !!code });
       return res.redirect("/?error=state_mismatch");
     }
 
@@ -163,317 +83,263 @@ router.get("/callback", async (req, res) => {
       redirect_uri: REDIRECT_URI,
     });
 
-    const tokenResponse = await fetch(DISCORD.TOKEN_URL, {
+    const tk = await fetch(DISCORD.TOKEN_URL, {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body,
     });
-    if (!tokenResponse.ok) {
+    if (!tk.ok) {
+      const text = await tk.text().catch(() => "");
+      console.error("[auth/callback] Token exchange failed", { status: tk.status, text });
       return res.redirect("/?error=token_exchange_failed");
     }
-    const tokens = await tokenResponse.json();
-    const accessToken = tokens.access_token;
-    const refreshToken = tokens.refresh_token;
-    const tokenExpiresAt = Date.now() + Number(tokens.expires_in || 3600) * 1000;
+    const tokens = await tk.json();
 
-    const headers = { Authorization: `Bearer ${accessToken}` };
-    const me = await fetchJson(`${DISCORD.API}/users/@me`, { headers });
-    const userGuilds = await fetchJson(`${DISCORD.API}/users/@me/guilds`, {
-      headers,
+    const headers = { Authorization: `Bearer ${tokens.access_token}` };
+    const [meRes, guildsRes] = await Promise.all([
+      fetch(`${DISCORD.API}/users/@me`, { headers }),
+      fetch(`${DISCORD.API}/users/@me/guilds`, { headers }),
+    ]);
+
+    if (!meRes.ok) {
+      const text = await meRes.text().catch(() => "");
+      console.error("[auth/callback] /users/@me failed", { status: meRes.status, text });
+      return res.redirect("/?error=discord_me_failed");
+    }
+    if (!guildsRes.ok) {
+      const text = await guildsRes.text().catch(() => "");
+      console.error("[auth/callback] /users/@me/guilds failed", { status: guildsRes.status, text });
+      return res.redirect("/?error=discord_guilds_failed");
+    }
+
+    const me = await meRes.json();
+    const guilds = await guildsRes.json();
+    const discordGuilds = Array.isArray(guilds) ? guilds : [];
+
+    console.log("[auth/callback] Sync start", {
+      userId: me?.id,
+      username: me?.username,
+      guildCount: discordGuilds.length,
     });
 
-    const guilds = Array.isArray(userGuilds) ? userGuilds : [];
-    const enrichedGuilds = [];
-    let highestRole = "member";
+    // --- SYNC ENGINE: Persist user + guilds + memberships ---
+    // Best-effort: never block login if DB sync fails.
+    try {
+      const prisma = prismaDatabase.getClient();
 
-    const MANAGE_GUILD = 0x0000000000000020n;
-    const ADMINISTRATOR = 0x0000000000080000n;
+      const expiresInSec = Number(tokens.expires_in || 0);
+      const tokenExpiresAt =
+        expiresInSec > 0 ? new Date(Date.now() + expiresInSec * 1000) : null;
 
-    if (!BOT_TOKEN) {
-      console.warn(
-        "[auth] DISCORD_BOT_TOKEN not configured; skipping guild intersection",
-      );
-      for (const guild of guilds) {
-        let roleLevel = "member";
+      const dbUser = await prisma.user.upsert({
+        where: { discordId: String(me.id) },
+        update: {
+          username: me.username,
+          globalName: me.global_name || me.username,
+          avatar: me.avatar || null,
+          discordAccessToken: tokens.access_token || null,
+          discordRefreshToken: tokens.refresh_token || null,
+          tokenExpiresAt,
+        },
+        create: {
+          discordId: String(me.id),
+          username: me.username,
+          globalName: me.global_name || me.username,
+          avatar: me.avatar || null,
+          discordAccessToken: tokens.access_token || null,
+          discordRefreshToken: tokens.refresh_token || null,
+          tokenExpiresAt,
+        },
+      });
+
+      let guildUpsertsOk = 0;
+      let guildUpsertsFailed = 0;
+      let membershipUpsertsOk = 0;
+      let membershipUpsertsFailed = 0;
+
+      for (const g of discordGuilds) {
+        const guildId = g?.id ? String(g.id) : "";
+        const guildName = g?.name ? String(g.name) : "";
+        if (!guildId || !guildName) {
+          guildUpsertsFailed += 1;
+          continue;
+        }
+
         try {
-          const perms = BigInt(guild.permissions || "0");
-          if ((perms & ADMINISTRATOR) === ADMINISTRATOR || guild.owner) {
-            roleLevel = "admin";
-          } else if ((perms & MANAGE_GUILD) === MANAGE_GUILD) {
-            roleLevel = "admin";
-          }
-        } catch {
-          roleLevel = "member";
-        }
-        if (ROLE_ORDER[roleLevel] > ROLE_ORDER[highestRole]) {
-          highestRole = roleLevel;
-        }
-        enrichedGuilds.push({
-          id: guild.id,
-          name: guild.name,
-          icon: guild.icon,
-          roles: [],
-          role: roleLevel,
-          permissions: guild.permissions,
-          installed: false,
-        });
-      }
-    } else {
-      // Optimized: Fetch bot's guilds once, then intersect with user's guilds
-      try {
-        const botGuildsResponse = await fetch(`${DISCORD.API}/users/@me/guilds?limit=200`, {
-          headers: { Authorization: `Bot ${BOT_TOKEN}` },
-        });
-
-        if (botGuildsResponse.ok) {
-          const botGuilds = await botGuildsResponse.json();
-          const botGuildIds = new Set(botGuilds.map((g) => g.id));
-
-          // Filter user's guilds to only those the bot is also in
-          const sharedGuilds = guilds.filter((g) => botGuildIds.has(g.id));
-
-          console.info("[auth] Guild intersection:", {
-            userGuilds: guilds.length,
-            botGuilds: botGuilds.length,
-            shared: sharedGuilds.length,
+          await prisma.guild.upsert({
+            where: { id: guildId },
+            update: {
+              name: guildName,
+              icon: g?.icon ?? null,
+            },
+            create: {
+              id: guildId,
+              name: guildName,
+              icon: g?.icon ?? null,
+              ownerId: dbUser.id,
+              settings: {},
+            },
           });
-
-          for (const guild of sharedGuilds) {
-            let roleLevel = "member";
-            try {
-              const perms = BigInt(guild.permissions || "0");
-              if ((perms & ADMINISTRATOR) === ADMINISTRATOR || guild.owner) {
-                roleLevel = "admin";
-              } else if ((perms & MANAGE_GUILD) === MANAGE_GUILD) {
-                roleLevel = "admin";
-              }
-            } catch {
-              roleLevel = "member";
-            }
-
-            if (ROLE_ORDER[roleLevel] > ROLE_ORDER[highestRole]) {
-              highestRole = roleLevel;
-            }
-
-            enrichedGuilds.push({
-              id: guild.id,
-              name: guild.name,
-              icon: guild.icon,
-              roles: [], // Cannot fetch roles without O(N) calls
-              role: roleLevel,
-              permissions: guild.permissions,
-              installed: true,
-            });
-          }
-        } else {
-          console.error(
-            "[auth] Failed to fetch bot guilds:",
-            botGuildsResponse.status,
-            await botGuildsResponse.text(),
-          );
-          // If bot guild fetch fails, we can't filter. 
-          // Fallback to empty enrichedGuilds (login proceeds but no servers shown)
-          // or we could try to fallback to the old method, but that caused 429s.
-          // Better to fail safe and log error.
+          guildUpsertsOk += 1;
+        } catch (err) {
+          guildUpsertsFailed += 1;
+          console.warn("[auth/callback] Guild upsert failed", {
+            guildId,
+            error: err?.message || String(err),
+          });
+          continue;
         }
-      } catch (err) {
-        console.error("[auth] Error in guild intersection:", err);
-      }
-    }
 
-    if (!enrichedGuilds.length && guilds.length && !BOT_TOKEN) {
-      // Provide graceful fallback so members still see guilds even without bot token.
-      for (const guild of guilds) {
-        let roleLevel = "member";
+        const roles = g?.owner ? ["owner"] : [];
         try {
-          const perms = BigInt(guild.permissions || "0");
-          if ((perms & ADMINISTRATOR) === ADMINISTRATOR || guild.owner) {
-            roleLevel = "admin";
-          } else if ((perms & MANAGE_GUILD) === MANAGE_GUILD) {
-            roleLevel = "admin";
-          }
-        } catch {
-          roleLevel = "member";
+          await prisma.userGuild.upsert({
+            where: {
+              userId_guildId: {
+                userId: dbUser.id,
+                guildId,
+              },
+            },
+            update: { roles },
+            create: {
+              userId: dbUser.id,
+              guildId,
+              roles,
+            },
+          });
+          membershipUpsertsOk += 1;
+        } catch (err) {
+          membershipUpsertsFailed += 1;
+          console.warn("[auth/callback] UserGuild upsert failed", {
+            guildId,
+            userId: dbUser.id,
+            error: err?.message || String(err),
+          });
         }
-        if (ROLE_ORDER[roleLevel] > ROLE_ORDER[highestRole]) {
-          highestRole = roleLevel;
-        }
-        enrichedGuilds.push({
-          id: guild.id,
-          name: guild.name,
-          icon: guild.icon,
-          roles: [],
-          role: roleLevel,
-          permissions: guild.permissions,
-          installed: false,
-        });
       }
+
+      console.log("[auth/callback] Sync complete", {
+        userId: dbUser.discordId,
+        guildUpsertsOk,
+        guildUpsertsFailed,
+        membershipUpsertsOk,
+        membershipUpsertsFailed,
+      });
+    } catch (err) {
+      console.error("[auth/callback] DB sync failed (continuing login):", err);
     }
 
-    const lightweightGuilds = enrichedGuilds.map((guild) => ({
-      id: guild.id,
-      name: guild.name,
-      icon: guild.icon,
-      role: guild.role,
-      installed: guild.installed,
-      permissions: guild.permissions,
-    }));
-
-    const userRole = highestRole;
+    // Keep cookie small: rely on /me to hydrate from DB.
     const user = {
       id: me.id,
+      discordId: me.id,
       username: me.username,
       globalName: me.global_name || me.username,
       avatar: me.avatar || null,
-      email: me.email || null,
-      role: userRole,
-      // SAFETY: Guilds list is too large for cookies (93+ guilds = header overflow).
-      // Since DB is down, we cannot persist them. We must omit them to allow login.
-      guilds: [],
+      role: "member",
     };
 
-    try {
-      const ready = await prismaDatabase.initialize();
-      if (!ready) {
-        console.error("[auth/callback] prisma not initialized");
-        return res.redirect(`${FRONTEND_URL}/?error=session_error`);
-      }
-
-      const prismaUser = await prismaDatabase.findOrCreateUser(me, {
-        accessToken,
-        refreshToken,
-        expiresAt: tokenExpiresAt,
-      });
-      console.log("User Upserted: ", prismaUser.id);
-      await prismaDatabase.deleteUserSessions(prismaUser.id);
-      const sessionToken = crypto.randomBytes(32).toString("hex");
-      const expiresMs = Number(tokens.expires_in || 3600) * 1000;
-      const expiresAt = new Date(Date.now() + expiresMs);
-      console.log("Creating Session...");
-      await prismaDatabase.createSession(prismaUser.id, sessionToken, expiresAt);
-
-      // Store user's guilds in the database
-      console.log("Storing guilds in database...");
-      for (const guild of enrichedGuilds) {
-        try {
-          // Ensure guild exists in database (returns guild with database ID)
-          const dbGuild = await prismaDatabase.findOrCreateGuild({
-            id: guild.id,
-            name: guild.name,
-          });
-
-          // Create or update user-guild relationship using database guild ID
-          await prismaDatabase.addUserToGuild(
-            prismaUser.id,
-            dbGuild.id,
-            guild.roles || []
-          );
-        } catch (guildErr) {
-          console.error(`[auth/callback] Failed to store guild ${guild.id}:`, guildErr.message);
-          // Continue with other guilds even if one fails
-        }
-      }
-      console.log(`Stored ${enrichedGuilds.length} guilds for user`);
-
-      res.cookie(SESSION_COOKIE_NAME, sessionToken, {
-        httpOnly: true,
-        secure: Boolean(
-          config.jwt.cookieSecure ?? process.env.NODE_ENV === "production",
-        ),
-        sameSite: "lax",
-        domain: SESSION_COOKIE_DOMAIN_OVERRIDE,
-        maxAge: expiresMs,
-        path: "/",
-      });
-    } catch (dbErr) {
-      console.error("[auth/callback] failed to persist session", {
-        error: dbErr.message,
-      });
-      return res.redirect(`${FRONTEND_URL}/?error=session_error`);
-    }
-
-    // NOTE: Session is already created above with prismaDatabase.createSession()
-    // The legacy storeSession() call was removed because it was passing user.id (Discord ID)
-    // instead of prismaUser.id (database UUID), causing foreign key constraint errors.
-    // All session data is now managed through the Prisma database layer.
-
-    const signed = signSession({ user });
-    setAuthCookie(res, signed);
-    res.clearCookie("oauth_state", oauthStateCookieOptions);
-
-    console.info("[admin-api] /api/auth/callback created session", {
-      userId: user.id,
-      guildCount: lightweightGuilds.length,
+    const token = signSession({ user });
+    setAuthCookie(res, token);
+    res.clearCookie("oauth_state", {
+      httpOnly: true,
+      secure: !!config.jwt.cookieSecure,
+      sameSite: config.jwt.cookieSameSite || "lax",
+      domain: getCookieDomain(),
+      path: "/",
     });
 
-    // Redirect to dashboard after successful login
-    const redirectUrl = new URL("/dashboard", FRONTEND_URL);
-    return res.redirect(redirectUrl.toString());
+    const successRedirect =
+      (config.ui && config.ui.successRedirect) || "https://slimyai.xyz/dashboard";
+    return res.redirect(successRedirect);
   } catch (err) {
-    console.error("Callback Error Full: ", err);
-    console.error("[auth/callback] failed:", err);
+    console.error("[auth/callback] CRITICAL ERROR:", err);
     return res.redirect("/?error=server_error");
   }
 });
 
 router.get("/me", async (req, res) => {
-  console.info("[admin-api] /api/auth/me called", {
-    hasUser: Boolean(req.user),
-    userId: req.user?.id || null,
-  });
-  if (!req.user) {
-    return res.status(401).json({ error: "unauthorized" });
-  }
+  if (!req.user) return res.status(401).json({ error: "unauthorized" });
 
-  // Fetch fresh user data from DB to get lastActiveGuild
-  let dbUser = null;
+  // UNWRAP USER (safe outside try so we can return it even on failures)
+  // @ts-ignore
+  const rawUser = req.user.user || req.user;
+  const userId = rawUser?.id || rawUser?.discordId || rawUser?.sub;
+
   try {
     const prisma = prismaDatabase.getClient();
-    if (prisma) {
-      dbUser = await prisma.user.findUnique({
-        where: { discordId: req.user.id },
-        include: { lastActiveGuild: true },
+
+    console.log(`[auth/me] req.user keys: ${Object.keys(req.user || {}).join(",")}`);
+    console.log(`[auth/me] rawUser keys: ${Object.keys(rawUser || {}).join(",")}`);
+    console.log(`[auth/me] Lookup User ID: ${userId}`);
+
+    if (!userId) {
+      console.warn("[auth/me] Missing userId on session user payload:", rawUser);
+      return res.json({ id: null, username: "Guest", guilds: [], sessionGuilds: [] });
+    }
+
+    const dbUser = await prisma.user.findUnique({
+      where: { discordId: String(userId) },
+    });
+
+    console.log(`[auth/me] DB User Found: ${!!dbUser}`);
+
+    let sessionGuilds = [];
+    if (dbUser) {
+      // Fetch UserGuilds AND JOIN Guild
+      const userGuilds = await prisma.userGuild.findMany({
+        where: { userId: dbUser.id },
+        include: { guild: true },
       });
+
+      console.log(`[auth/me] Raw DB Guilds Found: ${userGuilds.length}`);
+
+      sessionGuilds = userGuilds.map((ug) => ({
+        id: ug.guild?.id,
+        name: ug.guild?.name,
+        icon: ug.guild?.icon,
+        installed: true,
+        roles: ug.roles || [],
+      }));
+    } else {
+      // Fallback: Use cookie guilds if available (will lack names)
+      // But ensure we at least pass the ID
+      const cookieGuilds = rawUser.guilds || [];
+      console.warn("[auth/me] Fallback to cookie guilds:", cookieGuilds.length);
+      sessionGuilds = cookieGuilds.map((g) => ({
+        id: g.id,
+        roles: g.roles,
+        name: "Unknown (Not in DB)",
+        installed: false,
+      }));
     }
+
+    const response = {
+      id: dbUser?.discordId || userId,
+      discordId: dbUser?.discordId || userId,
+      username: dbUser?.username || rawUser.username || "Unknown",
+      globalName: dbUser?.globalName || rawUser.globalName,
+      avatar: dbUser?.avatar || rawUser.avatar,
+      role: rawUser.role || "member",
+      sessionGuilds: sessionGuilds,
+      // Legacy field for compatibility
+      guilds: sessionGuilds,
+    };
+
+    return res.json(response);
   } catch (err) {
-    console.warn("[auth] Failed to fetch fresh user data:", err);
+    console.error("[auth/me] CRITICAL ERROR:", err);
+    console.error("[auth/me] rawUser snapshot:", rawUser);
+    return res.status(500).json({
+      error: "internal_error",
+      id: userId || null,
+      username: rawUser?.username || rawUser?.name || "Unknown",
+      sessionGuilds: [],
+      guilds: [],
+    });
   }
-
-  const session = await getSession(req.user.id);
-
-  // Fetch guilds from database if not in session
-  let sessionGuilds = session?.guilds || [];
-  if (sessionGuilds.length === 0 && dbUser) {
-    try {
-      const userGuilds = await prismaDatabase.getUserGuilds(dbUser.id);
-      if (userGuilds && userGuilds.length > 0) {
-        sessionGuilds = userGuilds.map(ug => ({
-          id: ug.guild.discordId || ug.guild.id,
-          roles: ug.roles || [],
-        }));
-        console.log(`[auth/me] Loaded ${sessionGuilds.length} guilds from database for user ${req.user.id}`);
-      }
-    } catch (err) {
-      console.warn('[auth/me] Failed to fetch guilds from database:', err);
-    }
-  }
-
-  // Merge req.user (from token/session) with fresh DB data
-  const responseUser = {
-    ...req.user,
-    ...(dbUser || {}),
-    // Ensure these exist even if DB fetch fails
-    guilds: req.user.guilds || [],
-    sessionGuilds,
-  };
-
-  return res.json(responseUser);
 });
 
 router.post("/logout", (req, res) => {
-  if (req.user?.id) {
-    clearSession(req.user.id);
-  }
   clearAuthCookie(res);
   res.json({ ok: true });
 });

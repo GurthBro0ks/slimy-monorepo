@@ -62,7 +62,10 @@ router.get("/api/status", (_req, res) => {
 });
 router.use("/api", debugRoutes);
 router.use("/api/auth", authRoutes);
-router.use("/auth", authRoutes);
+router.use("/auth", (req, res) => {
+  const target = `/api/auth${req.url || ""}`;
+  return res.redirect(302, target);
+});
 router.use("/api/discord", discordRoutes);
 router.use("/api/club", clubRoutes);
 router.use("/api/snail", snailRoutes);
