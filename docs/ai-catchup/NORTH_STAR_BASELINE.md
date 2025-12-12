@@ -3,12 +3,24 @@
 Baseline goal: deterministic installs (frozen), lint (errors block / warnings allowed), build, and a Docker runtime smoke test using the repo’s canonical compose entrypoint and discovered ports.
 
 Date: 2025-12-12  
-Repo: `~/Desktop/slimy-monorepo`
+Repo: `/opt/slimy/slimy-monorepo`
+
+## Docker Baseline (One Command)
+Run from repo root:
+- `pnpm smoke:docker`
+
+Notes:
+- If `.env` is missing, the script creates it from `.env.docker.example` (local-only; never commit).
+- Endpoints checked:
+  - `http://127.0.0.1:3080/api/health` (admin-api)
+  - `http://127.0.0.1:3000/` (web)
+  - `http://127.0.0.1:3001/` (admin-ui)
+- Safe reset (no volume deletion): `docker compose -f docker-compose.yml down --remove-orphans`
 
 ## Current Status (TL;DR)
 - Phase 1 (lockfiles + frozen installs): ✅ complete (committed)
 - Phase 2 (lint + build): ✅ complete (committed)
-- Phase 3 (docker smoke test): ⚠ blocked (Docker CLI not available on this machine)
+- Phase 3 (docker smoke test): ✅ complete (scripted + verified on NUC2)
 
 ## Environment
 - Node: `v25.2.1`
@@ -78,7 +90,7 @@ Services in `docker-compose.yml`:
 - `admin-ui`
 - `bot`
 
-### Ports (from repo compose YAML; `docker compose config` unavailable)
+### Ports (from repo compose YAML)
 Published ports in `docker-compose.yml`:
 - `db`: host `3306` → container `3306`
 - `admin-api`: host `3080` → container `3080`
@@ -97,20 +109,5 @@ From `docker-compose.yml`:
 - `admin-api`: compose healthcheck targets `http://localhost:3080/api/health` (see `docker-compose.yml`)
 - `web`: build output indicates `apps/web` includes `GET /api/health` (see `apps/web/app/api/health/*`)
 
-### Blocker: Docker not available
-- This machine does not have `docker` / `docker compose` installed (`docker: command not found`), so these steps were skipped:
-  - `docker compose -f docker-compose.yml config`
-  - `docker compose -f docker-compose.yml build --no-cache`
-  - `docker compose -f docker-compose.yml up -d`
-  - `curl` smoke tests against running containers
-
-## Recommended Next Actions (to finish Phase 3)
-On a machine with Docker:
-1) `docker compose -f docker-compose.yml --env-file /dev/null config` (port discovery without loading secrets)
-2) `docker compose -f docker-compose.yml build --no-cache`
-3) `docker compose -f docker-compose.yml up -d`
-4) `docker compose -f docker-compose.yml ps`
-5) Smoke:
-   - `curl -fsS http://localhost:3080/api/health`
-   - `curl -fsS http://localhost:3000/api/health`
-
+### Current workflow (scripted)
+- Run: `pnpm smoke:docker`
