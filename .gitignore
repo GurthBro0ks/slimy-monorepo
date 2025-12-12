@@ -4,3 +4,11 @@ apps/*/.next/
 .next/
 dist/
 .aider*
+package-lock.json
+**/package-lock.json
+yarn.lock
+**/yarn.lock
+npm-shrinkwrap.json
+**/npm-shrinkwrap.json
+bun.lockb
+**/bun.lockb
