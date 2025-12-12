@@ -24,13 +24,13 @@ const nextConfig = {
   async rewrites() {
     const backendUrl = process.env.ADMIN_API_INTERNAL_URL || 'http://localhost:3080';
     return {
-      beforeFiles: [
-        // API proxy - proxies /api/* to backend (runs before filesystem check)
+      afterFiles: [
+        // API proxy - proxies /api/* to backend (runs after filesystem check so local routes work)
         {
           source: '/api/:path*',
           destination: `${backendUrl}/api/:path*`,
         },
-        // Auth proxy - proxies /auth/* to backend (runs before filesystem check)
+        // Auth proxy - proxies /auth/* to backend (runs after filesystem check so local routes work)
         {
           source: '/auth/:path*',
           destination: `${backendUrl}/auth/:path*`,
