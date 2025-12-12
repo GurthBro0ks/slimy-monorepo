@@ -5,8 +5,43 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT_DIR"
 
 COMPOSE_FILE="docker-compose.yml"
+export COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-slimy-monorepo}"
 
 log() { printf '%s\n' "$*"; }
+
+preflight() {
+  if ! command -v docker >/dev/null 2>&1; then
+    log "ERROR: docker not found."
+    log "Install Docker first:"
+    log "  sudo bash scripts/host/setup-docker-mint.sh"
+    exit 2
+  fi
+
+  if ! docker info >/dev/null 2>&1; then
+    log "ERROR: docker daemon not reachable (is it running? permissions?)."
+    log "Try:"
+    log "  sudo systemctl enable --now docker"
+    log "  sudo usermod -aG docker $USER  # then re-login or: newgrp docker"
+    exit 2
+  fi
+
+  local root_source="" root_fstype="" root_line="" storage_driver=""
+  root_line="$(findmnt -n -o SOURCE,FSTYPE / 2>/dev/null || true)"
+  root_source="$(awk '{print $1}' <<<"$root_line")"
+  root_fstype="$(awk '{print $2}' <<<"$root_line")"
+
+  storage_driver="$(docker info 2>/dev/null | awk -F': ' 'BEGIN{IGNORECASE=1} /Storage Driver/ {print $2; exit}')"
+
+  if [[ "${root_fstype:-}" == "overlay" || "${root_source:-}" == "/cow" ]]; then
+    if [[ "${storage_driver:-}" != "vfs" ]]; then
+      log "ERROR: Detected live-session overlay root (${root_source:-?} ${root_fstype:-?}) but Docker Storage Driver is '${storage_driver:-unknown}'."
+      log "On /cow overlay roots, overlayfs mounts often fail with 'invalid argument'."
+      log "Fix by forcing Docker to vfs:"
+      log "  sudo bash scripts/host/fix-docker-overlay-root.sh"
+      exit 2
+    fi
+  fi
+}
 
 cleanup_legacy_port() {
   local port="$1"
@@ -69,6 +104,10 @@ if [[ ! -f "$COMPOSE_FILE" ]]; then
   log "Missing $COMPOSE_FILE (run from repo root)"
   exit 2
 fi
+
+preflight
+
+docker compose -f "$COMPOSE_FILE" down --remove-orphans || true
 
 cleanup_legacy_port 3080
 cleanup_legacy_port 3000
