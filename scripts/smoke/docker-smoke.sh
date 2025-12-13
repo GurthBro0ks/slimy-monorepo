@@ -128,6 +128,20 @@ retry "admin-ui /" "curl -fsS http://127.0.0.1:3001/" 60 2
 
 retry "admin-ui -> admin-api bridge /api/admin-api/health" "curl -fsS http://127.0.0.1:3001/api/admin-api/health >/dev/null" 60 2
 retry "admin-ui -> admin-api bridge /api/admin-api/diag" "curl -fsS http://127.0.0.1:3001/api/admin-api/diag >/dev/null" 60 2
+retry "admin-ui catch-all /api/admin-api/api/health" "curl -fsS http://127.0.0.1:3001/api/admin-api/api/health >/dev/null" 60 2
+retry "admin-ui catch-all /api/admin-api/api/diag" "curl -fsS http://127.0.0.1:3001/api/admin-api/api/diag >/dev/null" 60 2
+
+log ""
+log "Checking admin-ui catch-all real endpoint..."
+real_url="http://127.0.0.1:3001/api/admin-api/api/usage"
+real_code="$(curl -sS -o /tmp/slimy-real-endpoint.json -w "%{http_code}" "$real_url")"
+if [[ "$real_code" != "200" && "$real_code" != "401" ]]; then
+  log "FAIL: $real_url (expected 200 or 401, got $real_code)"
+  cat /tmp/slimy-real-endpoint.json || true
+  exit 1
+fi
+log "OK: admin-ui catch-all /api/admin-api/api/usage (HTTP $real_code)"
+
 log ""
 log "=== admin-ui -> admin-api bridge responses ==="
 if command -v jq >/dev/null 2>&1; then
@@ -135,12 +149,17 @@ if command -v jq >/dev/null 2>&1; then
   curl -fsS http://127.0.0.1:3001/api/admin-api/health | jq .
   log "--- /api/admin-api/diag ---"
   curl -fsS http://127.0.0.1:3001/api/admin-api/diag | jq .
+  log "--- /api/admin-api/api/usage ---"
+  jq . /tmp/slimy-real-endpoint.json || cat /tmp/slimy-real-endpoint.json
 else
   log "--- /api/admin-api/health ---"
   curl -fsS http://127.0.0.1:3001/api/admin-api/health
   log ""
   log "--- /api/admin-api/diag ---"
   curl -fsS http://127.0.0.1:3001/api/admin-api/diag
+  log ""
+  log "--- /api/admin-api/api/usage ---"
+  cat /tmp/slimy-real-endpoint.json || true
 fi
 
 log ""
