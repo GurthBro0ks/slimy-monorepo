@@ -34,7 +34,8 @@ services:
       # Discord OAuth
       DISCORD_CLIENT_ID: ${DISCORD_CLIENT_ID}
       DISCORD_CLIENT_SECRET: ${DISCORD_CLIENT_SECRET}
-      DISCORD_REDIRECT_URI: ${DISCORD_REDIRECT_URI:-http://localhost:3000/api/auth/callback}
+      # Route callback through admin-ui so cookies land on the same host (localhost:3001)
+      DISCORD_REDIRECT_URI: ${DISCORD_REDIRECT_URI:-http://localhost:3001/api/admin-api/api/auth/callback}
       DISCORD_OAUTH_SCOPES: ${DISCORD_OAUTH_SCOPES:-identify guilds}
       DISCORD_BOT_TOKEN: ${DISCORD_BOT_TOKEN}
       
