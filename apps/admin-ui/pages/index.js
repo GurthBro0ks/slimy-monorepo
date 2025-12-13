@@ -24,7 +24,7 @@ export default function Home() {
           fueled by <span>adhd</span> — driven by <span>feet</span> — motivated by <span>ducks</span>
         </p>
 
-        <a className="hero__cta" href="/api/auth/login" target="_blank" rel="noopener noreferrer">
+        <a className="hero__cta" href="/api/admin-api/api/auth/login?returnTo=%2Fdashboard">
           Login with Discord
         </a>
       </div>

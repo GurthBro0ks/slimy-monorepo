@@ -126,6 +126,26 @@ retry "admin-api /api/health" "curl -fsS http://127.0.0.1:3080/api/health" 60 2
 retry "web /" "curl -fsS http://127.0.0.1:3000/" 60 2
 retry "admin-ui /" "curl -fsS http://127.0.0.1:3001/" 60 2
 
+log ""
+log "Checking admin-ui /dashboard routing..."
+dashboard_url="http://127.0.0.1:3001/dashboard"
+dashboard_code="$(curl -sS -o /tmp/slimy-dashboard.html -w "%{http_code}" "$dashboard_url")"
+if [[ "$dashboard_code" == "500" || "$dashboard_code" == "502" ]]; then
+  log "FAIL: $dashboard_url (HTTP $dashboard_code)"
+  cat /tmp/slimy-dashboard.html || true
+  exit 1
+fi
+if [[ "$dashboard_code" != "200" && "$dashboard_code" != "302" && "$dashboard_code" != "307" && "$dashboard_code" != "308" ]]; then
+  log "FAIL: $dashboard_url (expected 200 or redirect, got $dashboard_code)"
+  cat /tmp/slimy-dashboard.html || true
+  exit 1
+fi
+if [[ ! -s /tmp/slimy-dashboard.html ]]; then
+  log "FAIL: $dashboard_url (empty response body)"
+  exit 1
+fi
+log "OK: admin-ui /dashboard (HTTP $dashboard_code)"
+
 retry "admin-ui -> admin-api bridge /api/admin-api/health" "curl -fsS http://127.0.0.1:3001/api/admin-api/health >/dev/null" 60 2
 retry "admin-ui -> admin-api bridge /api/admin-api/diag" "curl -fsS http://127.0.0.1:3001/api/admin-api/diag >/dev/null" 60 2
 retry "admin-ui catch-all /api/admin-api/api/health" "curl -fsS http://127.0.0.1:3001/api/admin-api/api/health >/dev/null" 60 2

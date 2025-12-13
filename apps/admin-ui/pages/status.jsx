@@ -57,8 +57,7 @@ export default function StatusPage() {
     : "Unknown";
 
   function handleLogin() {
-    const returnTo = `${window.location.origin}/status`;
-    window.location.href = `/api/admin-api/api/auth/login?returnTo=${encodeURIComponent(returnTo)}`;
+    window.location.href = "/api/admin-api/api/auth/login?returnTo=%2Fdashboard";
   }
 
   async function handleLogout() {

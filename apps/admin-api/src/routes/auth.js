@@ -26,10 +26,35 @@ function getAllowedOrigins() {
   return Array.isArray(origins) ? origins : [];
 }
 
-function normalizeReturnTo(returnTo) {
+function getRequestOrigin(req) {
+  const xfProto = req?.headers?.["x-forwarded-proto"];
+  const protoRaw = Array.isArray(xfProto) ? xfProto[0] : xfProto ? String(xfProto) : "";
+  const proto = protoRaw.split(",")[0].trim().toLowerCase() || (req?.secure ? "https" : "http");
+
+  const xfHost = req?.headers?.["x-forwarded-host"];
+  const hostRaw = Array.isArray(xfHost)
+    ? xfHost[0]
+    : xfHost
+      ? String(xfHost)
+      : String(req?.headers?.host || "");
+  const host = hostRaw.split(",")[0].trim();
+
+  return `${proto}://${host}`;
+}
+
+function normalizeReturnTo(returnTo, req) {
   if (!returnTo || typeof returnTo !== "string") return null;
+
+  const trimmed = returnTo.trim();
+  if (trimmed.startsWith("/")) {
+    const origin = getRequestOrigin(req);
+    const allowed = getAllowedOrigins();
+    if (allowed.length && !allowed.includes(origin)) return null;
+    return new URL(trimmed, origin).toString();
+  }
+
   try {
-    const url = new URL(returnTo);
+    const url = new URL(trimmed);
     if (url.protocol !== "http:" && url.protocol !== "https:") return null;
     const allowed = getAllowedOrigins();
     if (allowed.length && !allowed.includes(url.origin)) return null;
@@ -58,7 +83,7 @@ router.get("/login", (req, res) => {
     const rawReturnTo = Array.isArray(req.query?.returnTo)
       ? req.query.returnTo[0]
       : req.query?.returnTo;
-    const returnTo = normalizeReturnTo(rawReturnTo);
+    const returnTo = normalizeReturnTo(rawReturnTo, req);
     if (returnTo) {
       res.cookie("oauth_return_to", returnTo, getCookieOptions(req, { maxAge: 10 * 60 * 1000 }));
     }
@@ -269,7 +294,7 @@ router.get("/callback", async (req, res) => {
 
     const successRedirect =
       (config.ui && config.ui.successRedirect) || "https://slimyai.xyz/dashboard";
-    const returnTo = normalizeReturnTo(cookieReturnTo);
+    const returnTo = normalizeReturnTo(cookieReturnTo, req);
     return res.redirect(returnTo || successRedirect);
   } catch (err) {
     console.error("[auth/callback] CRITICAL ERROR:", err);
