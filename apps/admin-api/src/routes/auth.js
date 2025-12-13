@@ -42,6 +42,46 @@ function getRequestOrigin(req) {
   return `${proto}://${host}`;
 }
 
+function isLocalHostname(hostname) {
+  const normalized = String(hostname || "").trim().toLowerCase();
+  if (!normalized) return true;
+  if (normalized === "localhost" || normalized === "127.0.0.1" || normalized === "::1") return true;
+  if (normalized.endsWith(".localhost")) return true;
+  return false;
+}
+
+function shouldDebugAuth() {
+  const flag = String(process.env.ADMIN_AUTH_DEBUG || "").trim().toLowerCase();
+  return process.env.NODE_ENV !== "production" || flag === "1" || flag === "true" || flag === "yes";
+}
+
+function resolveDiscordRedirectUri(req) {
+  const configured = String(config.discord.redirectUri || "").trim();
+  if (!configured) return "";
+
+  try {
+    const origin = getRequestOrigin(req);
+    const originUrl = new URL(origin);
+
+    if (configured.startsWith("/")) {
+      return new URL(configured, origin).toString();
+    }
+
+    const url = new URL(configured);
+
+    // Dev ergonomics: if configured to localhost/127, ensure the redirect_uri host matches
+    // the host the browser is actually using so cookies/state don't get split.
+    if (isLocalHostname(url.hostname) && isLocalHostname(originUrl.hostname)) {
+      url.protocol = originUrl.protocol;
+      url.host = originUrl.host;
+    }
+
+    return url.toString();
+  } catch {
+    return configured;
+  }
+}
+
 function normalizeReturnTo(returnTo, req) {
   if (!returnTo || typeof returnTo !== "string") return null;
 
@@ -73,14 +113,14 @@ function issueState(req, res) {
 router.get("/login", (req, res) => {
   try {
     const CLIENT_ID = config.discord.clientId;
-    const REDIRECT_URI = config.discord.redirectUri;
+    const REDIRECT_URI = resolveDiscordRedirectUri(req);
     const SCOPES = (config.discord.scopes || ["identify", "guilds"]).join(" ");
 
     if (!CLIENT_ID || !REDIRECT_URI) {
       throw new Error("Discord OAuth not configured (missing clientId/redirectUri)");
     }
 
-    if (process.env.NODE_ENV !== "production") {
+    if (shouldDebugAuth()) {
       const clientIdMasked =
         typeof CLIENT_ID === "string" && CLIENT_ID.length > 8
           ? `${CLIENT_ID.slice(0, 4)}…${CLIENT_ID.slice(-4)}`
@@ -88,6 +128,7 @@ router.get("/login", (req, res) => {
       console.info("[auth/login] oauth config", {
         clientId: clientIdMasked,
         redirectUri: REDIRECT_URI,
+        requestOrigin: getRequestOrigin(req),
       });
     }
 
@@ -120,7 +161,7 @@ router.get("/callback", async (req, res) => {
   try {
     const CLIENT_ID = config.discord.clientId;
     const CLIENT_SECRET = config.discord.clientSecret;
-    const REDIRECT_URI = config.discord.redirectUri;
+    const REDIRECT_URI = resolveDiscordRedirectUri(req);
 
     if (!CLIENT_ID || !CLIENT_SECRET || !REDIRECT_URI) {
       throw new Error("Discord OAuth not configured (missing clientId/clientSecret/redirectUri)");
@@ -129,7 +170,18 @@ router.get("/callback", async (req, res) => {
     const { code, state } = req.query;
     const saved = req.cookies && req.cookies.oauth_state;
     if (!code || !state || !saved || state !== saved) {
-      console.warn("[auth/callback] State mismatch", { hasCode: !!code });
+      if (shouldDebugAuth()) {
+        console.warn("[auth/callback] State mismatch detail", {
+          requestOrigin: getRequestOrigin(req),
+          hasCode: Boolean(code),
+          hasState: Boolean(state),
+          hasSaved: Boolean(saved),
+          statePrefix: typeof state === "string" ? state.slice(0, 6) : null,
+          savedPrefix: typeof saved === "string" ? saved.slice(0, 6) : null,
+        });
+      } else {
+        console.warn("[auth/callback] State mismatch", { hasCode: !!code });
+      }
       return res.redirect("/?error=state_mismatch");
     }
 
@@ -303,10 +355,15 @@ router.get("/callback", async (req, res) => {
     const cookieReturnTo = req.cookies?.oauth_return_to;
     clearCookie(req, res, "oauth_return_to");
 
+    const origin = getRequestOrigin(req);
+    const allowed = getAllowedOrigins();
+    const originAllowed = !allowed.length || allowed.includes(origin);
+    const originDashboard = originAllowed ? new URL("/dashboard", origin).toString() : null;
+
     const successRedirect =
       (config.ui && config.ui.successRedirect) || "https://slimyai.xyz/dashboard";
     const returnTo = normalizeReturnTo(cookieReturnTo, req);
-    return res.redirect(returnTo || successRedirect);
+    return res.redirect(returnTo || originDashboard || successRedirect);
   } catch (err) {
     console.error("[auth/callback] CRITICAL ERROR:", err);
     return res.redirect("/?error=server_error");
