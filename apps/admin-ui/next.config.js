@@ -25,15 +25,18 @@ const nextConfig = {
     const backendUrl = process.env.ADMIN_API_INTERNAL_URL || 'http://localhost:3080';
     return {
       afterFiles: [
-        // API proxy - proxies /api/* to backend (runs after filesystem check so local routes work)
-        {
-          source: '/api/:path*',
-          destination: `${backendUrl}/api/:path*`,
-        },
         // Auth proxy - proxies /auth/* to backend (runs after filesystem check so local routes work)
         {
           source: '/auth/:path*',
           destination: `${backendUrl}/auth/:path*`,
+        },
+      ],
+      // Important: keep the broad /api proxy as a fallback so dynamic local API routes
+      // (like /api/admin-api/[...path]) can take precedence.
+      fallback: [
+        {
+          source: '/api/:path*',
+          destination: `${backendUrl}/api/:path*`,
         },
       ],
     };
