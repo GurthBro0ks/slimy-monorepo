@@ -6,11 +6,6 @@ const { getCookieOptions } = require("../src/services/token");
 
 const COOKIE_NAME = config.jwt.cookieName || "slimy_admin_token";
 const MAX_AGE_SEC = Number(config.jwt.maxAgeSeconds || 12 * 60 * 60);
-const FALLBACK_DOMAIN =
-  config.jwt.cookieDomain ||
-  process.env.COOKIE_DOMAIN ||
-  process.env.ADMIN_COOKIE_DOMAIN ||
-  (process.env.NODE_ENV === "production" ? ".slimyai.xyz" : undefined);
 const MIN_SECRET_LENGTH = 32;
 
 let cachedSecret = null;
@@ -53,20 +48,29 @@ function verifySession(token) {
   return jwt.verify(token, resolveSecret(), { algorithms: ["HS256"] });
 }
 
-function buildCookieOptions() {
-  const options = { ...getCookieOptions() };
-  if (FALLBACK_DOMAIN && !options.domain) {
-    options.domain = FALLBACK_DOMAIN;
-  }
-  return options;
+function buildCookieOptions(req) {
+  return { ...getCookieOptions(req) };
 }
 
 function setAuthCookie(res, token) {
-  res.cookie(COOKIE_NAME, token, buildCookieOptions());
+  const req = res?.req;
+  const options = buildCookieOptions(req);
+  res.cookie(COOKIE_NAME, token, options);
+
+  if (process.env.NODE_ENV !== "production") {
+    console.info("[auth] set cookie", {
+      cookieName: COOKIE_NAME,
+      secure: Boolean(options.secure),
+      sameSite: options.sameSite,
+      domain: options.domain || null,
+      path: options.path,
+    });
+  }
 }
 
 function clearAuthCookie(res) {
-  const options = buildCookieOptions();
+  const req = res?.req;
+  const options = buildCookieOptions(req);
   delete options.maxAge;
   res.clearCookie(COOKIE_NAME, options);
 }

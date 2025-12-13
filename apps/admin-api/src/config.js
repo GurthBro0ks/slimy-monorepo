@@ -1,6 +1,11 @@
 "use strict";
 
-const DEFAULT_ALLOWED_ORIGINS = ["http://localhost:3000"];
+const DEFAULT_ALLOWED_ORIGINS = [
+  "http://localhost:3000",
+  "http://localhost:3001",
+  "http://127.0.0.1:3000",
+  "http://127.0.0.1:3001",
+];
 const ROLE_ORDER = ["viewer", "editor", "admin", "owner"];
 
 function parseBoolean(value, fallback = false) {

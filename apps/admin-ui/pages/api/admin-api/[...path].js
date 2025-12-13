@@ -45,6 +45,7 @@ export default async function handler(req, res) {
   const contentType = req.headers["content-type"] || "";
   const accept = req.headers.accept || "";
   const csrfToken = req.headers["x-csrf-token"] || "";
+  const forwardedProto = req.headers["x-forwarded-proto"] || "";
 
   const headers = {
     ...(cookie ? { cookie } : null),
@@ -52,6 +53,7 @@ export default async function handler(req, res) {
     ...(accept ? { accept } : null),
     ...(csrfToken ? { "x-csrf-token": csrfToken } : null),
     "x-forwarded-host": req.headers.host || "",
+    ...(forwardedProto ? { "x-forwarded-proto": forwardedProto } : null),
   };
 
   try {

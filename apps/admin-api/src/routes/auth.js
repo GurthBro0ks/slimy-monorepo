@@ -4,6 +4,7 @@ const crypto = require("crypto");
 const config = require("../config");
 const prismaDatabase = require("../lib/database");
 const { signSession, setAuthCookie, clearAuthCookie } = require("../lib/jwt");
+const { getCookieOptions } = require("../services/token");
 const router = express.Router();
 
 console.log("!!! AUTH LOGIC LOADED v303 (DATA INTEGRITY) !!!");
@@ -14,20 +15,33 @@ const DISCORD = {
   AUTH_URL: "https://discord.com/oauth2/authorize",
 };
 
-function getCookieDomain() {
-  return config.jwt.cookieDomain || (process.env.NODE_ENV === "production" ? ".slimyai.xyz" : undefined);
+function clearCookie(req, res, name) {
+  const options = { ...getCookieOptions(req) };
+  delete options.maxAge;
+  res.clearCookie(name, options);
 }
 
-function issueState(res) {
+function getAllowedOrigins() {
+  const origins = config.ui?.origins;
+  return Array.isArray(origins) ? origins : [];
+}
+
+function normalizeReturnTo(returnTo) {
+  if (!returnTo || typeof returnTo !== "string") return null;
+  try {
+    const url = new URL(returnTo);
+    if (url.protocol !== "http:" && url.protocol !== "https:") return null;
+    const allowed = getAllowedOrigins();
+    if (allowed.length && !allowed.includes(url.origin)) return null;
+    return url.toString();
+  } catch {
+    return null;
+  }
+}
+
+function issueState(req, res) {
   const state = crypto.randomBytes(16).toString("base64url");
-  res.cookie("oauth_state", state, {
-    httpOnly: true,
-    secure: !!config.jwt.cookieSecure,
-    sameSite: config.jwt.cookieSameSite || "lax",
-    domain: getCookieDomain(),
-    path: "/",
-    maxAge: 5 * 60 * 1000,
-  });
+  res.cookie("oauth_state", state, getCookieOptions(req, { maxAge: 5 * 60 * 1000 }));
   return state;
 }
 
@@ -41,7 +55,15 @@ router.get("/login", (req, res) => {
       throw new Error("Discord OAuth not configured (missing clientId/redirectUri)");
     }
 
-    const state = issueState(res);
+    const rawReturnTo = Array.isArray(req.query?.returnTo)
+      ? req.query.returnTo[0]
+      : req.query?.returnTo;
+    const returnTo = normalizeReturnTo(rawReturnTo);
+    if (returnTo) {
+      res.cookie("oauth_return_to", returnTo, getCookieOptions(req, { maxAge: 10 * 60 * 1000 }));
+    }
+
+    const state = issueState(req, res);
     const params = new URLSearchParams({
       client_id: CLIENT_ID,
       redirect_uri: REDIRECT_URI,
@@ -240,17 +262,15 @@ router.get("/callback", async (req, res) => {
 
     const token = signSession({ user });
     setAuthCookie(res, token);
-    res.clearCookie("oauth_state", {
-      httpOnly: true,
-      secure: !!config.jwt.cookieSecure,
-      sameSite: config.jwt.cookieSameSite || "lax",
-      domain: getCookieDomain(),
-      path: "/",
-    });
+    clearCookie(req, res, "oauth_state");
+
+    const cookieReturnTo = req.cookies?.oauth_return_to;
+    clearCookie(req, res, "oauth_return_to");
 
     const successRedirect =
       (config.ui && config.ui.successRedirect) || "https://slimyai.xyz/dashboard";
-    return res.redirect(successRedirect);
+    const returnTo = normalizeReturnTo(cookieReturnTo);
+    return res.redirect(returnTo || successRedirect);
   } catch (err) {
     console.error("[auth/callback] CRITICAL ERROR:", err);
     return res.redirect("/?error=server_error");

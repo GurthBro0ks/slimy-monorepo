@@ -10,16 +10,13 @@ export default function StatusPage() {
     error: null,
   });
 
-  const adminApiPublicBase =
-    process.env.NEXT_PUBLIC_ADMIN_API_PUBLIC_URL || "http://localhost:3080";
-
   async function refresh() {
     try {
       setState({ loading: true, health: null, diag: null, error: null });
 
       const [healthRes, diagRes] = await Promise.all([
-        fetch("/api/admin-api/health"),
-        fetch("/api/admin-api/diag"),
+        fetch("/api/admin-api/api/health"),
+        fetch("/api/admin-api/api/diag"),
       ]);
 
       const [healthJson, diagJson] = await Promise.all([
@@ -45,32 +42,34 @@ export default function StatusPage() {
     }
   }
 
+  useEffect(() => {
+    refresh();
+  }, []);
+
+  const adminApiOk = Boolean(
+    state.health && (state.health.status === "ok" || state.health.ok === true),
+  );
+  const authenticated = Boolean(state.diag && state.diag.authenticated === true);
+  const authStatus = state.diag
+    ? authenticated
+      ? "Logged in"
+      : "Logged out"
+    : "Unknown";
+
   function handleLogin() {
     const returnTo = `${window.location.origin}/status`;
-    window.location.href = `${adminApiPublicBase}/api/auth/login?returnTo=${encodeURIComponent(returnTo)}`;
+    window.location.href = `/api/admin-api/api/auth/login?returnTo=${encodeURIComponent(returnTo)}`;
   }
 
   async function handleLogout() {
     try {
-      await fetch("/api/auth/logout", { method: "POST" });
+      await fetch("/api/admin-api/api/auth/logout", { method: "POST" });
     } catch {
       // ignore
     } finally {
       refresh();
     }
   }
-
-  useEffect(() => {
-    refresh();
-  }, []);
-
-  const adminApiOk = Boolean(state.health && state.health.ok);
-  const authenticated = Boolean(state.diag && state.diag.ok && state.diag.upstream?.authenticated);
-  const authStatus = state.diag
-    ? authenticated
-      ? "Logged in"
-      : "Logged out"
-    : "Unknown";
 
   return (
     <Layout>
@@ -80,8 +79,8 @@ export default function StatusPage() {
       <div className="wrap">
         <h1>Admin Status</h1>
         <p className="muted">
-          Checks the Admin UI → Admin API bridge at <code>/api/admin-api/health</code> and{" "}
-          <code>/api/admin-api/diag</code>.
+          Checks the Admin UI → Admin API bridge at <code>/api/admin-api/api/health</code> and{" "}
+          <code>/api/admin-api/api/diag</code>.
         </p>
         <div className="kpis">
           <div className="kpi">

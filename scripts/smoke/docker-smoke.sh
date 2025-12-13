@@ -140,7 +140,26 @@ if [[ "$real_code" != "200" && "$real_code" != "401" ]]; then
   cat /tmp/slimy-real-endpoint.json || true
   exit 1
 fi
+if [[ ! -s /tmp/slimy-real-endpoint.json ]]; then
+  log "FAIL: $real_url (empty response body)"
+  exit 1
+fi
 log "OK: admin-ui catch-all /api/admin-api/api/usage (HTTP $real_code)"
+
+log ""
+log "Checking admin-ui catch-all protected endpoint..."
+protected_url="http://127.0.0.1:3001/api/admin-api/api/auth/me"
+protected_code="$(curl -sS -o /tmp/slimy-protected-endpoint.json -w "%{http_code}" "$protected_url")"
+if [[ "$protected_code" != "200" && "$protected_code" != "401" ]]; then
+  log "FAIL: $protected_url (expected 200 or 401, got $protected_code)"
+  cat /tmp/slimy-protected-endpoint.json || true
+  exit 1
+fi
+if [[ ! -s /tmp/slimy-protected-endpoint.json ]]; then
+  log "FAIL: $protected_url (empty response body)"
+  exit 1
+fi
+log "OK: admin-ui catch-all /api/admin-api/api/auth/me (HTTP $protected_code)"
 
 log ""
 log "=== admin-ui -> admin-api bridge responses ==="
@@ -151,6 +170,8 @@ if command -v jq >/dev/null 2>&1; then
   curl -fsS http://127.0.0.1:3001/api/admin-api/diag | jq .
   log "--- /api/admin-api/api/usage ---"
   jq . /tmp/slimy-real-endpoint.json || cat /tmp/slimy-real-endpoint.json
+  log "--- /api/admin-api/api/auth/me ---"
+  jq . /tmp/slimy-protected-endpoint.json || cat /tmp/slimy-protected-endpoint.json
 else
   log "--- /api/admin-api/health ---"
   curl -fsS http://127.0.0.1:3001/api/admin-api/health
@@ -160,6 +181,9 @@ else
   log ""
   log "--- /api/admin-api/api/usage ---"
   cat /tmp/slimy-real-endpoint.json || true
+  log ""
+  log "--- /api/admin-api/api/auth/me ---"
+  cat /tmp/slimy-protected-endpoint.json || true
 fi
 
 log ""
