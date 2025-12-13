@@ -38,6 +38,9 @@ services:
       DISCORD_REDIRECT_URI: ${DISCORD_REDIRECT_URI:-http://localhost:3001/api/admin-api/api/auth/callback}
       DISCORD_OAUTH_SCOPES: ${DISCORD_OAUTH_SCOPES:-identify guilds}
       DISCORD_BOT_TOKEN: ${DISCORD_BOT_TOKEN}
+
+      # Optional: enable extra auth debug logs (non-secret)
+      ADMIN_AUTH_DEBUG: ${ADMIN_AUTH_DEBUG:-}
       
       # Security
       SESSION_SECRET: ${SESSION_SECRET:-change_this_session_secret_minimum_32_chars}
