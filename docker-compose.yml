@@ -108,6 +108,7 @@ services:
       dockerfile: apps/admin-ui/Dockerfile
       args:
         NEXT_PUBLIC_ADMIN_API_BASE: ${ADMIN_UI_API_BASE:-}
+        NEXT_PUBLIC_ADMIN_API_PUBLIC_URL: ${NEXT_PUBLIC_ADMIN_API_PUBLIC_URL:-http://localhost:3080}
         ADMIN_API_INTERNAL_URL: ${ADMIN_API_INTERNAL_URL:-http://admin-api:3080}
     restart: unless-stopped
     ports:
@@ -117,6 +118,7 @@ services:
       PORT: 3000
       HOSTNAME: "0.0.0.0"
       NEXT_PUBLIC_ADMIN_API_BASE: ${ADMIN_UI_API_BASE:-}
+      NEXT_PUBLIC_ADMIN_API_PUBLIC_URL: ${NEXT_PUBLIC_ADMIN_API_PUBLIC_URL:-http://localhost:3080}
       ADMIN_API_INTERNAL_URL: ${ADMIN_API_INTERNAL_URL:-http://admin-api:3080}
     depends_on:
       admin-api:
