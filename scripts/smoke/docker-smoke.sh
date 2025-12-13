@@ -127,12 +127,20 @@ retry "web /" "curl -fsS http://127.0.0.1:3000/" 60 2
 retry "admin-ui /" "curl -fsS http://127.0.0.1:3001/" 60 2
 
 retry "admin-ui -> admin-api bridge /api/admin-api/health" "curl -fsS http://127.0.0.1:3001/api/admin-api/health >/dev/null" 60 2
+retry "admin-ui -> admin-api bridge /api/admin-api/diag" "curl -fsS http://127.0.0.1:3001/api/admin-api/diag >/dev/null" 60 2
 log ""
-log "=== admin-ui -> admin-api bridge response ==="
+log "=== admin-ui -> admin-api bridge responses ==="
 if command -v jq >/dev/null 2>&1; then
+  log "--- /api/admin-api/health ---"
   curl -fsS http://127.0.0.1:3001/api/admin-api/health | jq .
+  log "--- /api/admin-api/diag ---"
+  curl -fsS http://127.0.0.1:3001/api/admin-api/diag | jq .
 else
+  log "--- /api/admin-api/health ---"
   curl -fsS http://127.0.0.1:3001/api/admin-api/health
+  log ""
+  log "--- /api/admin-api/diag ---"
+  curl -fsS http://127.0.0.1:3001/api/admin-api/diag
 fi
 
 log ""
