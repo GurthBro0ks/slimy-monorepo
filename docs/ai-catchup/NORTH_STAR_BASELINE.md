@@ -19,6 +19,7 @@ Notes:
 
 ## Admin UI Login (Local + Docker)
 - Login entrypoint: `http://localhost:3001/status` (button triggers the Admin API OAuth flow via the admin-ui proxy).
+- After login, landing page: `http://localhost:3001/dashboard`.
 - Cookies are host-scoped: `localhost` and `127.0.0.1` are different cookie jars; use the same hostname for login and for subsequent requests.
 - Live USB `/cow` overlay constraints + Docker `vfs` workaround: see `docs/ai-catchup/DOCKER_LIVE_SESSION_OVERLAY.md`.
 

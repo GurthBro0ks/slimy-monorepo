@@ -40,8 +40,7 @@ export default function AuthMePage() {
   }, []);
 
   function handleLogin() {
-    const returnTo = `${window.location.origin}/auth-me`;
-    window.location.href = `/api/admin-api/api/auth/login?returnTo=${encodeURIComponent(returnTo)}`;
+    window.location.href = "/api/admin-api/api/auth/login?returnTo=%2Fdashboard";
   }
 
   const isUnauthorized = state.status === 401;
@@ -192,4 +191,3 @@ export default function AuthMePage() {
     </Layout>
   );
 }
-

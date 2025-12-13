@@ -159,7 +159,7 @@ export default function Layout({ guildId, children, title, hideSidebar = false }
               className="btn outline"
               onClick={async () => {
                 try {
-                  await api("/api/auth/logout", { method: "POST" });
+                  await api("/api/admin-api/api/auth/logout", { method: "POST" });
                   await refresh();
                   router.push("/");
                 } catch (err) {
@@ -199,7 +199,7 @@ export default function Layout({ guildId, children, title, hideSidebar = false }
                       className="btn outline"
                       onClick={async () => {
                         try {
-                          await api("/api/auth/logout", { method: "POST" });
+                          await api("/api/admin-api/api/auth/logout", { method: "POST" });
                           await refresh();
                           router.push("/");
                         } catch (err) {
