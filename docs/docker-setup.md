@@ -143,7 +143,7 @@ Obtain these from the [Discord Developer Portal](https://discord.com/developers/
 ```bash
 DISCORD_CLIENT_ID=your_client_id
 DISCORD_CLIENT_SECRET=your_client_secret
-DISCORD_REDIRECT_URI=http://localhost:3000/api/auth/callback
+DISCORD_REDIRECT_URI=http://localhost:3001/api/admin-api/api/auth/callback
 DISCORD_BOT_TOKEN=your_bot_token
 ```
 

@@ -16,7 +16,7 @@
     - `CORS_ORIGIN=http://localhost:3000`
     - `JWT_SECRET` and `SESSION_SECRET` = any 32+ char dev strings
     - `DISCORD_CLIENT_ID/SECRET` = safe dummy strings for local only
-    - `DISCORD_REDIRECT_URI=http://localhost:3080/api/auth/callback`
+    - `DISCORD_REDIRECT_URI=http://localhost:3001/api/admin-api/api/auth/callback` (admin-ui-proxied callback for localhost cookies)
     - Optional: `DATABASE_URL` / `DB_URL` for MySQL/Postgres if you want real data; leave empty for read-only boot.
 
 ## 2) Quick Commands

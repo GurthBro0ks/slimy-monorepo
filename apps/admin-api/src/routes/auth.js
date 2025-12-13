@@ -80,6 +80,17 @@ router.get("/login", (req, res) => {
       throw new Error("Discord OAuth not configured (missing clientId/redirectUri)");
     }
 
+    if (process.env.NODE_ENV !== "production") {
+      const clientIdMasked =
+        typeof CLIENT_ID === "string" && CLIENT_ID.length > 8
+          ? `${CLIENT_ID.slice(0, 4)}…${CLIENT_ID.slice(-4)}`
+          : CLIENT_ID;
+      console.info("[auth/login] oauth config", {
+        clientId: clientIdMasked,
+        redirectUri: REDIRECT_URI,
+      });
+    }
+
     const rawReturnTo = Array.isArray(req.query?.returnTo)
       ? req.query.returnTo[0]
       : req.query?.returnTo;
