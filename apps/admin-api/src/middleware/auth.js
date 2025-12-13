@@ -213,7 +213,7 @@ async function resolveUser(req) {
 async function attachSession(req, res, next) {
   const user = await resolveUser(req);
   if (!user && req.cookies?.[config.jwt.cookieName]) {
-    res.clearCookie(config.jwt.cookieName, getCookieOptions());
+    res.clearCookie(config.jwt.cookieName, getCookieOptions(req));
   }
   return next();
 }
