@@ -50,13 +50,12 @@ export async function GET() {
 
   // Backend returns user data directly, transform it to match frontend expectations
   const backendUser = result.data;
-  const transformedUser = {
+  const transformedUser: any = {
     id: backendUser.id,
     discordId: backendUser.discordId || backendUser.id,
     username: backendUser.username,
     globalName: backendUser.globalName,
     avatar: backendUser.avatar,
-    role: backendUser.role,
     lastActiveGuildId: backendUser.lastActiveGuild?.id,
   };
 
@@ -71,10 +70,21 @@ export async function GET() {
   const sessionGuilds = (backendUser.sessionGuilds || []).map(normalizeGuild);
   const guilds = (backendUser.guilds || sessionGuilds).map(normalizeGuild);
 
-  return NextResponse.json({
-    user: transformedUser,
-    role: backendUser.role,
-    guilds,
-    sessionGuilds,
-  });
+  // Effective role: support both Discord role IDs and admin-api markers ("admin"/"owner"/"club")
+  const flattenedRoles = guilds.flatMap((g: any) => (Array.isArray(g?.roles) ? g.roles : [])).map(String);
+  const hasAdminMarker = flattenedRoles.includes("admin") || flattenedRoles.includes("owner");
+  const hasClubMarker = flattenedRoles.includes("club");
+
+  const effectiveRole = hasAdminMarker
+    ? "admin"
+    : hasClubMarker
+      ? "club"
+      : getUserRole(flattenedRoles);
+
+  transformedUser.role = effectiveRole;
+  transformedUser.guilds = guilds;
+  transformedUser.sessionGuilds = sessionGuilds;
+
+  // Return a flat user object (client + server auth consumers can still accept { user: ... } via adapter logic)
+  return NextResponse.json(transformedUser);
 }

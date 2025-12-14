@@ -32,17 +32,19 @@ export function ProtectedRoute({
 }: ProtectedRouteProps) {
   const { user, isLoading, error } = useAuth();
   const router = useRouter();
+  const resolvedUser = user && (user as any).user ? (user as any).user : user;
+  const resolvedRole = (user as any)?.role ?? (resolvedUser as any)?.role;
 
   // Handle redirects with useEffect - always call hooks in same order
   useEffect(() => {
     // Check authentication requirement
-    if (!isLoading && requireAuth && !user) {
+    if (!isLoading && requireAuth && !resolvedUser) {
       if (error) {
         console.error("Authentication error:", error);
       }
 
       if (!fallback) {
-        if (redirectTo === "/login" || !user) {
+        if (redirectTo === "/login" || !resolvedUser) {
           // For login redirects, we need to trigger login flow
           const adminApiBase = process.env.NEXT_PUBLIC_ADMIN_API_BASE || "";
           if (adminApiBase) {
@@ -57,21 +59,21 @@ export function ProtectedRoute({
     }
 
     // Check role-based access
-    if (!isLoading && requiredRole && user) {
+    if (!isLoading && requiredRole && resolvedUser) {
       const roleHierarchy: Record<Role, number> = {
         user: 0,
         club: 1,
         admin: 2,
       };
 
-      const userRoleLevel = roleHierarchy[user.role] || 0;
+      const userRoleLevel = roleHierarchy[(resolvedRole as Role) || "user"] || 0;
       const requiredRoleLevel = roleHierarchy[requiredRole] || 0;
 
       if (userRoleLevel < requiredRoleLevel && !fallback) {
         router.push(redirectTo);
       }
     }
-  }, [isLoading, user, error, requireAuth, requiredRole, fallback, redirectTo, router]);
+  }, [isLoading, resolvedUser, resolvedRole, error, requireAuth, requiredRole, fallback, redirectTo, router]);
 
   // Show loading state while checking authentication
   if (isLoading) {
@@ -89,7 +91,7 @@ export function ProtectedRoute({
   }
 
   // Check authentication requirement
-  if (requireAuth && !user) {
+  if (requireAuth && !resolvedUser) {
     // If custom fallback provided, render it
     if (fallback) {
       return <>{fallback}</>;
@@ -98,14 +100,14 @@ export function ProtectedRoute({
   }
 
   // Check role-based access
-  if (requiredRole && user) {
+  if (requiredRole && resolvedUser) {
     const roleHierarchy: Record<Role, number> = {
       user: 0,
       club: 1,
       admin: 2,
     };
 
-    const userRoleLevel = roleHierarchy[user.role] || 0;
+    const userRoleLevel = roleHierarchy[(resolvedRole as Role) || "user"] || 0;
     const requiredRoleLevel = roleHierarchy[requiredRole] || 0;
 
     if (userRoleLevel < requiredRoleLevel) {
