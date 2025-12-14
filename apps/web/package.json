@@ -12,7 +12,7 @@
     "docs:import": "tsx scripts/import-docs.ts",
     "docs:check": "tsx scripts/import-docs.ts --dry-run",
     "test": "vitest",
-    "test:safety": "rg -n \"DATABASE_URL\\\\s*=\\\\s*['\\\\\\\"]?[^\\\\n]*prod[^\\\\n]*|mysql://[-A-Za-z0-9:@._%/+]+/slimyai_prod\\\\b\" . -S && exit 1 || test $? = 1",
+    "test:safety": "bash -lc 'rg -n \"DATABASE_URL\\\\s*=\\\\s*[\\x27\\x22]?[^\\\\n]*prod[^\\\\n]*|mysql://[-A-Za-z0-9:@._%/+]+/slimyai_prod\\\\b\" . -S; s=$?; if [ $s -eq 0 ]; then echo \"❌ PROD DB marker found\" >&2; exit 1; elif [ $s -eq 1 ]; then echo \"✅ safety ok\"; exit 0; else exit $s; fi'",
     "test:coverage": "vitest --coverage",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
@@ -25,7 +25,8 @@
     "db:migrate:prod": "prisma migrate deploy",
     "db:studio": "prisma studio",
     "db:seed": "tsx prisma/seed.ts",
-    "db:reset": "prisma migrate reset --force"
+    "db:reset": "prisma migrate reset --force",
+    "test:ci": "vitest run"
   },
   "dependencies": {
     "@next/mdx": "^16.0.1",
