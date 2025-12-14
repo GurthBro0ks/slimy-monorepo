@@ -71,120 +71,59 @@ export default function StatusPage() {
   }
 
   return (
-    <Layout>
+    <Layout title="Status">
       <Head>
         <title>slimy.ai – Admin Status</title>
       </Head>
-      <div className="wrap">
-        <h1>Admin Status</h1>
-        <p className="muted">
-          Checks the Admin UI → Admin API bridge at <code>/api/admin-api/api/health</code> and{" "}
-          <code>/api/admin-api/api/diag</code>.
-        </p>
-        <div className="kpis">
-          <div className="kpi">
-            <div className="k">Admin API</div>
-            <div className={adminApiOk ? "v ok" : "v bad"}>{adminApiOk ? "OK" : "FAIL"}</div>
+      <div style={{ maxWidth: 980, margin: "0 auto", width: "100%", display: "grid", gap: "1rem" }}>
+        <div className="card" style={{ display: "grid", gap: "0.75rem" }}>
+          <div style={{ opacity: 0.8 }}>
+            Checks the Admin UI → Admin API bridge at{" "}
+            <code>/api/admin-api/api/health</code> and <code>/api/admin-api/api/diag</code>.
           </div>
-          <div className="kpi">
-            <div className="k">Auth</div>
-            <div className={authenticated ? "v ok" : "v"}>{authStatus}</div>
-          </div>
-        </div>
-        <div className="row">
-          <button className="btn" onClick={refresh} disabled={state.loading}>
-            {state.loading ? "Checking…" : "Refresh"}
-          </button>
-          <button className="btn" onClick={handleLogin} disabled={state.loading}>
-            Login
-          </button>
-          {authenticated ? (
-            <button className="btn" onClick={handleLogout} disabled={state.loading}>
-              Logout
+
+          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+            <button className="btn" onClick={refresh} disabled={state.loading}>
+              {state.loading ? "Checking…" : "Refresh"}
             </button>
-          ) : null}
-          {state.error ? <span className="err">{state.error}</span> : null}
+            <button className="btn" onClick={handleLogin} disabled={state.loading}>
+              Login
+            </button>
+            {authenticated ? (
+              <button className="btn outline" onClick={handleLogout} disabled={state.loading}>
+                Logout
+              </button>
+            ) : null}
+            {state.error ? (
+              <span style={{ color: "#fca5a5", fontWeight: 700 }}>{state.error}</span>
+            ) : null}
+          </div>
         </div>
-        <pre className="box">
-          {state.health || state.diag
-            ? JSON.stringify({ health: state.health, diag: state.diag }, null, 2)
-            : "No data yet."}
-        </pre>
+
+        <div className="card-grid">
+          <div className="card">
+            <div style={{ fontFamily: "var(--font-pixel)", opacity: 0.8, marginBottom: 6 }}>Admin API</div>
+            <div style={{ fontSize: "1.4rem", fontWeight: 900, color: adminApiOk ? "#86efac" : "#fca5a5" }}>
+              {adminApiOk ? "OK" : "FAIL"}
+            </div>
+          </div>
+          <div className="card">
+            <div style={{ fontFamily: "var(--font-pixel)", opacity: 0.8, marginBottom: 6 }}>Auth</div>
+            <div style={{ fontSize: "1.4rem", fontWeight: 900, color: authenticated ? "#86efac" : "rgba(255,255,255,0.82)" }}>
+              {authStatus}
+            </div>
+          </div>
+        </div>
+
+        <div className="card">
+          <div style={{ fontFamily: "var(--font-pixel)", opacity: 0.8, marginBottom: 10 }}>Raw JSON</div>
+          <pre style={{ margin: 0, overflowX: "auto" }}>
+            {state.health || state.diag
+              ? JSON.stringify({ health: state.health, diag: state.diag }, null, 2)
+              : "No data yet."}
+          </pre>
+        </div>
       </div>
-      <style jsx>{`
-        .wrap {
-          max-width: 900px;
-          margin: 0 auto;
-          padding: 24px 20px 48px;
-        }
-        h1 {
-          margin: 0 0 8px;
-          font-size: 1.35rem;
-        }
-        .muted {
-          margin: 0 0 16px;
-          opacity: 0.75;
-        }
-        .kpis {
-          display: flex;
-          gap: 12px;
-          margin: 12px 0 14px;
-          flex-wrap: wrap;
-        }
-        .kpi {
-          flex: 0 0 auto;
-          min-width: 160px;
-          padding: 10px 12px;
-          border-radius: 12px;
-          background: rgba(15, 23, 42, 0.25);
-          border: 1px solid rgba(255, 255, 255, 0.08);
-        }
-        .k {
-          font-size: 0.75rem;
-          opacity: 0.7;
-          margin-bottom: 4px;
-        }
-        .v {
-          font-weight: 900;
-        }
-        .v.ok {
-          color: #86efac;
-        }
-        .v.bad {
-          color: #fca5a5;
-        }
-        .row {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          margin: 12px 0 16px;
-          flex-wrap: wrap;
-        }
-        .btn {
-          padding: 8px 12px;
-          border-radius: 10px;
-          border: 1px solid rgba(255, 255, 255, 0.12);
-          background: rgba(15, 23, 42, 0.45);
-          color: #fff;
-          cursor: pointer;
-          font-weight: 700;
-        }
-        .btn:disabled {
-          opacity: 0.6;
-          cursor: not-allowed;
-        }
-        .err {
-          color: #fca5a5;
-          font-weight: 700;
-        }
-        .box {
-          padding: 14px;
-          border-radius: 12px;
-          background: rgba(15, 23, 42, 0.35);
-          border: 1px solid rgba(255, 255, 255, 0.08);
-          overflow: auto;
-        }
-      `}</style>
     </Layout>
   );
 }

@@ -1,6 +1,7 @@
 "use strict";
 
 const { Server } = require("socket.io");
+const config = require("./config");
 const { verifySession, COOKIE_NAME } = require("../lib/jwt");
 const { getSession } = require("../lib/session-store");
 const metrics = require("./lib/metrics");
@@ -36,14 +37,21 @@ function buildEmitterPayload(user, text) {
 }
 
 function initSocket(server) {
+  const allowedOrigins = Array.isArray(config.ui?.origins) ? config.ui.origins : [];
+
   const io = new Server(server, {
     cors: {
-      origin: "https://admin.slimyai.xyz",
+      origin(origin, callback) {
+        if (!origin) return callback(null, true);
+        if (!allowedOrigins.length) return callback(null, true);
+        if (allowedOrigins.includes(origin)) return callback(null, true);
+        return callback(new Error("origin_not_allowed"), false);
+      },
       credentials: true,
     },
   });
 
-  io.use((socket, next) => {
+  io.use(async (socket, next) => {
     try {
       const cookies = parseCookies(socket.handshake.headers.cookie || "");
       const token = cookies[COOKIE_NAME];
@@ -57,7 +65,7 @@ function initSocket(server) {
       }
 
       // Guilds are stored in session store, not JWT (to keep JWT under 4KB)
-      const sessionData = getSession(socket.user.id);
+      const sessionData = await getSession(socket.user.id);
       socket.session = sessionData;
       const guilds = Array.isArray(sessionData?.guilds) ? sessionData.guilds : [];
       socket.guildIds = guilds.map((g) => String(g.id));

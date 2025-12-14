@@ -83,7 +83,7 @@ export default function AuthMePage() {
         ) : null}
 
         {Array.isArray(guilds) ? (
-          <div className="table">
+          <div className="table-grid">
             <div className="thead">
               <div>ID</div>
               <div>Name</div>
@@ -105,89 +105,6 @@ export default function AuthMePage() {
 
         <pre className="box">{state.data ? JSON.stringify(state.data, null, 2) : "No data yet."}</pre>
       </div>
-      <style jsx>{`
-        .wrap {
-          max-width: 900px;
-          margin: 0 auto;
-          padding: 24px 20px 48px;
-        }
-        h1 {
-          margin: 0 0 8px;
-          font-size: 1.35rem;
-        }
-        .muted {
-          margin: 0 0 16px;
-          opacity: 0.75;
-        }
-        .row {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          margin: 12px 0 16px;
-          flex-wrap: wrap;
-        }
-        .btn {
-          padding: 8px 12px;
-          border-radius: 10px;
-          border: 1px solid rgba(255, 255, 255, 0.12);
-          background: rgba(15, 23, 42, 0.45);
-          color: #fff;
-          cursor: pointer;
-          font-weight: 700;
-        }
-        .btn:disabled {
-          opacity: 0.6;
-          cursor: not-allowed;
-        }
-        .err {
-          color: #fca5a5;
-          font-weight: 700;
-        }
-        .callout {
-          padding: 10px 12px;
-          border-radius: 12px;
-          margin: 12px 0 16px;
-          border: 1px solid rgba(255, 255, 255, 0.08);
-          background: rgba(251, 191, 36, 0.12);
-        }
-        .table {
-          display: grid;
-          gap: 8px;
-          margin-bottom: 16px;
-        }
-        .thead,
-        .trow {
-          display: grid;
-          grid-template-columns: 1.3fr 1.4fr 0.6fr 1fr;
-          gap: 10px;
-          align-items: center;
-        }
-        .thead {
-          opacity: 0.7;
-          font-weight: 800;
-          font-size: 0.8rem;
-        }
-        .trow {
-          padding: 10px 12px;
-          border-radius: 12px;
-          background: rgba(15, 23, 42, 0.25);
-          border: 1px solid rgba(255, 255, 255, 0.08);
-        }
-        .mono {
-          font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
-            "Courier New", monospace;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-        }
-        .box {
-          padding: 14px;
-          border-radius: 12px;
-          background: rgba(15, 23, 42, 0.35);
-          border: 1px solid rgba(255, 255, 255, 0.08);
-          overflow: auto;
-        }
-      `}</style>
     </Layout>
   );
 }

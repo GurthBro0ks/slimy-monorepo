@@ -1,12 +1,8 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { io } from "socket.io-client";
 import { useSession } from "../lib/session";
-
-const API_BASE = typeof window !== "undefined" 
-  ? (process.env.NEXT_PUBLIC_ADMIN_API_BASE || "")
-  : "";
+import { getSocket } from "../lib/socket";
 
 export default function SlimeChatBar({ guildId }) {
   const { user } = useSession();
@@ -47,35 +43,31 @@ export default function SlimeChatBar({ guildId }) {
   useEffect(() => {
     if (!user) return;
 
-    const socketUrl = API_BASE || window.location.origin;
+    const socket = getSocket();
+    const socketUrl = socket?.io?.uri || socket?.io?._uri || "same-origin";
     console.log("[chat-bar] connecting to", socketUrl);
-
-    const socket = io(socketUrl, {
-      withCredentials: true,
-      transports: ["websocket", "polling"],
-    });
 
     socketRef.current = socket;
 
-    socket.on("connect", () => {
+    const handleConnect = () => {
       console.log("[chat-bar] connected");
       setConnecting(false);
       setError(null);
-    });
+    };
 
-    socket.on("disconnect", (reason) => {
+    const handleDisconnect = (reason) => {
       console.log("[chat-bar] disconnected:", reason);
       setConnecting(false);
       setError("Disconnected from chat.");
-    });
+    };
 
-    socket.on("error", (err) => {
+    const handleError = (err) => {
       console.error("[chat-bar] socket error:", err);
       setConnecting(false);
       setError(err.error || err.message || "Connection error");
-    });
+    };
 
-    socket.on("chat:message", (message) => {
+    const handleMessage = (message) => {
       // Filter messages: admins see all, non-admins see only non-admin messages
       if (message.adminOnly && !isAdmin) {
         return;
@@ -91,16 +83,26 @@ export default function SlimeChatBar({ guildId }) {
         }
         return updated;
       });
-    });
+    };
 
-    socket.on("connect_error", (err) => {
+    const handleConnectError = (err) => {
       console.error("[chat-bar] connect_error:", err.message);
       setConnecting(false);
       setError("Failed to connect to chat.");
-    });
+    };
+
+    socket.on("connect", handleConnect);
+    socket.on("disconnect", handleDisconnect);
+    socket.on("error", handleError);
+    socket.on("chat:message", handleMessage);
+    socket.on("connect_error", handleConnectError);
 
     return () => {
-      socket.disconnect();
+      socket.off("connect", handleConnect);
+      socket.off("disconnect", handleDisconnect);
+      socket.off("error", handleError);
+      socket.off("chat:message", handleMessage);
+      socket.off("connect_error", handleConnectError);
     };
   }, [user, isAdmin]);
 
