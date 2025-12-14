@@ -15,6 +15,81 @@ const DISCORD = {
   AUTH_URL: "https://discord.com/oauth2/authorize",
 };
 
+const DISCORD_PERMISSIONS = {
+  ADMINISTRATOR: 0x8n,
+  MANAGE_GUILD: 0x20n,
+  MANAGE_CHANNELS: 0x10n,
+  MANAGE_ROLES: 0x10000000n,
+};
+
+function parsePermissions(value) {
+  try {
+    return BigInt(value);
+  } catch {
+    return 0n;
+  }
+}
+
+function hasPermission(perms, bit) {
+  return (perms & bit) === bit;
+}
+
+function deriveMembershipRolesFromGuild(guild) {
+  const perms = parsePermissions(guild?.permissions);
+  const roles = new Set(["member"]);
+
+  if (guild?.owner) {
+    roles.add("owner");
+    roles.add("admin");
+  }
+
+  if (
+    hasPermission(perms, DISCORD_PERMISSIONS.ADMINISTRATOR) ||
+    hasPermission(perms, DISCORD_PERMISSIONS.MANAGE_GUILD)
+  ) {
+    roles.add("admin");
+  }
+
+  if (
+    hasPermission(perms, DISCORD_PERMISSIONS.MANAGE_CHANNELS) ||
+    hasPermission(perms, DISCORD_PERMISSIONS.MANAGE_ROLES)
+  ) {
+    roles.add("editor");
+  }
+
+  return Array.from(roles);
+}
+
+async function fetchMemberRoleIdsWithBotToken(guildId, userId) {
+  const BOT_TOKEN = String(process.env.DISCORD_BOT_TOKEN || "").trim();
+  if (!BOT_TOKEN) return [];
+  if (!guildId || !userId) return [];
+
+  const url = `${DISCORD.API}/guilds/${encodeURIComponent(String(guildId))}/members/${encodeURIComponent(String(userId))}`;
+  const res = await fetch(url, {
+    headers: {
+      Authorization: `Bot ${BOT_TOKEN}`,
+    },
+  });
+
+  if (!res.ok) {
+    if (shouldDebugAuth()) {
+      const body = await res.text().catch(() => "");
+      console.warn("[auth/callback] Failed to fetch member roles via bot token", {
+        guildId: String(guildId),
+        userId: String(userId),
+        status: res.status,
+        body: body.slice(0, 200),
+      });
+    }
+    return [];
+  }
+
+  const data = await res.json().catch(() => null);
+  const roles = Array.isArray(data?.roles) ? data.roles : [];
+  return roles.map(String).filter(Boolean);
+}
+
 function clearCookie(req, res, name) {
   const options = { ...getCookieOptions(req) };
   delete options.maxAge;
@@ -280,10 +355,10 @@ router.get("/callback", async (req, res) => {
       let membershipUpsertsOk = 0;
       let membershipUpsertsFailed = 0;
 
-      for (const g of discordGuilds) {
-        const guildId = g?.id ? String(g.id) : "";
-        const guildName = g?.name ? String(g.name) : "";
-        if (!guildId || !guildName) {
+    for (const g of discordGuilds) {
+      const guildId = g?.id ? String(g.id) : "";
+      const guildName = g?.name ? String(g.name) : "";
+      if (!guildId || !guildName) {
           guildUpsertsFailed += 1;
           continue;
         }
@@ -313,7 +388,19 @@ router.get("/callback", async (req, res) => {
           continue;
         }
 
-        const roles = g?.owner ? ["owner"] : [];
+        const roleMarkers = deriveMembershipRolesFromGuild(g);
+        const roleGuildId =
+          String(process.env.ROLE_GUILD_ID || process.env.TEST_GUILD_ID || "").trim() ||
+          null;
+
+        // Enrich only for the configured "role guild" (default: TEST_GUILD_ID) to avoid
+        // hammering Discord for every guild on login.
+        const discordRoleIds =
+          roleGuildId && roleGuildId === guildId
+            ? await fetchMemberRoleIdsWithBotToken(guildId, me.id)
+            : [];
+
+        const roles = Array.from(new Set([...roleMarkers, ...discordRoleIds]));
         try {
           await prisma.userGuild.upsert({
             where: {
@@ -398,7 +485,14 @@ router.get("/me", async (req, res) => {
   try {
     let prisma = null;
     try {
-      prisma = prismaDatabase.getClient();
+      try {
+        prisma = typeof prismaDatabase.getClient === "function" ? prismaDatabase.getClient() : null;
+      } catch {
+        prisma = null;
+      }
+      if (!prisma && prismaDatabase && prismaDatabase.client) {
+        prisma = prismaDatabase.client;
+      }
     } catch (err) {
       warnings.push("db_unavailable");
       if (shouldDebugAuth()) {
@@ -453,8 +547,11 @@ router.get("/me", async (req, res) => {
 
     let dbUser = null;
     try {
+      const userIdStr = String(userId);
+      const isSnowflake = /^\d{17,19}$/.test(userIdStr);
       dbUser = await prisma.user.findUnique({
-        where: { discordId: String(userId) },
+        where: isSnowflake ? { discordId: userIdStr } : { id: userIdStr },
+        include: { lastActiveGuild: true },
       });
     } catch (err) {
       warnings.push("db_user_lookup_failed");
@@ -520,6 +617,13 @@ router.get("/me", async (req, res) => {
       globalName: dbUser?.globalName || baseResponse.globalName,
       avatar: dbUser?.avatar || baseResponse.avatar,
       role: baseResponse.role,
+      lastActiveGuild: dbUser?.lastActiveGuild
+        ? {
+            id: dbUser.lastActiveGuild.id,
+            name: dbUser.lastActiveGuild.name,
+            icon: dbUser.lastActiveGuild.icon,
+          }
+        : undefined,
       sessionGuilds,
       guilds: sessionGuilds,
       warnings,

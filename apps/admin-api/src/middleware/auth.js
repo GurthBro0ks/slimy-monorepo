@@ -24,6 +24,49 @@ function logReadAuth(message, meta = {}) {
   }
 }
 
+const DEFAULT_ADMIN_ROLE_IDS = ["1178129227321712701", "1216250443257217124"];
+const DEFAULT_CLUB_ROLE_IDS = ["1178143391884775444"];
+
+function parseIdList(value) {
+  return String(value || "")
+    .split(",")
+    .map((id) => id.trim())
+    .filter(Boolean);
+}
+
+function resolveAdminRoleIds() {
+  const fromEnv = parseIdList(process.env.ROLE_ADMIN_IDS || process.env.ADMIN_ROLE_IDS);
+  return fromEnv.length ? fromEnv : DEFAULT_ADMIN_ROLE_IDS;
+}
+
+function resolveClubRoleIds() {
+  const fromEnv = parseIdList(process.env.ROLE_CLUB_IDS || process.env.CLUB_ROLE_IDS);
+  return fromEnv.length ? fromEnv : DEFAULT_CLUB_ROLE_IDS;
+}
+
+function computeGlobalRole(userId, guilds) {
+  try {
+    const adminRoleIds = resolveAdminRoleIds();
+    const clubRoleIds = resolveClubRoleIds();
+    const flattened = new Set();
+
+    (Array.isArray(guilds) ? guilds : []).forEach((g) => {
+      (Array.isArray(g?.roles) ? g.roles : []).forEach((r) => {
+        if (r === null || r === undefined) return;
+        flattened.add(String(r));
+      });
+    });
+
+    if (config?.roles?.ownerIds?.has(String(userId))) return "owner";
+    if (flattened.has("owner")) return "owner";
+    if (flattened.has("admin") || adminRoleIds.some((id) => flattened.has(String(id)))) return "admin";
+    if (flattened.has("club") || clubRoleIds.some((id) => flattened.has(String(id)))) return "club";
+    return "member";
+  } catch {
+    return "member";
+  }
+}
+
 async function resolveUser(req) {
   if ("_cachedUser" in req) {
     return req._cachedUser;
@@ -43,7 +86,7 @@ async function resolveUser(req) {
 
   try {
     // Check if this is a session token (from slimy_admin cookie)
-    if (token.name === SESSION_TOKEN_COOKIE) {
+    if (token.name === SESSION_TOKEN_COOKIE && typeof prismaDatabase.findSessionByToken === "function") {
       logReadAuth("validating session token from database");
 
       // Validate session token against database
@@ -70,7 +113,7 @@ async function resolveUser(req) {
         globalName: session.user.globalName,
         avatar: session.user.avatar,
         email: session.user.email,
-        role: session.user.role || "member",
+        role: "member",
         guilds: [],
       };
 
@@ -83,7 +126,7 @@ async function resolveUser(req) {
             roles: ug.roles || [],
           }));
           logReadAuth("loaded guilds from database", {
-            userId: req.user.id,
+            userId: session.user.discordId,
             guildCount: normalizedUser.guilds.length
           });
         }
@@ -94,6 +137,8 @@ async function resolveUser(req) {
         });
         // Continue with empty guilds array
       }
+
+      normalizedUser.role = computeGlobalRole(normalizedUser.id, normalizedUser.guilds);
 
       req.user = normalizedUser;
       req.session = session;
@@ -188,6 +233,41 @@ async function resolveUser(req) {
 
     if (normalizedUser && Array.isArray(req.session?.guilds) && req.session.guilds.length) {
       normalizedUser.guilds = req.session.guilds;
+    }
+
+    // Fallback: hydrate guilds directly from DB (more reliable than session-store in Docker)
+    if (
+      normalizedUser &&
+      (!Array.isArray(normalizedUser.guilds) || normalizedUser.guilds.length === 0) &&
+      typeof prismaDatabase.findUserByDiscordId === "function" &&
+      typeof prismaDatabase.getUserGuilds === "function"
+    ) {
+      try {
+        if (typeof prismaDatabase.initialize === "function") {
+          await prismaDatabase.initialize();
+        }
+        const dbUser = await prismaDatabase.findUserByDiscordId(normalizedUser.id);
+        if (dbUser?.id) {
+          const userGuilds = await prismaDatabase.getUserGuilds(dbUser.id);
+          if (Array.isArray(userGuilds) && userGuilds.length) {
+            normalizedUser.guilds = userGuilds.map((ug) => ({
+              id: ug.guild?.discordId || ug.guild?.id || ug.guildId || ug.guild_id,
+              roles: ug.roles || [],
+            }));
+          }
+        }
+      } catch (err) {
+        if (shouldDebugAuth()) {
+          console.warn("[readAuth] DB guild hydration failed", {
+            userId: normalizedUser?.id,
+            error: err?.message || String(err),
+          });
+        }
+      }
+    }
+
+    if (normalizedUser) {
+      normalizedUser.role = computeGlobalRole(normalizedUser.id, normalizedUser.guilds);
     }
 
     req.user = normalizedUser;

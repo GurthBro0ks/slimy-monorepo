@@ -23,24 +23,24 @@ describe("Auth Middleware", () => {
   });
 
   describe("resolveUser", () => {
-    test("should return null when no token in cookies", () => {
-      const result = resolveUser(mockReq);
+    test("should return null when no token in cookies", async () => {
+      const result = await resolveUser(mockReq);
       expect(result).toBeNull();
       expect(mockReq._cachedUser).toBeNull();
     });
 
-    test("should return null when token is invalid", () => {
+    test("should return null when token is invalid", async () => {
       mockReq.cookies.slimy_admin = "invalid-token";
-      const result = resolveUser(mockReq);
+      const result = await resolveUser(mockReq);
       expect(result).toBeNull();
       expect(mockReq._cachedUser).toBeNull();
     });
 
-    test("should return hydrated user when session exists", () => {
+    test("should return hydrated user when session exists", async () => {
       mockReq.cookies.slimy_admin = "valid-token";
       // Mock will return session data from jest.setup.js
 
-      const result = resolveUser(mockReq);
+      const result = await resolveUser(mockReq);
       expect(result).toMatchObject({
         id: expect.any(String),
         sub: expect.any(String),
@@ -54,7 +54,7 @@ describe("Auth Middleware", () => {
       expect(mockReq.user).toBe(result);
     });
 
-    test("should return fallback user when no session exists", () => {
+    test("should return fallback user when no session exists", async () => {
       // Use a valid token but mock getSession to return null
       mockReq.cookies.slimy_admin = "valid-token";
 
@@ -62,7 +62,7 @@ describe("Auth Middleware", () => {
       const originalGetSession = require("../../lib/session-store").getSession;
       require("../../lib/session-store").getSession.mockReturnValueOnce(null);
 
-      const result = resolveUser(mockReq);
+      const result = await resolveUser(mockReq);
 
       // Restore original mock
       require("../../lib/session-store").getSession = originalGetSession;
@@ -78,10 +78,10 @@ describe("Auth Middleware", () => {
       });
     });
 
-    test("should cache user resolution", () => {
+    test("should cache user resolution", async () => {
       mockReq.cookies.slimy_admin = "valid-token";
-      const result1 = resolveUser(mockReq);
-      const result2 = resolveUser(mockReq);
+      const result1 = await resolveUser(mockReq);
+      const result2 = await resolveUser(mockReq);
 
       expect(result1).toBe(result2);
       expect(mockReq._cachedUser).toBe(result1);
@@ -89,18 +89,18 @@ describe("Auth Middleware", () => {
   });
 
   describe("requireAuth", () => {
-    test("should call next when user is authenticated", () => {
+    test("should call next when user is authenticated", async () => {
       mockReq.cookies.slimy_admin = "valid-token";
 
-      requireAuth(mockReq, mockRes, mockNext);
+      await requireAuth(mockReq, mockRes, mockNext);
 
       expect(mockNext).toHaveBeenCalled();
       expect(mockReq.user).toBeDefined();
       expect(mockReq.session).toBeDefined();
     });
 
-    test("should return 401 when user is not authenticated", () => {
-      requireAuth(mockReq, mockRes, mockNext);
+    test("should return 401 when user is not authenticated", async () => {
+      await requireAuth(mockReq, mockRes, mockNext);
 
       expect(mockNext).not.toHaveBeenCalled();
       expect(mockRes.status).toHaveBeenCalledWith(401);
@@ -114,30 +114,29 @@ describe("Auth Middleware", () => {
 
   describe("requireRole", () => {
     const requireMemberRole = requireRole("member");
-    const requireClubRole = requireRole("club");
     const requireAdminRole = requireRole("admin");
 
-    test("should call next when user has required role (member)", () => {
+    test("should call next when user has required role (member)", async () => {
       mockReq.cookies.slimy_admin = "valid-token";
 
-      requireMemberRole(mockReq, mockRes, mockNext);
+      await requireMemberRole(mockReq, mockRes, mockNext);
 
       expect(mockNext).toHaveBeenCalled();
       expect(mockReq.user).toBeDefined();
     });
 
-    test("should call next when user has higher role than required", () => {
+    test("should call next when user has higher role than required", async () => {
       mockReq.cookies.slimy_admin = "admin-token";
 
-      requireMemberRole(mockReq, mockRes, mockNext);
+      await requireMemberRole(mockReq, mockRes, mockNext);
 
       expect(mockNext).toHaveBeenCalled();
     });
 
-    test("should return 403 when user has insufficient role", () => {
+    test("should return 403 when user has insufficient role", async () => {
       mockReq.cookies.slimy_admin = "member-token";
 
-      requireAdminRole(mockReq, mockRes, mockNext);
+      await requireAdminRole(mockReq, mockRes, mockNext);
 
       expect(mockNext).not.toHaveBeenCalled();
       expect(mockRes.status).toHaveBeenCalledWith(403);
@@ -148,8 +147,8 @@ describe("Auth Middleware", () => {
       });
     });
 
-    test("should return 401 when user is not authenticated", () => {
-      requireMemberRole(mockReq, mockRes, mockNext);
+    test("should return 401 when user is not authenticated", async () => {
+      await requireMemberRole(mockReq, mockRes, mockNext);
 
       expect(mockNext).not.toHaveBeenCalled();
       expect(mockRes.status).toHaveBeenCalledWith(401);
@@ -159,29 +158,29 @@ describe("Auth Middleware", () => {
   describe("requireGuildMember", () => {
     const middleware = requireGuildMember("guildId");
 
-    test("should call next for admin user regardless of guild membership", () => {
+    test("should call next for admin user regardless of guild membership", async () => {
       mockReq.cookies.slimy_admin = "admin-token";
       mockReq.params.guildId = "guild-123";
 
-      middleware(mockReq, mockRes, mockNext);
+      await middleware(mockReq, mockRes, mockNext);
 
       expect(mockNext).toHaveBeenCalled();
     });
 
-    test("should call next when user is member of the guild", () => {
+    test("should call next when user is member of the guild", async () => {
       mockReq.cookies.slimy_admin = "member-token";
       mockReq.params.guildId = "guild-123";
 
-      middleware(mockReq, mockRes, mockNext);
+      await middleware(mockReq, mockRes, mockNext);
 
       expect(mockNext).toHaveBeenCalled();
     });
 
-    test("should return 403 when user is not member of the guild", () => {
+    test("should return 403 when user is not member of the guild", async () => {
       mockReq.cookies.slimy_admin = "member-token";
       mockReq.params.guildId = "different-guild-456";
 
-      middleware(mockReq, mockRes, mockNext);
+      await middleware(mockReq, mockRes, mockNext);
 
       expect(mockNext).not.toHaveBeenCalled();
       expect(mockRes.status).toHaveBeenCalledWith(403);
@@ -192,10 +191,10 @@ describe("Auth Middleware", () => {
       });
     });
 
-    test("should return 400 when guildId parameter is missing", () => {
+    test("should return 400 when guildId parameter is missing", async () => {
       mockReq.cookies.slimy_admin = "member-token";
 
-      middleware(mockReq, mockRes, mockNext);
+      await middleware(mockReq, mockRes, mockNext);
 
       expect(mockNext).not.toHaveBeenCalled();
       expect(mockRes.status).toHaveBeenCalledWith(400);
@@ -206,21 +205,21 @@ describe("Auth Middleware", () => {
       });
     });
 
-    test("should return 401 when user is not authenticated", () => {
+    test("should return 401 when user is not authenticated", async () => {
       mockReq.params.guildId = "guild-123";
 
-      middleware(mockReq, mockRes, mockNext);
+      await middleware(mockReq, mockRes, mockNext);
 
       expect(mockNext).not.toHaveBeenCalled();
       expect(mockRes.status).toHaveBeenCalledWith(401);
     });
 
-    test("should use custom parameter name", () => {
+    test("should use custom parameter name", async () => {
       const customMiddleware = requireGuildMember("customGuildId");
       mockReq.cookies.slimy_admin = "member-token";
       mockReq.params.customGuildId = "guild-123";
 
-      customMiddleware(mockReq, mockRes, mockNext);
+      await customMiddleware(mockReq, mockRes, mockNext);
 
       expect(mockNext).toHaveBeenCalled();
     });

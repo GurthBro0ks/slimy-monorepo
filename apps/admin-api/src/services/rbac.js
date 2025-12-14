@@ -8,6 +8,23 @@ const PERMISSIONS = {
   MANAGE_ROLES: BigInt(0x10000000),
 };
 
+const ROLE_RANK = Object.freeze({
+  // App-level roles
+  member: 0,
+  club: 1,
+
+  // Discord permission-derived roles (legacy naming)
+  viewer: 0,
+  editor: 2,
+
+  // Elevated roles
+  admin: 3,
+  owner: 4,
+
+  // Web naming
+  user: 0,
+});
+
 function parsePermissions(value) {
   try {
     return BigInt(value);
@@ -49,12 +66,16 @@ function determineRole(userId, guilds) {
 }
 
 function roleRank(role) {
-  const index = config.roles.order.indexOf(role);
-  return index === -1 ? -1 : index;
+  const normalized = String(role || "").trim().toLowerCase();
+  return ROLE_RANK[normalized] ?? -1;
 }
 
 function hasRole(userRole, requiredRole) {
-  return roleRank(userRole) >= roleRank(requiredRole);
+  const required = roleRank(requiredRole);
+  if (required === -1) return false;
+  const actual = roleRank(userRole);
+  if (actual === -1) return false;
+  return actual >= required;
 }
 
 module.exports = {

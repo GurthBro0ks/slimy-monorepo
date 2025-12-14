@@ -23,9 +23,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
       const res = await fetch("/api/auth/me", { credentials: "include" });
 
       if (res.ok) {
-        const user = await res.json();
+        const data = await res.json();
+        const resolvedUser = (data as any)?.user || data;
         setState({
-          user,
+          user: resolvedUser,
           isLoading: false,
           error: null,
           lastRefresh: Date.now(),
