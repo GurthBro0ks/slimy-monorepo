@@ -1,6 +1,45 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { mockAuthUser } from '../../utils/auth-mock';
 
+const { mockDb, mockPrisma } = vi.hoisted(() => {
+  const mockDb = {
+    clubAnalysis: {
+      create: vi.fn(),
+      findMany: vi.fn(),
+      count: vi.fn(),
+    },
+    clubUpload: {
+      create: vi.fn(),
+      findMany: vi.fn(),
+      count: vi.fn(),
+    },
+    guild: {
+      findUnique: vi.fn(),
+      upsert: vi.fn(),
+    },
+  };
+
+  const mockPrisma = {
+    validator: () => (value: any) => value,
+  };
+
+  return { mockDb, mockPrisma };
+});
+
+function assertNoProdDatabaseUrl() {
+  const databaseUrl = process.env.DATABASE_URL;
+  if (databaseUrl && (databaseUrl.toLowerCase().includes('prod') || /slimyai_prod/i.test(databaseUrl))) {
+    throw new Error(`Refusing to run tests against production-like DATABASE_URL: ${databaseUrl}`);
+  }
+}
+
+assertNoProdDatabaseUrl();
+
+vi.mock('@/lib/db', () => ({
+  db: mockDb,
+  Prisma: mockPrisma,
+}));
+
 // Mock authentication
 vi.mock('@/lib/auth/server', () => ({
   requireAuth: vi.fn().mockResolvedValue(mockAuthUser),
@@ -8,15 +47,17 @@ vi.mock('@/lib/auth/server', () => ({
 
 // Mock the file system operations
 vi.mock('fs/promises', () => {
-  const mockFn = vi.fn().mockResolvedValue(undefined);
+  const writeFile = vi.fn().mockResolvedValue(undefined);
+  const mkdir = vi.fn().mockResolvedValue(undefined);
+  const readFile = vi.fn().mockResolvedValue(undefined);
   return {
-    writeFile: mockFn,
-    mkdir: mockFn,
-    readFile: mockFn,
+    writeFile,
+    mkdir,
+    readFile,
     default: {
-      writeFile: mockFn,
-      mkdir: mockFn,
-      readFile: mockFn,
+      writeFile,
+      mkdir,
+      readFile,
     },
   };
 });
@@ -47,6 +88,7 @@ vi.mock('next/server', () => ({
 import { POST } from '@/app/api/club/upload/route';
 import { writeFile, mkdir } from 'fs/promises';
 import { analyzeClubScreenshots } from '@/lib/club/vision';
+import { requireAuth } from '@/lib/auth/server';
 
 describe('/api/club/upload', () => {
   // Helper to create a mock File with arrayBuffer support
@@ -60,6 +102,7 @@ describe('/api/club/upload', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    (requireAuth as any).mockResolvedValue(mockAuthUser);
     (mkdir as any).mockResolvedValue(undefined);
     (writeFile as any).mockResolvedValue(undefined);
     (analyzeClubScreenshots as any).mockResolvedValue([]);
