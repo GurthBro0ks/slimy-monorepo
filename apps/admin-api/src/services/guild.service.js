@@ -626,8 +626,13 @@ class GuildService {
    * Check if user has permission for action
    */
   async checkPermission(userId, guildId, action, requiredRole = null) {
+    const prisma = database.getClient();
+    if (!prisma?.userGuild?.findUnique) {
+      return false;
+    }
+
     // Get user's role in guild
-    const userGuild = await database.getClient().userGuild.findUnique({
+    const userGuild = await prisma.userGuild.findUnique({
       where: {
         userId_guildId: {
           userId,

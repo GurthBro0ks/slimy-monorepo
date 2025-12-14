@@ -4,7 +4,7 @@ import { AdminApiClient } from "@/lib/api/admin-client";
 export interface ServerAuthUser {
   id: string;
   username: string;
-  role: 'admin' | 'club' | 'member';
+  role: 'admin' | 'club' | 'user' | 'member' | 'owner';
   guilds: any[];
   email?: string; 
 }
@@ -14,8 +14,11 @@ export async function requireAuth(cookieStoreOverride?: any): Promise<ServerAuth
     const cookieStore = await (cookieStoreOverride ? Promise.resolve(cookieStoreOverride) : cookies());
     
     // Look for ANY valid session cookie
+    const explicitCookieName = String(process.env.ADMIN_TOKEN_COOKIE || "").trim();
     const sessionToken = 
+      (explicitCookieName ? cookieStore.get(explicitCookieName) : undefined) ||
       cookieStore.get("slimy_admin") || 
+      cookieStore.get("slimy_admin_token") ||
       cookieStore.get("slimy_session") || 
       cookieStore.get("connect.sid");
 
