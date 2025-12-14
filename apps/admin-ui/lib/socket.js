@@ -2,11 +2,19 @@ import { io } from "socket.io-client";
 
 let socket = null;
 
+function resolveSocketBaseUrl() {
+  if (typeof window === "undefined") return "";
+  const override = String(process.env.NEXT_PUBLIC_ADMIN_SOCKET_URL || "").trim();
+  if (override) return override;
+  return window.location.origin;
+}
+
 export function getSocket() {
   if (!socket) {
-    socket = io("https://admin.slimyai.xyz", {
+    const baseUrl = resolveSocketBaseUrl();
+    socket = io(baseUrl, {
       withCredentials: true,
-      transports: ["websocket"],
+      transports: ["websocket", "polling"],
     });
   }
   return socket;

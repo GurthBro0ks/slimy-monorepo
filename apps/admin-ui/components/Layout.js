@@ -123,7 +123,7 @@ export default function Layout({ guildId, children, title, hideSidebar = false }
       <nav className="sticky-nav">
         <div className="nav-left">
           <button className="burger" onClick={() => setOpen((v) => !v)} aria-label="Toggle menu">☰</button>
-          <span>🐌 slimy.ai</span>
+          <span>slimy.ai</span>
           <div className="nav-links">
             {isAdmin && guildId && navLinks.map((link) => (
               <Link key={link.href} href={link.href} legacyBehavior>
@@ -159,7 +159,7 @@ export default function Layout({ guildId, children, title, hideSidebar = false }
               className="btn outline"
               onClick={async () => {
                 try {
-                  await api("/api/auth/logout", { method: "POST" });
+                  await api("/api/admin-api/api/auth/logout", { method: "POST" });
                   await refresh();
                   router.push("/");
                 } catch (err) {
@@ -172,6 +172,13 @@ export default function Layout({ guildId, children, title, hideSidebar = false }
           )}
         </div>
       </nav>
+
+      <div className="top-marquee" aria-hidden>
+        <div className="top-marquee__inner">
+          <span>WELCOME</span> TO SLIMY.AI ADMIN • <span>/DASHBOARD</span> • <span>/GUILDS</span> • <span>/SNAIL</span> • <span>/CHAT</span> • <span>SLIME MODE</span> •
+        </div>
+      </div>
+      <div className="slime-drips" aria-hidden />
 
       {!hideSidebar && (
         <div className="dashboard-wrapper">
@@ -199,7 +206,7 @@ export default function Layout({ guildId, children, title, hideSidebar = false }
                       className="btn outline"
                       onClick={async () => {
                         try {
-                          await api("/api/auth/logout", { method: "POST" });
+                          await api("/api/admin-api/api/auth/logout", { method: "POST" });
                           await refresh();
                           router.push("/");
                         } catch (err) {

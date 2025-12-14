@@ -42,6 +42,17 @@ const jestGlobals = {
   test: "readonly",
 };
 
+const browserGlobals = {
+  document: "readonly",
+  window: "readonly",
+  navigator: "readonly",
+  location: "readonly",
+  sessionStorage: "readonly",
+  localStorage: "readonly",
+  requestAnimationFrame: "readonly",
+  cancelAnimationFrame: "readonly",
+};
+
 export default [
   js.configs.recommended,
   ...tseslint.configs.recommended.map((config) => ({ ...config, files: tsFiles })),
@@ -74,6 +85,19 @@ export default [
     rules: {
       "@typescript-eslint/no-require-imports": "off",
       "@typescript-eslint/no-var-requires": "off",
+    },
+  },
+  {
+    files: ["apps/admin-ui/**/*.{js,jsx}"],
+    languageOptions: {
+      parserOptions: {
+        ecmaFeatures: { jsx: true },
+      },
+      globals: { ...browserGlobals, ...nodeGlobals },
+    },
+    rules: {
+      // JSX usage isn't recognized without react plugin rules; avoid false positives.
+      "no-unused-vars": "off",
     },
   },
   {

@@ -37,6 +37,7 @@ const database = require("./lib/database");
 const prismaDatabase = require("./src/lib/database");
 const { applyDatabaseUrl } = require("./src/utils/apply-db-url");
 const logger = require("./lib/logger");
+const { initSocket } = require("./src/socket");
 
 async function start() {
   applyDatabaseUrl(process.env.DB_URL);
@@ -78,6 +79,8 @@ async function start() {
   const server = app.listen(port, host, () => {
     logger.info({ port, host }, `[admin-api] Listening on http://${host}:${port}`);
   });
+
+  initSocket(server);
 
   process.on("SIGINT", () => {
     logger.info("[admin-api] Caught SIGINT, shutting down");
