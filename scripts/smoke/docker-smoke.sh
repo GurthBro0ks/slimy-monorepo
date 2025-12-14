@@ -5,8 +5,43 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT_DIR"
 
 COMPOSE_FILE="docker-compose.yml"
+export COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-slimy-monorepo}"
 
 log() { printf '%s\n' "$*"; }
+
+preflight() {
+  if ! command -v docker >/dev/null 2>&1; then
+    log "ERROR: docker not found."
+    log "Install Docker first:"
+    log "  sudo bash scripts/host/setup-docker-mint.sh"
+    exit 2
+  fi
+
+  if ! docker info >/dev/null 2>&1; then
+    log "ERROR: docker daemon not reachable (is it running? permissions?)."
+    log "Try:"
+    log "  sudo systemctl enable --now docker"
+    log "  sudo usermod -aG docker $USER  # then re-login or: newgrp docker"
+    exit 2
+  fi
+
+  local root_source="" root_fstype="" root_line="" storage_driver=""
+  root_line="$(findmnt -n -o SOURCE,FSTYPE / 2>/dev/null || true)"
+  root_source="$(awk '{print $1}' <<<"$root_line")"
+  root_fstype="$(awk '{print $2}' <<<"$root_line")"
+
+  storage_driver="$(docker info 2>/dev/null | awk -F': ' 'BEGIN{IGNORECASE=1} /Storage Driver/ {print $2; exit}')"
+
+  if [[ "${root_fstype:-}" == "overlay" || "${root_source:-}" == "/cow" ]]; then
+    if [[ "${storage_driver:-}" != "vfs" ]]; then
+      log "ERROR: Detected live-session overlay root (${root_source:-?} ${root_fstype:-?}) but Docker Storage Driver is '${storage_driver:-unknown}'."
+      log "On /cow overlay roots, overlayfs mounts often fail with 'invalid argument'."
+      log "Fix by forcing Docker to vfs:"
+      log "  sudo bash scripts/host/fix-docker-overlay-root.sh"
+      exit 2
+    fi
+  fi
+}
 
 cleanup_legacy_port() {
   local port="$1"
@@ -70,6 +105,10 @@ if [[ ! -f "$COMPOSE_FILE" ]]; then
   exit 2
 fi
 
+preflight
+
+docker compose -f "$COMPOSE_FILE" down --remove-orphans || true
+
 cleanup_legacy_port 3080
 cleanup_legacy_port 3000
 cleanup_legacy_port 3001
@@ -86,6 +125,131 @@ log "Waiting for endpoints..."
 retry "admin-api /api/health" "curl -fsS http://127.0.0.1:3080/api/health" 60 2
 retry "web /" "curl -fsS http://127.0.0.1:3000/" 60 2
 retry "admin-ui /" "curl -fsS http://127.0.0.1:3001/" 60 2
+
+log ""
+log "Applying admin-api database migrations..."
+bash scripts/dev/migrate-admin-api-db.sh
+
+log ""
+log "Checking admin-ui /dashboard routing..."
+dashboard_url="http://127.0.0.1:3001/dashboard"
+dashboard_code="$(curl -sS -o /tmp/slimy-dashboard.html -w "%{http_code}" "$dashboard_url")"
+if [[ "$dashboard_code" == "500" || "$dashboard_code" == "502" ]]; then
+  log "FAIL: $dashboard_url (HTTP $dashboard_code)"
+  cat /tmp/slimy-dashboard.html || true
+  exit 1
+fi
+if [[ "$dashboard_code" != "200" && "$dashboard_code" != "302" && "$dashboard_code" != "307" && "$dashboard_code" != "308" ]]; then
+  log "FAIL: $dashboard_url (expected 200 or redirect, got $dashboard_code)"
+  cat /tmp/slimy-dashboard.html || true
+  exit 1
+fi
+if [[ ! -s /tmp/slimy-dashboard.html ]]; then
+  log "FAIL: $dashboard_url (empty response body)"
+  exit 1
+fi
+log "OK: admin-ui /dashboard (HTTP $dashboard_code)"
+
+log ""
+log "Checking admin-ui /dashboard with synthetic auth cookie..."
+synthetic_token="$(docker compose exec -T admin-api node -e 'const jwt=require("jsonwebtoken"); const secret=process.env.JWT_SECRET; const token=jwt.sign({user:{id:"smoke-user",discordId:"smoke-user",username:"SmokeUser",globalName:"Smoke User",avatar:null,role:"admin",guilds:[]}}, secret, {algorithm:"HS256",expiresIn:3600}); process.stdout.write(token);')"
+dashboard_authed_code="$(curl -sS -o /tmp/slimy-dashboard-authed.html -w "%{http_code}" -H "Cookie: slimy_admin_token=${synthetic_token}" "$dashboard_url")"
+if [[ "$dashboard_authed_code" == "500" || "$dashboard_authed_code" == "502" ]]; then
+  log "FAIL: $dashboard_url (authed HTTP $dashboard_authed_code)"
+  cat /tmp/slimy-dashboard-authed.html || true
+  exit 1
+fi
+if [[ "$dashboard_authed_code" != "200" ]]; then
+  log "FAIL: $dashboard_url (expected 200 when authed, got $dashboard_authed_code)"
+  cat /tmp/slimy-dashboard-authed.html || true
+  exit 1
+fi
+if [[ ! -s /tmp/slimy-dashboard-authed.html ]]; then
+  log "FAIL: $dashboard_url (authed empty response body)"
+  exit 1
+fi
+log "OK: admin-ui /dashboard with synthetic auth (HTTP $dashboard_authed_code)"
+
+log ""
+log "Checking admin-ui Socket.IO proxy with synthetic auth cookie..."
+socketio_url="http://127.0.0.1:3001/socket.io/?EIO=4&transport=polling&t=$(date +%s)"
+socketio_code="$(curl -sS -o /tmp/slimy-socketio.txt -w "%{http_code}" -H "Cookie: slimy_admin_token=${synthetic_token}" "$socketio_url")"
+if [[ "$socketio_code" == "500" || "$socketio_code" == "502" || "$socketio_code" == "404" ]]; then
+  log "FAIL: $socketio_url (HTTP $socketio_code)"
+  cat /tmp/slimy-socketio.txt || true
+  exit 1
+fi
+if [[ "$socketio_code" != "200" ]]; then
+  log "FAIL: $socketio_url (expected 200, got $socketio_code)"
+  cat /tmp/slimy-socketio.txt || true
+  exit 1
+fi
+if ! grep -q '"sid"' /tmp/slimy-socketio.txt; then
+  log "FAIL: $socketio_url (missing sid in response)"
+  cat /tmp/slimy-socketio.txt || true
+  exit 1
+fi
+log "OK: admin-ui Socket.IO polling handshake (HTTP $socketio_code)"
+
+retry "admin-ui -> admin-api bridge /api/admin-api/health" "curl -fsS http://127.0.0.1:3001/api/admin-api/health >/dev/null" 60 2
+retry "admin-ui -> admin-api bridge /api/admin-api/diag" "curl -fsS http://127.0.0.1:3001/api/admin-api/diag >/dev/null" 60 2
+retry "admin-ui catch-all /api/admin-api/api/health" "curl -fsS http://127.0.0.1:3001/api/admin-api/api/health >/dev/null" 60 2
+retry "admin-ui catch-all /api/admin-api/api/diag" "curl -fsS http://127.0.0.1:3001/api/admin-api/api/diag >/dev/null" 60 2
+
+log ""
+log "Checking admin-ui catch-all real endpoint..."
+real_url="http://127.0.0.1:3001/api/admin-api/api/usage"
+real_code="$(curl -sS -o /tmp/slimy-real-endpoint.json -w "%{http_code}" "$real_url")"
+if [[ "$real_code" != "200" && "$real_code" != "401" ]]; then
+  log "FAIL: $real_url (expected 200 or 401, got $real_code)"
+  cat /tmp/slimy-real-endpoint.json || true
+  exit 1
+fi
+if [[ ! -s /tmp/slimy-real-endpoint.json ]]; then
+  log "FAIL: $real_url (empty response body)"
+  exit 1
+fi
+log "OK: admin-ui catch-all /api/admin-api/api/usage (HTTP $real_code)"
+
+log ""
+log "Checking admin-ui catch-all protected endpoint..."
+protected_url="http://127.0.0.1:3001/api/admin-api/api/auth/me"
+protected_code="$(curl -sS -o /tmp/slimy-protected-endpoint.json -w "%{http_code}" "$protected_url")"
+if [[ "$protected_code" != "200" && "$protected_code" != "401" ]]; then
+  log "FAIL: $protected_url (expected 200 or 401, got $protected_code)"
+  cat /tmp/slimy-protected-endpoint.json || true
+  exit 1
+fi
+if [[ ! -s /tmp/slimy-protected-endpoint.json ]]; then
+  log "FAIL: $protected_url (empty response body)"
+  exit 1
+fi
+log "OK: admin-ui catch-all /api/admin-api/api/auth/me (HTTP $protected_code)"
+
+log ""
+log "=== admin-ui -> admin-api bridge responses ==="
+if command -v jq >/dev/null 2>&1; then
+  log "--- /api/admin-api/health ---"
+  curl -fsS http://127.0.0.1:3001/api/admin-api/health | jq .
+  log "--- /api/admin-api/diag ---"
+  curl -fsS http://127.0.0.1:3001/api/admin-api/diag | jq .
+  log "--- /api/admin-api/api/usage ---"
+  jq . /tmp/slimy-real-endpoint.json || cat /tmp/slimy-real-endpoint.json
+  log "--- /api/admin-api/api/auth/me ---"
+  jq . /tmp/slimy-protected-endpoint.json || cat /tmp/slimy-protected-endpoint.json
+else
+  log "--- /api/admin-api/health ---"
+  curl -fsS http://127.0.0.1:3001/api/admin-api/health
+  log ""
+  log "--- /api/admin-api/diag ---"
+  curl -fsS http://127.0.0.1:3001/api/admin-api/diag
+  log ""
+  log "--- /api/admin-api/api/usage ---"
+  cat /tmp/slimy-real-endpoint.json || true
+  log ""
+  log "--- /api/admin-api/api/auth/me ---"
+  cat /tmp/slimy-protected-endpoint.json || true
+fi
 
 log ""
 log "PASS: Docker baseline smoke test"

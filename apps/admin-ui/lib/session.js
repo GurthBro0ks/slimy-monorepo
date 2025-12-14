@@ -49,7 +49,7 @@ export function SessionProvider({ children }) {
     const fallbackCsrf = adoptCsrfFromHash();
 
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_ADMIN_API_BASE}/api/auth/me`, {
+      const response = await fetch("/api/admin-api/api/auth/me", {
         credentials: "include",
       });
 
@@ -66,7 +66,7 @@ export function SessionProvider({ children }) {
         csrfToken,
         loading: false,
       });
-    } catch (err) {
+    } catch {
       setState({
         user: null,
         csrfToken: fallbackCsrf || null,

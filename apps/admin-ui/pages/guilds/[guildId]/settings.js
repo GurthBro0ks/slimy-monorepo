@@ -49,6 +49,7 @@ export default function GuildSettingsPage(){
                 <label>Sheet ID</label>
                 <input
                   type="text"
+                  className="input"
                   defaultValue={s.sheet_id || ""}
                   onBlur={(e)=> save({ sheet_id: e.target.value })}
                 />
@@ -58,6 +59,7 @@ export default function GuildSettingsPage(){
                 <label>Default Tab (e.g., Baseline (10-24-25))</label>
                 <input
                   type="text"
+                  className="input"
                   defaultValue={s.sheet_tab || ""}
                   onBlur={(e)=> save({ sheet_tab: e.target.value })}
                 />
@@ -66,6 +68,7 @@ export default function GuildSettingsPage(){
               <div className="form-row">
                 <label>Default View</label>
                 <select
+                  className="select"
                   defaultValue={s.view_mode || "baseline"}
                   onChange={(e)=> save({ view_mode: e.target.value })}
                 >
@@ -91,6 +94,7 @@ export default function GuildSettingsPage(){
                   <label>Screenshot Channel ID</label>
                   <input
                     type="text"
+                    className="input"
                     defaultValue={s.screenshot_channel_id || ""}
                     onBlur={(e)=> save({ screenshot_channel_id: e.target.value })}
                     placeholder="Pick from Channels tab or paste ID"
@@ -109,10 +113,10 @@ export default function GuildSettingsPage(){
                 <div className="form-row" style={{ gridColumn: "1 / -1" }}>
                   <label>Notes</label>
                   <textarea
+                    className="textarea"
                     defaultValue={s.notes || ""}
                     onBlur={(e)=> save({ notes: e.target.value })}
                     rows={4}
-                    style={{ width: "100%", padding: ".6rem .7rem", borderRadius: "8px", border: "1px solid rgba(255,255,255,.15)", background: "rgba(0,0,0,.2)", color: "#fff", outline: "none", resize: "vertical" }}
                   />
                 </div>
               </div>
@@ -120,18 +124,6 @@ export default function GuildSettingsPage(){
           </>
         )}
       </div>
-
-      <style jsx>{`
-        .card{ padding:1rem; border:1px solid rgba(255,255,255,.12); border-radius:12px; background:rgba(255,255,255,.02); }
-        .grid{ display:grid; gap:1rem; }
-        @media (max-width: 640px){ .grid.cols-2{ grid-template-columns: 1fr; } }
-        @media (min-width: 641px){ .grid.cols-2{ grid-template-columns: 1fr 1fr; } }
-        .form-row label{ display:block; font-size:.9rem; opacity:.75; margin-bottom:.3rem; }
-        .form-row input, .form-row select{
-          width:100%; padding:.6rem .7rem; border-radius:8px; border:1px solid rgba(255,255,255,.15);
-          background:rgba(0,0,0,.2); color:#fff; outline:none;
-        }
-      `}</style>
     </Layout>
   );
 }

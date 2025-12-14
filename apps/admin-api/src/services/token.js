@@ -5,23 +5,59 @@ const { nanoid } = require("nanoid");
 
 const config = require("../config");
 
-function getCookieOptions() {
+function getHostFromRequest(req) {
+  const header = req?.headers?.["x-forwarded-host"] || req?.headers?.host || "";
+  const first = Array.isArray(header) ? header[0] : String(header);
+  const host = first.split(",")[0].trim().split(":")[0].trim().toLowerCase();
+  return host;
+}
+
+function isLocalhostHost(host) {
+  if (!host) return true;
+  if (host === "localhost" || host === "127.0.0.1" || host === "::1") return true;
+  if (host.endsWith(".localhost")) return true;
+  if (/^\d{1,3}(\.\d{1,3}){3}$/.test(host)) return true;
+  return false;
+}
+
+function isHttpsRequest(req) {
+  const xfProto = req?.headers?.["x-forwarded-proto"];
+  const raw = Array.isArray(xfProto) ? xfProto[0] : xfProto ? String(xfProto) : "";
+  const proto = raw.split(",")[0].trim().toLowerCase();
+  if (proto) return proto === "https";
+  if (req?.secure === true) return true;
+  if (req?.protocol) return String(req.protocol).toLowerCase() === "https";
+  return false;
+}
+
+function getCookieOptions(req, overrides = {}) {
+  const secure = isHttpsRequest(req);
+  const host = getHostFromRequest(req);
+  const sameSite = (overrides.sameSite ?? config.jwt.cookieSameSite ?? "lax").toLowerCase();
+
   const options = {
     httpOnly: true,
-    secure: Boolean(config.jwt.cookieSecure),
-    sameSite: config.jwt.cookieSameSite || "lax",
+    secure,
+    sameSite,
     path: "/",
-    maxAge: Number(config.jwt.maxAgeSeconds || 12 * 60 * 60) * 1000,
+    maxAge:
+      overrides.maxAge ??
+      Number(config.jwt.maxAgeSeconds || 12 * 60 * 60) * 1000,
   };
 
-  if (config.jwt.cookieDomain) {
+  if (!isLocalhostHost(host) && config.jwt.cookieDomain && !overrides.domain) {
     options.domain = config.jwt.cookieDomain;
   }
 
-  if (options.sameSite === "none" && !options.secure) {
-    // SameSite=None requires Secure; enforce for safety
-    options.secure = true;
+  if ((options.sameSite || "").toLowerCase() === "none" && !options.secure) {
+    // Browsers reject SameSite=None without Secure; fall back for HTTP localhost/dev.
+    options.sameSite = "lax";
   }
+
+  if (overrides.domain) options.domain = overrides.domain;
+  if (typeof overrides.httpOnly === "boolean") options.httpOnly = overrides.httpOnly;
+  if (typeof overrides.secure === "boolean") options.secure = overrides.secure;
+  if (overrides.path) options.path = overrides.path;
 
   return options;
 }

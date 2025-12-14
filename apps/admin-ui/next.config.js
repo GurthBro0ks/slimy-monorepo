@@ -6,6 +6,10 @@ const { randomUUID } = require("crypto");
 const nextConfig = {
   reactStrictMode: true,
   output: 'standalone',
+  // Socket.IO clients request `/socket.io/…` (note the trailing slash).
+  // Next's default trailing-slash normalization can 308-redirect these requests,
+  // which breaks websocket/polling handshakes. Disable it for this app.
+  skipTrailingSlashRedirect: true,
   generateBuildId: async () => {
     if (process.env.NEXT_BUILD_ID) {
       return process.env.NEXT_BUILD_ID;
@@ -24,16 +28,32 @@ const nextConfig = {
   async rewrites() {
     const backendUrl = process.env.ADMIN_API_INTERNAL_URL || 'http://localhost:3080';
     return {
-      beforeFiles: [
-        // API proxy - proxies /api/* to backend (runs before filesystem check)
-        {
-          source: '/api/:path*',
-          destination: `${backendUrl}/api/:path*`,
-        },
-        // Auth proxy - proxies /auth/* to backend (runs before filesystem check)
+      afterFiles: [
+        // Auth proxy - proxies /auth/* to backend (runs after filesystem check so local routes work)
         {
           source: '/auth/:path*',
           destination: `${backendUrl}/auth/:path*`,
+        },
+        // Socket.IO proxy (websocket upgrade + polling) - keep same-origin in local/dev.
+        {
+          source: '/socket.io',
+          destination: `${backendUrl}/socket.io/`,
+        },
+        {
+          source: '/socket.io/',
+          destination: `${backendUrl}/socket.io/`,
+        },
+        {
+          source: '/socket.io/:path*',
+          destination: `${backendUrl}/socket.io/:path*`,
+        },
+      ],
+      // Important: keep the broad /api proxy as a fallback so dynamic local API routes
+      // (like /api/admin-api/[...path]) can take precedence.
+      fallback: [
+        {
+          source: '/api/:path*',
+          destination: `${backendUrl}/api/:path*`,
         },
       ],
     };

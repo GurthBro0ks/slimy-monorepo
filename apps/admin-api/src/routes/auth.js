@@ -4,6 +4,7 @@ const crypto = require("crypto");
 const config = require("../config");
 const prismaDatabase = require("../lib/database");
 const { signSession, setAuthCookie, clearAuthCookie } = require("../lib/jwt");
+const { getCookieOptions } = require("../services/token");
 const router = express.Router();
 
 console.log("!!! AUTH LOGIC LOADED v303 (DATA INTEGRITY) !!!");
@@ -14,34 +15,134 @@ const DISCORD = {
   AUTH_URL: "https://discord.com/oauth2/authorize",
 };
 
-function getCookieDomain() {
-  return config.jwt.cookieDomain || (process.env.NODE_ENV === "production" ? ".slimyai.xyz" : undefined);
+function clearCookie(req, res, name) {
+  const options = { ...getCookieOptions(req) };
+  delete options.maxAge;
+  res.clearCookie(name, options);
 }
 
-function issueState(res) {
+function getAllowedOrigins() {
+  const origins = config.ui?.origins;
+  return Array.isArray(origins) ? origins : [];
+}
+
+function getRequestOrigin(req) {
+  const xfProto = req?.headers?.["x-forwarded-proto"];
+  const protoRaw = Array.isArray(xfProto) ? xfProto[0] : xfProto ? String(xfProto) : "";
+  const proto = protoRaw.split(",")[0].trim().toLowerCase() || (req?.secure ? "https" : "http");
+
+  const xfHost = req?.headers?.["x-forwarded-host"];
+  const hostRaw = Array.isArray(xfHost)
+    ? xfHost[0]
+    : xfHost
+      ? String(xfHost)
+      : String(req?.headers?.host || "");
+  const host = hostRaw.split(",")[0].trim();
+
+  return `${proto}://${host}`;
+}
+
+function isLocalHostname(hostname) {
+  const normalized = String(hostname || "").trim().toLowerCase();
+  if (!normalized) return true;
+  if (normalized === "localhost" || normalized === "127.0.0.1" || normalized === "::1") return true;
+  if (normalized.endsWith(".localhost")) return true;
+  return false;
+}
+
+function shouldDebugAuth() {
+  const flag = String(process.env.ADMIN_AUTH_DEBUG || "").trim().toLowerCase();
+  return process.env.NODE_ENV !== "production" || flag === "1" || flag === "true" || flag === "yes";
+}
+
+function resolveDiscordRedirectUri(req) {
+  const configured = String(config.discord.redirectUri || "").trim();
+  if (!configured) return "";
+
+  try {
+    const origin = getRequestOrigin(req);
+    const originUrl = new URL(origin);
+
+    if (configured.startsWith("/")) {
+      return new URL(configured, origin).toString();
+    }
+
+    const url = new URL(configured);
+
+    // Dev ergonomics: if configured to localhost/127, ensure the redirect_uri host matches
+    // the host the browser is actually using so cookies/state don't get split.
+    if (isLocalHostname(url.hostname) && isLocalHostname(originUrl.hostname)) {
+      url.protocol = originUrl.protocol;
+      url.host = originUrl.host;
+    }
+
+    return url.toString();
+  } catch {
+    return configured;
+  }
+}
+
+function normalizeReturnToPath(returnTo) {
+  if (!returnTo || typeof returnTo !== "string") return null;
+  const trimmed = returnTo.trim();
+  if (!trimmed.startsWith("/")) return null;
+  if (trimmed.startsWith("//")) return null;
+  if (trimmed.includes("\\")) return null;
+  if (trimmed.includes("\r") || trimmed.includes("\n")) return null;
+  return trimmed;
+}
+
+function isLocalOrigin(origin) {
+  try {
+    const url = new URL(String(origin || ""));
+    return isLocalHostname(url.hostname);
+  } catch {
+    return false;
+  }
+}
+
+function issueState(req, res) {
   const state = crypto.randomBytes(16).toString("base64url");
-  res.cookie("oauth_state", state, {
-    httpOnly: true,
-    secure: !!config.jwt.cookieSecure,
-    sameSite: config.jwt.cookieSameSite || "lax",
-    domain: getCookieDomain(),
-    path: "/",
-    maxAge: 5 * 60 * 1000,
-  });
+  res.cookie("oauth_state", state, getCookieOptions(req, { maxAge: 5 * 60 * 1000 }));
   return state;
 }
 
 router.get("/login", (req, res) => {
   try {
     const CLIENT_ID = config.discord.clientId;
-    const REDIRECT_URI = config.discord.redirectUri;
+    const REDIRECT_URI = resolveDiscordRedirectUri(req);
     const SCOPES = (config.discord.scopes || ["identify", "guilds"]).join(" ");
 
     if (!CLIENT_ID || !REDIRECT_URI) {
       throw new Error("Discord OAuth not configured (missing clientId/redirectUri)");
     }
 
-    const state = issueState(res);
+    if (shouldDebugAuth()) {
+      const clientIdMasked =
+        typeof CLIENT_ID === "string" && CLIENT_ID.length > 8
+          ? `${CLIENT_ID.slice(0, 4)}…${CLIENT_ID.slice(-4)}`
+          : CLIENT_ID;
+      console.info("[auth/login] oauth config", {
+        clientId: clientIdMasked,
+        redirectUri: REDIRECT_URI,
+        requestOrigin: getRequestOrigin(req),
+      });
+    }
+
+    const rawReturnTo = Array.isArray(req.query?.returnTo)
+      ? req.query.returnTo[0]
+      : req.query?.returnTo;
+    const returnToPath = normalizeReturnToPath(rawReturnTo);
+    if (returnToPath) {
+      res.cookie("oauth_return_to", returnToPath, getCookieOptions(req, { maxAge: 10 * 60 * 1000 }));
+    }
+
+    // Persist the exact redirect_uri used for this authorization request so the
+    // token exchange in /callback can be byte-for-byte identical even if proxy
+    // headers differ between requests.
+    res.cookie("oauth_redirect_uri", REDIRECT_URI, getCookieOptions(req, { maxAge: 10 * 60 * 1000 }));
+
+    const state = issueState(req, res);
     const params = new URLSearchParams({
       client_id: CLIENT_ID,
       redirect_uri: REDIRECT_URI,
@@ -62,7 +163,7 @@ router.get("/callback", async (req, res) => {
   try {
     const CLIENT_ID = config.discord.clientId;
     const CLIENT_SECRET = config.discord.clientSecret;
-    const REDIRECT_URI = config.discord.redirectUri;
+    const REDIRECT_URI = resolveDiscordRedirectUri(req);
 
     if (!CLIENT_ID || !CLIENT_SECRET || !REDIRECT_URI) {
       throw new Error("Discord OAuth not configured (missing clientId/clientSecret/redirectUri)");
@@ -71,16 +172,38 @@ router.get("/callback", async (req, res) => {
     const { code, state } = req.query;
     const saved = req.cookies && req.cookies.oauth_state;
     if (!code || !state || !saved || state !== saved) {
-      console.warn("[auth/callback] State mismatch", { hasCode: !!code });
+      clearCookie(req, res, "oauth_state");
+      clearCookie(req, res, "oauth_return_to");
+      clearCookie(req, res, "oauth_redirect_uri");
+      if (shouldDebugAuth()) {
+        console.warn("[auth/callback] State mismatch detail", {
+          requestOrigin: getRequestOrigin(req),
+          hasCode: Boolean(code),
+          hasState: Boolean(state),
+          hasSaved: Boolean(saved),
+          statePrefix: typeof state === "string" ? state.slice(0, 6) : null,
+          savedPrefix: typeof saved === "string" ? saved.slice(0, 6) : null,
+        });
+      } else {
+        console.warn("[auth/callback] State mismatch", { hasCode: !!code });
+      }
       return res.redirect("/?error=state_mismatch");
     }
+
+    // One-time use once validated.
+    clearCookie(req, res, "oauth_state");
+
+    const cookieRedirectUri =
+      typeof req.cookies?.oauth_redirect_uri === "string" ? req.cookies.oauth_redirect_uri : "";
+    clearCookie(req, res, "oauth_redirect_uri");
+    const redirectUriForTokenExchange = cookieRedirectUri || REDIRECT_URI;
 
     const body = new URLSearchParams({
       client_id: CLIENT_ID,
       client_secret: CLIENT_SECRET,
       grant_type: "authorization_code",
       code: String(code),
-      redirect_uri: REDIRECT_URI,
+      redirect_uri: redirectUriForTokenExchange,
     });
 
     const tk = await fetch(DISCORD.TOKEN_URL, {
@@ -240,17 +363,23 @@ router.get("/callback", async (req, res) => {
 
     const token = signSession({ user });
     setAuthCookie(res, token);
-    res.clearCookie("oauth_state", {
-      httpOnly: true,
-      secure: !!config.jwt.cookieSecure,
-      sameSite: config.jwt.cookieSameSite || "lax",
-      domain: getCookieDomain(),
-      path: "/",
-    });
+
+    const cookieReturnTo = req.cookies?.oauth_return_to;
+    clearCookie(req, res, "oauth_return_to");
 
     const successRedirect =
       (config.ui && config.ui.successRedirect) || "https://slimyai.xyz/dashboard";
-    return res.redirect(successRedirect);
+
+    const origin = getRequestOrigin(req);
+    const allowed = getAllowedOrigins();
+    const originAllowed = isLocalOrigin(origin) || !allowed.length || allowed.includes(origin);
+    const originDashboard = originAllowed ? new URL("/dashboard", origin).toString() : null;
+
+    const returnToPath = normalizeReturnToPath(cookieReturnTo);
+    const returnToUrl =
+      originAllowed && returnToPath ? new URL(returnToPath, origin).toString() : null;
+
+    return res.redirect(returnToUrl || originDashboard || successRedirect);
   } catch (err) {
     console.error("[auth/callback] CRITICAL ERROR:", err);
     return res.redirect("/?error=server_error");
@@ -264,9 +393,20 @@ router.get("/me", async (req, res) => {
   // @ts-ignore
   const rawUser = req.user.user || req.user;
   const userId = rawUser?.id || rawUser?.discordId || rawUser?.sub;
+  const warnings = [];
 
   try {
-    const prisma = prismaDatabase.getClient();
+    let prisma = null;
+    try {
+      prisma = prismaDatabase.getClient();
+    } catch (err) {
+      warnings.push("db_unavailable");
+      if (shouldDebugAuth()) {
+        console.warn("[auth/me] Prisma unavailable; returning session-only response", {
+          error: err?.message || String(err),
+        });
+      }
+    }
 
     console.log(`[auth/me] req.user keys: ${Object.keys(req.user || {}).join(",")}`);
     console.log(`[auth/me] rawUser keys: ${Object.keys(rawUser || {}).join(",")}`);
@@ -274,67 +414,131 @@ router.get("/me", async (req, res) => {
 
     if (!userId) {
       console.warn("[auth/me] Missing userId on session user payload:", rawUser);
-      return res.json({ id: null, username: "Guest", guilds: [], sessionGuilds: [] });
+      warnings.push("missing_user_id");
+      return res.json({
+        id: null,
+        username: "Guest",
+        guilds: [],
+        sessionGuilds: [],
+        warnings,
+      });
     }
 
-    const dbUser = await prisma.user.findUnique({
-      where: { discordId: String(userId) },
-    });
+    // Base response: usable even when DB calls fail.
+    const baseResponse = {
+      id: userId,
+      discordId: userId,
+      username: rawUser?.username || rawUser?.name || "Unknown",
+      globalName: rawUser?.globalName,
+      avatar: rawUser?.avatar,
+      role: rawUser?.role || "member",
+      sessionGuilds: [],
+      guilds: [],
+      warnings,
+    };
+
+    // If DB is unavailable, return the session-only response instead of 500.
+    if (!prisma) {
+      const cookieGuilds = Array.isArray(rawUser?.guilds) ? rawUser.guilds : [];
+      const sessionGuilds = cookieGuilds.map((g) => ({
+        id: g?.id,
+        roles: g?.roles,
+        name: "Unknown (DB unavailable)",
+        installed: false,
+      }));
+      baseResponse.sessionGuilds = sessionGuilds;
+      baseResponse.guilds = sessionGuilds;
+      return res.json(baseResponse);
+    }
+
+    let dbUser = null;
+    try {
+      dbUser = await prisma.user.findUnique({
+        where: { discordId: String(userId) },
+      });
+    } catch (err) {
+      warnings.push("db_user_lookup_failed");
+      if (shouldDebugAuth()) {
+        console.warn("[auth/me] DB user lookup failed; returning session-only response", {
+          error: err?.message || String(err),
+        });
+      }
+    }
 
     console.log(`[auth/me] DB User Found: ${!!dbUser}`);
 
     let sessionGuilds = [];
     if (dbUser) {
       // Fetch UserGuilds AND JOIN Guild
-      const userGuilds = await prisma.userGuild.findMany({
-        where: { userId: dbUser.id },
-        include: { guild: true },
-      });
+      try {
+        const userGuilds = await prisma.userGuild.findMany({
+          where: { userId: dbUser.id },
+          include: { guild: true },
+        });
 
-      console.log(`[auth/me] Raw DB Guilds Found: ${userGuilds.length}`);
+        console.log(`[auth/me] Raw DB Guilds Found: ${userGuilds.length}`);
 
-      sessionGuilds = userGuilds.map((ug) => ({
-        id: ug.guild?.id,
-        name: ug.guild?.name,
-        icon: ug.guild?.icon,
-        installed: true,
-        roles: ug.roles || [],
-      }));
+        sessionGuilds = userGuilds.map((ug) => ({
+          id: ug.guild?.id,
+          name: ug.guild?.name,
+          icon: ug.guild?.icon,
+          installed: true,
+          roles: ug.roles || [],
+        }));
+      } catch (err) {
+        warnings.push("db_guilds_lookup_failed");
+        if (shouldDebugAuth()) {
+          console.warn("[auth/me] DB guild lookup failed; returning session-only guilds", {
+            error: err?.message || String(err),
+          });
+        }
+        const cookieGuilds = Array.isArray(rawUser?.guilds) ? rawUser.guilds : [];
+        sessionGuilds = cookieGuilds.map((g) => ({
+          id: g?.id,
+          roles: g?.roles,
+          name: "Unknown (DB guild lookup failed)",
+          installed: false,
+        }));
+      }
     } else {
       // Fallback: Use cookie guilds if available (will lack names)
       // But ensure we at least pass the ID
-      const cookieGuilds = rawUser.guilds || [];
+      const cookieGuilds = Array.isArray(rawUser?.guilds) ? rawUser.guilds : [];
       console.warn("[auth/me] Fallback to cookie guilds:", cookieGuilds.length);
       sessionGuilds = cookieGuilds.map((g) => ({
-        id: g.id,
-        roles: g.roles,
+        id: g?.id,
+        roles: g?.roles,
         name: "Unknown (Not in DB)",
         installed: false,
       }));
     }
 
-    const response = {
-      id: dbUser?.discordId || userId,
-      discordId: dbUser?.discordId || userId,
-      username: dbUser?.username || rawUser.username || "Unknown",
-      globalName: dbUser?.globalName || rawUser.globalName,
-      avatar: dbUser?.avatar || rawUser.avatar,
-      role: rawUser.role || "member",
-      sessionGuilds: sessionGuilds,
-      // Legacy field for compatibility
+    return res.json({
+      id: dbUser?.discordId || baseResponse.id,
+      discordId: dbUser?.discordId || baseResponse.discordId,
+      username: dbUser?.username || baseResponse.username,
+      globalName: dbUser?.globalName || baseResponse.globalName,
+      avatar: dbUser?.avatar || baseResponse.avatar,
+      role: baseResponse.role,
+      sessionGuilds,
       guilds: sessionGuilds,
-    };
-
-    return res.json(response);
+      warnings,
+    });
   } catch (err) {
+    // Last line of defense: never 500 for authenticated sessions.
     console.error("[auth/me] CRITICAL ERROR:", err);
     console.error("[auth/me] rawUser snapshot:", rawUser);
-    return res.status(500).json({
-      error: "internal_error",
+    warnings.push("me_handler_failed");
+    return res.json({
       id: userId || null,
+      discordId: userId || null,
       username: rawUser?.username || rawUser?.name || "Unknown",
+      globalName: rawUser?.globalName,
+      avatar: rawUser?.avatar,
+      role: rawUser?.role || "member",
       sessionGuilds: [],
       guilds: [],
+      warnings,
     });
   }
 });
