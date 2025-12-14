@@ -168,31 +168,28 @@ async function resolveUser(req) {
     // Attempt to hydrate session data; handle sync or async getters gracefully
     let session = null;
     const sessionKey = normalizedUser?.id || sessionUser?.id;
-    if (sessionKey && typeof getSession === "function") {
-      const maybeSession = getSession(sessionKey);
-      if (maybeSession && typeof maybeSession.then === "function") {
-        maybeSession
-          .then((value) => {
-            if (value && !req._cachedUser) {
-              req.session = value;
-            }
-          })
-          .catch((err) => {
-            // Log session retrieval failures for debugging
-            console.error("[readAuth] Failed to retrieve session for user", {
-              sessionKey,
-              error: err.message,
-              stack: err.stack
-            });
-            // Session will remain null, which is expected behavior
-            // Do NOT swallow errors silently - log them for incident response
+    const needsGuildHydration =
+      !Array.isArray(normalizedUser?.guilds) || normalizedUser.guilds.length === 0;
+
+    if (sessionKey && typeof getSession === "function" && needsGuildHydration) {
+      try {
+        session = await getSession(sessionKey);
+      } catch (err) {
+        if (shouldDebugAuth()) {
+          console.error("[readAuth] Failed to retrieve session for user", {
+            sessionKey,
+            error: err.message,
           });
-      } else if (maybeSession) {
-        session = maybeSession;
+        }
       }
     }
 
     req.session = session || payload?.session || payload || null;
+
+    if (normalizedUser && Array.isArray(req.session?.guilds) && req.session.guilds.length) {
+      normalizedUser.guilds = req.session.guilds;
+    }
+
     req.user = normalizedUser;
     req._cachedUser = req.user;
 
@@ -232,6 +229,11 @@ function forbidden(res, message = "Insufficient role") {
     code: "FORBIDDEN",
     message,
   });
+}
+
+function shouldDebugAuth() {
+  const flag = String(process.env.ADMIN_AUTH_DEBUG || "").trim().toLowerCase();
+  return process.env.NODE_ENV !== "production" || flag === "1" || flag === "true" || flag === "yes";
 }
 
 async function requireAuth(req, res, next) {
@@ -288,8 +290,16 @@ function requireGuildMember(paramKey = "guildId") {
     }
 
     const guilds = user.guilds || [];
-    const guild = guilds.find((entry) => entry.id === guildId);
+    const guildIdStr = String(guildId);
+    const guild = guilds.find((entry) => String(entry?.id) === guildIdStr);
     if (!guild) {
+      if (shouldDebugAuth()) {
+        console.warn("[admin-api] guild membership check failed", {
+          userId: user.id,
+          guildId: guildIdStr,
+          guildIds: guilds.map((g) => String(g?.id)).slice(0, 25),
+        });
+      }
       return forbidden(res, "You are not a member of this guild");
     }
 

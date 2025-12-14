@@ -127,6 +127,10 @@ retry "web /" "curl -fsS http://127.0.0.1:3000/" 60 2
 retry "admin-ui /" "curl -fsS http://127.0.0.1:3001/" 60 2
 
 log ""
+log "Applying admin-api database migrations..."
+bash scripts/dev/migrate-admin-api-db.sh
+
+log ""
 log "Checking admin-ui /dashboard routing..."
 dashboard_url="http://127.0.0.1:3001/dashboard"
 dashboard_code="$(curl -sS -o /tmp/slimy-dashboard.html -w "%{http_code}" "$dashboard_url")"
@@ -145,6 +149,47 @@ if [[ ! -s /tmp/slimy-dashboard.html ]]; then
   exit 1
 fi
 log "OK: admin-ui /dashboard (HTTP $dashboard_code)"
+
+log ""
+log "Checking admin-ui /dashboard with synthetic auth cookie..."
+synthetic_token="$(docker compose exec -T admin-api node -e 'const jwt=require("jsonwebtoken"); const secret=process.env.JWT_SECRET; const token=jwt.sign({user:{id:"smoke-user",discordId:"smoke-user",username:"SmokeUser",globalName:"Smoke User",avatar:null,role:"admin",guilds:[]}}, secret, {algorithm:"HS256",expiresIn:3600}); process.stdout.write(token);')"
+dashboard_authed_code="$(curl -sS -o /tmp/slimy-dashboard-authed.html -w "%{http_code}" -H "Cookie: slimy_admin_token=${synthetic_token}" "$dashboard_url")"
+if [[ "$dashboard_authed_code" == "500" || "$dashboard_authed_code" == "502" ]]; then
+  log "FAIL: $dashboard_url (authed HTTP $dashboard_authed_code)"
+  cat /tmp/slimy-dashboard-authed.html || true
+  exit 1
+fi
+if [[ "$dashboard_authed_code" != "200" ]]; then
+  log "FAIL: $dashboard_url (expected 200 when authed, got $dashboard_authed_code)"
+  cat /tmp/slimy-dashboard-authed.html || true
+  exit 1
+fi
+if [[ ! -s /tmp/slimy-dashboard-authed.html ]]; then
+  log "FAIL: $dashboard_url (authed empty response body)"
+  exit 1
+fi
+log "OK: admin-ui /dashboard with synthetic auth (HTTP $dashboard_authed_code)"
+
+log ""
+log "Checking admin-ui Socket.IO proxy with synthetic auth cookie..."
+socketio_url="http://127.0.0.1:3001/socket.io/?EIO=4&transport=polling&t=$(date +%s)"
+socketio_code="$(curl -sS -o /tmp/slimy-socketio.txt -w "%{http_code}" -H "Cookie: slimy_admin_token=${synthetic_token}" "$socketio_url")"
+if [[ "$socketio_code" == "500" || "$socketio_code" == "502" || "$socketio_code" == "404" ]]; then
+  log "FAIL: $socketio_url (HTTP $socketio_code)"
+  cat /tmp/slimy-socketio.txt || true
+  exit 1
+fi
+if [[ "$socketio_code" != "200" ]]; then
+  log "FAIL: $socketio_url (expected 200, got $socketio_code)"
+  cat /tmp/slimy-socketio.txt || true
+  exit 1
+fi
+if ! grep -q '"sid"' /tmp/slimy-socketio.txt; then
+  log "FAIL: $socketio_url (missing sid in response)"
+  cat /tmp/slimy-socketio.txt || true
+  exit 1
+fi
+log "OK: admin-ui Socket.IO polling handshake (HTTP $socketio_code)"
 
 retry "admin-ui -> admin-api bridge /api/admin-api/health" "curl -fsS http://127.0.0.1:3001/api/admin-api/health >/dev/null" 60 2
 retry "admin-ui -> admin-api bridge /api/admin-api/diag" "curl -fsS http://127.0.0.1:3001/api/admin-api/diag >/dev/null" 60 2

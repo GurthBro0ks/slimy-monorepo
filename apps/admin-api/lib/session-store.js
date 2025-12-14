@@ -11,7 +11,7 @@ setInterval(async () => {
     await database.deleteExpiredSessions();
   } catch (err) {
     // Log error without exposing sensitive details
-    console.error('[session-store] Failed to cleanup expired sessions');
+    console.error('[session-store] Failed to cleanup expired sessions:', err.message);
   }
 }, 60 * 60 * 1000);
 
@@ -40,8 +40,14 @@ async function storeSession(userId, data) {
 
 async function getSession(userId) {
   try {
-    // Fetch user's guilds from the database
-    const userGuilds = await database.getUserGuilds(userId);
+    const discordId = String(userId || "").trim();
+    if (!discordId) return null;
+
+    const user = await database.findUserByDiscordId(discordId);
+    if (!user) return null;
+
+    // Fetch user's guilds from the database (expects internal user.id)
+    const userGuilds = await database.getUserGuilds(user.id);
 
     if (!userGuilds || userGuilds.length === 0) {
       return null;
@@ -73,24 +79,14 @@ async function clearSession(userId) {
 }
 
 async function activeSessionCount() {
-  try {
-    // This is a simplified count - in a real implementation we'd query the database
-    // For now, return 0 since we can't easily count without proper session management
-    return 0;
-  } catch (err) {
-    console.error('[session-store] Failed to get active session count:', err.message);
-    return 0;
-  }
+  // This is a simplified count - in a real implementation we'd query the database
+  // For now, return 0 since we can't easily count without proper session management
+  return 0;
 }
 
 async function getAllSessions() {
-  try {
-    // Return empty array for now - full implementation would require database query
-    return [];
-  } catch (err) {
-    console.error('[session-store] Failed to get all sessions:', err.message);
-    return [];
-  }
+  // Return empty array for now - full implementation would require database query
+  return [];
 }
 
 module.exports = {

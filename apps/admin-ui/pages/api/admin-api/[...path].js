@@ -6,6 +6,47 @@ function isJsonContentType(contentType) {
   return normalized.includes("application/json") || normalized.includes("+json");
 }
 
+function firstHeaderValue(value) {
+  if (!value) return "";
+  const raw = Array.isArray(value) ? value[0] : String(value);
+  return raw.split(",")[0].trim();
+}
+
+function splitSetCookieHeader(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return [];
+
+  const parts = [];
+  let current = "";
+  let inExpires = false;
+
+  for (let i = 0; i < raw.length; i += 1) {
+    const ch = raw[i];
+
+    if (ch === ",") {
+      if (!inExpires) {
+        const trimmed = current.trim();
+        if (trimmed) parts.push(trimmed);
+        current = "";
+        continue;
+      }
+    }
+
+    current += ch;
+
+    if (!inExpires && current.length >= 8) {
+      const tail = current.slice(-8).toLowerCase();
+      if (tail === "expires=") inExpires = true;
+    } else if (inExpires && ch === ";") {
+      inExpires = false;
+    }
+  }
+
+  const last = current.trim();
+  if (last) parts.push(last);
+  return parts;
+}
+
 function getQueryString(reqUrl) {
   if (!reqUrl) return "";
   const idx = reqUrl.indexOf("?");
@@ -45,16 +86,21 @@ export default async function handler(req, res) {
   const contentType = req.headers["content-type"] || "";
   const accept = req.headers.accept || "";
   const csrfToken = req.headers["x-csrf-token"] || "";
+  const forwardedHost = firstHeaderValue(req.headers["x-forwarded-host"]) || firstHeaderValue(req.headers.host);
   const forwardedProto =
-    req.headers["x-forwarded-proto"] || (req.socket?.encrypted ? "https" : "http");
+    firstHeaderValue(req.headers["x-forwarded-proto"]) || (req.socket?.encrypted ? "https" : "http");
+  const forwardedPort =
+    firstHeaderValue(req.headers["x-forwarded-port"]) ||
+    (forwardedHost && forwardedHost.includes(":") ? forwardedHost.split(":").pop() : "");
 
   const headers = {
     ...(cookie ? { cookie } : null),
     ...(contentType ? { "content-type": contentType } : null),
     ...(accept ? { accept } : null),
     ...(csrfToken ? { "x-csrf-token": csrfToken } : null),
-    "x-forwarded-host": req.headers.host || "",
+    ...(forwardedHost ? { "x-forwarded-host": forwardedHost } : null),
     ...(forwardedProto ? { "x-forwarded-proto": forwardedProto } : null),
+    ...(forwardedPort ? { "x-forwarded-port": forwardedPort } : null),
   };
 
   try {
@@ -89,10 +135,14 @@ export default async function handler(req, res) {
         ? upstreamRes.headers.getSetCookie()
         : [];
     const setCookieFallback = upstreamRes.headers.get("set-cookie") || "";
+    const setCookieParsed = !setCookies.length && setCookieFallback
+      ? splitSetCookieHeader(setCookieFallback)
+      : [];
 
     if (upstreamContentType) res.setHeader("content-type", upstreamContentType);
     if (location) res.setHeader("location", location);
     if (setCookies.length) res.setHeader("set-cookie", setCookies);
+    else if (setCookieParsed.length) res.setHeader("set-cookie", setCookieParsed);
     else if (setCookieFallback) res.setHeader("set-cookie", setCookieFallback);
 
     const text = await upstreamRes.text().catch(() => "");

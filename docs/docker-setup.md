@@ -266,15 +266,14 @@ docker compose exec db mysql -u slimyai -pslimypassword slimyai
 The admin-api service automatically generates the Prisma client during build. To run migrations:
 
 ```bash
-# Access the admin-api container
-docker compose exec admin-api sh
+# Recommended (idempotent): run migrations via helper script
+bash scripts/dev/migrate-admin-api-db.sh
 
-# Inside the container, run migrations
-npx prisma migrate deploy
-
-# Or generate Prisma client
-npx prisma generate
+# Manual (inside container)
+docker compose exec admin-api sh -lc 'cd /app/apps/admin-api && pnpm prisma migrate deploy'
 ```
+
+> Note: `pnpm smoke:docker` now runs this migration step automatically after the DB is healthy.
 
 ### Backup Database
 

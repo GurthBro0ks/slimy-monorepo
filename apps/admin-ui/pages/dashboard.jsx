@@ -83,7 +83,8 @@ export default function DashboardPage({ user, meError }) {
     };
   }, []);
 
-  const displayName = user?.globalName || user?.username || user?.name || "Unknown";
+  const displayName =
+    user?.globalName || user?.username || user?.name || user?.discordId || user?.id || "Unknown";
   const guilds = Array.isArray(user?.sessionGuilds) ? user.sessionGuilds : Array.isArray(user?.guilds) ? user.guilds : [];
 
   return (
@@ -92,106 +93,117 @@ export default function DashboardPage({ user, meError }) {
         <title>slimy.ai – Dashboard</title>
       </Head>
 
-      {meError ? (
-        <div className="card" style={{ padding: "1.25rem", marginBottom: "1rem" }}>
-          <div style={{ color: "#fca5a5", fontWeight: 800 }}>Auth Error</div>
-          <div style={{ opacity: 0.8 }}>{meError}</div>
-          <div style={{ marginTop: 12, display: "flex", gap: 10, flexWrap: "wrap" }}>
-            <Link href="/status?returnTo=%2Fdashboard" legacyBehavior>
-              <a className="btn">Go to Status</a>
-            </Link>
-          </div>
-        </div>
-      ) : null}
-
-      <div className="card-grid">
-        <div className="card" style={{ padding: "1.25rem" }}>
-          <h4 style={{ marginTop: 0 }}>Session</h4>
-          <div style={{ display: "grid", gap: 6 }}>
-            <div>
-              Logged in as <strong>{displayName}</strong>
+      <div style={{ maxWidth: 1100, margin: "0 auto", width: "100%", display: "grid", gap: "1rem" }}>
+        {meError ? (
+          <div className="card">
+            <div style={{ color: "#fca5a5", fontWeight: 800 }}>Auth Error</div>
+            <div style={{ opacity: 0.8 }}>{meError}</div>
+            <div style={{ marginTop: 12, display: "flex", gap: 10, flexWrap: "wrap" }}>
+              <Link href="/status?returnTo=%2Fdashboard" legacyBehavior>
+                <a className="btn">Go to Status</a>
+              </Link>
             </div>
-            {user?.id ? (
-              <div style={{ opacity: 0.8 }}>
-                ID: <span style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace" }}>{user.id}</span>
-              </div>
-            ) : null}
-            {user?.role ? (
-              <div style={{ opacity: 0.8 }}>
-                Role: <strong>{String(user.role).toUpperCase()}</strong>
-              </div>
-            ) : null}
           </div>
-          <div style={{ marginTop: 14, display: "flex", gap: 10, flexWrap: "wrap" }}>
-            <Link href="/guilds" legacyBehavior>
-              <a className="btn">Select a Guild</a>
-            </Link>
-            <Link href="/status?returnTo=%2Fdashboard" legacyBehavior>
-              <a className="btn outline">Status</a>
-            </Link>
-          </div>
-        </div>
+        ) : null}
 
-        <div className="card" style={{ padding: "1.25rem" }}>
-          <h4 style={{ marginTop: 0 }}>Admin API</h4>
-          {health.loading ? (
-            <div style={{ opacity: 0.8 }}>Checking…</div>
-          ) : health.error ? (
-            <div style={{ color: "#fca5a5", fontWeight: 800 }}>{health.error}</div>
-          ) : (
+        <div className="card-grid">
+          <div className="card">
+            <div className="panel-header" style={{ marginBottom: 12, paddingBottom: 10 }}>
+              Session
+            </div>
             <div style={{ display: "grid", gap: 6 }}>
               <div>
-                Status:{" "}
-                <strong style={{ color: health.data?.status === "ok" ? "#86efac" : "#fca5a5" }}>
-                  {health.data?.status || "unknown"}
-                </strong>
+                Logged in as <strong>{displayName}</strong>
               </div>
-              {typeof health.data?.uptime === "number" ? (
-                <div style={{ opacity: 0.8 }}>Uptime: {health.data.uptime}s</div>
+              {user?.discordId || user?.id ? (
+                <div style={{ opacity: 0.8 }}>
+                  ID:{" "}
+                  <span style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace" }}>
+                    {user?.discordId || user?.id}
+                  </span>
+                </div>
               ) : null}
-              {health.data?.timestamp ? (
-                <div style={{ opacity: 0.8 }}>TS: {health.data.timestamp}</div>
+              {user?.role ? (
+                <div style={{ opacity: 0.8 }}>
+                  Role: <strong>{String(user.role).toUpperCase()}</strong>
+                </div>
               ) : null}
             </div>
-          )}
-        </div>
-      </div>
-
-      {guilds.length ? (
-        <div className="card" style={{ padding: "1.25rem", marginTop: "1rem" }}>
-          <h4 style={{ marginTop: 0 }}>Guilds</h4>
-          <div style={{ opacity: 0.75, marginBottom: 12 }}>
-            Click a guild from <Link href="/guilds">/guilds</Link> to open its dashboard.
+            <div style={{ marginTop: 14, display: "flex", gap: 10, flexWrap: "wrap" }}>
+              <Link href="/guilds" legacyBehavior>
+                <a className="btn">Select a Guild</a>
+              </Link>
+              <Link href="/status?returnTo=%2Fdashboard" legacyBehavior>
+                <a className="btn outline">Status</a>
+              </Link>
+            </div>
           </div>
-          <div style={{ display: "grid", gap: 10 }}>
-            {guilds.slice(0, 12).map((g) => (
-              <div
-                key={g?.id || JSON.stringify(g)}
-                className="card"
-                style={{
-                  padding: "0.9rem 1rem",
-                  display: "flex",
-                  justifyContent: "space-between",
-                  gap: 12,
-                  alignItems: "center",
-                }}
-              >
-                <div style={{ minWidth: 0 }}>
-                  <div style={{ fontWeight: 700 }}>{g?.name || "Unknown guild"}</div>
-                  <div style={{ opacity: 0.75, fontSize: "0.85rem" }}>
-                    <span style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace" }}>
-                      {g?.id || "-"}
-                    </span>
+
+          <div className="card">
+            <div className="panel-header" style={{ marginBottom: 12, paddingBottom: 10 }}>
+              Admin API
+            </div>
+            {health.loading ? (
+              <div style={{ opacity: 0.8 }}>Checking…</div>
+            ) : health.error ? (
+              <div style={{ color: "#fca5a5", fontWeight: 800 }}>{health.error}</div>
+            ) : (
+              <div style={{ display: "grid", gap: 6 }}>
+                <div>
+                  Status:{" "}
+                  <strong style={{ color: health.data?.status === "ok" ? "#86efac" : "#fca5a5" }}>
+                    {health.data?.status || "unknown"}
+                  </strong>
+                </div>
+                {typeof health.data?.uptime === "number" ? (
+                  <div style={{ opacity: 0.8 }}>Uptime: {health.data.uptime}s</div>
+                ) : null}
+                {health.data?.timestamp ? (
+                  <div style={{ opacity: 0.8 }}>TS: {health.data.timestamp}</div>
+                ) : null}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {guilds.length ? (
+          <div className="card">
+            <div className="panel-header" style={{ marginBottom: 12, paddingBottom: 10 }}>
+              Guilds
+            </div>
+            <div style={{ opacity: 0.75, marginBottom: 12 }}>
+              Click a guild from <Link href="/guilds">/guilds</Link> to open its dashboard.
+            </div>
+            <div style={{ display: "grid", gap: 10 }}>
+              {guilds.slice(0, 12).map((g) => (
+                <div
+                  key={g?.id || JSON.stringify(g)}
+                  className="card"
+                  style={{
+                    padding: "0.9rem 1rem",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    gap: 12,
+                    alignItems: "center",
+                  }}
+                >
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontWeight: 700 }}>{g?.name || "Unknown guild"}</div>
+                    <div style={{ opacity: 0.75, fontSize: "0.85rem" }}>
+                      <span style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace" }}>
+                        {g?.id || "-"}
+                      </span>
+                    </div>
+                  </div>
+                  <div style={{ opacity: 0.8, textAlign: "right" }}>
+                    {Array.isArray(g?.roles) && g.roles.length ? g.roles.join(", ") : g?.role ? String(g.role) : "member"}
                   </div>
                 </div>
-                <div style={{ opacity: 0.8, textAlign: "right" }}>
-                  {Array.isArray(g?.roles) && g.roles.length ? g.roles.join(", ") : g?.role ? String(g.role) : "member"}
-                </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
-        </div>
-      ) : null}
+        ) : null}
+      </div>
     </Layout>
   );
 }
