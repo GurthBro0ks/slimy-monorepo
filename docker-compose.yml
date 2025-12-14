@@ -39,6 +39,9 @@ services:
       DISCORD_OAUTH_SCOPES: ${DISCORD_OAUTH_SCOPES:-identify guilds}
       DISCORD_BOT_TOKEN: ${DISCORD_BOT_TOKEN}
 
+      # Guild to enrich with Discord member role IDs (used for web role mapping: admin/club/user)
+      ROLE_GUILD_ID: ${ROLE_GUILD_ID:-1176605506912141444}
+
       # Optional: enable extra auth debug logs (non-secret)
       ADMIN_AUTH_DEBUG: ${ADMIN_AUTH_DEBUG:-}
       
@@ -94,6 +97,8 @@ services:
       PORT: 3000
       HOSTNAME: "0.0.0.0"
       DATABASE_URL: mysql://${MYSQL_USER:-slimyai}:${MYSQL_PASSWORD:-slimypassword}@db:3306/${MYSQL_DATABASE:-slimyai}
+      # Server-side calls from Next.js API routes need an internal network URL.
+      ADMIN_API_INTERNAL_URL: ${ADMIN_API_INTERNAL_URL:-http://admin-api:3080}
       NEXT_PUBLIC_ADMIN_API_BASE: ${NEXT_PUBLIC_ADMIN_API_BASE:-http://localhost:3080}
       NEXT_PUBLIC_SNELP_CODES_URL: ${NEXT_PUBLIC_SNELP_CODES_URL:-}
       NEXT_PUBLIC_PLAUSIBLE_DOMAIN: ${NEXT_PUBLIC_PLAUSIBLE_DOMAIN:-}

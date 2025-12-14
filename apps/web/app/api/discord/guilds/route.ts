@@ -1,21 +1,26 @@
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth/server";
 import { cookies } from "next/headers";
+import { apiClient } from "@/lib/api-client";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
-    const cookieStore = cookies();
-    const user = await requireAuth(cookieStore);
+    const cookieStore = await cookies();
+    const cookieHeader = cookieStore.toString();
 
-    // CRASH GUARD: Handle null user safely
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const result = await apiClient.get<{ guilds: any[] }>("/api/discord/guilds", {
+      useCache: false,
+      headers: {
+        Cookie: cookieHeader,
+      },
+    });
+
+    if (!result.ok) {
+      return NextResponse.json(result, { status: result.status || 401 });
     }
 
-    // Return the guilds already populated in the user object
-    return NextResponse.json(user.guilds || []);
+    return NextResponse.json(result.data);
     
   } catch (error) {
     console.error("[Guilds API] Error:", error);

@@ -8,7 +8,7 @@ export interface AuthUser {
   username: string;
   globalName?: string;
   avatar?: string;
-  role: "admin" | "club" | "member";
+  role: "admin" | "club" | "user";
   lastActiveGuildId?: string;
 }
 
