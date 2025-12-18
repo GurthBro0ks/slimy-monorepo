@@ -1,6 +1,31 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Cleanup handler: copy report to docs/ops only on failure
+cleanup_report() {
+  local exit_code=$?
+
+  # Only process if REPORT variable is set and file exists
+  if [ -n "${REPORT:-}" ] && [ -f "$REPORT" ]; then
+    if [ $exit_code -ne 0 ]; then
+      # FAILURE: Copy report to persistent location
+      local final_report="docs/ops/$(basename "$REPORT")"
+      mkdir -p docs/ops 2>/dev/null || true
+      if cp "$REPORT" "$final_report" 2>/dev/null; then
+        log "Report archived (FAILURE): $final_report" >&2
+      else
+        log "WARNING: Could not archive report to $final_report" >&2
+        log "Temp report available at: $REPORT" >&2
+      fi
+    else
+      # SUCCESS: Report stays in /tmp
+      log "Report available (SUCCESS): $REPORT"
+    fi
+  fi
+}
+
+trap cleanup_report EXIT
+
 # Stability Gate: OAuth Redirect + Guild Gate Verification
 #
 # Verifies that OAuth redirect behavior and guild gating logic haven't regressed.
@@ -16,8 +41,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT_DIR"
 
 TS="$(date +%F_%H-%M-%S)"
-REPORT="docs/ops/STABILITY_REPORT_${TS}_admin-oauth-guildgate.md"
-mkdir -p docs/ops
+REPORT="/tmp/STABILITY_REPORT_${TS}_admin-oauth-guildgate.md"
 
 # ================================
 # HELPER FUNCTIONS
@@ -177,10 +201,15 @@ pre_commit_safety() {
   run "git diff --name-only"
   run "git diff --cached --name-only || true"
 
-  # Stage everything EXCEPT .env*
+  # Stage everything EXCEPT .env* and stability reports
   log ""
-  log "Staging changes (excluding .env*)..."
-  git add -A -- . ':(exclude).env' ':(exclude).env.*' ':(exclude)**/.env' ':(exclude)**/.env.*'
+  log "Staging changes (excluding .env* and generated reports)..."
+  git add -A -- . \
+    ':(exclude).env' \
+    ':(exclude).env.*' \
+    ':(exclude)**/.env' \
+    ':(exclude)**/.env.*' \
+    ':(exclude)docs/ops/STABILITY_REPORT_*.md' 2>/dev/null || true
 
   # Abort if any env files still got staged (paranoia)
   if git diff --cached --name-only | grep -E '(^|/)\\.env(\\.|$)' >/dev/null; then
@@ -196,6 +225,13 @@ pre_commit_safety() {
   fi
 
   log "[PASS] Safety checks passed"
+
+  # Exit early if nothing staged (after exclusions)
+  if git diff --cached --quiet; then
+    log ""
+    log "No changes to commit (after exclusions). Exiting successfully."
+    exit 0
+  fi
 }
 
 branch_safety() {
@@ -226,7 +262,7 @@ commit_and_push() {
   BRANCH="$(cat /tmp/stability-gate-branch.txt)"
 
   run "git diff --cached --name-only"
-  run "git commit -m 'stability: oauth redirect + guild gate verification' -m 'Report: ${REPORT}'"
+  run "git commit -m 'stability: oauth redirect + guild gate verification'"
   run "git push -u origin HEAD"
 
   log ""
