@@ -31,7 +31,7 @@ trap cleanup_report EXIT
 # Verifies that OAuth redirect behavior and guild gating logic haven't regressed.
 # If all checks pass, optionally creates a commit and pushes to origin.
 #
-# Usage: ./scripts/smoke/stability-gate.sh
+# Usage: ./scripts/smoke/stability-gate.sh [--full]
 # Exit codes:
 #   0 - All checks passed
 #   1 - One or more checks failed
@@ -42,6 +42,23 @@ cd "$ROOT_DIR"
 
 TS="$(date +%F_%H-%M-%S)"
 REPORT="/tmp/STABILITY_REPORT_${TS}_admin-oauth-guildgate.md"
+
+FULL=0
+for arg in "$@"; do
+  case "$arg" in
+    --full) FULL=1 ;;
+    -h|--help)
+      echo "Usage: $0 [--full]"
+      echo "  --full  Runs deeper checks (pnpm smoke:docker + extended HTTP probes)"
+      exit 0
+      ;;
+    *)
+      echo "ERROR: Unknown argument: $arg" >&2
+      echo "Usage: $0 [--full]" >&2
+      exit 2
+      ;;
+  esac
+done
 
 # ================================
 # HELPER FUNCTIONS
@@ -56,7 +73,8 @@ redact() {
   sed -E \
     -e 's/(client_secret=)[^&[:space:]]+/\1[REDACTED]/gi' \
     -e 's/(authorization: Bearer )[A-Za-z0-9._-]+/\1[REDACTED]/gi' \
-    -e 's/(slimy_admin=)[^;[:space:]]+/\1[REDACTED]/gi'
+    -e 's/(slimy_admin=)[^;[:space:]]+/\1[REDACTED]/gi' \
+    -e 's/(set-cookie: [^=]+=)[^;[:space:]]+/\1[REDACTED]/gi'
 }
 
 # Execute command, log to report with redaction
@@ -65,6 +83,64 @@ run() {
   echo -e "\n## $cmd\n\`\`\`" >> "$REPORT"
   bash -lc "$cmd" 2>&1 | redact | tee -a "$REPORT"
   echo -e "\`\`\`\n" >> "$REPORT"
+}
+
+curl_check() {
+  local url="$1"
+  local name="$2"
+  local max_lines="${3:-20}"
+  local out=""
+
+  echo -e "\n## $name: $url\n\`\`\`" >> "$REPORT"
+
+  if ! out="$(curl -fsS -D- -o /dev/null "$url" 2>&1)"; then
+    log "[FAIL] $name unreachable: $url" | tee -a "$REPORT"
+    if printf '%s\n' "$out" | grep -qiE 'Failed to connect|Connection refused|Could not resolve host|timed out'; then
+      log "       Hint: docker compose ps | rg -n '(admin-ui|web|admin-api)'" | tee -a "$REPORT"
+      log "       Hint: check ports (:3001 admin-ui, :3000 web, :3080 admin-api)" | tee -a "$REPORT"
+    fi
+    log "       curl error (redacted):" | tee -a "$REPORT"
+    printf '%s\n' "$out" | redact | tee -a "$REPORT"
+    echo -e "\`\`\`\n" >> "$REPORT"
+    return 1
+  fi
+
+  printf '%s\n' "$out" | redact | sed -n "1,${max_lines}p" | tee -a "$REPORT"
+  echo -e "\`\`\`\n" >> "$REPORT"
+}
+
+expect_status() {
+  local url="$1"
+  local name="$2"
+  shift 2
+  local ok=" $* "
+  local out=""
+  local code=""
+
+  echo -e "\n## PROBE: $name\n- URL: $url\n- Expected: $*\n\`\`\`" >> "$REPORT"
+
+  if ! out="$(curl -sS -o /dev/null -w '%{http_code}' "$url" 2>&1)"; then
+    code="000"
+    log "$name $url -> $code" | tee -a "$REPORT"
+    log "[FAIL] $name unreachable: $url" | tee -a "$REPORT"
+    if printf '%s\n' "$out" | grep -qiE 'Failed to connect|Connection refused|Could not resolve host|timed out'; then
+      log "       Hint: docker compose ps | rg -n '(admin-ui|web|admin-api)'" | tee -a "$REPORT"
+      log "       Hint: check ports (:3001 admin-ui, :3000 web, :3080 admin-api)" | tee -a "$REPORT"
+    fi
+    log "       curl error (redacted):" | tee -a "$REPORT"
+    printf '%s\n' "$out" | redact | tee -a "$REPORT"
+    echo -e "\`\`\`\n" >> "$REPORT"
+    return 1
+  fi
+
+  code="$out"
+  log "$name $url -> $code" | tee -a "$REPORT"
+  echo -e "\`\`\`\n" >> "$REPORT"
+
+  if [[ "$ok" != *" $code "* ]]; then
+    log "[FAIL] $name unexpected status $code (expected:$ok)" | tee -a "$REPORT"
+    return 1
+  fi
 }
 
 # Fail if pattern IS found in URL response (works correctly with set -e)
@@ -143,8 +219,27 @@ service_health() {
   log "B) SERVICE HEALTH"
   log "================================"
 
-  run "curl -fsS -D- -o /dev/null http://localhost:3001/ | sed -n '1,15p'"
-  run "curl -fsS -D- -o /dev/null http://localhost:3080/api/health | sed -n '1,20p'"
+  curl_check "http://localhost:3001/" "admin-ui" 15
+  curl_check "http://localhost:3080/api/health" "admin-api health" 25
+}
+
+full_mode_checks() {
+  if [ "${FULL}" -ne 1 ]; then
+    return 0
+  fi
+
+  log ""
+  log "================================"
+  log "E) FULL MODE (DEEPER CHECKS)"
+  log "================================"
+
+  run "pnpm smoke:docker"
+
+  expect_status "http://localhost:3001/" "admin-ui /" 200
+  expect_status "http://localhost:3001/guilds" "admin-ui /guilds" 200 302
+  expect_status "http://localhost:3000/" "web /" 200
+  expect_status "http://localhost:3080/api/health" "admin-api /api/health" 200
+  expect_status "http://localhost:3080/api/auth/me" "admin-api /api/auth/me" 200 401
 }
 
 critical_behavior_checks() {
@@ -195,25 +290,21 @@ package_tests() {
 pre_commit_safety() {
   log ""
   log "================================"
-  log "E) PRE-COMMIT SAFETY"
+  log "F) PRE-COMMIT SAFETY"
   log "================================"
 
   run "git diff --name-only"
   run "git diff --cached --name-only || true"
 
-  # Stage everything EXCEPT .env* and stability reports
-  log ""
-  log "Staging changes (excluding .env* and generated reports)..."
-  git add -A -- . \
-    ':(exclude).env' \
-    ':(exclude).env.*' \
-    ':(exclude)**/.env' \
-    ':(exclude)**/.env.*' \
-    ':(exclude)docs/ops/STABILITY_REPORT_*.md' 2>/dev/null || true
-
-  # Abort if any env files still got staged (paranoia)
+  # Abort if any env files got staged (paranoia)
   if git diff --cached --name-only | grep -E '(^|/)\\.env(\\.|$)' >/dev/null; then
     log "[FAIL] Refusing: .env-like files are staged. Unstage them and retry."
+    git diff --cached --name-only
+    exit 1
+  fi
+
+  if git diff --cached --name-only | grep -E '(^|/)docs/ops/STABILITY_REPORT_.*\\.md$' >/dev/null; then
+    log "[FAIL] Refusing: stability reports are staged. Unstage them and retry."
     git diff --cached --name-only
     exit 1
   fi
@@ -226,10 +317,10 @@ pre_commit_safety() {
 
   log "[PASS] Safety checks passed"
 
-  # Exit early if nothing staged (after exclusions)
+  # Exit early if nothing staged (verification-only mode)
   if git diff --cached --quiet; then
     log ""
-    log "No changes to commit (after exclusions). Exiting successfully."
+    log "No staged changes detected. Exiting successfully (verification-only)."
     exit 0
   fi
 }
@@ -237,7 +328,7 @@ pre_commit_safety() {
 branch_safety() {
   log ""
   log "================================"
-  log "F) BRANCH SAFETY"
+  log "G) BRANCH SAFETY"
   log "================================"
 
   BRANCH="$(git rev-parse --abbrev-ref HEAD)"
@@ -256,7 +347,7 @@ branch_safety() {
 commit_and_push() {
   log ""
   log "================================"
-  log "G) COMMIT + PUSH"
+  log "H) COMMIT + PUSH"
   log "================================"
 
   BRANCH="$(cat /tmp/stability-gate-branch.txt)"
@@ -283,6 +374,7 @@ main() {
   service_health
   critical_behavior_checks
   package_tests
+  full_mode_checks
   pre_commit_safety
   branch_safety
   commit_and_push
