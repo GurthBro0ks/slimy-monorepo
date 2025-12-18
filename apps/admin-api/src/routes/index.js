@@ -10,6 +10,7 @@ const personalityRoutes = require("./personality");
 const uploadsRoutes = require("./uploads");
 const discordRoutes = require("./discord");
 const diagRoutes = require("./diag");
+const meRoutes = require("./me");
 const botRoutes = require("./bot");
 const statsRoutes = require("./stats");
 const snailRoutes = require("./snail");
@@ -67,6 +68,7 @@ router.use("/auth", (req, res) => {
   return res.redirect(302, target);
 });
 router.use("/api/discord", discordRoutes);
+router.use("/api/me", meRoutes);
 router.use("/api/club", clubRoutes);
 router.use("/api/snail", snailRoutes);
 router.use("/api/guilds/:guildId/snail", snailRoutes);

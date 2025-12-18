@@ -6,6 +6,7 @@ import Layout from "../../components/Layout";
 import { useSession } from "../../lib/session";
 import { apiFetch } from "../../lib/api";
 import { buildBotInviteUrl } from "../../lib/discord";
+import { writeActiveGuildId } from "../../lib/active-guild";
 
 export default function GuildsIndex() {
   const router = useRouter();
@@ -42,9 +43,11 @@ export default function GuildsIndex() {
   const handleOpen = (guild) => {
     if (!guild) return;
     const guildId = guild.id;
-    if (guild.role === "admin") {
+    writeActiveGuildId(guildId);
+    const roleLabel = (guild.roleLabel || guild.role || "member").toLowerCase();
+    if (roleLabel === "admin") {
       router.push(`/guilds/${guildId}`);
-    } else if (guild.role === "club") {
+    } else if (roleLabel === "club") {
       router.push(`/club?guildId=${guildId}`);
     } else {
       router.push(`/snail/${guildId}`);
@@ -170,7 +173,9 @@ export default function GuildsIndex() {
               >
                 <div>
                   <div style={{ fontWeight: 600, fontSize: "1.05rem" }}>{guild.name}</div>
-                  <div style={{ opacity: 0.7, fontSize: "0.85rem" }}>Role: {(guild.role || "member").toUpperCase()}</div>
+                  <div style={{ opacity: 0.7, fontSize: "0.85rem" }}>
+                    Role: {((guild.roleLabel || guild.role || "member") + "").toUpperCase()}
+                  </div>
                   <div style={{ opacity: 0.6, fontSize: "0.8rem" }}>
                     {installed ? "Bot installed" : "Bot not installed"}
                   </div>

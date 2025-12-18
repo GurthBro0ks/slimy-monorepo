@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+// import { useRouter } from "next/navigation"; // Unused for now
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -14,6 +14,9 @@ type Guild = {
   icon?: string | null;
   permissions?: string | number | null;
   botInGuild?: boolean;
+  botInstalled?: boolean;
+  roleLabel?: "admin" | "club" | "member" | string;
+  roleSource?: "roles" | "permissions" | "default" | string;
 };
 
 interface GuildListProps {
@@ -24,7 +27,7 @@ export function GuildList({ className }: GuildListProps) {
   const [guilds, setGuilds] = useState<Guild[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const router = useRouter();
+  // const router = useRouter(); // Unused for now
 
   const handleConnect = async (guild: Guild) => {
     try {
@@ -118,17 +121,21 @@ export function GuildList({ className }: GuildListProps) {
 
     return (
       <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-        {guilds.map((guild) => (
-          <Card key={guild.id}>
+        {guilds.map((guild) => {
+          const botInstalled = guild.botInstalled ?? guild.botInGuild ?? false;
+          const roleLabel = (guild.roleLabel || "member") + "";
+          return (
+            <Card key={guild.id}>
             <CardHeader className="flex flex-row items-center gap-3">
               <GuildAvatar guild={guild} />
               <div>
                 <CardTitle className="text-base">{guild.name}</CardTitle>
-                {guild.permissions && (
-                  <p className="text-xs text-muted-foreground">
-                    Permissions: {guild.permissions}
-                  </p>
-                )}
+                <p className="text-xs text-muted-foreground">
+                  Role: <span className="font-semibold">{roleLabel}</span>
+                  {guild.roleSource ? (
+                    <span className="opacity-70"> ({guild.roleSource})</span>
+                  ) : null}
+                </p>
               </div>
             </CardHeader>
             <CardContent className="pt-0">
@@ -137,7 +144,7 @@ export function GuildList({ className }: GuildListProps) {
               </p>
             </CardContent>
             <CardFooter>
-              {guild.botInGuild ? (
+              {botInstalled ? (
                 <Button className="w-full" onClick={() => handleConnect(guild)}>
                   Dashboard
                 </Button>
@@ -153,7 +160,8 @@ export function GuildList({ className }: GuildListProps) {
               )}
             </CardFooter>
           </Card>
-        ))}
+          );
+        })}
       </div>
     );
   };

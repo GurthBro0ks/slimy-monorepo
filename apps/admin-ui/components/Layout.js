@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/router";
 import { useSession } from "../lib/session";
 import { useApi } from "../lib/api";
+import { useActiveGuild } from "../lib/active-guild";
 import DiagWidget from "./DiagWidget";
 import SlimeChatBar from "./SlimeChatBar";
 import SlimeChatWidget from "./SlimeChatWidget";
@@ -22,15 +23,21 @@ export default function Layout({ guildId, children, title, hideSidebar = false }
   const router = useRouter();
   const api = useApi();
   const { user, refresh } = useSession();
+  const activeGuild = useActiveGuild({ explicitGuildId: guildId, router });
   const [open, setOpen] = useState(false);
   const canvasRef = useRef(null);
   const closeMenu = () => setOpen(false);
   const baseRole = user?.role || "member";
   const effectiveRole = useMemo(() => {
-    if (!guildId || !user?.guilds) return baseRole;
-    const match = user.guilds.find((g) => String(g.id) === String(guildId));
+    const list = Array.isArray(user?.sessionGuilds)
+      ? user.sessionGuilds
+      : Array.isArray(user?.guilds)
+        ? user.guilds
+        : null;
+    if (!guildId || !list) return baseRole;
+    const match = list.find((g) => String(g.id) === String(guildId));
     return (match && match.role) || baseRole;
-  }, [user?.guilds, guildId, baseRole]);
+  }, [user?.sessionGuilds, user?.guilds, guildId, baseRole]);
   const isAdmin = effectiveRole === "admin";
   const isClub = effectiveRole === "club" && !isAdmin;
 
@@ -52,6 +59,7 @@ export default function Layout({ guildId, children, title, hideSidebar = false }
   }, [guildId, currentPath, isAdmin]);
 
   const snailHref = guildId ? `/snail/${guildId}` : "/snail";
+  const snailLabel = guildId ? "Snail Tools" : "Personal Snail";
   const snailActive = useMemo(() => {
     if (!router.asPath) return false;
     return router.asPath.startsWith("/snail");
@@ -113,6 +121,8 @@ export default function Layout({ guildId, children, title, hideSidebar = false }
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
+
+  const showGuildDebug = router.pathname !== "/";
 
   return (
     <>
@@ -289,7 +299,7 @@ export default function Layout({ guildId, children, title, hideSidebar = false }
                           : "1px solid transparent",
                       }}
                     >
-                      <span role="img" aria-label="snail">🐌</span> Snail Tools
+                      <span role="img" aria-label="snail">🐌</span> {snailLabel}
                     </a>
                   </Link>
                   <Link href="/chat" legacyBehavior>
@@ -369,6 +379,33 @@ export default function Layout({ guildId, children, title, hideSidebar = false }
       {/* Slime Chat bottom bar (shows for all logged-in users) */}
       {user && <SlimeChatBar guildId={guildId} />}
       <SlimeChatWidget />
+
+      {showGuildDebug && (
+        <div
+          style={{
+            position: "fixed",
+            right: 12,
+            bottom: 12,
+            zIndex: 60,
+            maxWidth: 520,
+            padding: "10px 12px",
+            borderRadius: 10,
+            background: "rgba(0,0,0,0.55)",
+            border: "1px solid rgba(255,255,255,0.12)",
+            color: "rgba(255,255,255,0.9)",
+            fontFamily:
+              'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
+            fontSize: 12,
+            lineHeight: 1.4,
+            whiteSpace: "pre-wrap",
+            wordBreak: "break-all",
+          }}
+        >
+          {`path: ${router.asPath || router.pathname || "(unknown)"}
+selectedGuildId: ${activeGuild.guildId || "(none)"}
+selectedGuildSource: ${activeGuild.source}`}
+        </div>
+      )}
     </>
   );
 }

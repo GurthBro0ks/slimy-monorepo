@@ -16,6 +16,8 @@ bun.lockb
 # Local env overrides
 .env
 .env.*
+/.env.local
+/apps/*/.env.local
 !.env.example
 !.env.docker.example
 !.env.test.example

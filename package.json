@@ -6,6 +6,8 @@
     "packages/*"
   ],
   "scripts": {
+    "env:check": "tsx scripts/env-check.ts",
+    "env:sync": "tsx scripts/env-sync.ts && pnpm env:check",
     "smoke:docker": "bash scripts/smoke/docker-smoke.sh",
     "dev:web": "pnpm --filter @slimy/web run dev",
     "dev:admin-api": "pnpm --filter @slimy/admin-api run dev",

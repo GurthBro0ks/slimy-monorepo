@@ -3,29 +3,16 @@
 const express = require("express");
 const { requireAuth } = require("../middleware/auth");
 const prismaDatabase = require("../lib/database");
+const { getSharedGuildsForUser } = require("../services/discord-shared-guilds");
 
 const router = express.Router();
-const DISCORD_GUILDS_URL = "https://discord.com/api/users/@me/guilds";
-const ADMIN_PERMISSION = 0x8n;
-const MANAGE_GUILD_PERMISSION = 0x20n;
-
-function hasAdminOrManagePermission(permissions) {
-  if (permissions === undefined || permissions === null) return false;
-  try {
-    const permsBigInt = BigInt(permissions);
-    const isAdmin = (permsBigInt & ADMIN_PERMISSION) === ADMIN_PERMISSION;
-    const canManage = (permsBigInt & MANAGE_GUILD_PERMISSION) === MANAGE_GUILD_PERMISSION;
-    return isAdmin || canManage;
-  } catch {
-    return false;
-  }
-}
 
 router.get("/guilds", requireAuth, async (req, res) => {
   try {
     await prismaDatabase.initialize();
 
-    const userRecord = await prismaDatabase.findUserByDiscordId(req.user.id);
+    const lookupId = req.user.discordId || req.user.id;
+    const userRecord = await prismaDatabase.findUserByDiscordId(lookupId);
     if (!userRecord) {
       return res.status(404).json({ error: "user_not_found" });
     }
@@ -41,57 +28,23 @@ router.get("/guilds", requireAuth, async (req, res) => {
       return res.status(401).json({ error: "discord_token_expired" });
     }
 
-    const response = await fetch(DISCORD_GUILDS_URL, {
-      headers: { Authorization: `Bearer ${userRecord.discordAccessToken}` },
+    const guilds = await getSharedGuildsForUser({
+      discordAccessToken: userRecord.discordAccessToken,
+      userDiscordId: String(lookupId),
+      concurrency: 4,
     });
 
-    if (!response.ok) {
-      const body = await response.text().catch(() => "");
-      return res.status(response.status).json({
-        error: "discord_fetch_failed",
-        message: body || "Failed to fetch guilds from Discord",
-      });
-    }
+    return res.json({ guilds });
 
-    const guilds = await response.json();
-
-    const BOT_TOKEN = (process.env.DISCORD_BOT_TOKEN || "").trim();
-    const botGuildIds = new Set();
-
-    if (BOT_TOKEN) {
-      try {
-        const botGuildsResponse = await fetch(`https://discord.com/api/v10/users/@me/guilds?limit=200`, {
-          headers: { Authorization: `Bot ${BOT_TOKEN}` },
-        });
-
-        if (botGuildsResponse.ok) {
-          const botGuilds = await botGuildsResponse.json();
-          botGuilds.forEach((g) => botGuildIds.add(g.id));
-        } else {
-          console.warn("[discord/guilds] Failed to fetch bot guilds:", botGuildsResponse.status, await botGuildsResponse.text());
-        }
-      } catch (err) {
-        console.error("[discord/guilds] Error filtering guilds:", err);
-      }
-    } else {
-      console.warn("[discord/guilds] DISCORD_BOT_TOKEN not configured, unable to determine bot membership");
-    }
-
-    const sanitized = Array.isArray(guilds)
-      ? guilds
-        .filter((guild) => hasAdminOrManagePermission(guild?.permissions))
-        .map((guild) => ({
-          id: guild.id,
-          name: guild.name,
-          icon: guild.icon,
-          permissions: guild.permissions,
-          botInGuild: botGuildIds.has(guild.id),
-        }))
-      : [];
-
-    return res.json({ guilds: sanitized });
   } catch (err) {
-    console.error("[discord/guilds] failed to fetch guilds", err);
+    const code = err?.code || err?.message || "server_error";
+    if (code === "MISSING_SLIMYAI_BOT_TOKEN") {
+      return res.status(500).json({ error: "MISSING_SLIMYAI_BOT_TOKEN" });
+    }
+    if (String(code).startsWith("discord_user_guilds_failed:") && err?.status) {
+      return res.status(err.status).json({ error: "discord_fetch_failed" });
+    }
+    console.error("[discord/guilds] failed to fetch shared guilds", { code });
     return res.status(500).json({ error: "server_error" });
   }
 });

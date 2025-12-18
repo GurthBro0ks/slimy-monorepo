@@ -19,6 +19,7 @@ export default async function handler(req, res) {
         "x-forwarded-host": forwardedHost,
       },
     });
+    const requestId = upstreamRes.headers.get("x-request-id") || null;
 
     let upstream;
     try {
@@ -32,15 +33,16 @@ export default async function handler(req, res) {
         ok: false,
         error: `Upstream returned ${upstreamRes.status}`,
         upstream,
+        requestId,
         ts: new Date().toISOString(),
       });
       return;
     }
 
+    if (requestId) res.setHeader("X-Request-ID", requestId);
     res.status(200).json({ ok: true, upstream, ts: new Date().toISOString() });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     res.status(502).json({ ok: false, error: message, ts: new Date().toISOString() });
   }
 }
-

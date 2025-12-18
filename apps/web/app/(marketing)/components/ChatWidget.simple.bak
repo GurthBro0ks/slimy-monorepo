@@ -51,7 +51,7 @@ export function ChatWidget({ open, onClose, onOpen }: ChatWidgetProps) {
   };
 
   const handleLogin = () => {
-    window.location.href = '/api/auth/discord/login';
+    window.location.href = '/api/auth/login';
   };
 
   return (
