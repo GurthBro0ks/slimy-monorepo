@@ -10,6 +10,23 @@ ENV_FILE="${ENV_FILE:-.env.local}"
 
 log() { printf '%s\n' "$*"; }
 
+cleanup_legacy_named_containers() {
+  local allowed_re='^([0-9A-Za-z._-]+_)?(slimy-admin-api|slimy-web|slimy-admin-ui)$'
+  local offenders
+  offenders="$(docker ps -a --format '{{.Names}}' 2>/dev/null | awk 'NF' || true)"
+  if [[ -z "${offenders}" ]]; then
+    return 0
+  fi
+
+  while IFS= read -r name; do
+    [[ -z "${name}" ]] && continue
+    if [[ "${name}" =~ ${allowed_re} ]]; then
+      log "Removing legacy container by name: ${name}"
+      docker rm -f "${name}" >/dev/null 2>&1 || true
+    fi
+  done <<<"${offenders}"
+}
+
 compose() {
   if [[ -f "$ENV_FILE" ]]; then
     docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" "$@"
@@ -70,7 +87,7 @@ cleanup_legacy_port() {
       docker rm -f "${name}" >/dev/null
     else
       log "Port ${port} is already allocated by non-legacy container: ${name}"
-      return 1
+      return 2
     fi
   done <<<"${offenders}"
 
@@ -80,6 +97,32 @@ cleanup_legacy_port() {
     log "Port ${port} still in use after cleanup: ${offenders}"
     return 1
   fi
+}
+
+ensure_legacy_ports_free() {
+  local attempts="${1:-10}"
+  local sleep_s="${2:-1}"
+  shift 2 || true
+
+  local port
+  for port in "$@"; do
+    local i
+    local status=0
+    for ((i = 1; i <= attempts; i++)); do
+      cleanup_legacy_port "$port"
+      status=$?
+      if (( status == 0 )); then
+        break
+      fi
+      if (( status == 2 )); then
+        return 2
+      fi
+      if (( i == attempts )); then
+        return 1
+      fi
+      sleep "$sleep_s"
+    done
+  done
 }
 
 retry() {
@@ -118,19 +161,21 @@ fi
 
 preflight
 
-compose down --remove-orphans || true
-
-cleanup_legacy_port 3080
-cleanup_legacy_port 3000
-cleanup_legacy_port 3001
-
 if [[ ! -f "$ENV_FILE" && -f .env.docker.example ]]; then
   log "No ${ENV_FILE} found; creating from .env.docker.example (local-only, ignored by git)"
   cp .env.docker.example "$ENV_FILE"
 fi
 
+log "Building images (pre-build to reduce port-race windows)..."
+compose build admin-api web admin-ui
+
+compose down --remove-orphans || true
+
+cleanup_legacy_named_containers
+ensure_legacy_ports_free 15 1 3080 3000 3001
+
 log "Bringing up baseline stack (db admin-api web admin-ui)..."
-compose up -d --build db admin-api web admin-ui
+compose up -d db admin-api web admin-ui
 
 log "Waiting for endpoints..."
 retry "admin-api /api/health" "curl -fsS http://127.0.0.1:3080/api/health" 60 2
