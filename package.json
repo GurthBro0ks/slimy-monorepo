@@ -9,6 +9,7 @@
     "env:check": "tsx scripts/env-check.ts",
     "env:sync": "tsx scripts/env-sync.ts && pnpm env:check",
     "smoke:docker": "bash scripts/smoke/docker-smoke.sh",
+    "stability:gate": "bash scripts/smoke/stability-gate.sh",
     "dev:web": "pnpm --filter @slimy/web run dev",
     "dev:admin-api": "pnpm --filter @slimy/admin-api run dev",
     "dev:admin-ui": "pnpm --filter @slimy/admin-ui run dev",
