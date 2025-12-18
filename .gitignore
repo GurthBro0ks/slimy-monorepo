@@ -23,3 +23,6 @@ bun.lockb
 !.env.test.example
 !apps/web/.env.test.example
 apps/web/.env.test.local
+
+# Stability gate reports (generated)
+docs/ops/STABILITY_REPORT_*.md
