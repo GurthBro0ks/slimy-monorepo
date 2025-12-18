@@ -7,6 +7,11 @@ Protocol: Flight Recorder: STABILITY GATE POLISH (Friendly Errors + `--full` mod
 - Script: `scripts/smoke/stability-gate.sh`
 - Goal: polish UX for unreachable local services + add optional `--full` deeper checks
 
+## META
+- Branch: `nuc2/verify-role-b33e616`
+- Baseline HEAD: `328784a` (`docs: add verification results to stability gate buglog`)
+- Final HEAD: `5bc311f` (`chore: polish stability gate + add --full mode`)
+
 ## A) BASELINE EVIDENCE (no code changes)
 
 ```text
