@@ -10,7 +10,7 @@ Protocol: Flight Recorder: STABILITY GATE POLISH (Friendly Errors + `--full` mod
 ## META
 - Branch: `nuc2/verify-role-b33e616`
 - Baseline HEAD: `328784a` (`docs: add verification results to stability gate buglog`)
-- Final HEAD: `5bc311f` (`chore: polish stability gate + add --full mode`)
+- Final HEAD: `41db404` (`docs: update stability gate polish buglog meta`)
 
 ## A) BASELINE EVIDENCE (no code changes)
 
