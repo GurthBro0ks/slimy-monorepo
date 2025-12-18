@@ -113,4 +113,61 @@ sed -n '229p' scripts/smoke/stability-gate.sh
 
 ---
 
+## Implementation Results (2025-12-18 18:02 UTC)
+
+### Changes Applied
+
+All proposed changes were successfully implemented:
+
+1. **EXIT trap handler** (lines 4-27): Copies report to `docs/ops/` only on failure
+2. **Report path changed** (line 44): Now writes to `/tmp/STABILITY_REPORT_${TS}_admin-oauth-guildgate.md`
+3. **Enhanced staging** (lines 207-212): Added explicit stability report exclusion + warning suppression
+4. **Early-exit logic** (lines 229-234): Exits 0 if nothing staged after exclusions
+5. **Clean commit message** (line 265): Removed report path reference from commit
+
+### Verification Results
+
+**Syntax Check:**
+```bash
+bash -n scripts/smoke/stability-gate.sh  # ✓ PASS (no errors)
+```
+
+**Functional Test (Success Scenario):**
+```bash
+./scripts/smoke/stability-gate.sh
+# Exit code: 0 ✓
+# Report location: /tmp/STABILITY_REPORT_2025-12-18_18-01-24_admin-oauth-guildgate.md ✓
+# Report NOT in docs/ops/ ✓
+# Commit message: "stability: oauth redirect + guild gate verification" (no report path) ✓
+# Files committed: docs/buglog/BUG_2025-12-18_stability-gate-report-hygiene.md, scripts/smoke/stability-gate.sh ✓
+```
+
+**Trap Handler Test (Failure Scenarios):**
+- Failed runs (17:57:46, 17:59:15): Reports correctly copied to `docs/ops/` ✓
+- Reports available in both `/tmp/` and `docs/ops/` for failed runs ✓
+
+**Git Commit:**
+- Commit: `52be8d3f08a34735614861f11246203d62a45c8c`
+- Branch: `nuc2/verify-role-b33e616`
+- Pushed: ✓
+- Changes: 158 insertions, 6 deletions (2 files changed)
+
+### Key Behavior Changes
+
+| Aspect | Before | After |
+|--------|--------|-------|
+| **Report location (success)** | `docs/ops/` | `/tmp/` (not tracked) |
+| **Report location (failure)** | `docs/ops/` | Copied to `docs/ops/` by trap |
+| **Staging behavior** | Relies on `.gitignore` | Explicit exclusion + .gitignore |
+| **Empty staging** | Would attempt commit | Exits 0 with "verification only" message |
+| **Commit message** | Includes report path | Clean, no report reference |
+
+### Edge Cases Verified
+
+1. **Backup file false positive**: Removed backup before run to avoid self-referential secret detection
+2. **Secret detection**: Still works correctly (paranoia checks preserved)
+3. **Trap activation**: Correctly fires on both success (exit 0) and failure (exit != 0)
+
+---
+
 **End of Buglog**
