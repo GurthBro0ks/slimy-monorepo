@@ -108,6 +108,13 @@ const mockDatabase = {
       avatar: null,
     };
 
+    const defaultCentralSettings = {
+      version: 1,
+      profile: {},
+      chat: {},
+      snail: { personalSheet: { enabled: false, sheetId: null } },
+    };
+
     return {
       guild: {
         create: jest.fn(() => Promise.resolve({ id: 'guild-123', discordId: '123', name: 'Test Guild' })),
@@ -135,6 +142,15 @@ const mockDatabase = {
           updatedAt: new Date(),
           _count: { userGuilds: 0, chatMessages: 0 },
         })),
+      },
+      guildSettings: {
+        findUnique: jest.fn(() => Promise.resolve({ guildId: "guild-123", data: defaultCentralSettings })),
+        upsert: jest.fn(({ where, update, create }) =>
+          Promise.resolve({
+            guildId: where?.guildId || create?.guildId || "guild-123",
+            data: update?.data || create?.data || defaultCentralSettings,
+          }),
+        ),
       },
       userGuild: {
         create: jest.fn(() => Promise.resolve({
@@ -167,6 +183,15 @@ const mockDatabase = {
         findUnique: jest.fn(() => Promise.resolve(ownerRecord)),
         upsert: jest.fn(() => Promise.resolve(ownerRecord)),
       },
+      userSettings: {
+        findUnique: jest.fn(() => Promise.resolve({ userId: ownerRecord.discordId, data: defaultCentralSettings })),
+        upsert: jest.fn(({ where, update, create }) =>
+          Promise.resolve({
+            userId: where?.userId || create?.userId || ownerRecord.discordId,
+            data: update?.data || create?.data || defaultCentralSettings,
+          }),
+        ),
+      },
     };
   }),
   findOrCreateGuild: jest.fn(),
@@ -185,6 +210,14 @@ const mockDatabase = {
   countGuildMembers: jest.fn(),
   updateUserGuildRoles: jest.fn(),
   findUserById: jest.fn(() => Promise.resolve({ id: 'user-123', discordId: '123', username: 'testuser' })),
+  findUserByDiscordId: jest.fn((discordId) =>
+    Promise.resolve({
+      id: "user-123",
+      discordId: String(discordId),
+      username: "testuser",
+      discordAccessToken: "test-access",
+    }),
+  ),
 };
 
 // Mock both possible paths to database module

@@ -40,7 +40,7 @@ export default function AuthMePage() {
   }, []);
 
   function handleLogin() {
-    window.location.href = "/api/admin-api/api/auth/login?returnTo=%2Fdashboard";
+    window.location.href = "/login";
   }
 
   const isUnauthorized = state.status === 401;

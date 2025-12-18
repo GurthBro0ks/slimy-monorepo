@@ -15,7 +15,7 @@ interface LoginButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement>
  */
 export function LoginButton({
   label = "Login with Discord",
-  href = "/api/auth/discord/login",
+  href = "/api/auth/login",
   className,
   disabled,
   ...props

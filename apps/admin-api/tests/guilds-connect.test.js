@@ -9,6 +9,8 @@ const requestIdMiddleware = require("../src/middleware/request-id");
 const guildService = require("../src/services/guild.service");
 const database = require("../src/lib/database");
 
+global.fetch = jest.fn();
+
 function buildTestApp(userOverrides = {}) {
   const app = express();
 
@@ -40,6 +42,7 @@ function buildTestApp(userOverrides = {}) {
 describe("POST /api/guilds/connect", () => {
   const authCookie = "slimy_admin=valid-token";
   const frontendPayload = { guildId: "guild-1", name: "Guild One", icon: "icon.png" };
+  const SLIMYAI_BOT_TOKEN = "mock-slimyai-bot-token";
 
   const app = buildTestApp();
   let mockPrisma;
@@ -47,6 +50,33 @@ describe("POST /api/guilds/connect", () => {
   let guildRecord;
 
   beforeEach(() => {
+    process.env.SLIMYAI_BOT_TOKEN = SLIMYAI_BOT_TOKEN;
+    database.findUserByDiscordId = jest.fn().mockResolvedValue({
+      id: "discord-user-1",
+      discordAccessToken: "mock-access-token",
+    });
+
+    fetch.mockImplementation((url, options) => {
+      if (url === "https://discord.com/api/v10/users/@me/guilds") {
+        if (options?.headers?.Authorization !== "Bearer mock-access-token") {
+          return Promise.resolve({ ok: false, status: 401 });
+        }
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve([{ id: "guild-1", name: "Guild One", icon: "icon.png" }]),
+        });
+      }
+
+      if (url === "https://discord.com/api/v10/guilds/guild-1") {
+        if (options?.headers?.Authorization !== `Bot ${SLIMYAI_BOT_TOKEN}`) {
+          return Promise.resolve({ ok: false, status: 401 });
+        }
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ id: "guild-1" }) });
+      }
+
+      return Promise.reject(new Error(`Unknown URL: ${url}`));
+    });
+
     ownerRecord = {
       id: "db-admin-1",
       discordId: "discord-user-1",
@@ -97,7 +127,7 @@ describe("POST /api/guilds/connect", () => {
     const res = await postConnect();
     if (res.status !== 200) {
       // Aid debugging if the API returns an unexpected error during tests
-      // eslint-disable-next-line no-console
+       
       console.log("connect response", res.status, res.body);
     }
     expect(res.status).toBe(200);
@@ -112,7 +142,7 @@ describe("POST /api/guilds/connect", () => {
     await postConnect().expect(200);
     const res = await postConnect();
     if (res.status !== 200) {
-      // eslint-disable-next-line no-console
+       
       console.log("repeat connect response", res.status, res.body);
     }
     expect(res.status).toBe(200);
@@ -123,7 +153,7 @@ describe("POST /api/guilds/connect", () => {
   test("should return 400 if guild ID is missing", async () => {
     const res = await postConnect({ name: "Guild One", icon: null });
     if (res.status !== 400) {
-      // eslint-disable-next-line no-console
+       
       console.log("missing guildId response", res.status, res.body);
     }
     expect(res.status).toBe(400);

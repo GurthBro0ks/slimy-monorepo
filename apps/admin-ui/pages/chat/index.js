@@ -5,6 +5,8 @@ import Layout from "../../components/Layout";
 import { useSession } from "../../lib/session";
 import { getSocket, disconnectSocket } from "../../lib/socket";
 import { useRouter } from "next/router";
+import { useActiveGuild } from "../../lib/active-guild";
+import { useGatedGuilds } from "../../lib/gated-guilds";
 
 const ROLE_COLORS = {
   member: "#3b82f6",
@@ -24,7 +26,9 @@ function formatTime(value) {
 export default function SlimeChatPage() {
   const { user, loading } = useSession();
   const router = useRouter();
-  const [guildId, setGuildId] = useState("");
+  const activeGuild = useActiveGuild({ router });
+  const gated = useGatedGuilds();
+  const guildId = activeGuild.guildId;
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [open, setOpen] = useState(true);
@@ -33,18 +37,26 @@ export default function SlimeChatPage() {
   const listRef = useRef(null);
 
   const isAdmin = user?.role === "admin";
+  const hasAccess = useMemo(() => {
+    if (!guildId) return false;
+    const list = Array.isArray(gated.guilds) ? gated.guilds : [];
+    return list.some((g) => String(g.id) === String(guildId));
+  }, [gated.guilds, guildId]);
 
   useEffect(() => {
-    if (!loading && user && user.guilds?.length && !guildId) {
-      setGuildId(String(user.guilds[0].id));
+    if (loading) return;
+    if (!user) {
+      router.replace("/");
+      return;
     }
-  }, [loading, user, guildId]);
-
-  useEffect(() => {
-    if (!loading && user && user.role === "member" && !user.guilds?.length) {
-      router.replace("/snail");
+    if (!guildId) {
+      router.replace("/guilds");
+      return;
     }
-  }, [loading, user, router]);
+    if (!gated.loading && !hasAccess) {
+      router.replace("/guilds");
+    }
+  }, [loading, gated.loading, user, guildId, hasAccess, router]);
 
   useEffect(() => {
     const socket = getSocket();
@@ -117,20 +129,21 @@ export default function SlimeChatPage() {
   }, [guildId, input, user, adminOnly]);
 
   const header = useMemo(() => {
-    const guild = user?.guilds?.find((g) => String(g.id) === String(guildId));
-    return guild ? guild.name : "Chat";
-  }, [user, guildId]);
+    const list = Array.isArray(gated.guilds) ? gated.guilds : [];
+    const guild = list.find((g) => String(g.id) === String(guildId));
+    return guild ? guild.name : guildId ? `Guild ${guildId}` : "Chat";
+  }, [gated.guilds, guildId]);
 
-  if (loading) {
+  if (loading || gated.loading) {
     return (
-      <Layout title="Slime Chat">
+      <Layout title="Slime Chat" guildId={guildId || undefined}>
         <div className="card" style={{ padding: "1.25rem" }}>Loading…</div>
       </Layout>
     );
   }
 
   return (
-    <Layout title="Slime Chat">
+    <Layout title="Slime Chat" guildId={guildId || undefined}>
       <div style={{ maxWidth: 900, margin: "0 auto", width: "100%", display: "grid", gap: "0.75rem", minHeight: "calc(100vh - 200px)" }}>
         <div style={{ display: "flex", justifyContent: "flex-end" }}>
           <button className="btn outline" onClick={() => setOpen((v) => !v)} style={{ padding: "0.35rem 0.9rem" }}>
@@ -141,16 +154,14 @@ export default function SlimeChatPage() {
           <div className="card" style={{ display: "flex", flexDirection: "column", gap: "0.75rem", flex: 1, minHeight: "60vh" }}>
             <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "1rem", flexWrap: "wrap" }}>
               <div>
-                <h3 style={{ margin: 0 }}>Slime Chat</h3>
+                <h3 style={{ margin: 0 }}>{header}</h3>
                 <div style={{ opacity: 0.7, fontSize: "0.9rem" }}>Connected as {user?.globalName || user?.username}</div>
+                <div style={{ opacity: 0.7, fontSize: "0.85rem" }}>
+                  <a href="/guilds" style={{ textDecoration: "underline" }}>Change guild</a>
+                  {" · "}
+                  selected via <span style={{ fontFamily: "monospace" }}>{activeGuild.source}</span>
+                </div>
               </div>
-              <select className="select" value={guildId} onChange={(event) => setGuildId(event.target.value)}>
-                {(user?.guilds || []).map((guild) => (
-                  <option key={guild.id} value={guild.id}>
-                    {guild.name}
-                  </option>
-                ))}
-              </select>
             </header>
 
             <div

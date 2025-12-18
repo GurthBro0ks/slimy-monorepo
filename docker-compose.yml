@@ -38,6 +38,8 @@ services:
       DISCORD_REDIRECT_URI: ${DISCORD_REDIRECT_URI:-http://localhost:3001/api/admin-api/api/auth/callback}
       DISCORD_OAUTH_SCOPES: ${DISCORD_OAUTH_SCOPES:-identify guilds}
       DISCORD_BOT_TOKEN: ${DISCORD_BOT_TOKEN}
+      # Optional; if unset, app may fall back to DISCORD_BOT_TOKEN.
+      SLIMYAI_BOT_TOKEN: ${SLIMYAI_BOT_TOKEN:-}
 
       # Guild to enrich with Discord member role IDs (used for web role mapping: admin/club/user)
       ROLE_GUILD_ID: ${ROLE_GUILD_ID:-1176605506912141444}
@@ -98,7 +100,7 @@ services:
       HOSTNAME: "0.0.0.0"
       DATABASE_URL: mysql://${MYSQL_USER:-slimyai}:${MYSQL_PASSWORD:-slimypassword}@db:3306/${MYSQL_DATABASE:-slimyai}
       # Server-side calls from Next.js API routes need an internal network URL.
-      ADMIN_API_INTERNAL_URL: ${ADMIN_API_INTERNAL_URL:-http://admin-api:3080}
+      ADMIN_API_INTERNAL_URL: "http://admin-api:3080"
       NEXT_PUBLIC_ADMIN_API_BASE: ${NEXT_PUBLIC_ADMIN_API_BASE:-http://localhost:3080}
       NEXT_PUBLIC_SNELP_CODES_URL: ${NEXT_PUBLIC_SNELP_CODES_URL:-}
       NEXT_PUBLIC_PLAUSIBLE_DOMAIN: ${NEXT_PUBLIC_PLAUSIBLE_DOMAIN:-}
@@ -118,7 +120,9 @@ services:
       args:
         NEXT_PUBLIC_ADMIN_API_BASE: ${ADMIN_UI_API_BASE:-}
         NEXT_PUBLIC_ADMIN_API_PUBLIC_URL: ${NEXT_PUBLIC_ADMIN_API_PUBLIC_URL:-http://localhost:3080}
-        ADMIN_API_INTERNAL_URL: ${ADMIN_API_INTERNAL_URL:-http://admin-api:3080}
+        NEXT_PUBLIC_DISCORD_CLIENT_ID: ${NEXT_PUBLIC_DISCORD_CLIENT_ID:-}
+        NEXT_PUBLIC_DISCORD_REDIRECT_URI: ${NEXT_PUBLIC_DISCORD_REDIRECT_URI:-}
+        ADMIN_API_INTERNAL_URL: "http://admin-api:3080"
     restart: unless-stopped
     ports:
       - "3001:3000"
@@ -128,7 +132,9 @@ services:
       HOSTNAME: "0.0.0.0"
       NEXT_PUBLIC_ADMIN_API_BASE: ${ADMIN_UI_API_BASE:-}
       NEXT_PUBLIC_ADMIN_API_PUBLIC_URL: ${NEXT_PUBLIC_ADMIN_API_PUBLIC_URL:-http://localhost:3080}
-      ADMIN_API_INTERNAL_URL: ${ADMIN_API_INTERNAL_URL:-http://admin-api:3080}
+      NEXT_PUBLIC_DISCORD_CLIENT_ID: ${NEXT_PUBLIC_DISCORD_CLIENT_ID:-}
+      NEXT_PUBLIC_DISCORD_REDIRECT_URI: ${NEXT_PUBLIC_DISCORD_REDIRECT_URI:-}
+      ADMIN_API_INTERNAL_URL: "http://admin-api:3080"
     depends_on:
       admin-api:
         condition: service_healthy

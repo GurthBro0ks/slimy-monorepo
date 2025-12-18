@@ -1,9 +1,10 @@
-import type { Metadata } from "next";
+// import type { Metadata } from "next";
 import { RetroShell } from "@/components/layout/retro-shell";
 import { AppShell } from "@/components/layout/app-shell";
 // import { AuthProvider } from "@/lib/auth/auth-context"; // Original path was wrong
 import { AuthProvider } from "@/lib/auth/context";
 import { ChatProvider } from "@/components/retro-chat/chat-context";
+import { DebugDock } from "@/components/debug/DebugDock";
 // ... imports
 
 export default function RootLayout({
@@ -23,6 +24,7 @@ export default function RootLayout({
             <RetroShell>
               <AppShell>{children}</AppShell>
             </RetroShell>
+            <DebugDock />
           </ChatProvider>
         </AuthProvider>
       </body>

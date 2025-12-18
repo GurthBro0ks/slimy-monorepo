@@ -27,6 +27,7 @@ model User {
 
   // Relations
   sessions      Session[]
+  centralSettings UserSettings? @relation("UserCentralSettings")
   ownedGuilds   Guild[] @relation("GuildOwner")
   userGuilds    UserGuild[]
   conversations Conversation[]
@@ -46,6 +47,19 @@ model User {
   @@index([lastActiveGuildId])
 
   @@map("users")
+}
+
+// Central per-user settings (one row per User.id)
+model UserSettings {
+  // Store Discord user id (matches req.user.id / User.discordId)
+  userId    String   @id @map("user_id")
+  data      Json
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation("UserCentralSettings", fields: [userId], references: [discordId], onDelete: Cascade)
+
+  @@map("user_settings")
 }
 
 // User authentication sessions
@@ -80,6 +94,7 @@ model Guild {
 
   // Relations
   owner         User          @relation("GuildOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  centralSettings GuildSettings? @relation("GuildCentralSettings")
   userGuilds    UserGuild[]
   stats         Stat[]
   chatMessages  ChatMessage[]
@@ -92,6 +107,19 @@ model Guild {
   @@index([updatedAt])
 
   @@map("guilds")
+}
+
+// Central per-guild settings (one row per Guild.id / Discord guild ID)
+// NOTE: This is distinct from the legacy `guild_settings` table used by apps/admin-api/lib/guild-settings.js.
+model GuildSettings {
+  guildId   String   @id @map("guild_id")
+  data      Json
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  guild Guild @relation("GuildCentralSettings", fields: [guildId], references: [id], onDelete: Cascade)
+
+  @@map("guild_settings_central")
 }
 
 // Many-to-many relationship between users and guilds with roles

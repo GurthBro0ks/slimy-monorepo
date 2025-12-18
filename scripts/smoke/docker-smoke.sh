@@ -6,8 +6,17 @@ cd "$ROOT_DIR"
 
 COMPOSE_FILE="docker-compose.yml"
 export COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-slimy-monorepo}"
+ENV_FILE="${ENV_FILE:-.env.local}"
 
 log() { printf '%s\n' "$*"; }
+
+compose() {
+  if [[ -f "$ENV_FILE" ]]; then
+    docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" "$@"
+  else
+    docker compose -f "$COMPOSE_FILE" "$@"
+  fi
+}
 
 preflight() {
   if ! command -v docker >/dev/null 2>&1; then
@@ -51,7 +60,9 @@ cleanup_legacy_port() {
     return 0
   fi
 
-  local allowed_re='^(slimy-db|slimy-admin-api|slimy-web|slimy-admin-ui|slimy-bot)$'
+  # Allow both plain legacy names (slimy-admin-api) and compose-prefixed variants
+  # (e.g. b13ee04c20d2_slimy-admin-api) so old stacks can't block known ports.
+  local allowed_re='^([0-9A-Za-z._-]+_)?(slimy-db|slimy-admin-api|slimy-web|slimy-admin-ui|slimy-bot)$'
   while IFS= read -r name; do
     [[ -z "${name}" ]] && continue
     if [[ "${name}" =~ ${allowed_re} ]]; then
@@ -92,10 +103,10 @@ retry() {
 on_fail() {
   log ""
   log "=== docker compose ps ==="
-  docker compose -f "$COMPOSE_FILE" ps || true
+  compose ps || true
   log ""
   log "=== docker compose logs (tail=200) ==="
-  docker compose -f "$COMPOSE_FILE" logs --tail=200 db admin-api web admin-ui || true
+  compose logs --tail=200 db admin-api web admin-ui || true
 }
 
 trap 'on_fail' ERR
@@ -107,19 +118,19 @@ fi
 
 preflight
 
-docker compose -f "$COMPOSE_FILE" down --remove-orphans || true
+compose down --remove-orphans || true
 
 cleanup_legacy_port 3080
 cleanup_legacy_port 3000
 cleanup_legacy_port 3001
 
-if [[ ! -f .env && -f .env.docker.example ]]; then
-  log "No .env found; creating from .env.docker.example (local-only, ignored by git)"
-  cp .env.docker.example .env
+if [[ ! -f "$ENV_FILE" && -f .env.docker.example ]]; then
+  log "No ${ENV_FILE} found; creating from .env.docker.example (local-only, ignored by git)"
+  cp .env.docker.example "$ENV_FILE"
 fi
 
 log "Bringing up baseline stack (db admin-api web admin-ui)..."
-docker compose -f "$COMPOSE_FILE" up -d --build db admin-api web admin-ui
+compose up -d --build db admin-api web admin-ui
 
 log "Waiting for endpoints..."
 retry "admin-api /api/health" "curl -fsS http://127.0.0.1:3080/api/health" 60 2
@@ -152,7 +163,7 @@ log "OK: admin-ui /dashboard (HTTP $dashboard_code)"
 
 log ""
 log "Checking admin-ui /dashboard with synthetic auth cookie..."
-synthetic_token="$(docker compose exec -T admin-api node -e 'const jwt=require("jsonwebtoken"); const secret=process.env.JWT_SECRET; const token=jwt.sign({user:{id:"smoke-user",discordId:"smoke-user",username:"SmokeUser",globalName:"Smoke User",avatar:null,role:"admin",guilds:[]}}, secret, {algorithm:"HS256",expiresIn:3600}); process.stdout.write(token);')"
+synthetic_token="$(compose exec -T admin-api node -e 'const jwt=require("jsonwebtoken"); const secret=process.env.JWT_SECRET; const token=jwt.sign({user:{id:"smoke-user",discordId:"smoke-user",username:"SmokeUser",globalName:"Smoke User",avatar:null,role:"admin",guilds:[]}}, secret, {algorithm:"HS256",expiresIn:3600}); process.stdout.write(token);')"
 dashboard_authed_code="$(curl -sS -o /tmp/slimy-dashboard-authed.html -w "%{http_code}" -H "Cookie: slimy_admin_token=${synthetic_token}" "$dashboard_url")"
 if [[ "$dashboard_authed_code" == "500" || "$dashboard_authed_code" == "502" ]]; then
   log "FAIL: $dashboard_url (authed HTTP $dashboard_authed_code)"

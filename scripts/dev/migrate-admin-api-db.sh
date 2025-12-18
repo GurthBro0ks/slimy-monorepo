@@ -6,6 +6,16 @@ cd "$ROOT_DIR"
 
 log() { printf '%s\n' "$*"; }
 
+ENV_FILE="${ENV_FILE:-.env.local}"
+
+compose() {
+  if [[ -f "$ENV_FILE" ]]; then
+    docker compose --env-file "$ENV_FILE" "$@"
+  else
+    docker compose "$@"
+  fi
+}
+
 if [[ ! -f docker-compose.yml ]]; then
   log "ERROR: docker-compose.yml not found (run from repo root)"
   exit 2
@@ -24,12 +34,12 @@ fi
 log "Applying admin-api Prisma migrations (docker)..."
 
 # Ensure required services are up (no rebuild; use `docker compose up -d --build` separately if needed).
-docker compose up -d db admin-api >/dev/null
+compose up -d db admin-api >/dev/null
 
 # Retry a few times to handle "db not ready yet" on fresh boots.
 attempts=30
 for ((i = 1; i <= attempts; i++)); do
-  if docker compose exec -T admin-api sh -lc 'cd /app/apps/admin-api && pnpm -s prisma migrate deploy'; then
+  if compose exec -T admin-api sh -lc 'cd /app/apps/admin-api && pnpm -s prisma migrate deploy'; then
     log "OK: admin-api Prisma migrations applied"
     exit 0
   fi

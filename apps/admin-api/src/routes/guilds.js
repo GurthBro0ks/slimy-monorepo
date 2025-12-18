@@ -8,7 +8,6 @@ const { requireAuth } = require("../middleware/auth");
 const { requireCsrf } = require("../middleware/csrf");
 const { requireRole, requireGuildAccess } = require("../middleware/rbac");
 const { validateBody, validateQuery } = require("../middleware/validate");
-const settingsService = require("../services/settings");
 const personalityService = require("../services/personality");
 const channelService = require("../services/channels");
 const correctionsService = require("../services/corrections");
@@ -18,6 +17,17 @@ const { rescanMember } = require("../services/rescan");
 const { recordAudit } = require("../services/audit");
 const guildService = require("../services/guild.service");
 const { AuthenticationError } = require("../lib/errors");
+const prismaDatabase = require("../lib/database");
+const {
+  botInstalledInGuild,
+  getSharedGuildsForUser,
+  getSlimyBotToken,
+} = require("../services/discord-shared-guilds");
+const {
+  DEFAULT_VERSION,
+  defaultGuildSettings,
+  mergeSettings,
+} = require("../services/central-settings");
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -28,24 +38,110 @@ const upload = multer({
 
 const router = express.Router();
 
-const settingsSchema = z.object({
-  sheetUrl: z
-    .union([z.string().trim(), z.null()])
-    .optional()
-    .transform((val) => (val === "" ? null : val)),
-  weekWindowDays: z
-    .union([z.number().int().min(1).max(14), z.null()])
-    .optional(),
-  thresholds: z
-    .object({
-      warnLow: z.union([z.number(), z.null()]).optional(),
-      warnHigh: z.union([z.number(), z.null()]).optional(),
-    })
-    .partial()
-    .optional(),
-  tokensPerMinute: z.union([z.number().int().positive(), z.null()]).optional(),
-  testSheet: z.boolean().optional(),
-});
+const DISCORD_API_BASE = "https://discord.com/api/v10";
+const PRIMARY_GUILD_ID = "1176605506912141444";
+const ADMIN_ROLE_IDS = new Set(["1178129227321712701", "1216250443257217124"]);
+
+const ADMIN_PERMISSION = 0x8n;
+const MANAGE_GUILD_PERMISSION = 0x20n;
+
+function hasAdminOrManagePermission(permissions) {
+  if (permissions === undefined || permissions === null) return false;
+  try {
+    const permsBigInt = BigInt(permissions);
+    const isAdmin = (permsBigInt & ADMIN_PERMISSION) === ADMIN_PERMISSION;
+    const canManage = (permsBigInt & MANAGE_GUILD_PERMISSION) === MANAGE_GUILD_PERMISSION;
+    return isAdmin || canManage;
+  } catch {
+    return false;
+  }
+}
+
+async function fetchWith429Retry(url, options, maxRetries = 3) {
+  let attempt = 0;
+  while (true) {
+    const res = await fetch(url, options);
+    if (res.status !== 429 || attempt >= maxRetries) return res;
+    attempt += 1;
+    const retryAfter = Number(res.headers?.get?.("retry-after") || "1");
+    await new Promise((r) => setTimeout(r, Math.max(250, Math.min(10_000, retryAfter * 1000))));
+  }
+}
+
+async function fetchUserGuilds(discordAccessToken) {
+  const res = await fetch(`${DISCORD_API_BASE}/users/@me/guilds`, {
+    headers: { Authorization: `Bearer ${discordAccessToken}` },
+  });
+  if (!res.ok) {
+    const err = new Error(`discord_user_guilds_failed:${res.status}`);
+    err.status = res.status;
+    throw err;
+  }
+  const guilds = await res.json();
+  return Array.isArray(guilds) ? guilds : [];
+}
+
+async function fetchMemberRoles(guildId, userDiscordId, botToken) {
+  const res = await fetchWith429Retry(
+    `${DISCORD_API_BASE}/guilds/${guildId}/members/${userDiscordId}`,
+    { headers: { Authorization: `Bot ${botToken}` } },
+  );
+  if (!res.ok) return null;
+  const member = await res.json().catch(() => null);
+  const roles = member?.roles;
+  return Array.isArray(roles) ? roles.map(String) : [];
+}
+
+function canManageByPrimaryRoles(roleIds) {
+  const roles = new Set((roleIds || []).map(String));
+  return [...ADMIN_ROLE_IDS].some((id) => roles.has(String(id)));
+}
+
+async function requireGuildSettingsAdmin(req) {
+  const guildId = String(req.params.guildId || "");
+  const userDiscordId = String(req.user?.discordId || req.user?.id || "");
+  if (!guildId || !userDiscordId) {
+    return { ok: false, status: 401, error: "unauthorized" };
+  }
+
+  const botToken = getSlimyBotToken();
+  if (!botToken) {
+    return { ok: false, status: 500, error: "MISSING_SLIMYAI_BOT_TOKEN" };
+  }
+
+  const botInGuild = await botInstalledInGuild(guildId, botToken);
+  if (!botInGuild) {
+    return { ok: false, status: 403, error: "BOT_NOT_IN_GUILD" };
+  }
+
+  await prismaDatabase.initialize();
+  const userRecord = await prismaDatabase.findUserByDiscordId(userDiscordId);
+  if (!userRecord) {
+    return { ok: false, status: 404, error: "user_not_found" };
+  }
+  if (!userRecord.discordAccessToken) {
+    return { ok: false, status: 400, error: "missing_discord_token" };
+  }
+
+  if (guildId === PRIMARY_GUILD_ID) {
+    const roles = await fetchMemberRoles(PRIMARY_GUILD_ID, userDiscordId, botToken);
+    if (roles) {
+      return canManageByPrimaryRoles(roles)
+        ? { ok: true, roleSource: "roles" }
+        : { ok: false, status: 403, error: "forbidden" };
+    }
+  }
+
+  const guilds = await fetchUserGuilds(userRecord.discordAccessToken);
+  const g = guilds.find((entry) => String(entry?.id) === guildId);
+  if (!g) {
+    return { ok: false, status: 403, error: "USER_NOT_IN_GUILD" };
+  }
+  const allowed = Boolean(g.owner) || hasAdminOrManagePermission(g.permissions);
+  return allowed
+    ? { ok: true, roleSource: "permissions" }
+    : { ok: false, status: 403, error: "forbidden" };
+}
 
 const personalitySchema = z.object({
   profile: z.record(z.any()).default({}),
@@ -89,8 +185,33 @@ const usageQuerySchema = z.object({
 
 router.use(requireAuth);
 
-router.get("/", (req, res) => {
-  res.json({ guilds: req.user.guilds || [] });
+router.get("/", async (req, res) => {
+  try {
+    await prismaDatabase.initialize();
+    const lookupId = req.user.discordId || req.user.id;
+    const userRecord = await prismaDatabase.findUserByDiscordId(lookupId);
+    if (!userRecord) {
+      return res.status(404).json({ error: "user_not_found" });
+    }
+    if (!userRecord.discordAccessToken) {
+      return res.status(400).json({ error: "missing_discord_token" });
+    }
+
+    const guilds = await getSharedGuildsForUser({
+      discordAccessToken: userRecord.discordAccessToken,
+      userDiscordId: String(lookupId),
+      concurrency: 4,
+    });
+
+    return res.json({ guilds });
+  } catch (err) {
+    const code = err?.code || err?.message || "server_error";
+    if (code === "MISSING_SLIMYAI_BOT_TOKEN") {
+      return res.status(500).json({ error: "MISSING_SLIMYAI_BOT_TOKEN" });
+    }
+    console.error("[guilds] failed to fetch shared guilds", { code });
+    return res.status(500).json({ error: "server_error" });
+  }
 });
 
 router.post(
@@ -106,6 +227,44 @@ router.post(
       const userId = guildService.resolveUserId(req.user);
       if (!userId) {
         throw new AuthenticationError("User session missing id");
+      }
+
+      // Enforce shared-only connection
+      const SLIMYAI_BOT_TOKEN = getSlimyBotToken();
+      if (!SLIMYAI_BOT_TOKEN) {
+        console.error("[guilds/connect] Missing SLIMYAI_BOT_TOKEN");
+        return res.status(500).json({ error: "MISSING_SLIMYAI_BOT_TOKEN" });
+      }
+
+      await prismaDatabase.initialize();
+      const lookupId = req.user.discordId || req.user.id;
+      const userRecord = await prismaDatabase.findUserByDiscordId(lookupId);
+      
+      if (!userRecord || !userRecord.discordAccessToken) {
+        return res.status(401).json({ error: "UNAUTHENTICATED" });
+      }
+
+      // Fetch User Guilds
+      const userGuildsResponse = await fetch("https://discord.com/api/v10/users/@me/guilds", {
+        headers: { Authorization: `Bearer ${userRecord.discordAccessToken}` },
+      });
+
+      if (!userGuildsResponse.ok) {
+        return res.status(userGuildsResponse.status).json({ error: "DISCORD_USER_GUILDS_FAILED" });
+      }
+      const userGuilds = await userGuildsResponse.json();
+      const userInGuild = userGuilds.some(g => g.id === req.validated.body.guildId);
+
+      if (!userInGuild) {
+        return res.status(403).json({ error: "USER_NOT_IN_GUILD" });
+      }
+
+      const botInGuild = await botInstalledInGuild(
+        String(req.validated.body.guildId),
+        SLIMYAI_BOT_TOKEN,
+      );
+      if (!botInGuild) {
+        return res.status(403).json({ error: "BOT_NOT_IN_GUILD" });
       }
 
       const guild = await guildService.connectGuild(
@@ -152,7 +311,7 @@ router.get(
         userRole = 'ADMIN';
       } else {
         // Check UserGuild for roles
-        const userGuild = await guildService.checkPermission(req.user.id, guildId, 'view_members'); // Just to get the record? No, checkPermission returns boolean.
+        // Note: checkPermission returns a boolean, so we just call it below.
 
         // We need to fetch UserGuild directly to check roles.
         // But wait, the prompt says: "When fetching a guild, calculate the user's role based on their Discord Permissions in that guild."
@@ -175,43 +334,94 @@ router.get(
 
 router.get(
   "/:guildId/settings",
-  requireGuildAccess,
   async (req, res, next) => {
     try {
-      const result = await settingsService.getSettings(req.params.guildId, {
-        includeTest: req.query.test === "true",
+      const authz = await requireGuildSettingsAdmin(req, res);
+      if (!authz.ok) {
+        return res.status(authz.status || 403).json({ ok: false, error: authz.error });
+      }
+
+      await prismaDatabase.initialize();
+      const prisma = prismaDatabase.getClient();
+      const guildId = String(req.params.guildId);
+
+      const guild = await prisma.guild.findUnique({ where: { id: guildId } });
+      if (!guild) {
+        return res.status(404).json({ ok: false, error: "guild_not_connected" });
+      }
+
+      const record = await prisma.guildSettings.upsert({
+        where: { guildId },
+        update: {},
+        create: {
+          guildId,
+          data: defaultGuildSettings(),
+        },
       });
-      res.json(result);
+
+      const settings = record?.data || defaultGuildSettings();
+      const version = Number.isFinite(Number(settings?.version))
+        ? Number(settings.version)
+        : DEFAULT_VERSION;
+
+      return res.json({ ok: true, settings, version, roleSource: authz.roleSource || null });
     } catch (err) {
       next(err);
     }
   },
 );
 
-router.put(
-  "/:guildId/settings",
-  requireGuildAccess,
-  requireRole("editor"),
-  requireCsrf,
-  validateBody(settingsSchema),
-  async (req, res, next) => {
-    try {
-      const result = await settingsService.updateSettings(
-        req.params.guildId,
-        req.validated.body,
-      );
-      await recordAudit({
-        adminId: req.user.sub,
-        action: "guild.settings.update",
-        guildId: req.params.guildId,
-        payload: req.validated.body,
-      });
-      res.json(result);
-    } catch (err) {
-      next(err);
+async function updateCentralGuildSettings(req, res, next) {
+  try {
+    const authz = await requireGuildSettingsAdmin(req, res);
+    if (!authz.ok) {
+      return res.status(authz.status || 403).json({ ok: false, error: authz.error });
     }
-  },
-);
+
+    const patch = req.body;
+    if (!patch || typeof patch !== "object" || Array.isArray(patch)) {
+      return res.status(400).json({ ok: false, error: "invalid_patch" });
+    }
+
+    await prismaDatabase.initialize();
+    const prisma = prismaDatabase.getClient();
+    const guildId = String(req.params.guildId);
+
+    const guild = await prisma.guild.findUnique({ where: { id: guildId } });
+    if (!guild) {
+      return res.status(404).json({ ok: false, error: "guild_not_connected" });
+    }
+
+    const existing = await prisma.guildSettings.findUnique({ where: { guildId } });
+    const current = existing?.data || defaultGuildSettings();
+    const nextSettings = mergeSettings(current, patch);
+
+    const record = await prisma.guildSettings.upsert({
+      where: { guildId },
+      update: { data: nextSettings },
+      create: { guildId, data: nextSettings },
+    });
+
+    await recordAudit({
+      adminId: req.user?.sub || req.user?.id || null,
+      action: "guild.settings.update",
+      guildId,
+      payload: Object.keys(patch || {}).sort(),
+    });
+
+    const settings = record?.data || nextSettings;
+    const version = Number.isFinite(Number(settings?.version))
+      ? Number(settings.version)
+      : DEFAULT_VERSION;
+    return res.json({ ok: true, settings, version, roleSource: authz.roleSource || null });
+  } catch (err) {
+    next(err);
+  }
+}
+
+router.patch("/:guildId/settings", requireCsrf, express.json(), updateCentralGuildSettings);
+// Back-compat for existing clients using PUT
+router.put("/:guildId/settings", requireCsrf, express.json(), updateCentralGuildSettings);
 
 router.get(
   "/:guildId/personality",

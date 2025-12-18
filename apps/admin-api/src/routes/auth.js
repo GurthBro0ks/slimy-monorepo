@@ -5,6 +5,8 @@ const config = require("../config");
 const prismaDatabase = require("../lib/database");
 const { signSession, setAuthCookie, clearAuthCookie } = require("../lib/jwt");
 const { getCookieOptions } = require("../services/token");
+const { defaultUserSettings } = require("../services/central-settings");
+const { resolvePostLoginRedirectUrl } = require("../lib/auth/post-login-redirect");
 const router = express.Router();
 
 console.log("!!! AUTH LOGIC LOADED v303 (DATA INTEGRITY) !!!");
@@ -350,6 +352,23 @@ router.get("/callback", async (req, res) => {
         },
       });
 
+      // Ensure central UserSettings exists (best-effort; never block login)
+      try {
+        await prisma.userSettings.upsert({
+          where: { userId: String(dbUser.discordId) },
+          update: {},
+          create: {
+            userId: String(dbUser.discordId),
+            data: defaultUserSettings(),
+          },
+        });
+      } catch (err) {
+        console.warn("[auth/callback] UserSettings upsert failed", {
+          userId: String(dbUser.discordId),
+          error: err?.message || String(err),
+        });
+      }
+
       let guildUpsertsOk = 0;
       let guildUpsertsFailed = 0;
       let membershipUpsertsOk = 0;
@@ -454,19 +473,17 @@ router.get("/callback", async (req, res) => {
     const cookieReturnTo = req.cookies?.oauth_return_to;
     clearCookie(req, res, "oauth_return_to");
 
-    const successRedirect =
-      (config.ui && config.ui.successRedirect) || "https://slimyai.xyz/dashboard";
+    const redirectUrl = resolvePostLoginRedirectUrl({
+      cookieRedirectUri: cookieRedirectUri || "",
+      headers: req.headers || {},
+      returnToCookie: cookieReturnTo,
+      allowedOrigins: getAllowedOrigins(),
+      isLocalOrigin,
+      clientUrl: config.clientUrl,
+      defaultPath: "/guilds",
+    });
 
-    const origin = getRequestOrigin(req);
-    const allowed = getAllowedOrigins();
-    const originAllowed = isLocalOrigin(origin) || !allowed.length || allowed.includes(origin);
-    const originDashboard = originAllowed ? new URL("/dashboard", origin).toString() : null;
-
-    const returnToPath = normalizeReturnToPath(cookieReturnTo);
-    const returnToUrl =
-      originAllowed && returnToPath ? new URL(returnToPath, origin).toString() : null;
-
-    return res.redirect(returnToUrl || originDashboard || successRedirect);
+    return res.redirect(redirectUrl);
   } catch (err) {
     console.error("[auth/callback] CRITICAL ERROR:", err);
     return res.redirect("/?error=server_error");
