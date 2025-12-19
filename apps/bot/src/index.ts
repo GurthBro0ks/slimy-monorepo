@@ -11,8 +11,11 @@
  * - Implement club analytics features
  */
 
-import { parseNumber, isValidSnowflake } from './utils/parsing';
-import { calculateClubStats } from './utils/stats';
+import { resolve } from 'path';
+import { fileURLToPath } from 'url';
+
+import { parseNumber, isValidSnowflake } from './utils/parsing.js';
+import { calculateClubStats } from './utils/stats.js';
 
 async function main() {
   console.log('[bot] Starting Slimy Discord Bot (scaffold mode)...');
@@ -39,6 +42,8 @@ async function main() {
 
   console.log('[bot] Scaffold initialization complete');
   console.log('[bot] Waiting for actual bot implementation...');
+  // Keep the process alive while the scaffold mode is running.
+  setInterval(() => {}, 60_000);
 }
 
 // Handle graceful shutdown
@@ -52,8 +57,10 @@ process.on('SIGTERM', () => {
   process.exit(0);
 });
 
+const isMain = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+
 // Run if this is the main module
-if (require.main === module) {
+if (isMain) {
   main().catch(error => {
     console.error('[bot] Fatal error:', error);
     process.exit(1);
