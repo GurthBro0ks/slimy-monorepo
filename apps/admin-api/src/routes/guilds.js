@@ -639,12 +639,36 @@ router.get(
 router.get(
   "/:guildId/health",
   requireGuildAccess,
-  async (req, res, next) => {
+  async (req, res) => {
     try {
       const result = await healthService.getHealth(req.params.guildId);
-      res.json(result);
+      res.json({ ok: true, ...result });
     } catch (err) {
-      next(err);
+      const message = err?.message || String(err);
+      console.warn(`[guilds/:guildId/health] Error for guild ${req.params.guildId}:`, message);
+
+      // Return structured error response instead of 500
+      if (message.includes("Database not configured") || message.includes("not connected")) {
+        return res.status(503).json({
+          ok: false,
+          error: "database_unavailable",
+          message: "Database is not available",
+        });
+      }
+
+      // For other errors, still return structured JSON (not 500)
+      return res.status(200).json({
+        ok: false,
+        error: "health_check_failed",
+        message: "Could not retrieve health data",
+        guildId: req.params.guildId,
+        members: 0,
+        totalPower: 0,
+        simPower: 0,
+        latestAt: null,
+        lastSnapshotAt: null,
+        lastSheetPushAt: null,
+      });
     }
   },
 );
