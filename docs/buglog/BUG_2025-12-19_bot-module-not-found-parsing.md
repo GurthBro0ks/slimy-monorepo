@@ -547,3 +547,92 @@ bot-1  | [bot] Waiting for actual bot implementation...
 ```
 
 ready to move on
+
+## 2025-12-19 - bot-healthcheck-and-keepalive-polish
+
+### Baseline
+```bash
+git status -sb
+git log -1 --oneline
+docker compose ps bot || true
+docker compose logs --tail 80 bot || true
+```
+
+```text
+## nuc2/verify-role-b33e616...origin/nuc2/verify-role-b33e616
+9ccbbfc (HEAD -> nuc2/verify-role-b33e616, origin/nuc2/verify-role-b33e616) fix: bot ESM import resolution (parsing)
+NAME                   IMAGE                COMMAND                  SERVICE   CREATED         STATUS         PORTS
+slimy-monorepo-bot-1   slimy-monorepo-bot   "docker-entrypoint.s…"   bot       6 minutes ago   Up 6 minutes
+bot-1  | [bot] Starting Slimy Discord Bot (scaffold mode)...
+bot-1  | [bot] Configuration validated
+bot-1  | [bot] Utils available: {
+bot-1  |   parseNumber: [Function: parseNumber],
+bot-1  |   isValidSnowflake: [Function: isValidSnowflake],
+bot-1  |   calculateClubStats: [Function: calculateClubStats]
+bot-1  | }
+bot-1  | [bot] Scaffold initialization complete
+bot-1  | [bot] Waiting for actual bot implementation...
+```
+
+### Build (bot)
+```bash
+pnpm -w --filter @slimy/bot build
+```
+
+```text
+apps/bot build$ tsc
+apps/admin-api build: Done
+packages/shared-auth build: Done
+packages/shared-codes build: Done
+packages/shared-config build: Done
+packages/shared-db build: Done
+packages/shared-snail build: Done
+apps/web build: ⚠ `eslint` configuration in next.config.js is no longer supported
+apps/web build: ⚠ Invalid next.config.js options detected: Unrecognized key(s) in object: 'eslint'
+apps/web build: Turbopack build encountered 1 warnings: [externals]/@prisma/client
+apps/web build: unexpected export * (see full build output)
+apps/web build: Failed to load doc: ENOENT (see full build output)
+apps/admin-ui build: ✓ Compiled successfully
+apps/web postbuild: ✅ All checks passed
+apps/web postbuild: ✅ Bundle size checks passed!
+apps/admin-ui build: Done
+Done in 49.4s
+```
+
+## Healthcheck + Keepalive Polish
+
+### Changes
+- apps/bot/src/index.ts: create /tmp/slimy-bot.ready on startup, remove on SIGINT/SIGTERM, keepalive only when BOT_MODE=keepalive.
+- docker-compose.yml: add BOT_MODE env default and healthcheck for /tmp/slimy-bot.ready.
+
+### docker compose ps bot
+```
+NAME                   IMAGE                COMMAND                  SERVICE   CREATED          STATUS                    PORTS
+slimy-monorepo-bot-1   slimy-monorepo-bot   "docker-entrypoint.s…"   bot       40 seconds ago   Up 38 seconds (healthy)
+```
+
+### docker compose logs --tail 120 bot
+```
+bot-1  | [bot] Starting Slimy Discord Bot (scaffold mode)...
+bot-1  | [bot] Configuration validated
+bot-1  | [bot] Utils available: {
+bot-1  |   parseNumber: [Function: parseNumber],
+bot-1  |   isValidSnowflake: [Function: isValidSnowflake],
+bot-1  |   calculateClubStats: [Function: calculateClubStats]
+bot-1  | }
+bot-1  | [bot] Scaffold initialization complete
+bot-1  | [bot] Waiting for actual bot implementation...
+bot-1  | [bot] Keepalive mode enabled (BOT_MODE=keepalive).
+```
+
+### pnpm -w --filter @slimy/bot test
+```
+Scope: 2 of 10 workspace projects
+apps/bot test$ vitest run
+apps/web test:  Test Files  25 passed (25)
+apps/web test:       Tests  267 passed (267)
+apps/web test: Done
+└─ Done in 25.7s
+```
+
+ready to move on
