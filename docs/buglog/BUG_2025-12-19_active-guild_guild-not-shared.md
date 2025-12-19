@@ -2,7 +2,7 @@
 
 **Date**: 2025-12-19
 **Branch**: nuc2/verify-role-b33e616
-**Status**: FIXED (pending manual verification)
+**Status**: FIXED ✅ (commit 1aac3d6)
 
 ## Symptom
 
