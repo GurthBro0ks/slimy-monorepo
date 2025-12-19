@@ -156,21 +156,18 @@ Tests:       59 passed, 71 total (12 skipped)
 
 ## Manual Verification
 
-(Pending - restart docker services and test in browser)
+**Verified**: 2025-12-19T15:10Z
 
-**Steps to verify**:
-1. Login → /guilds loads
-2. Click OPEN on a guild known to have bot installed
-3. Check Network:
-   - POST /api/admin-api/api/auth/active-guild returns 200
-4. Check Application → Cookies:
-   - slimy_admin_active_guild_id cookie present (NAME only, not value)
-5. GET /api/admin-api/api/auth/me returns 200 with activeGuildId + activeGuildAppRole
-6. /chat and /club load (no bounce)
-7. /api/guilds/<id>/health no longer loops 500
+- Verified POST /api/admin-api/api/auth/active-guild = 200
+- Verified cookie NAME present: slimy_admin_active_guild_id
+- Verified GET /api/admin-api/api/auth/me includes activeGuildId + activeGuildAppRole
+- Verified /chat and /club load (no bounce to /guilds)
+- Verified /api/guilds/<id>/health no longer loops 500
 
 ---
 
 ## Resolution
 
-**Status**: FIXED - awaiting manual verification and commit
+**Status**: FIXED ✅ (commits 1aac3d6, d08df98)
+
+ready to move on
