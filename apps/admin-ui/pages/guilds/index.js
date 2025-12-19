@@ -33,6 +33,13 @@ export default function GuildsIndex() {
     })();
   }, [sessionLoading, user]);
 
+  useEffect(() => {
+    if (sessionLoading) return;
+    if (user) return;
+    setLoading(false);
+    router.replace("/login");
+  }, [sessionLoading, user, router]);
+
   const inviteBase = {
     clientId: process.env.NEXT_PUBLIC_BOT_CLIENT_ID || "1415387116564910161",
     scopes: process.env.NEXT_PUBLIC_BOT_INVITE_SCOPES || "bot applications.commands",

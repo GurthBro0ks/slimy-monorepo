@@ -47,6 +47,17 @@ function splitSetCookieHeader(value) {
   return parts;
 }
 
+function extractCookieNames(value) {
+  if (!value) return [];
+  const list = String(value)
+    .split(";")
+    .map((entry) => entry.trim())
+    .filter(Boolean)
+    .map((entry) => entry.split("=")[0].trim())
+    .filter(Boolean);
+  return Array.from(new Set(list));
+}
+
 function getQueryString(reqUrl) {
   if (!reqUrl) return "";
   const idx = reqUrl.indexOf("?");
@@ -102,6 +113,10 @@ export default async function handler(req, res) {
     ...(forwardedProto ? { "x-forwarded-proto": forwardedProto } : null),
     ...(forwardedPort ? { "x-forwarded-port": forwardedPort } : null),
   };
+
+  const cookieNames = extractCookieNames(cookie);
+  res.setHeader("x-slimy-proxy-has-cookie", cookie ? "1" : "0");
+  res.setHeader("x-slimy-proxy-cookie-names", cookieNames.join(","));
 
   try {
     const init = {

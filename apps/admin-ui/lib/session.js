@@ -26,6 +26,21 @@ function storeCsrf(token) {
   }
 }
 
+function buildReturnTo() {
+  if (typeof window === "undefined") return "";
+  const { pathname, search, hash } = window.location;
+  if (!pathname || pathname.startsWith("/login")) return "";
+  const value = `${pathname}${search || ""}${hash || ""}`;
+  return value ? `?returnTo=${encodeURIComponent(value)}` : "";
+}
+
+function redirectToLogin() {
+  if (typeof window === "undefined") return;
+  if (window.location.pathname.startsWith("/login")) return;
+  const returnTo = buildReturnTo();
+  window.location.assign(`/login${returnTo}`);
+}
+
 export function SessionProvider({ children }) {
   const [state, setState] = useState({
     user: null,
@@ -52,6 +67,16 @@ export function SessionProvider({ children }) {
       const response = await fetch("/api/admin-api/api/auth/me", {
         credentials: "include",
       });
+
+      if (response.status === 401) {
+        setState({
+          user: null,
+          csrfToken: fallbackCsrf || null,
+          loading: false,
+        });
+        redirectToLogin();
+        return;
+      }
 
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}`);
