@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { safeHandler, safeSyncHandler } from '../src/lib/errorHandler';
+import { safeHandler, safeSyncHandler } from '../src/lib/errorHandler.js';
 
 describe('Error Handler', () => {
   let consoleErrorSpy: ReturnType<typeof vi.spyOn>;

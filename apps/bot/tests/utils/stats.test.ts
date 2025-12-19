@@ -1,4 +1,4 @@
-import { calculateClubStats, calculatePercentageChange } from '../../src/utils/stats';
+import { calculateClubStats, calculatePercentageChange } from '../../src/utils/stats.js';
 
 describe('calculateClubStats', () => {
   it('should calculate basic stats correctly', () => {

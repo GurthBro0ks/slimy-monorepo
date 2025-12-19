@@ -1,4 +1,4 @@
-import { parseNumber, isValidSnowflake, extractMentions } from '../../src/utils/parsing';
+import { parseNumber, isValidSnowflake, extractMentions } from '../../src/utils/parsing.js';
 
 describe('parseNumber', () => {
   it('should parse plain numbers', () => {
