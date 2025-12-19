@@ -190,7 +190,7 @@ export default function Layout({ guildId, children, title, hideSidebar = false }
               onClick={async () => {
                 try {
                   await api("/api/admin-api/api/auth/logout", { method: "POST" });
-                  await refresh();
+                  await refresh({ suppressRedirect: true });
                   router.push("/");
                 } catch (err) {
                   console.error(err);
@@ -237,7 +237,7 @@ export default function Layout({ guildId, children, title, hideSidebar = false }
                       onClick={async () => {
                         try {
                           await api("/api/admin-api/api/auth/logout", { method: "POST" });
-                          await refresh();
+                          await refresh({ suppressRedirect: true });
                           router.push("/");
                         } catch (err) {
                           console.error(err);
