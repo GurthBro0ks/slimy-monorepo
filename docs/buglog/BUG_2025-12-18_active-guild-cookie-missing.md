@@ -86,3 +86,7 @@ Snapshots:   0 total
 Time:        0.937 s, estimated 1 s
 Ran all test suites matching /active-guild/i.
 ```
+
+## Final verification notes
+- Unit tests for active-guild passed.
+- Manual browser deep-link + cookie probe still required to confirm Set-Cookie behavior in Chrome.
