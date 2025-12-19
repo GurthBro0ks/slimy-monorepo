@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/router";
 import { useSession } from "../lib/session";
 import { useApi } from "../lib/api";
-import { useActiveGuild } from "../lib/active-guild";
+import { ensureActiveGuildCookie, readActiveGuildSyncInfo, useActiveGuild } from "../lib/active-guild";
 import DiagWidget from "./DiagWidget";
 import SlimeChatBar from "./SlimeChatBar";
 import SlimeChatWidget from "./SlimeChatWidget";
@@ -22,9 +22,10 @@ const NAV_SECTIONS = [
 export default function Layout({ guildId, children, title, hideSidebar = false }) {
   const router = useRouter();
   const api = useApi();
-  const { user, refresh } = useSession();
+  const { user, refresh, csrfToken } = useSession();
   const activeGuild = useActiveGuild({ explicitGuildId: guildId, router });
   const [open, setOpen] = useState(false);
+  const [syncInfo, setSyncInfo] = useState(() => readActiveGuildSyncInfo());
   const canvasRef = useRef(null);
   const closeMenu = () => setOpen(false);
   const baseRole = user?.role || "member";
@@ -123,6 +124,25 @@ export default function Layout({ guildId, children, title, hideSidebar = false }
   }, []);
 
   const showGuildDebug = router.pathname !== "/";
+  const syncTimestamp = syncInfo?.ts ? new Date(syncInfo.ts).toISOString() : "";
+
+  useEffect(() => {
+    if (!user || !activeGuild.guildId) return;
+    let cancelled = false;
+
+    (async () => {
+      const result = await ensureActiveGuildCookie(activeGuild.guildId, { csrfToken });
+      if (cancelled) return;
+      setSyncInfo(readActiveGuildSyncInfo());
+      if (result?.performed && result?.ok) {
+        await refresh();
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id, user?.discordId, activeGuild.guildId, csrfToken, refresh]);
 
   return (
     <>
@@ -402,8 +422,14 @@ export default function Layout({ guildId, children, title, hideSidebar = false }
           }}
         >
           {`path: ${router.asPath || router.pathname || "(unknown)"}
+activeGuildId: ${user?.activeGuildId || "(none)"}
+activeGuildAppRole: ${user?.activeGuildAppRole || "(none)"}
+sessionActiveGuildReady: ${user?.activeGuildId && user?.activeGuildAppRole ? "yes" : "no"}
 selectedGuildId: ${activeGuild.guildId || "(none)"}
-selectedGuildSource: ${activeGuild.source}`}
+selectedGuildSource: ${activeGuild.source}
+lastGuildSyncId: ${syncInfo?.guildId || "(none)"}
+lastGuildSyncStatus: ${syncInfo?.status || "(none)"}
+lastGuildSyncAt: ${syncTimestamp || "(none)"}`}
         </div>
       )}
     </>
