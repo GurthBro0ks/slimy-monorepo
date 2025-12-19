@@ -11,11 +11,32 @@
  * - Implement club analytics features
  */
 
+import { writeFile, unlink } from 'fs/promises';
 import { resolve } from 'path';
 import { fileURLToPath } from 'url';
 
 import { parseNumber, isValidSnowflake } from './utils/parsing.js';
 import { calculateClubStats } from './utils/stats.js';
+
+const READY_FILE = '/tmp/slimy-bot.ready';
+
+async function markReady() {
+  try {
+    await writeFile(READY_FILE, 'ready\n', 'utf8');
+  } catch (error) {
+    console.error('[bot] Failed to write ready file:', error);
+  }
+}
+
+async function clearReady() {
+  try {
+    await unlink(READY_FILE);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+      console.error('[bot] Failed to remove ready file:', error);
+    }
+  }
+}
 
 async function main() {
   console.log('[bot] Starting Slimy Discord Bot (scaffold mode)...');
@@ -42,19 +63,25 @@ async function main() {
 
   console.log('[bot] Scaffold initialization complete');
   console.log('[bot] Waiting for actual bot implementation...');
-  // Keep the process alive while the scaffold mode is running.
-  setInterval(() => {}, 60_000);
+
+  await markReady();
+
+  if (process.env.BOT_MODE === 'keepalive') {
+    console.log('[bot] Keepalive mode enabled (BOT_MODE=keepalive).');
+    // Keep the process alive while the scaffold mode is running.
+    setInterval(() => {}, 60_000);
+  }
 }
 
 // Handle graceful shutdown
 process.on('SIGINT', () => {
   console.log('\n[bot] Received SIGINT, shutting down gracefully...');
-  process.exit(0);
+  void clearReady().finally(() => process.exit(0));
 });
 
 process.on('SIGTERM', () => {
   console.log('\n[bot] Received SIGTERM, shutting down gracefully...');
-  process.exit(0);
+  void clearReady().finally(() => process.exit(0));
 });
 
 const isMain = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
