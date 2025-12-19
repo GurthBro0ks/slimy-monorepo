@@ -6,8 +6,8 @@ const SessionContext = createContext({
   user: null,
   csrfToken: null,
   loading: true,
-  refresh: async () => {},
-  setCsrfToken: () => {},
+  refresh: async () => { },
+  setCsrfToken: () => { },
 });
 
 const CSRF_STORAGE_KEY = "slimy_admin_csrf";
@@ -26,9 +26,25 @@ function storeCsrf(token) {
   }
 }
 
+let didRedirect = false;
+
+function isProtectedPath(pathname) {
+  if (!pathname) return false;
+  // Protected prefixes
+  if (pathname.startsWith("/guilds")) return true;
+  if (pathname.startsWith("/chat")) return true;
+  if (pathname.startsWith("/club")) return true;
+
+  // Special-case snail: /snail is public, /snail/<guildId> is protected
+  if (pathname.startsWith("/snail/")) return true;
+
+  return false;
+}
+
 function buildReturnTo() {
   if (typeof window === "undefined") return "";
   const { pathname, search, hash } = window.location;
+  // If we're already on /login, don't return to it
   if (!pathname || pathname.startsWith("/login")) return "";
   const value = `${pathname}${search || ""}${hash || ""}`;
   return value ? `?returnTo=${encodeURIComponent(value)}` : "";
@@ -36,8 +52,20 @@ function buildReturnTo() {
 
 function redirectToLogin() {
   if (typeof window === "undefined") return;
-  if (window.location.pathname.startsWith("/login")) return;
+  if (didRedirect) return;
+
+  const pathname = window.location.pathname;
+  if (pathname.startsWith("/login")) return;
+
+  // Only redirect if it's a protected path
+  if (!isProtectedPath(pathname)) {
+    console.log(`[session] Skipping redirect for public path: ${pathname}`);
+    return;
+  }
+
+  didRedirect = true;
   const returnTo = buildReturnTo();
+  console.log(`[session] Redirecting to /login${returnTo} from ${pathname}`);
   window.location.assign(`/login${returnTo}`);
 }
 
@@ -60,7 +88,7 @@ export function SessionProvider({ children }) {
     return getStoredCsrf();
   }, []);
 
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(async (options = {}) => {
     const fallbackCsrf = adoptCsrfFromHash();
 
     try {
@@ -74,7 +102,9 @@ export function SessionProvider({ children }) {
           csrfToken: fallbackCsrf || null,
           loading: false,
         });
-        redirectToLogin();
+        if (!options.suppressRedirect) {
+          redirectToLogin();
+        }
         return;
       }
 
