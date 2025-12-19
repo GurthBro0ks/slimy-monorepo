@@ -104,6 +104,15 @@ export default async function handler(req, res) {
     firstHeaderValue(req.headers["x-forwarded-port"]) ||
     (forwardedHost && forwardedHost.includes(":") ? forwardedHost.split(":").pop() : "");
 
+  // Extract active guild ID from cookie to forward as header
+  const activeGuildCookie = (cookie || "")
+    .split(";")
+    .map((c) => c.trim())
+    .find((c) => c.startsWith("slimy_admin_active_guild_id="));
+  const activeGuildId = activeGuildCookie
+    ? decodeURIComponent(activeGuildCookie.split("=")[1] || "").trim()
+    : "";
+
   const headers = {
     ...(cookie ? { cookie } : null),
     ...(contentType ? { "content-type": contentType } : null),
@@ -112,6 +121,7 @@ export default async function handler(req, res) {
     ...(forwardedHost ? { "x-forwarded-host": forwardedHost } : null),
     ...(forwardedProto ? { "x-forwarded-proto": forwardedProto } : null),
     ...(forwardedPort ? { "x-forwarded-port": forwardedPort } : null),
+    ...(activeGuildId ? { "x-slimy-active-guild-id": activeGuildId } : null),
   };
 
   const cookieNames = extractCookieNames(cookie);

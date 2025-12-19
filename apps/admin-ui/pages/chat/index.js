@@ -5,7 +5,6 @@ import Layout from "../../components/Layout";
 import { useSession } from "../../lib/session";
 import { getSocket, disconnectSocket } from "../../lib/socket";
 import { useRouter } from "next/router";
-import { useActiveGuild } from "../../lib/active-guild";
 import { useGatedGuilds } from "../../lib/gated-guilds";
 
 const ROLE_COLORS = {
@@ -26,9 +25,13 @@ function formatTime(value) {
 export default function SlimeChatPage() {
   const { user, loading } = useSession();
   const router = useRouter();
-  const activeGuild = useActiveGuild({ router });
   const gated = useGatedGuilds();
-  const guildId = activeGuild.guildId;
+
+  const serverActiveGuildId = user?.activeGuildId ? String(user.activeGuildId) : "";
+  const serverActiveGuildAppRole = user?.activeGuildAppRole || "";
+  const guildId = serverActiveGuildId || "";
+  const guildSource = serverActiveGuildId ? "server" : "none";
+
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [open, setOpen] = useState(true);
@@ -36,12 +39,17 @@ export default function SlimeChatPage() {
   const [adminOnly, setAdminOnly] = useState(false);
   const listRef = useRef(null);
 
-  const isAdmin = user?.role === "admin";
+  const isAdmin = user?.role === "admin" || serverActiveGuildAppRole === "admin";
   const hasAccess = useMemo(() => {
     if (!guildId) return false;
+    // If server says we have an activeGuildId, trust it
+    if (serverActiveGuildId && String(serverActiveGuildId) === String(guildId)) {
+      return true;
+    }
+    // Otherwise check gated guilds
     const list = Array.isArray(gated.guilds) ? gated.guilds : [];
     return list.some((g) => String(g.id) === String(guildId));
-  }, [gated.guilds, guildId]);
+  }, [gated.guilds, guildId, serverActiveGuildId]);
 
   useEffect(() => {
     if (loading) return;
@@ -49,14 +57,15 @@ export default function SlimeChatPage() {
       router.replace("/");
       return;
     }
-    if (!guildId) {
+    // GATE: Require active guild from server
+    if (!serverActiveGuildId) {
       router.replace("/guilds");
       return;
     }
     if (!gated.loading && !hasAccess) {
       router.replace("/guilds");
     }
-  }, [loading, gated.loading, user, guildId, hasAccess, router]);
+  }, [loading, gated.loading, user, serverActiveGuildId, hasAccess, router]);
 
   useEffect(() => {
     const socket = getSocket();
@@ -159,7 +168,7 @@ export default function SlimeChatPage() {
                 <div style={{ opacity: 0.7, fontSize: "0.85rem" }}>
                   <a href="/guilds" style={{ textDecoration: "underline" }}>Change guild</a>
                   {" · "}
-                  selected via <span style={{ fontFamily: "monospace" }}>{activeGuild.source}</span>
+                  selected via <span style={{ fontFamily: "monospace" }}>{guildSource}</span>
                 </div>
               </div>
             </header>

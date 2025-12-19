@@ -192,8 +192,12 @@ async function getSharedGuildsForUser({
 
 module.exports = {
   PRIMARY_GUILD_ID,
+  ADMIN_ROLE_IDS,
+  CLUB_ROLE_IDS,
   getSlimyBotToken,
   botInstalledInGuild,
   getSharedGuildsForUser,
+  computeRoleLabelFromRoles,
+  fetchMemberRoles,
 };
 
