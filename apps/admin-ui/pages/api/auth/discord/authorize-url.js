@@ -46,6 +46,19 @@ export default function handler(req, res) {
   // ✅ This is the only redirect_uri we will ever use from admin-ui now.
   const redirectUri = `${origin}/api/auth/discord/callback`;
 
+  if (process.env.NODE_ENV !== "production") {
+    console.log("[authorize-url] Generated redirect_uri:", redirectUri);
+    const configured = process.env.NEXT_PUBLIC_DISCORD_REDIRECT_URI;
+    if (configured && configured !== redirectUri) {
+      console.warn(
+        "[authorize-url] Mismatch: env.NEXT_PUBLIC_DISCORD_REDIRECT_URI =",
+        configured,
+        "but generated =",
+        redirectUri
+      );
+    }
+  }
+
   const state = crypto.randomBytes(16).toString("hex");
   // Product rule: after login, ALWAYS land on /guilds.
   const returnTo = "/guilds";
