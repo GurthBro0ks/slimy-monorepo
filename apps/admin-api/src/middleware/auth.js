@@ -15,6 +15,7 @@ const FALLBACK_COOKIE_NAMES = [
 ].filter(Boolean);
 
 const SESSION_TOKEN_COOKIE = "slimy_admin";
+const ACTIVE_GUILD_COOKIE_NAME = "slimy_admin_active_guild_id";
 
 function logReadAuth(message, meta = {}) {
   try {
@@ -268,6 +269,14 @@ async function resolveUser(req) {
 
     if (normalizedUser) {
       normalizedUser.role = computeGlobalRole(normalizedUser.id, normalizedUser.guilds);
+    }
+
+    if (normalizedUser && !normalizedUser.activeGuildId) {
+      const headerActiveGuild = req?.headers?.["x-slimy-active-guild-id"];
+      const headerValue = Array.isArray(headerActiveGuild) ? headerActiveGuild[0] : headerActiveGuild;
+      const cookieValue = req?.cookies?.[ACTIVE_GUILD_COOKIE_NAME];
+      const activeGuildId = headerValue ? String(headerValue) : cookieValue ? String(cookieValue) : "";
+      if (activeGuildId) normalizedUser.activeGuildId = activeGuildId;
     }
 
     req.user = normalizedUser;

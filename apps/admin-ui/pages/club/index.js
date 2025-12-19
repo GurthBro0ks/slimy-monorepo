@@ -5,15 +5,15 @@ import { useRouter } from "next/router";
 import Layout from "../../components/Layout";
 import { apiFetch } from "../../lib/api";
 import { useSession } from "../../lib/session";
-import { useActiveGuild } from "../../lib/active-guild";
 import { useGatedGuilds } from "../../lib/gated-guilds";
 
 export default function ClubHome() {
   const { user, loading } = useSession();
   const router = useRouter();
-  const activeGuild = useActiveGuild({ router });
   const gated = useGatedGuilds();
-  const selected = activeGuild.guildId || null;
+  const activeGuildId = user?.activeGuildId ? String(user.activeGuildId) : "";
+  const activeGuildAppRole = user?.activeGuildAppRole || "";
+  const selected = activeGuildId || null;
   const [health, setHealth] = useState(null);
   const [snailStats, setSnailStats] = useState(null);
   const [error, setError] = useState(null);
@@ -30,9 +30,10 @@ export default function ClubHome() {
     (g) => String(g.id) === String(selected || ""),
   );
 
-  const hasClubAccess = Boolean(
-    selectedGuild && (selectedGuild.role === "club" || selectedGuild.role === "admin"),
-  );
+  const hasClubAccess =
+    activeGuildAppRole === "admin" ||
+    activeGuildAppRole === "club" ||
+    user?.role === "admin";
 
   useEffect(() => {
     if (loading || gated.loading || !user) return;
@@ -106,7 +107,7 @@ export default function ClubHome() {
           {" · "}
           <a href="/guilds" style={{ textDecoration: "underline" }}>Change guild</a>
           {" · "}
-          selected via <span style={{ fontFamily: "monospace" }}>{activeGuild.source}</span>
+          selected via <span style={{ fontFamily: "monospace" }}>{selected ? "server" : "none"}</span>
         </div>
         <a className="btn outline" href={selected ? `/snail/${selected}` : "/snail"}>
           🐌 Snail Tools

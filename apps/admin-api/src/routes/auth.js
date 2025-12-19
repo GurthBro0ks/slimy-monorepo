@@ -7,9 +7,19 @@ const { signSession, setAuthCookie, clearAuthCookie } = require("../lib/jwt");
 const { getCookieOptions } = require("../services/token");
 const { defaultUserSettings } = require("../services/central-settings");
 const { resolvePostLoginRedirectUrl } = require("../lib/auth/post-login-redirect");
+const {
+  getSharedGuildsForUser,
+  PRIMARY_GUILD_ID,
+  computeRoleLabelFromRoles,
+  fetchMemberRoles,
+  getSlimyBotToken,
+} = require("../services/discord-shared-guilds");
 const router = express.Router();
 
-console.log("!!! AUTH LOGIC LOADED v303 (DATA INTEGRITY) !!!");
+// Cookie name for active guild
+const ACTIVE_GUILD_COOKIE_NAME = "slimy_admin_active_guild_id";
+
+console.log("!!! AUTH LOGIC LOADED v304 (ACTIVE GUILD) !!!");
 
 const DISCORD = {
   API: "https://discord.com/api/v10",
@@ -548,6 +558,60 @@ router.get("/me", async (req, res) => {
       warnings,
     };
 
+    const resolveActiveGuild = async ({ sessionGuilds, dbUser }) => {
+      let activeGuildId = null;
+      let activeGuildAppRole = null;
+
+      const headerActiveGuild = req.headers["x-slimy-active-guild-id"];
+      const headerValue = Array.isArray(headerActiveGuild) ? headerActiveGuild[0] : headerActiveGuild;
+      if (headerValue) {
+        activeGuildId = String(headerValue);
+      }
+
+      if (!activeGuildId && req.cookies?.[ACTIVE_GUILD_COOKIE_NAME]) {
+        activeGuildId = String(req.cookies[ACTIVE_GUILD_COOKIE_NAME]);
+      }
+
+      if (!activeGuildId && dbUser?.lastActiveGuildId) {
+        activeGuildId = String(dbUser.lastActiveGuildId);
+      }
+
+      if (activeGuildId) {
+        const activeGuildEntry = sessionGuilds.find((g) => String(g.id) === activeGuildId);
+        if (!activeGuildEntry) {
+          activeGuildId = null;
+        } else {
+          const isPrimary = activeGuildId === PRIMARY_GUILD_ID;
+          if (isPrimary) {
+            const botToken = getSlimyBotToken();
+            if (botToken && userId) {
+              try {
+                const memberRoles = await fetchMemberRoles(PRIMARY_GUILD_ID, String(userId), botToken);
+                if (memberRoles) {
+                  activeGuildAppRole = computeRoleLabelFromRoles(memberRoles);
+                }
+              } catch (err) {
+                console.warn("[auth/me] Failed to fetch member roles for active guild:", err?.message);
+              }
+            }
+          }
+
+          if (!activeGuildAppRole) {
+            const roles = activeGuildEntry.roles || [];
+            if (roles.includes("owner") || roles.includes("admin")) {
+              activeGuildAppRole = "admin";
+            } else if (roles.includes("club")) {
+              activeGuildAppRole = "club";
+            } else {
+              activeGuildAppRole = "member";
+            }
+          }
+        }
+      }
+
+      return { activeGuildId, activeGuildAppRole };
+    };
+
     // If DB is unavailable, return the session-only response instead of 500.
     if (!prisma) {
       const cookieGuilds = Array.isArray(rawUser?.guilds) ? rawUser.guilds : [];
@@ -559,6 +623,12 @@ router.get("/me", async (req, res) => {
       }));
       baseResponse.sessionGuilds = sessionGuilds;
       baseResponse.guilds = sessionGuilds;
+      const { activeGuildId, activeGuildAppRole } = await resolveActiveGuild({
+        sessionGuilds,
+        dbUser: null,
+      });
+      baseResponse.activeGuildId = activeGuildId;
+      baseResponse.activeGuildAppRole = activeGuildAppRole;
       return res.json(baseResponse);
     }
 
@@ -627,6 +697,11 @@ router.get("/me", async (req, res) => {
       }));
     }
 
+    const { activeGuildId, activeGuildAppRole } = await resolveActiveGuild({
+      sessionGuilds,
+      dbUser,
+    });
+
     return res.json({
       id: dbUser?.discordId || baseResponse.id,
       discordId: dbUser?.discordId || baseResponse.discordId,
@@ -634,6 +709,8 @@ router.get("/me", async (req, res) => {
       globalName: dbUser?.globalName || baseResponse.globalName,
       avatar: dbUser?.avatar || baseResponse.avatar,
       role: baseResponse.role,
+      activeGuildId,
+      activeGuildAppRole,
       lastActiveGuild: dbUser?.lastActiveGuild
         ? {
             id: dbUser.lastActiveGuild.id,
@@ -664,8 +741,132 @@ router.get("/me", async (req, res) => {
   }
 });
 
+/**
+ * POST /api/auth/active-guild
+ * Sets the user's active guild (persists in DB + sets cookie)
+ * - Validates guildId is a shared guild (bot installed)
+ * - Updates lastActiveGuildId in DB
+ * - Returns activeGuildId + appRole
+ */
+router.post("/active-guild", async (req, res) => {
+  if (!req.user) {
+    return res.status(401).json({ ok: false, error: "unauthorized" });
+  }
+
+  const rawUser = req.user.user || req.user;
+  const userId = rawUser?.id || rawUser?.discordId || rawUser?.sub;
+  const discordAccessToken = rawUser?.discordAccessToken;
+
+  if (!userId) {
+    return res.status(400).json({ ok: false, error: "missing_user_id" });
+  }
+
+  const { guildId } = req.body || {};
+  if (!guildId) {
+    return res.status(400).json({ ok: false, error: "missing_guild_id" });
+  }
+
+  const normalizedGuildId = String(guildId);
+
+  try {
+    // 1. Get shared guilds for this user to validate the guildId
+    let sharedGuilds = [];
+    if (discordAccessToken) {
+      try {
+        sharedGuilds = await getSharedGuildsForUser({
+          discordAccessToken,
+          userDiscordId: String(userId),
+        });
+      } catch (err) {
+        console.warn("[auth/active-guild] Failed to fetch shared guilds:", err?.message || err);
+      }
+    }
+
+    // 2. Find the requested guild in shared guilds
+    const targetGuild = sharedGuilds.find((g) => String(g.id) === normalizedGuildId);
+    if (!targetGuild) {
+      return res.status(400).json({
+        ok: false,
+        error: "guild_not_shared",
+        message: "Guild must be a shared guild with bot installed",
+      });
+    }
+
+    // 3. Compute role for this guild
+    let appRole = targetGuild.roleLabel || "member";
+
+    // For PRIMARY_GUILD, fetch fresh roles from Discord if needed
+    const isPrimary = normalizedGuildId === PRIMARY_GUILD_ID;
+    if (isPrimary) {
+      const botToken = getSlimyBotToken();
+      if (botToken) {
+        const memberRoles = await fetchMemberRoles(PRIMARY_GUILD_ID, String(userId), botToken);
+        if (memberRoles) {
+          appRole = computeRoleLabelFromRoles(memberRoles);
+        }
+      }
+    }
+
+    // 4. Update lastActiveGuildId in DB
+    let prisma = null;
+    try {
+      prisma = typeof prismaDatabase.getClient === "function" ? prismaDatabase.getClient() : null;
+      if (!prisma && prismaDatabase?.client) {
+        prisma = prismaDatabase.client;
+      }
+    } catch {
+      // DB unavailable, continue without persisting
+    }
+
+    if (prisma) {
+      try {
+        const userIdStr = String(userId);
+        const isSnowflake = /^\d{17,19}$/.test(userIdStr);
+        await prisma.user.update({
+          where: isSnowflake ? { discordId: userIdStr } : { id: userIdStr },
+          data: { lastActiveGuildId: normalizedGuildId },
+        });
+      } catch (err) {
+        console.warn("[auth/active-guild] Failed to update lastActiveGuildId:", err?.message || err);
+        // Continue anyway - we'll still set the cookie
+      }
+    }
+
+    // 5. Set the active guild cookie
+    const cookieOptions = getCookieOptions(req);
+    res.cookie(ACTIVE_GUILD_COOKIE_NAME, normalizedGuildId, {
+      ...cookieOptions,
+      httpOnly: true,
+      sameSite: "lax",
+      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+    });
+
+    // 6. Return success with activeGuildId and appRole
+    return res.json({
+      ok: true,
+      activeGuildId: normalizedGuildId,
+      appRole,
+      guildName: targetGuild.name,
+    });
+  } catch (err) {
+    console.error("[auth/active-guild] Error:", err);
+    return res.status(500).json({
+      ok: false,
+      error: "internal_error",
+      message: err?.message || String(err),
+    });
+  }
+});
+
 router.post("/logout", (req, res) => {
   clearAuthCookie(res);
+  // Also clear active guild cookie on logout
+  const cookieOptions = getCookieOptions(req);
+  res.clearCookie(ACTIVE_GUILD_COOKIE_NAME, {
+    ...cookieOptions,
+    httpOnly: true,
+    sameSite: "lax",
+  });
   res.json({ ok: true });
 });
 
