@@ -120,3 +120,25 @@ apps/admin-ui/pages/guilds/index.js
 
 ## Verification
 - Not run (manual login + /guilds deep-link required).
+
+---
+
+## Closeout (2025-12-19T11:49:54+00:00)
+
+### What changed
+- /guilds no longer spins forever on 401 from /api/admin-api/api/auth/me
+- Unauthenticated users are redirected to /login (with returnTo hint)
+- Proxy now emits diagnostic headers showing cookie presence (names only):
+  - x-slimy-proxy-has-cookie
+  - x-slimy-proxy-cookie-names
+
+### Proof (names only, no secrets)
+- Logged out:
+  - GET /api/admin-api/api/auth/me -> 401
+  - Response header: x-slimy-proxy-has-cookie: 0
+- Logged in:
+  - GET /api/admin-api/api/auth/me -> 200
+  - Response header: x-slimy-proxy-has-cookie: 1
+  - Response header: x-slimy-proxy-cookie-names: slimy_admin_token
+
+ready to move on

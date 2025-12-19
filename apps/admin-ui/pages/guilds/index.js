@@ -10,10 +10,11 @@ import { writeActiveGuildId } from "../../lib/active-guild";
 
 export default function GuildsIndex() {
   const router = useRouter();
-  const { user, loading: sessionLoading } = useSession();
+  const { user, loading: sessionLoading, csrfToken, refresh: refreshSession } = useSession();
   const [guilds, setGuilds] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [selectingGuildId, setSelectingGuildId] = useState(null);
 
   useEffect(() => {
     if (sessionLoading || !user) return;
@@ -37,7 +38,8 @@ export default function GuildsIndex() {
     if (sessionLoading) return;
     if (user) return;
     setLoading(false);
-    router.replace("/login");
+    const returnTo = router.asPath || "/guilds";
+    router.replace(`/login?returnTo=${encodeURIComponent(returnTo)}`);
   }, [sessionLoading, user, router]);
 
   const inviteBase = {
@@ -47,10 +49,62 @@ export default function GuildsIndex() {
   };
   const globalInviteUrl = buildBotInviteUrl(inviteBase);
 
-  const handleOpen = (guild) => {
+  const postActiveGuild = async (guildId) => {
+    const headers = new Headers();
+    headers.set("Content-Type", "application/json");
+    if (csrfToken) headers.set("x-csrf-token", csrfToken);
+
+    const response = await fetch("/api/admin-api/api/auth/active-guild", {
+      method: "POST",
+      credentials: "include",
+      headers,
+      body: JSON.stringify({ guildId }),
+    });
+
+    if (response.status === 204) return null;
+
+    const contentType = response.headers.get("content-type") || "";
+    const payload = contentType.includes("application/json")
+      ? await response.json()
+      : await response.text();
+
+    if (!response.ok) {
+      const message = payload?.error || payload?.message || `HTTP ${response.status}`;
+      throw new Error(message);
+    }
+
+    return payload;
+  };
+
+  const handleOpen = async (guild) => {
     if (!guild) return;
+    if (!guild.installed || guild.connectable === false) return;
     const guildId = guild.id;
-    writeActiveGuildId(guildId);
+    setSelectingGuildId(guildId);
+    setError(null);
+
+    // 1. Call POST /api/admin-api/api/auth/active-guild to set active guild server-side
+    try {
+      const result = await postActiveGuild(guildId);
+
+      if (result && result.ok === false) {
+        console.error("Failed to set active guild:", result.error);
+        // Fall back to localStorage for graceful degradation
+        writeActiveGuildId(guildId);
+      } else {
+        // Also write to localStorage for immediate client-side access
+        writeActiveGuildId(guildId);
+        // Refresh session to pick up new activeGuildId
+        await refreshSession();
+      }
+    } catch (err) {
+      console.error("Failed to set active guild:", err);
+      writeActiveGuildId(guildId);
+    } finally {
+      setSelectingGuildId(null);
+    }
+
+    // 2. Navigate based on role
     const roleLabel = (guild.roleLabel || guild.role || "member").toLowerCase();
     if (roleLabel === "admin") {
       router.push(`/guilds/${guildId}`);
@@ -161,6 +215,7 @@ export default function GuildsIndex() {
         <div style={{ display: "grid", gap: "1rem" }}>
           {guilds.map((guild) => {
             const installed = !!guild.installed;
+            const canSelect = installed && guild.connectable !== false;
             const guildInviteUrl = buildBotInviteUrl({
               ...inviteBase,
               guildId: guild.id,
@@ -207,8 +262,12 @@ export default function GuildsIndex() {
                       Invite Bot
                     </a>
                   )}
-                  <button className="btn" onClick={() => handleOpen(guild)}>
-                    Open
+                  <button
+                    className="btn"
+                    onClick={() => handleOpen(guild)}
+                    disabled={selectingGuildId === guild.id || !canSelect}
+                  >
+                    {!canSelect ? "Unavailable" : selectingGuildId === guild.id ? "Selecting…" : "Open"}
                   </button>
                 </div>
               </div>
