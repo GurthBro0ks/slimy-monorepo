@@ -15,9 +15,32 @@ const app = express();
 app.set("trust proxy", 1);
 app.disable("etag");
 
-const CORS_ORIGIN = process.env.CORS_ORIGIN;
-if (!CORS_ORIGIN) {
-  throw new Error("Missing required environment variable: CORS_ORIGIN");
+const DEFAULT_DEV_ORIGINS = [
+  "http://localhost:3000",
+  "http://localhost:3001",
+  "http://127.0.0.1:3000",
+  "http://127.0.0.1:3001",
+];
+const DEFAULT_PROD_ORIGINS = [
+  "https://admin.slimyai.xyz",
+  "https://slimyai.xyz",
+  "https://www.slimyai.xyz",
+];
+
+function parseOriginList(value) {
+  return String(value || "")
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+}
+
+const rawCorsOrigins = process.env.CORS_ALLOW_ORIGIN || process.env.CORS_ORIGIN || "";
+const allowedOrigins = parseOriginList(rawCorsOrigins);
+const defaultOrigins =
+  process.env.NODE_ENV === "production" ? DEFAULT_PROD_ORIGINS : DEFAULT_DEV_ORIGINS;
+const resolvedCorsOrigins = Array.from(new Set([...defaultOrigins, ...allowedOrigins]));
+if (!resolvedCorsOrigins.length) {
+  throw new Error("Missing required CORS origins configuration");
 }
 
 app.use(helmet());
@@ -26,7 +49,11 @@ app.use(requestLogger);
 app.use(express.json({ limit: "1mb" }));
 app.use(cookieParser());
 app.use(cors({
-  origin: CORS_ORIGIN,
+  origin(origin, callback) {
+    if (!origin) return callback(null, true);
+    if (resolvedCorsOrigins.includes(origin)) return callback(null, true);
+    return callback(null, false);
+  },
   credentials: true
 }));
 app.use(morgan("combined"));

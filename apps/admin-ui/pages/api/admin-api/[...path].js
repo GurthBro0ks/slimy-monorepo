@@ -6,6 +6,19 @@ function isJsonContentType(contentType) {
   return normalized.includes("application/json") || normalized.includes("+json");
 }
 
+function mergeVaryHeader(existing, incoming) {
+  const existingParts = String(existing || "")
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
+  const incomingParts = String(incoming || "")
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
+  const merged = new Set([...existingParts, ...incomingParts]);
+  return Array.from(merged).join(", ");
+}
+
 function firstHeaderValue(value) {
   if (!value) return "";
   const raw = Array.isArray(value) ? value[0] : String(value);
@@ -96,6 +109,8 @@ export default async function handler(req, res) {
   const cookie = req.headers.cookie || "";
   const contentType = req.headers["content-type"] || "";
   const accept = req.headers.accept || "";
+  const origin = req.headers.origin || "";
+  const referer = req.headers.referer || "";
   const csrfToken = req.headers["x-csrf-token"] || "";
   const forwardedHost = firstHeaderValue(req.headers["x-forwarded-host"]) || firstHeaderValue(req.headers.host);
   const forwardedProto =
@@ -117,6 +132,8 @@ export default async function handler(req, res) {
     ...(cookie ? { cookie } : null),
     ...(contentType ? { "content-type": contentType } : null),
     ...(accept ? { accept } : null),
+    ...(origin ? { origin } : null),
+    ...(referer ? { referer } : null),
     ...(csrfToken ? { "x-csrf-token": csrfToken } : null),
     ...(forwardedHost ? { "x-forwarded-host": forwardedHost } : null),
     ...(forwardedProto ? { "x-forwarded-proto": forwardedProto } : null),
@@ -154,6 +171,16 @@ export default async function handler(req, res) {
 
     const upstreamContentType = upstreamRes.headers.get("content-type") || "";
     const location = upstreamRes.headers.get("location") || "";
+    const corsAllowOrigin = upstreamRes.headers.get("access-control-allow-origin") || "";
+    const corsAllowCredentials =
+      upstreamRes.headers.get("access-control-allow-credentials") || "";
+    const corsAllowMethods =
+      upstreamRes.headers.get("access-control-allow-methods") || "";
+    const corsAllowHeaders =
+      upstreamRes.headers.get("access-control-allow-headers") || "";
+    const corsExposeHeaders =
+      upstreamRes.headers.get("access-control-expose-headers") || "";
+    const upstreamVary = upstreamRes.headers.get("vary") || "";
 
     const setCookies =
       typeof upstreamRes.headers.getSetCookie === "function"
@@ -166,6 +193,20 @@ export default async function handler(req, res) {
 
     if (upstreamContentType) res.setHeader("content-type", upstreamContentType);
     if (location) res.setHeader("location", location);
+    if (corsAllowOrigin) res.setHeader("access-control-allow-origin", corsAllowOrigin);
+    if (corsAllowCredentials) {
+      res.setHeader("access-control-allow-credentials", corsAllowCredentials);
+    }
+    if (corsAllowMethods) res.setHeader("access-control-allow-methods", corsAllowMethods);
+    if (corsAllowHeaders) res.setHeader("access-control-allow-headers", corsAllowHeaders);
+    if (corsExposeHeaders) {
+      res.setHeader("access-control-expose-headers", corsExposeHeaders);
+    }
+    if (upstreamVary) {
+      const existingVary = res.getHeader("vary");
+      const mergedVary = mergeVaryHeader(existingVary, upstreamVary);
+      if (mergedVary) res.setHeader("vary", mergedVary);
+    }
     if (setCookies.length) res.setHeader("set-cookie", setCookies);
     else if (setCookieParsed.length) res.setHeader("set-cookie", setCookieParsed);
     else if (setCookieFallback) res.setHeader("set-cookie", setCookieFallback);
