@@ -98,10 +98,11 @@ chat.slimyai.xyz {
   reverse_proxy 127.0.0.1:3000
 }
 
-slime.chat, www.slime.chat {
-  import slime_common
-  reverse_proxy 127.0.0.1:3000
-}
+# slime.chat disabled - no DNS configured yet
+# slime.chat, www.slime.chat {
+#   import slime_common
+#   reverse_proxy 127.0.0.1:3000
+# }
 
 :8080 {
   import slime_common
