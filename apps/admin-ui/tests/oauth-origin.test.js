@@ -60,7 +60,9 @@ process.env.ALLOW_LOCALHOST_OAUTH = "1";
 assert.strictEqual(isAllowedOrigin("http://localhost:3001"), true);
 assert.strictEqual(isAllowedOrigin("http://localhost:3010"), true);
 assert.strictEqual(isAllowedOrigin("http://localhost:9999"), true);
+assert.strictEqual(isAllowedOrigin("http://localhost:3080"), false); // never allow admin-api port
 assert.strictEqual(isAllowedOrigin("http://127.0.0.1:3001"), true);
+assert.strictEqual(isAllowedOrigin("http://127.0.0.1:3080"), false); // never allow admin-api port
 assert.strictEqual(isAllowedOrigin("http://[::1]:3001"), true);
 assert.strictEqual(isAllowedOrigin("https://admin.slimyai.xyz"), true);
 assert.strictEqual(isAllowedOrigin("https://slimyai.xyz"), true);
@@ -94,6 +96,10 @@ process.env.ALLOW_LOCALHOST_OAUTH = "1";
 // Test 1: host header with port → uses that port
 const req1 = mockReq({ host: "localhost:3010" });
 assert.strictEqual(getPublicOrigin(req1), "http://localhost:3010");
+
+// Test 1b: localhost:3080 is never allowed → fall back
+const req1b = mockReq({ host: "localhost:3080" });
+assert.strictEqual(getPublicOrigin(req1b), DEFAULT_FALLBACK);
 
 // Test 2: x-forwarded headers for production domain
 const req2 = mockReq({

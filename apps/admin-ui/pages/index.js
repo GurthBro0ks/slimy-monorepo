@@ -4,25 +4,16 @@ import { useEffect, useMemo, useState } from "react";
 import Layout from "../components/Layout";
 
 export default function Home() {
-  const clientId = useMemo(
-    () => String(process.env.NEXT_PUBLIC_DISCORD_CLIENT_ID || "").trim(),
-    [],
-  );
-
   const [origin, setOrigin] = useState("");
 
   useEffect(() => {
     setOrigin(window.location.origin);
   }, []);
 
-  const redirectUri = origin ? `${origin}/api/auth/discord/callback` : "";
-  const authorizeEndpoint = origin ? `${origin}/api/auth/discord/authorize-url` : "";
-  const debugAuthorizeUrl =
-    clientId && redirectUri
-      ? `https://discord.com/oauth2/authorize?client_id=${encodeURIComponent(clientId)}&redirect_uri=${encodeURIComponent(
-          redirectUri,
-        )}&response_type=code&scope=${encodeURIComponent("identify guilds")}&state=<server_generated>`
-      : "";
+  const configuredRedirectUri = useMemo(
+    () => String(process.env.NEXT_PUBLIC_DISCORD_REDIRECT_URI || "").trim(),
+    [],
+  );
 
   return (
     <Layout hideSidebar>
@@ -71,10 +62,8 @@ export default function Home() {
         }}
       >
         {`origin: ${origin || "(loading...)"}
-redirectUri: ${redirectUri || "(loading...)"}
-authorizeEndpoint: ${authorizeEndpoint || "(loading...)"}
-clientId: ${clientId || "(missing NEXT_PUBLIC_DISCORD_CLIENT_ID)"}
-authorizeUrl(example): ${debugAuthorizeUrl ? debugAuthorizeUrl.slice(0, 200) : "(loading...)"}`}
+loginEndpoint: /api/auth/discord/authorize-url
+env.NEXT_PUBLIC_DISCORD_REDIRECT_URI: ${configuredRedirectUri || "(unset)"}`}
       </div>
 
       <footer className="hero__footer">
