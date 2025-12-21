@@ -130,9 +130,10 @@ chat.slimyai.xyz {
 admin.slimyai.xyz {
   import slime_common
 
-  # OAuth/auth routes go to admin-ui (Next.js handles these)
-  @admin_ui_auth path /api/auth/*
-  handle @admin_ui_auth {
+  # OAuth routes go to admin-ui (Next.js handles these)
+  # NOTE: keep this matcher narrow so admin-api can own `/api/auth/*` (me/logout/etc).
+  @admin_ui_oauth path /api/auth/discord/*
+  handle @admin_ui_oauth {
     reverse_proxy 127.0.0.1:3001 {
       header_up Host {host}
       header_up X-Forwarded-Port {server_port}

@@ -25,7 +25,7 @@ export async function getServerSideProps(ctx) {
   const cookie = ctx.req?.headers?.cookie || "";
 
   try {
-    const meRes = await fetch(`${proto}://${host}/api/admin-api/api/auth/me`, {
+    const meRes = await fetch(`${proto}://${host}/api/auth/me`, {
       headers: {
         accept: "application/json",
         cookie,
@@ -62,22 +62,22 @@ export default function DashboardPage({ user, meError }) {
   const [health, setHealth] = useState({ loading: true, data: null, error: null });
 
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const res = await fetch("/api/admin-api/api/health");
-        const json = await res.json().catch(() => null);
-        if (cancelled) return;
-        if (!res.ok) {
-          setHealth({ loading: false, data: json, error: `HTTP ${res.status}` });
-          return;
-        }
-        setHealth({ loading: false, data: json, error: null });
-      } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        if (!cancelled) setHealth({ loading: false, data: null, error: message });
-      }
-    })();
+	    let cancelled = false;
+	    (async () => {
+	      try {
+	        const res = await fetch("/api/health");
+	        const json = await res.json().catch(() => null);
+	        if (cancelled) return;
+	        if (!res.ok) {
+	          setHealth({ loading: false, data: json, error: `HTTP ${res.status}` });
+	          return;
+	        }
+	        setHealth({ loading: false, data: json, error: null });
+	      } catch (err) {
+	        const message = err instanceof Error ? err.message : String(err);
+	        if (!cancelled) setHealth({ loading: false, data: null, error: message });
+	      }
+	    })();
     return () => {
       cancelled = true;
     };

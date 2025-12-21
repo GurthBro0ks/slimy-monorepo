@@ -18,6 +18,10 @@ export default function handler(req, res) {
   // ✅ This is the only redirect_uri we will ever use from admin-ui now.
   const redirectUri = `${origin}/api/auth/discord/callback`;
 
+  // Temporary debug headers (useful for curl / DevTools without reading logs)
+  res.setHeader("x-slimy-oauth-origin", origin);
+  res.setHeader("x-slimy-oauth-redirect-uri", redirectUri);
+
   const configured = process.env.NEXT_PUBLIC_DISCORD_REDIRECT_URI;
   if (configured && configured !== redirectUri) {
     console.warn(

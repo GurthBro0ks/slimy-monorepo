@@ -61,13 +61,18 @@ function resolveRedirectUrl(envValue, fallback) {
 
 const CLIENT_BASE_URL = resolveClientBaseUrl();
 
+const DEFAULT_DISCORD_REDIRECT_URI =
+  process.env.NODE_ENV === "production"
+    ? "https://admin.slimyai.xyz/api/auth/discord/callback"
+    : "http://localhost:3081/api/auth/discord/callback";
+
 const config = {
   discord: {
     clientId: process.env.DISCORD_CLIENT_ID || "",
     clientSecret: process.env.DISCORD_CLIENT_SECRET || "",
     redirectUri:
       process.env.DISCORD_REDIRECT_URI ||
-      "http://localhost:3080/api/auth/callback",
+      DEFAULT_DISCORD_REDIRECT_URI,
     scopes: ["identify", "guilds"],
   },
   jwt: {

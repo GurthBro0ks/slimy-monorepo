@@ -15,8 +15,8 @@ export default function StatusPage() {
       setState({ loading: true, health: null, diag: null, error: null });
 
       const [healthRes, diagRes] = await Promise.all([
-        fetch("/api/admin-api/api/health"),
-        fetch("/api/admin-api/api/diag"),
+        fetch("/api/health"),
+        fetch("/api/diag"),
       ]);
 
       const [healthJson, diagJson] = await Promise.all([
@@ -62,7 +62,7 @@ export default function StatusPage() {
 
   async function handleLogout() {
     try {
-      await fetch("/api/admin-api/api/auth/logout", { method: "POST" });
+      await fetch("/api/auth/logout", { method: "POST" });
     } catch {
       // ignore
     } finally {
@@ -79,7 +79,7 @@ export default function StatusPage() {
         <div className="card" style={{ display: "grid", gap: "0.75rem" }}>
           <div style={{ opacity: 0.8 }}>
             Checks the Admin UI → Admin API bridge at{" "}
-            <code>/api/admin-api/api/health</code> and <code>/api/admin-api/api/diag</code>.
+            <code>/api/health</code> and <code>/api/diag</code>.
           </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
