@@ -25,6 +25,7 @@ export default async function handler(req, res) {
         accept: req.headers.accept || "*/*",
         cookie: req.headers.cookie || "",
         "user-agent": req.headers["user-agent"] || "",
+        "x-slimy-internal-auth-callback": "1",
         "x-forwarded-host": req.headers["x-forwarded-host"] || req.headers.host || "",
         "x-forwarded-proto":
           req.headers["x-forwarded-proto"] || (req.socket?.encrypted ? "https" : "http"),

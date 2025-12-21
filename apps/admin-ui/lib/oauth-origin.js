@@ -13,6 +13,11 @@ const ALLOWED_PRODUCTION_HOSTS = new Set([
   "www.slimyai.xyz",
 ]);
 
+// Never allow redirect_uri origins to reflect the admin-api port.
+// This prevents Discord authorize URLs from accidentally using localhost:3080 when a proxy
+// overwrites Host / X-Forwarded-* headers.
+const DISALLOWED_LOCALHOST_PORTS = new Set(["3080"]);
+
 /**
  * Extract first value from a potentially comma-separated header.
  */
@@ -120,6 +125,9 @@ function isAllowedOrigin(origin) {
 
     // Check if localhost should be allowed
     if (isLocalhostHostname(hostname) && shouldAllowLocalhost()) {
+      if (DISALLOWED_LOCALHOST_PORTS.has(String(url.port || ""))) {
+        return false;
+      }
       return true;
     }
 

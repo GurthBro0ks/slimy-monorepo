@@ -1,6 +1,5 @@
 "use strict";
 const express = require("express");
-const crypto = require("crypto");
 const config = require("../config");
 const prismaDatabase = require("../lib/database");
 const { signSession, setAuthCookie, clearAuthCookie } = require("../lib/jwt");
@@ -20,6 +19,12 @@ const router = express.Router();
 const ACTIVE_GUILD_COOKIE_NAME = "slimy_admin_active_guild_id";
 
 console.log("!!! AUTH LOGIC LOADED v304 (ACTIVE GUILD) !!!");
+
+// Canonical admin-ui endpoints for Discord OAuth.
+// These ensure we never generate authorize URLs with localhost:3080 or /api/admin-api redirect_uris.
+const CANONICAL_ADMIN_ORIGIN = "https://admin.slimyai.xyz";
+const CANONICAL_AUTHORIZE_URL = `${CANONICAL_ADMIN_ORIGIN}/api/auth/discord/authorize-url`;
+const CANONICAL_CALLBACK_URL = `${CANONICAL_ADMIN_ORIGIN}/api/auth/discord/callback`;
 
 const DISCORD = {
   API: "https://discord.com/api/v10",
@@ -169,16 +174,6 @@ function resolveDiscordRedirectUri(req) {
   }
 }
 
-function normalizeReturnToPath(returnTo) {
-  if (!returnTo || typeof returnTo !== "string") return null;
-  const trimmed = returnTo.trim();
-  if (!trimmed.startsWith("/")) return null;
-  if (trimmed.startsWith("//")) return null;
-  if (trimmed.includes("\\")) return null;
-  if (trimmed.includes("\r") || trimmed.includes("\n")) return null;
-  return trimmed;
-}
-
 function isLocalOrigin(origin) {
   try {
     const url = new URL(String(origin || ""));
@@ -188,65 +183,21 @@ function isLocalOrigin(origin) {
   }
 }
 
-function issueState(req, res) {
-  const state = crypto.randomBytes(16).toString("base64url");
-  res.cookie("oauth_state", state, getCookieOptions(req, { maxAge: 5 * 60 * 1000 }));
-  return state;
-}
-
 router.get("/login", (req, res) => {
-  try {
-    const CLIENT_ID = config.discord.clientId;
-    const REDIRECT_URI = resolveDiscordRedirectUri(req);
-    const SCOPES = (config.discord.scopes || ["identify", "guilds"]).join(" ");
-
-    if (!CLIENT_ID || !REDIRECT_URI) {
-      throw new Error("Discord OAuth not configured (missing clientId/redirectUri)");
-    }
-
-    if (shouldDebugAuth()) {
-      const clientIdMasked =
-        typeof CLIENT_ID === "string" && CLIENT_ID.length > 8
-          ? `${CLIENT_ID.slice(0, 4)}…${CLIENT_ID.slice(-4)}`
-          : CLIENT_ID;
-      console.info("[auth/login] oauth config", {
-        clientId: clientIdMasked,
-        redirectUri: REDIRECT_URI,
-        requestOrigin: getRequestOrigin(req),
-      });
-    }
-
-    const rawReturnTo = Array.isArray(req.query?.returnTo)
-      ? req.query.returnTo[0]
-      : req.query?.returnTo;
-    const returnToPath = normalizeReturnToPath(rawReturnTo);
-    if (returnToPath) {
-      res.cookie("oauth_return_to", returnToPath, getCookieOptions(req, { maxAge: 10 * 60 * 1000 }));
-    }
-
-    // Persist the exact redirect_uri used for this authorization request so the
-    // token exchange in /callback can be byte-for-byte identical even if proxy
-    // headers differ between requests.
-    res.cookie("oauth_redirect_uri", REDIRECT_URI, getCookieOptions(req, { maxAge: 10 * 60 * 1000 }));
-
-    const state = issueState(req, res);
-    const params = new URLSearchParams({
-      client_id: CLIENT_ID,
-      redirect_uri: REDIRECT_URI,
-      response_type: "code",
-      scope: SCOPES,
-      state,
-      prompt: "consent",
-    });
-
-    return res.redirect(302, `${DISCORD.AUTH_URL}?${params.toString()}`);
-  } catch (err) {
-    console.error("[auth/login] CRITICAL ERROR:", err);
-    return res.redirect("/?error=login_not_configured");
-  }
+  // Safety net: legacy endpoint. Always send the browser to the canonical admin-ui entrypoint.
+  return res.redirect(302, CANONICAL_AUTHORIZE_URL);
 });
 
 router.get("/callback", async (req, res) => {
+  // Safety net: legacy endpoint. Redirect external callers to admin-ui canonical callback.
+  // Internal admin-ui -> admin-api proxy calls set a header so token exchange continues to work.
+  const internal =
+    String(req.headers["x-slimy-internal-auth-callback"] || "").trim() === "1";
+  if (!internal) {
+    const qs = typeof req.url === "string" && req.url.includes("?") ? req.url.slice(req.url.indexOf("?")) : "";
+    return res.redirect(302, `${CANONICAL_CALLBACK_URL}${qs}`);
+  }
+
   try {
     const CLIENT_ID = config.discord.clientId;
     const CLIENT_SECRET = config.discord.clientSecret;
