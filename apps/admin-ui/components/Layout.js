@@ -287,9 +287,12 @@ export default function Layout({ guildId, children, title, hideSidebar = false }
               className="btn outline"
               onClick={async () => {
                 try {
+                  // Clear stored guild state to prevent stale returnTo
+                  localStorage.removeItem("activeGuild");
                   await api("/api/admin-api/api/auth/logout", { method: "POST" });
                   await refresh({ suppressRedirect: true });
-                  router.push("/");
+                  // Use replace to prevent back-button returning to protected page
+                  router.replace("/");
                 } catch (err) {
                   console.error(err);
                 }
@@ -334,9 +337,12 @@ export default function Layout({ guildId, children, title, hideSidebar = false }
                       className="btn outline"
                       onClick={async () => {
                         try {
+                          // Clear stored guild state to prevent stale returnTo
+                          localStorage.removeItem("activeGuild");
                           await api("/api/admin-api/api/auth/logout", { method: "POST" });
                           await refresh({ suppressRedirect: true });
-                          router.push("/");
+                          // Use replace to prevent back-button returning to protected page
+                          router.replace("/");
                         } catch (err) {
                           console.error(err);
                         }
