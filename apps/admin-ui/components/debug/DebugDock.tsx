@@ -109,10 +109,10 @@ export function DebugDock() {
       setHealth({ status: "loading" });
       setDiag({ status: "loading" });
 
-      const [healthRes, diagRes] = await Promise.allSettled([
-        fetch("/api/admin-api/health", { cache: "no-store", credentials: "include" }),
-        fetch("/api/admin-api/diag", { cache: "no-store", credentials: "include" }),
-      ]);
+	      const [healthRes, diagRes] = await Promise.allSettled([
+	        fetch("/api/health", { cache: "no-store", credentials: "include" }),
+	        fetch("/api/diag", { cache: "no-store", credentials: "include" }),
+	      ]);
 
       if (canceled) return;
 
@@ -161,11 +161,11 @@ export function DebugDock() {
     if (!user || sessionLoading) return;
     let canceled = false;
 
-    const run = async () => {
-      const res = await fetch("/api/admin-api/api/discord/guilds", {
-        cache: "no-store",
-        credentials: "include",
-      });
+	    const run = async () => {
+	      const res = await fetch("/api/discord/guilds", {
+	        cache: "no-store",
+	        credentials: "include",
+	      });
       if (!res.ok) return;
       const data = await safeJson(res);
       const list = Array.isArray(data?.guilds) ? data.guilds : [];
@@ -309,4 +309,3 @@ export function DebugDock() {
     </div>
   );
 }
-

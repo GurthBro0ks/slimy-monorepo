@@ -2,7 +2,7 @@ import Head from "next/head";
 import { useEffect, useState } from "react";
 import Layout from "../components/Layout";
 
-const ENDPOINT = "/api/admin-api/api/usage";
+const ENDPOINT = "/api/usage";
 
 export default function AdminApiUsagePage() {
   const [state, setState] = useState({ loading: true, data: null, error: null });
@@ -45,7 +45,7 @@ export default function AdminApiUsagePage() {
       <div className="wrap">
         <h1>Admin API Usage</h1>
         <p className="muted">
-          Fetches <code>{ENDPOINT}</code> through the catch-all Admin API proxy.
+          Fetches <code>{ENDPOINT}</code> from the Admin API.
         </p>
 
         <div className="row">

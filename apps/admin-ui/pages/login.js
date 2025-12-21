@@ -1,13 +1,26 @@
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/router";
 import Link from "next/link";
+
+const LOGIN_ENDPOINT = "/api/auth/discord/authorize-url";
 
 export default function Login() {
   const router = useRouter();
   const { returnTo } = router.query;
+  const [origin, setOrigin] = useState("");
+
+  useEffect(() => {
+    setOrigin(window.location.origin);
+  }, []);
 
   const loginUrl = returnTo
-    ? `/api/auth/discord/authorize-url?returnTo=${encodeURIComponent(returnTo)}`
-    : "/api/auth/discord/authorize-url";
+    ? `${LOGIN_ENDPOINT}?returnTo=${encodeURIComponent(returnTo)}`
+    : LOGIN_ENDPOINT;
+
+  const configuredApiBase = useMemo(
+    () => String(process.env.NEXT_PUBLIC_ADMIN_API_BASE || "").trim(),
+    [],
+  );
 
   return (
     <main style={{ padding: 48, textAlign: "center", fontFamily: "system-ui, sans-serif" }}>
@@ -39,6 +52,32 @@ export default function Login() {
             Return to Splash Page
           </a>
         </Link>
+      </div>
+
+      <div
+        style={{
+          position: "fixed",
+          left: 12,
+          bottom: 12,
+          zIndex: 50,
+          maxWidth: 720,
+          padding: "10px 12px",
+          borderRadius: 10,
+          background: "rgba(0,0,0,0.55)",
+          border: "1px solid rgba(255,255,255,0.12)",
+          color: "rgba(255,255,255,0.9)",
+          fontFamily:
+            'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
+          fontSize: 12,
+          lineHeight: 1.4,
+          whiteSpace: "pre-wrap",
+          wordBreak: "break-all",
+        }}
+      >
+        {`origin: ${origin || "(loading...)"}
+loginEndpoint: ${LOGIN_ENDPOINT}
+loginUrl: ${loginUrl}
+env.NEXT_PUBLIC_ADMIN_API_BASE: ${configuredApiBase || "(unset)"}`}
       </div>
     </main>
   );

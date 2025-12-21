@@ -57,7 +57,7 @@ export default function GuildsIndex() {
     headers.set("Content-Type", "application/json");
     if (csrfToken) headers.set("x-csrf-token", csrfToken);
 
-    const response = await fetch("/api/admin-api/api/auth/active-guild", {
+    const response = await fetch("/api/auth/active-guild", {
       method: "POST",
       credentials: "include",
       headers,
@@ -86,7 +86,7 @@ export default function GuildsIndex() {
     setSelectingGuildId(guildId);
     setError(null);
 
-    // 1. Call POST /api/admin-api/api/auth/active-guild to set active guild server-side
+    // 1. Call POST /api/auth/active-guild to set active guild server-side
     try {
       const result = await postActiveGuild(guildId);
 

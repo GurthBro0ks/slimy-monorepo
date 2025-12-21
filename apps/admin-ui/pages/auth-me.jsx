@@ -2,7 +2,7 @@ import Head from "next/head";
 import { useEffect, useState } from "react";
 import Layout from "../components/Layout";
 
-const ENDPOINT = "/api/admin-api/api/auth/me";
+const ENDPOINT = "/api/auth/me";
 
 export default function AuthMePage() {
   const [state, setState] = useState({

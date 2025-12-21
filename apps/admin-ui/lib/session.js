@@ -89,10 +89,10 @@ export function SessionProvider({ children }) {
   }, []);
 
   const refresh = useCallback(async (options = {}) => {
-    const fallbackCsrf = adoptCsrfFromHash();
+      const fallbackCsrf = adoptCsrfFromHash();
 
-    try {
-      const response = await fetch("/api/admin-api/api/auth/me", {
+      try {
+      const response = await fetch("/api/auth/me", {
         credentials: "include",
       });
 

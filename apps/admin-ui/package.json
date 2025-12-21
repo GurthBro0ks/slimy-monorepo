@@ -5,7 +5,7 @@
     "dev": "next dev -p 3081",
     "build": "next build",
     "start": "next start -p 3081",
-    "test": "node tests/oauth-origin.test.js"
+    "test": "node tests/oauth-origin.test.js && node tests/oauth-tripwire.test.js"
   },
   "dependencies": {
     "chart.js": "^4.5.1",

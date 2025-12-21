@@ -95,15 +95,15 @@ export async function ensureActiveGuildCookie(
   writeLocalStorageValue(ACTIVE_GUILD_SYNC_STATUS_KEY, "pending");
 
   const headers = { "Content-Type": "application/json" };
-  if (csrfToken) headers["x-csrf-token"] = csrfToken;
+	  if (csrfToken) headers["x-csrf-token"] = csrfToken;
 
-  try {
-    const response = await fetch("/api/admin-api/api/auth/active-guild", {
-      method: "POST",
-      credentials: "include",
-      headers,
-      body: JSON.stringify({ guildId: normalizedGuildId }),
-    });
+	  try {
+	    const response = await fetch("/api/auth/active-guild", {
+	      method: "POST",
+	      credentials: "include",
+	      headers,
+	      body: JSON.stringify({ guildId: normalizedGuildId }),
+	    });
 
     writeLocalStorageValue(ACTIVE_GUILD_SYNC_STATUS_KEY, response.status);
 

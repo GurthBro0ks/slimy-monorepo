@@ -248,10 +248,11 @@ critical_behavior_checks() {
   log "C) CRITICAL BEHAVIOR CHECKS"
   log "================================"
 
-  # C1: Canonical OAuth entrypoint must produce redirect_uri on :3001
+  # C1: Canonical OAuth entrypoint must produce redirect_uri to admin-ui callback.
+  # Allow localhost for dev stacks, or admin.slimyai.xyz for production-like stacks.
   log ""
   log "C1: OAuth authorize-url redirect_uri..."
-  run "curl -fsS -D- -o /dev/null 'http://localhost:3001/api/auth/discord/authorize-url' | grep -i '^Location:' | grep 'redirect_uri=http%3A%2F%2Flocalhost%3A3001%2Fapi%2Fauth%2Fdiscord%2Fcallback'"
+  run "curl -fsS -D- -o /dev/null 'http://localhost:3001/api/auth/discord/authorize-url' | grep -i '^Location:' | grep -E 'redirect_uri=(http%3A%2F%2Flocalhost%3A3001|https%3A%2F%2Fadmin\\.slimyai\\.xyz(%3A443)?)%2Fapi%2Fauth%2Fdiscord%2Fcallback'"
 
   # C2: Legacy login endpoint must bounce to canonical authorize-url
   log ""

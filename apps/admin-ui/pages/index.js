@@ -14,6 +14,10 @@ export default function Home() {
     () => String(process.env.NEXT_PUBLIC_DISCORD_REDIRECT_URI || "").trim(),
     [],
   );
+  const configuredApiBase = useMemo(
+    () => String(process.env.NEXT_PUBLIC_ADMIN_API_BASE || "").trim(),
+    [],
+  );
 
   return (
     <Layout hideSidebar>
@@ -61,10 +65,11 @@ export default function Home() {
           wordBreak: "break-all",
         }}
       >
-        {`origin: ${origin || "(loading...)"}
+	        {`origin: ${origin || "(loading...)"}
 loginEndpoint: /api/auth/discord/authorize-url
-env.NEXT_PUBLIC_DISCORD_REDIRECT_URI: ${configuredRedirectUri || "(unset)"}`}
-      </div>
+env.NEXT_PUBLIC_DISCORD_REDIRECT_URI: ${configuredRedirectUri || "(unset)"}
+env.NEXT_PUBLIC_ADMIN_API_BASE: ${configuredApiBase || "(unset)"}`}
+	      </div>
 
       <footer className="hero__footer">
         UI is online on port 3081 behind Caddy.
