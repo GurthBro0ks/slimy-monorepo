@@ -34,17 +34,25 @@ COPY apps/admin-ui ./apps/admin-ui
 COPY packages ./packages
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 
-	ARG NEXT_PUBLIC_ADMIN_API_BASE
-	ARG NEXT_PUBLIC_ADMIN_API_PUBLIC_URL
-	ARG NEXT_PUBLIC_DISCORD_CLIENT_ID
-	ARG NEXT_PUBLIC_DISCORD_REDIRECT_URI
-	ARG ADMIN_API_INTERNAL_URL
-	
-	ENV NEXT_PUBLIC_ADMIN_API_BASE=$NEXT_PUBLIC_ADMIN_API_BASE
-	ENV NEXT_PUBLIC_ADMIN_API_PUBLIC_URL=$NEXT_PUBLIC_ADMIN_API_PUBLIC_URL
-	ENV NEXT_PUBLIC_DISCORD_CLIENT_ID=$NEXT_PUBLIC_DISCORD_CLIENT_ID
-	ENV NEXT_PUBLIC_DISCORD_REDIRECT_URI=$NEXT_PUBLIC_DISCORD_REDIRECT_URI
-	ENV ADMIN_API_INTERNAL_URL=$ADMIN_API_INTERNAL_URL
+ARG NEXT_PUBLIC_ADMIN_API_BASE
+ARG NEXT_PUBLIC_ADMIN_API_PUBLIC_URL
+ARG NEXT_PUBLIC_DISCORD_CLIENT_ID
+ARG NEXT_PUBLIC_DISCORD_REDIRECT_URI
+ARG ADMIN_API_INTERNAL_URL
+ARG ALLOW_LOCALHOST_PUBLIC_ENV=0
+
+ENV NEXT_PUBLIC_ADMIN_API_BASE=$NEXT_PUBLIC_ADMIN_API_BASE
+ENV NEXT_PUBLIC_ADMIN_API_PUBLIC_URL=$NEXT_PUBLIC_ADMIN_API_PUBLIC_URL
+ENV NEXT_PUBLIC_DISCORD_CLIENT_ID=$NEXT_PUBLIC_DISCORD_CLIENT_ID
+ENV NEXT_PUBLIC_DISCORD_REDIRECT_URI=$NEXT_PUBLIC_DISCORD_REDIRECT_URI
+ENV ADMIN_API_INTERNAL_URL=$ADMIN_API_INTERNAL_URL
+ENV ALLOW_LOCALHOST_PUBLIC_ENV=$ALLOW_LOCALHOST_PUBLIC_ENV
+
+# Ensure local env files in the repo don't override build-time args inside Docker.
+RUN rm -f .env .env.* apps/admin-ui/.env apps/admin-ui/.env.* || true
+
+# Guardrail: prevent accidentally baking loopback URLs into the public bundle.
+RUN node -e "const allow=String(process.env.ALLOW_LOCALHOST_PUBLIC_ENV||'')==='1'; if(allow) process.exit(0); const hits=[]; const needle=/localhost|127\\.0\\.0\\.1|\\[::1\\]|\\b::1\\b/i; for (const [k,v] of Object.entries(process.env)) { if(!k.startsWith('NEXT_PUBLIC_')) continue; const s=String(v||''); if(needle.test(s)) hits.push([k,s]); } if(hits.length){ console.error('[FATAL] Refusing to build: NEXT_PUBLIC_* contains a loopback host'); for (const [k,v] of hits) console.error('- ' + k + '=' + v); process.exit(1); }"
 
 # Install dependencies and build the admin-ui app
 RUN pnpm install --frozen-lockfile --prefer-offline 2>&1 | tail -20 || true
