@@ -9,10 +9,10 @@ export default function GuildActionsMobile({ guildId, onOpenSheet, onOpenRescan 
   return (
     <div className={styles.wrapper}>
       <div className={styles.row3}>
-        <Link href={`/guilds/${guildId}`} className={styles.btn}>
+        <Link href={`/club/${guildId}`} className={styles.btn}>
           Dashboard
         </Link>
-        <Link href={`/guilds/${guildId}/uploads`} className={styles.btn}>
+        <Link href={`/club/${guildId}`} className={styles.btn}>
           Uploads
         </Link>
         <button type="button" onClick={onOpenSheet} className={styles.btnPrimary}>
@@ -20,7 +20,7 @@ export default function GuildActionsMobile({ guildId, onOpenSheet, onOpenRescan 
         </button>
       </div>
       <div className={styles.row2}>
-        <Link href={`/guilds/${guildId}/corrections`} className={styles.btn}>
+        <Link href={`/club/${guildId}/corrections`} className={styles.btn}>
           Corrections
         </Link>
         <button

@@ -100,10 +100,7 @@ export default function GuildDashboard() {
     }
   };
 
-  const usageLink = useMemo(
-    () => (guildId ? `/guilds/${guildId}/usage` : "#"),
-    [guildId],
-  );
+  const usageLink = useMemo(() => (guildId ? `/club/${guildId}/usage` : "#"), [guildId]);
 
   const uploadsSummary = diag?.uploads || { today: 0, total: 0 };
   const apiUptime = diag?.admin?.uptimeSec;

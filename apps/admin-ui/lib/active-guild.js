@@ -9,7 +9,7 @@ export const ACTIVE_GUILD_SYNC_STATUS_KEY = "slimy_last_active_guild_sync_status
 
 export function parseGuildIdFromPath(asPath) {
   const path = String(asPath || "").split("?")[0].split("#")[0];
-  const match = path.match(/^\/(guilds|snail)\/([^/]+)(?:\/|$)/);
+  const match = path.match(/^\/(guilds|snail|club)\/([^/]+)(?:\/|$)/);
   if (!match) return "";
   return match[2] || "";
 }

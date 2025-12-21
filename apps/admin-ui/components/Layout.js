@@ -12,24 +12,24 @@ import SlimeChatBar from "./SlimeChatBar";
 import SlimeChatWidget from "./SlimeChatWidget";
 
 const NAV_SECTIONS = [
-  { href: (id) => `/guilds/${id}`, label: "Dashboard" },
-  { href: (id) => `/guilds/${id}/settings`, label: "Club Settings" },
-  { href: (id) => `/guilds/${id}/channels`, label: "Channels" },
-  { href: (id) => `/guilds/${id}/personality`, label: "Personality" },
-  { href: (id) => `/guilds/${id}/usage`, label: "Usage" },
+  { href: (id) => `/club/${id}`, label: "Dashboard" },
+  { href: (id) => `/club/${id}/settings`, label: "Club Settings" },
+  { href: (id) => `/club/${id}/channels`, label: "Channels" },
+  { href: (id) => `/club/${id}/personality`, label: "Personality" },
+  { href: (id) => `/club/${id}/usage`, label: "Usage" },
 ];
 
 export default function Layout({ guildId, children, title, hideSidebar = false }) {
   const router = useRouter();
   const api = useApi();
-  const { user, refresh, csrfToken } = useSession();
+  const { user, refresh, csrfToken, loading: sessionLoading } = useSession();
   const activeGuild = useActiveGuild({ explicitGuildId: guildId, router });
   const [open, setOpen] = useState(false);
   const [syncInfo, setSyncInfo] = useState(() => readActiveGuildSyncInfo());
   const canvasRef = useRef(null);
   const closeMenu = () => setOpen(false);
   const baseRole = user?.role || "member";
-  const effectiveRole = useMemo(() => {
+  const roleFromSessionGuilds = useMemo(() => {
     const list = Array.isArray(user?.sessionGuilds)
       ? user.sessionGuilds
       : Array.isArray(user?.guilds)
@@ -39,8 +39,30 @@ export default function Layout({ guildId, children, title, hideSidebar = false }
     const match = list.find((g) => String(g.id) === String(guildId));
     return (match && match.role) || baseRole;
   }, [user?.sessionGuilds, user?.guilds, guildId, baseRole]);
+
+  const activeGuildId = user?.activeGuildId ? String(user.activeGuildId) : "";
+  const activeGuildAppRole = user?.activeGuildAppRole
+    ? String(user.activeGuildAppRole).toLowerCase()
+    : "";
+  const pageGuildId = guildId ? String(guildId) : "";
+  const pageGuildSelected = !pageGuildId || (activeGuildId && activeGuildId === pageGuildId);
+  const pageGuildMismatch = Boolean(pageGuildId && activeGuildId && activeGuildId !== pageGuildId);
+
+  const effectiveRole = useMemo(() => {
+    if (!user) return baseRole;
+    if (baseRole === "admin") return "admin";
+    if (pageGuildId && activeGuildId === pageGuildId && user.activeGuildAppRole) {
+      return String(user.activeGuildAppRole || "").toLowerCase();
+    }
+    return roleFromSessionGuilds;
+  }, [user, baseRole, pageGuildId, activeGuildId, roleFromSessionGuilds]);
   const isAdmin = effectiveRole === "admin";
   const isClub = effectiveRole === "club" && !isAdmin;
+  const canUseGuildTools = isAdmin || isClub;
+  const hasActiveGuildToolsRole =
+    baseRole === "admin" || activeGuildAppRole === "admin" || activeGuildAppRole === "club";
+  const badgeRole =
+    pageGuildId ? effectiveRole : baseRole === "admin" ? "admin" : activeGuildAppRole || baseRole;
 
   const currentPath = useMemo(() => {
     if (!router.asPath) return "";
@@ -59,11 +81,17 @@ export default function Layout({ guildId, children, title, hideSidebar = false }
     });
   }, [guildId, currentPath, isAdmin]);
 
-  const snailHref = guildId ? `/snail/${guildId}` : "/snail";
-  const snailLabel = guildId ? "Snail Tools" : "Personal Snail";
+  const snailHref = "/snail";
+  const snailLabel = "Snail";
   const snailActive = useMemo(() => {
     if (!router.asPath) return false;
     return router.asPath.startsWith("/snail");
+  }, [router.asPath]);
+
+  const snailToolsHref = activeGuildId ? `/snail/${activeGuildId}` : "";
+  const snailToolsActive = useMemo(() => {
+    if (!router.asPath) return false;
+    return router.asPath.startsWith("/snail/") && router.asPath !== "/snail";
   }, [router.asPath]);
 
   const emailActive = useMemo(() => {
@@ -75,6 +103,8 @@ export default function Layout({ guildId, children, title, hideSidebar = false }
     if (!router.asPath) return false;
     return router.asPath.startsWith("/club");
   }, [router.asPath]);
+
+  const clubHomeHref = activeGuildId ? `/club/${activeGuildId}` : "";
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -144,6 +174,50 @@ export default function Layout({ guildId, children, title, hideSidebar = false }
     };
   }, [user?.id, user?.discordId, activeGuild.guildId, csrfToken, refresh]);
 
+  const content = useMemo(() => {
+    if (sessionLoading) return children;
+    if (!user) return children;
+    if (!pageGuildId) return children;
+
+    if (!pageGuildSelected || pageGuildMismatch) {
+      return (
+        <div className="card" style={{ padding: "1.25rem" }}>
+          <h3 style={{ marginTop: 0 }}>Select a guild first</h3>
+          <p style={{ margin: 0, opacity: 0.8 }}>
+            This page requires an active guild selection. Go to <a href="/guilds">/guilds</a> and pick one.
+          </p>
+          {pageGuildMismatch ? (
+            <p style={{ margin: "0.75rem 0 0", opacity: 0.7, fontFamily: "monospace" }}>
+              activeGuildId={activeGuildId} requestedGuildId={pageGuildId}
+            </p>
+          ) : null}
+        </div>
+      );
+    }
+
+    if (!canUseGuildTools) {
+      return (
+        <div className="card" style={{ padding: "1.25rem" }}>
+          <h3 style={{ marginTop: 0 }}>Access denied</h3>
+          <p style={{ margin: 0, opacity: 0.8 }}>
+            You don’t have guild tools access for this server. Pick a different guild from <a href="/guilds">/guilds</a>.
+          </p>
+        </div>
+      );
+    }
+
+    return children;
+  }, [
+    sessionLoading,
+    user,
+    children,
+    pageGuildId,
+    pageGuildSelected,
+    pageGuildMismatch,
+    activeGuildId,
+    canUseGuildTools,
+  ]);
+
   return (
     <>
       <Head><title>{title || "slimy.ai – Admin Panel"}</title></Head>
@@ -160,14 +234,38 @@ export default function Layout({ guildId, children, title, hideSidebar = false }
                 <a className={link.active ? "active" : ""}>{link.label}</a>
               </Link>
             ))}
-            {isClub && (
-              <Link href="/club" legacyBehavior>
+            <Link href="/guilds" legacyBehavior>
+              <a className={router.asPath.startsWith("/guilds") ? "active" : ""}>Guilds</a>
+            </Link>
+            {clubHomeHref && hasActiveGuildToolsRole ? (
+              <Link href={clubHomeHref} legacyBehavior>
                 <a className={clubActive ? "active" : ""}>Club</a>
               </Link>
+            ) : (
+              <a
+                className="disabled"
+                title={clubHomeHref ? "Requires club/admin role" : "Select a guild first"}
+                style={{ pointerEvents: "none", opacity: 0.5 }}
+              >
+                Club
+              </a>
             )}
             <Link href={snailHref} legacyBehavior>
-              <a className={snailActive ? "active" : ""}>Snail</a>
+              <a className={snailActive && !snailToolsActive ? "active" : ""}>{snailLabel}</a>
             </Link>
+            {snailToolsHref && hasActiveGuildToolsRole ? (
+              <Link href={snailToolsHref} legacyBehavior>
+                <a className={snailToolsActive ? "active" : ""}>Snail Tools</a>
+              </Link>
+            ) : (
+              <a
+                className="disabled"
+                title={snailToolsHref ? "Requires club/admin role" : "Select a guild first"}
+                style={{ pointerEvents: "none", opacity: 0.5 }}
+              >
+                Snail Tools
+              </a>
+            )}
             <Link href="/chat" legacyBehavior>
               <a className={router.asPath.startsWith("/chat") ? "active" : ""}>Chat</a>
             </Link>
@@ -181,7 +279,7 @@ export default function Layout({ guildId, children, title, hideSidebar = false }
         <div className="nav-actions">
           {user && (
             <span className="badge">
-              {user.username} · {effectiveRole.toUpperCase()}
+              {user.username} · {badgeRole.toUpperCase()}
             </span>
           )}
           {user && (
@@ -230,7 +328,7 @@ export default function Layout({ guildId, children, title, hideSidebar = false }
                 {user && (
                   <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 12 }}>
                     <span style={{ opacity: 0.8, fontSize: 14 }}>
-                      {user.username} · {effectiveRole.toUpperCase()}
+                      {user.username} · {badgeRole.toUpperCase()}
                     </span>
                     <button
                       className="btn outline"
@@ -277,34 +375,46 @@ export default function Layout({ guildId, children, title, hideSidebar = false }
                   <p style={{ opacity: 0.7 }}>Select a guild to begin.</p>
                 ) : (
                   <p style={{ opacity: 0.7 }}>
-                    Snail tools let members analyze captures without admin access.
+                    Select a guild in <a href="/guilds">/guilds</a> to enable club + snail tools.
                   </p>
                 )}
 
-                <nav style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                  {isClub && (
-                    <Link href="/club" legacyBehavior>
-                      <a
-                        onClick={closeMenu}
-                        style={{
-                          padding: "10px 12px",
-                          borderRadius: 8,
-                          background: clubActive
-                            ? "rgba(61, 255, 140, 0.12)"
-                            : "transparent",
-                          border: clubActive
-                            ? "1px solid var(--glass-border)"
-                            : "1px solid transparent",
-                        }}
-                      >
-                        Club Dashboard
-                      </a>
-                    </Link>
-                  )}
-                  <Link href={snailHref} legacyBehavior>
-                    <a
-                      onClick={closeMenu}
-                      style={{
+	                <nav style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+		                  {clubHomeHref && hasActiveGuildToolsRole ? (
+		                    <Link href={clubHomeHref} legacyBehavior>
+		                      <a
+		                        onClick={closeMenu}
+	                        style={{
+	                          padding: "10px 12px",
+	                          borderRadius: 8,
+	                          background: clubActive
+	                            ? "rgba(61, 255, 140, 0.12)"
+	                            : "transparent",
+	                          border: clubActive
+	                            ? "1px solid var(--glass-border)"
+	                            : "1px solid transparent",
+	                        }}
+	                      >
+	                        Club Dashboard
+		                      </a>
+		                    </Link>
+		                  ) : (
+		                    <a
+	                      style={{
+	                        padding: "10px 12px",
+	                        borderRadius: 8,
+	                        opacity: 0.5,
+		                        pointerEvents: "none",
+		                      }}
+		                      title={clubHomeHref ? "Requires club/admin role" : "Select a guild first"}
+		                    >
+		                      Club Dashboard
+		                    </a>
+		                  )}
+	                  <Link href={snailHref} legacyBehavior>
+	                    <a
+	                      onClick={closeMenu}
+	                      style={{
                         padding: "10px 12px",
                         borderRadius: 8,
                         display: "inline-flex",
@@ -317,15 +427,50 @@ export default function Layout({ guildId, children, title, hideSidebar = false }
                         border: snailActive
                           ? "1px solid var(--glass-border)"
                           : "1px solid transparent",
-                      }}
-                    >
-                      <span role="img" aria-label="snail">🐌</span> {snailLabel}
-                    </a>
-                  </Link>
-                  <Link href="/chat" legacyBehavior>
-                    <a
-                      onClick={closeMenu}
-                      style={{
+	                      }}
+	                    >
+	                      <span role="img" aria-label="snail">🐌</span> Snail
+	                    </a>
+	                  </Link>
+		                  {snailToolsHref && hasActiveGuildToolsRole ? (
+		                    <Link href={snailToolsHref} legacyBehavior>
+		                      <a
+		                        onClick={closeMenu}
+	                        style={{
+	                          padding: "10px 12px",
+	                          borderRadius: 8,
+	                          display: "inline-flex",
+	                          alignItems: "center",
+	                          gap: 8,
+	                          fontWeight: 600,
+	                          background: snailToolsActive
+	                            ? "rgba(61, 255, 140, 0.12)"
+	                            : "transparent",
+	                          border: snailToolsActive
+	                            ? "1px solid var(--glass-border)"
+	                            : "1px solid transparent",
+	                        }}
+	                      >
+	                        <span role="img" aria-label="tools">🧰</span> Snail Tools
+		                      </a>
+		                    </Link>
+		                  ) : (
+		                    <a
+	                      style={{
+	                        padding: "10px 12px",
+	                        borderRadius: 8,
+	                        opacity: 0.5,
+		                        pointerEvents: "none",
+		                      }}
+		                      title={snailToolsHref ? "Requires club/admin role" : "Select a guild first"}
+		                    >
+		                      <span role="img" aria-label="tools">🧰</span> Snail Tools
+		                    </a>
+		                  )}
+	                  <Link href="/chat" legacyBehavior>
+	                    <a
+	                      onClick={closeMenu}
+	                      style={{
                         padding: "10px 12px",
                         borderRadius: 8,
                         display: "inline-flex",
@@ -375,30 +520,30 @@ export default function Layout({ guildId, children, title, hideSidebar = false }
               onClick={closeMenu}
             />
 
-            <main className="content">
-              {title && <h2 style={{ marginTop: 0, marginBottom: 24 }}>{title}</h2>}
-              <div className="panel">
-                {children}
-              </div>
-            </main>
-          </div>
-        </div>
-      )}
+	            <main className="content">
+	              {title && <h2 style={{ marginTop: 0, marginBottom: 24 }}>{title}</h2>}
+	              <div className="panel">
+	                {content}
+	              </div>
+	            </main>
+	          </div>
+	        </div>
+	      )}
 
-      {hideSidebar && (
-        <div className="dashboard-wrapper">
-          <main className="content content--without-sidebar">
-            {title && <h2 style={{ marginTop: 0, marginBottom: 24 }}>{title}</h2>}
-            <div className="panel">
-              {children}
-            </div>
-          </main>
-        </div>
-      )}
+	      {hideSidebar && (
+	        <div className="dashboard-wrapper">
+	          <main className="content content--without-sidebar">
+	            {title && <h2 style={{ marginTop: 0, marginBottom: 24 }}>{title}</h2>}
+	            <div className="panel">
+	              {content}
+	            </div>
+	          </main>
+	        </div>
+	      )}
 
-      {/* Slime Chat bottom bar (shows for all logged-in users) */}
-      {user && <SlimeChatBar guildId={guildId} />}
-      <SlimeChatWidget />
+	      {/* Slime Chat bottom bar (shows for all logged-in users) */}
+	      {user && <SlimeChatBar guildId={pageGuildId || activeGuildId} />}
+	      <SlimeChatWidget />
 
       {showGuildDebug && (
         <div

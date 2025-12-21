@@ -1,11 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/router";
 import Layout from "../../components/Layout";
 import { useSession } from "../../lib/session";
 import { apiFetch } from "../../lib/api";
-import { buildBotInviteUrl } from "../../lib/discord";
 import { writeActiveGuildId } from "../../lib/active-guild";
 
 export default function GuildsIndex() {
@@ -15,6 +14,17 @@ export default function GuildsIndex() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectingGuildId, setSelectingGuildId] = useState(null);
+  const returnTo = useMemo(() => {
+    const raw = Array.isArray(router.query?.returnTo)
+      ? router.query.returnTo[0]
+      : router.query?.returnTo;
+    if (!raw || typeof raw !== "string") return "";
+    const value = raw.trim();
+    if (!value.startsWith("/")) return "";
+    if (value.startsWith("//")) return "";
+    if (value.includes("\\") || value.includes("\n") || value.includes("\r")) return "";
+    return value;
+  }, [router.query?.returnTo]);
 
   useEffect(() => {
     if (sessionLoading || !user) return;
@@ -41,13 +51,6 @@ export default function GuildsIndex() {
     const returnTo = router.asPath || "/guilds";
     router.replace(`/login?returnTo=${encodeURIComponent(returnTo)}`);
   }, [sessionLoading, user, router]);
-
-  const inviteBase = {
-    clientId: process.env.NEXT_PUBLIC_BOT_CLIENT_ID || "1415387116564910161",
-    scopes: process.env.NEXT_PUBLIC_BOT_INVITE_SCOPES || "bot applications.commands",
-    permissions: process.env.NEXT_PUBLIC_BOT_PERMISSIONS || "274878286848",
-  };
-  const globalInviteUrl = buildBotInviteUrl(inviteBase);
 
   const postActiveGuild = async (guildId) => {
     const headers = new Headers();
@@ -105,14 +108,11 @@ export default function GuildsIndex() {
     }
 
     // 2. Navigate based on role
-    const roleLabel = (guild.roleLabel || guild.role || "member").toLowerCase();
-    if (roleLabel === "admin") {
-      router.push(`/guilds/${guildId}`);
-    } else if (roleLabel === "club") {
-      router.push(`/club?guildId=${guildId}`);
-    } else {
-      router.push(`/snail/${guildId}`);
+    if (returnTo) {
+      router.push(returnTo);
+      return;
     }
+    router.push(`/club/${guildId}`);
   };
 
   if (sessionLoading || loading) {
@@ -165,22 +165,21 @@ export default function GuildsIndex() {
       <Layout title="No Guilds Available">
         <div style={{ textAlign: "center", padding: "2rem", display: "grid", gap: "1.25rem" }}>
           <div>No guilds available. Make sure you're in at least one Discord server.</div>
-          <a
-            href={globalInviteUrl}
-            target="_blank"
-            rel="noopener noreferrer"
+          <button
+            className="btn outline"
+            disabled
+            title="Coming soon"
             style={{
               display: "inline-block",
               padding: "0.75rem 1.5rem",
               borderRadius: "8px",
               background: "linear-gradient(135deg, rgb(109,40,217), rgb(34,197,94))",
               color: "white",
-              textDecoration: "none",
               fontWeight: 600,
             }}
           >
-            Add Bot to Server
-          </a>
+            Add Bot to Server (coming soon)
+          </button>
         </div>
       </Layout>
     );
@@ -189,10 +188,9 @@ export default function GuildsIndex() {
   return (
     <Layout title="Select a Guild">
       <div style={{ marginBottom: "1rem", display: "flex", justifyContent: "flex-end" }}>
-        <a
-          href={globalInviteUrl}
-          target="_blank"
-          rel="noopener noreferrer"
+        <button
+          disabled
+          title="Coming soon"
           style={{
             display: "inline-block",
             padding: "0.5rem 1rem",
@@ -200,12 +198,13 @@ export default function GuildsIndex() {
             border: "1px solid rgba(56,189,248,0.3)",
             background: "rgba(56,189,248,0.1)",
             color: "rgb(56,189,248)",
-            textDecoration: "none",
             fontSize: "0.875rem",
+            cursor: "not-allowed",
+            opacity: 0.7,
           }}
         >
           + Add Bot to Another Server
-        </a>
+        </button>
       </div>
 
       <div className="card" style={{ padding: "1.5rem", display: "grid", gap: "1rem" }}>
@@ -216,11 +215,6 @@ export default function GuildsIndex() {
           {guilds.map((guild) => {
             const installed = !!guild.installed;
             const canSelect = installed && guild.connectable !== false;
-            const guildInviteUrl = buildBotInviteUrl({
-              ...inviteBase,
-              guildId: guild.id,
-              lockGuild: true,
-            });
             return (
               <div
                 key={guild.id}
@@ -244,23 +238,23 @@ export default function GuildsIndex() {
                 </div>
                 <div style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
                   {!installed && (
-                    <a
-                      href={guildInviteUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
+                    <button
+                      disabled
+                      title="Coming soon"
                       style={{
                         display: "inline-block",
                         padding: "0.5rem 1rem",
                         borderRadius: "8px",
                         background: "linear-gradient(135deg, rgb(109,40,217), rgb(34,197,94))",
                         color: "white",
-                        textDecoration: "none",
                         fontSize: "0.85rem",
                         fontWeight: 600,
+                        cursor: "not-allowed",
+                        opacity: 0.7,
                       }}
                     >
                       Invite Bot
-                    </a>
+                    </button>
                   )}
                   <button
                     className="btn"

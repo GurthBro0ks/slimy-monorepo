@@ -35,8 +35,8 @@ function isProtectedPath(pathname) {
   if (pathname.startsWith("/chat")) return true;
   if (pathname.startsWith("/club")) return true;
 
-  // Special-case snail: /snail is public, /snail/<guildId> is protected
-  if (pathname.startsWith("/snail/")) return true;
+  // Snail is always login-gated: /snail (personal) and /snail/<guildId> (tools)
+  if (pathname === "/snail" || pathname.startsWith("/snail/")) return true;
 
   return false;
 }
