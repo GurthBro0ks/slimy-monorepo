@@ -2,14 +2,9 @@
 # Place this in /etc/caddy/Caddyfile on your server
 
 admin.slimyai.xyz {
-    # Handle API routes - proxy to admin API backend
-    handle_path /api/* {
+    # Optional: keep a narrow admin-api health check path public
+    handle /api/health {
         reverse_proxy localhost:3080 {
-            # Health check
-            health_uri /api/health
-            health_interval 10s
-            health_timeout 5s
-            
             # Headers
             header_up Host {host}
             header_up X-Real-IP {remote_host}
@@ -18,12 +13,15 @@ admin.slimyai.xyz {
         }
     }
 
-    # Handle all other routes - proxy to Next.js web app
+    # Handle all other routes - proxy to admin-ui (Next.js)
     reverse_proxy localhost:3001 {
         # Health check
         health_uri /api/health
         health_interval 10s
         health_timeout 5s
+
+        # Temporary debug header to prove admin-ui routing
+        header_down X-Slimy-Upstream "admin-ui"
         
         # Headers
         header_up Host {host}

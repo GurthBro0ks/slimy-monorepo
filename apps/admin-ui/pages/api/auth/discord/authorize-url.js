@@ -1,30 +1,5 @@
 import crypto from "crypto";
-
-function firstHeader(req, name, fallback) {
-  const v = req.headers[name];
-  if (!v) return fallback;
-  return String(v).split(",")[0].trim();
-}
-
-function withForwardedPortIfMissing(host, port) {
-  if (!host || !port) return host;
-  if (!/^[0-9]+$/.test(port)) return host;
-
-  // IPv6 host header should be bracketed: "[::1]:3001"
-  if (host.startsWith("[")) {
-    const closing = host.indexOf("]");
-    if (closing === -1) return host;
-    if (host.includes("]:")) return host;
-    const base = host.slice(0, closing + 1);
-    return `${base}:${port}`;
-  }
-
-  // If host has no port, append it. Never override a port already present,
-  // because some runtimes inject an internal `x-forwarded-port` value.
-  if (!host.includes(":")) return `${host}:${port}`;
-
-  return host;
-}
+import { getPublicOrigin } from "../../../../lib/oauth-origin";
 
 export default function handler(req, res) {
   if (req.method !== "GET") {
@@ -32,11 +7,8 @@ export default function handler(req, res) {
     return res.status(405).json({ ok: false, error: { code: "METHOD_NOT_ALLOWED" } });
   }
 
-  const proto = firstHeader(req, "x-forwarded-proto", "http");
-  const rawHost = firstHeader(req, "x-forwarded-host", firstHeader(req, "host", "localhost:3001"));
-  const forwardedPort = firstHeader(req, "x-forwarded-port", "");
-  const host = withForwardedPortIfMissing(rawHost, forwardedPort);
-  const origin = `${proto}://${host}`;
+  // Derive public origin with security validation
+  const origin = getPublicOrigin(req);
 
   const clientId = process.env.NEXT_PUBLIC_DISCORD_CLIENT_ID || process.env.DISCORD_CLIENT_ID;
   if (!clientId) {
@@ -46,17 +18,14 @@ export default function handler(req, res) {
   // ✅ This is the only redirect_uri we will ever use from admin-ui now.
   const redirectUri = `${origin}/api/auth/discord/callback`;
 
-  if (process.env.NODE_ENV !== "production") {
-    console.log("[authorize-url] Generated redirect_uri:", redirectUri);
-    const configured = process.env.NEXT_PUBLIC_DISCORD_REDIRECT_URI;
-    if (configured && configured !== redirectUri) {
-      console.warn(
-        "[authorize-url] Mismatch: env.NEXT_PUBLIC_DISCORD_REDIRECT_URI =",
-        configured,
-        "but generated =",
-        redirectUri
-      );
-    }
+  const configured = process.env.NEXT_PUBLIC_DISCORD_REDIRECT_URI;
+  if (configured && configured !== redirectUri) {
+    console.warn(
+      "[authorize-url] Mismatch: env.NEXT_PUBLIC_DISCORD_REDIRECT_URI =",
+      configured,
+      "but generated =",
+      redirectUri
+    );
   }
 
   const state = crypto.randomBytes(16).toString("hex");
@@ -84,6 +53,8 @@ export default function handler(req, res) {
   });
 
   const location = `https://discord.com/oauth2/authorize?${params.toString()}`;
+  console.info("[authorize-url] redirect_uri", redirectUri);
+  console.info("[authorize-url] authorize_url", location);
   res.statusCode = 302;
   res.setHeader("Location", location);
   return res.end();
