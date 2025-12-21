@@ -25,7 +25,7 @@ const CODE_SCOPES = [
 
 export default function SnailGuildPage() {
   const router = useRouter();
-  const { user, loading } = useSession();
+  const { loading } = useSession();
   const gated = useGatedGuilds();
   const rawGuildId = router.query.guildId;
   const guildId = useMemo(() => {
@@ -36,18 +36,6 @@ export default function SnailGuildPage() {
   const [activeTab, setActiveTab] = useState("analyze");
   const [statsVersion, bumpStats] = useState(0);
 
-  useEffect(() => {
-    if (!loading && !user) {
-      router.replace("/");
-    }
-  }, [loading, user, router]);
-
-  const hasAccess = useMemo(() => {
-    if (!guildId) return false;
-    const list = Array.isArray(gated.guilds) ? gated.guilds : [];
-    return list.some((g) => String(g.id) === String(guildId));
-  }, [guildId, gated.guilds]);
-
   const guildName = useMemo(() => {
     if (!guildId) return guildId;
     const list = Array.isArray(gated.guilds) ? gated.guilds : [];
@@ -55,23 +43,10 @@ export default function SnailGuildPage() {
     return match ? match.name : guildId;
   }, [guildId, gated.guilds]);
 
-  if (loading || gated.loading || !guildId) {
+  if (loading || !guildId) {
     return (
       <Layout title="Snail Tools">
         <div className="card" style={{ padding: "1.25rem" }}>Loading…</div>
-      </Layout>
-    );
-  }
-
-  if (!hasAccess) {
-    return (
-      <Layout title="Snail Tools">
-        <div className="card" style={{ padding: "1.25rem" }}>
-          <h3 style={{ marginTop: 0 }}>Access denied</h3>
-          <p style={{ margin: 0, opacity: 0.8 }}>
-            You need access to this guild to use Snail Tools. Go to <a href="/guilds">/guilds</a> to select an allowed guild.
-          </p>
-        </div>
       </Layout>
     );
   }
