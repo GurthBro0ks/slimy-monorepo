@@ -54,6 +54,7 @@ services:
       COOKIE_DOMAIN: ${COOKIE_DOMAIN:-.localhost}
       
       # CORS
+      CORS_ALLOW_ORIGIN: ${CORS_ALLOW_ORIGIN:-}
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
       CLIENT_URL: ${CLIENT_URL:-http://localhost:3000}
       
@@ -134,7 +135,9 @@ services:
       NEXT_PUBLIC_ADMIN_API_PUBLIC_URL: ${NEXT_PUBLIC_ADMIN_API_PUBLIC_URL:-http://localhost:3080}
       NEXT_PUBLIC_DISCORD_CLIENT_ID: ${NEXT_PUBLIC_DISCORD_CLIENT_ID:-}
       NEXT_PUBLIC_DISCORD_REDIRECT_URI: ${NEXT_PUBLIC_DISCORD_REDIRECT_URI:-}
+      ADMIN_UI_ORIGIN: ${ADMIN_UI_ORIGIN:-}
       ADMIN_API_INTERNAL_URL: "http://admin-api:3080"
+      ALLOW_LOCALHOST_OAUTH: ${ALLOW_LOCALHOST_OAUTH:-1}
     depends_on:
       admin-api:
         condition: service_healthy
