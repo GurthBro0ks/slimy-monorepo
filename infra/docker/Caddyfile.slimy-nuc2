@@ -128,14 +128,26 @@ slime.chat, www.slime.chat {
 
 admin.slimyai.xyz {
   import slime_common
-  @admin_api_health path /api/health
-  handle @admin_api_health {
+
+  # OAuth/auth routes go to admin-ui (Next.js handles these)
+  @admin_ui_auth path /api/auth/*
+  handle @admin_ui_auth {
+    reverse_proxy 127.0.0.1:3001 {
+      header_up Host {host}
+      header_up X-Forwarded-Port {server_port}
+    }
+  }
+
+  # Other API routes go to admin-api backend
+  @admin_api path /api/*
+  handle @admin_api {
     reverse_proxy 127.0.0.1:3080 {
       header_up Host {host}
       header_up X-Forwarded-Port {server_port}
     }
   }
 
+  # Everything else goes to admin-ui
   handle {
     header X-Slimy-Upstream "admin-ui"
     reverse_proxy 127.0.0.1:3001 {
