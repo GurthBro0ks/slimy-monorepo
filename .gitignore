@@ -3,6 +3,10 @@ apps/*/node_modules/
 apps/*/.next/
 .next/
 dist/
+!packages/contracts/dist/
+!packages/contracts/dist/**
+!packages/admin-api-client/dist/
+!packages/admin-api-client/dist/**
 .aider*
 package-lock.json
 **/package-lock.json

@@ -26,17 +26,17 @@
 ### Done
 - Admin UI prod hardening: no localhost public URLs; dev-only override supported; build guardrails to prevent loopback in `NEXT_PUBLIC_*`.
 - Added verification scripts for “no localhost” regression (and CI step if present).
+- Settings+Memory v0: shared contracts + admin-api persistence/endpoints + regression check.
 
 ### Now
 - Add/standardize `AGENTS.md` (root + per-folder).
 - Enforce `AGENTS.md` + `CONTINUITY.md` presence checks in CI.
-- Establish explicit cross-service rules for Settings + Memory (Discord + Web).
+- Wire bot `/commands` + Web/Admin UI clients to use the Settings+Memory v0 endpoints.
 - Reduce “tribal knowledge” by pinning working commands and invariants here.
 
 ### Next
-- Define Settings contract (types/schemas) shared by bot + web + admin-api (single source of truth).
-- Add `/commands` + Web UI settings screens that both call the same admin-api endpoints.
-- Add initial “Memory Store” (structured summaries/state + pointers) behind admin-api.
+- Add `/commands` + Web/Admin UI settings screens that call the same admin-api endpoints.
+- Add “MemoryProvider” abstraction behind admin-api (DB v0 -> Memori later) without contract changes.
 
 ## Open questions (UNCONFIRMED if needed)
 - UNCONFIRMED: Exact current location of shared settings schema/types in `packages/` (or if it needs to be created).

@@ -122,6 +122,21 @@ model GuildSettings {
   @@map("guild_settings_central")
 }
 
+model MemoryRecord {
+  id        String   @id @default(cuid())
+  scopeType String   @map("scope_type")
+  scopeId   String   @map("scope_id")
+  kind      String
+  source    String
+  content   Json     @map("content")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([scopeType, scopeId])
+  @@index([scopeType, scopeId, kind])
+  @@map("memory_records")
+}
+
 // Many-to-many relationship between users and guilds with roles
 model UserGuild {
   id     String @id @default(cuid())
