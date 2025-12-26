@@ -1,5 +1,6 @@
 import { useRouter } from "next/router";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { createAdminApiClient } from "@slimy/admin-api-client";
 import Layout from "../../../components/Layout";
 import { apiFetch } from "../../../lib/api";
 import { useSession } from "../../../lib/session";
@@ -11,7 +12,7 @@ import { useSession } from "../../../lib/session";
  */
 export default function GuildSettingsPage() {
   const router = useRouter();
-  const { user } = useSession();
+  const { user, csrfToken } = useSession();
   const guildId = router.query.guildId?.toString() || "";
 
   // Determine if user can access guild settings
@@ -25,6 +26,68 @@ export default function GuildSettingsPage() {
     isAdmin ||
     (activeGuildId === guildId &&
       (activeGuildAppRole === "admin" || activeGuildAppRole === "club"));
+
+  const userId = user?.discordId || user?.id || "";
+  const adminApiBaseUrl = "/api/admin-api";
+  const adminApi = useMemo(
+    () =>
+      createAdminApiClient({
+        baseUrl: adminApiBaseUrl,
+        defaultHeaders: csrfToken ? { "x-csrf-token": csrfToken } : {},
+      }),
+    [csrfToken],
+  );
+
+  const [centralGuildState, setCentralGuildState] = useState({
+    loading: false,
+    saving: false,
+    widgetEnabled: false,
+    lastFetchedAt: null,
+    error: null,
+  });
+
+  const refreshCentralGuildSettings = useCallback(async () => {
+    if (!guildId || !canAccessGuildSettings) return;
+    setCentralGuildState((s) => ({ ...s, loading: true, error: null }));
+    const res = await adminApi.getGuildSettings(guildId);
+    if (!res.ok) {
+      setCentralGuildState((s) => ({ ...s, loading: false, error: res.error, lastFetchedAt: new Date().toISOString() }));
+      return;
+    }
+
+    const widgetEnabled = Boolean(res.data?.settings?.prefs?.widget?.enabled);
+    setCentralGuildState((s) => ({
+      ...s,
+      loading: false,
+      widgetEnabled,
+      lastFetchedAt: new Date().toISOString(),
+      error: null,
+    }));
+  }, [adminApi, guildId, canAccessGuildSettings]);
+
+  const setWidgetEnabled = useCallback(async (nextEnabled) => {
+    if (!guildId || !canAccessGuildSettings) return;
+    setCentralGuildState((s) => ({ ...s, saving: true, error: null }));
+    const res = await adminApi.patchGuildSettings(guildId, {
+      prefs: { widget: { enabled: Boolean(nextEnabled) } },
+    });
+    if (!res.ok) {
+      setCentralGuildState((s) => ({ ...s, saving: false, error: res.error }));
+      return;
+    }
+
+    setCentralGuildState((s) => ({
+      ...s,
+      saving: false,
+      widgetEnabled: Boolean(res.data?.settings?.prefs?.widget?.enabled),
+      lastFetchedAt: new Date().toISOString(),
+      error: null,
+    }));
+  }, [adminApi, guildId, canAccessGuildSettings]);
+
+  useEffect(() => {
+    void refreshCentralGuildSettings();
+  }, [refreshCentralGuildSettings]);
 
   // Tab state - default to "personal", but switch to "guild" if user came from guild nav
   const [activeTab, setActiveTab] = useState("personal");
@@ -259,6 +322,42 @@ export default function GuildSettingsPage() {
             <div style={{ color: "#f88", marginBottom: "1rem" }}>Error: {state.error}</div>
           )}
 
+          <div
+            style={{
+              marginBottom: "1rem",
+              padding: "1rem",
+              borderRadius: "10px",
+              background: "rgba(0,0,0,.25)",
+              border: "1px solid rgba(255,255,255,.08)",
+            }}
+          >
+            <div style={{ fontWeight: 700, marginBottom: "0.75rem" }}>Central Settings (v0)</div>
+            <label style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+              <input
+                type="checkbox"
+                checked={Boolean(centralGuildState.widgetEnabled)}
+                disabled={centralGuildState.loading || centralGuildState.saving}
+                onChange={(e) => setWidgetEnabled(e.target.checked)}
+              />
+              Widget enabled
+            </label>
+            <div style={{ marginTop: "0.5rem", display: "flex", gap: "0.5rem" }}>
+              <button className="btn" onClick={() => refreshCentralGuildSettings()} disabled={centralGuildState.loading}>
+                Refresh
+              </button>
+              {(centralGuildState.loading || centralGuildState.saving) && (
+                <div style={{ opacity: 0.7, paddingTop: "0.35rem" }}>
+                  {centralGuildState.saving ? "Saving..." : "Loading..."}
+                </div>
+              )}
+            </div>
+            {centralGuildState.error && (
+              <div style={{ marginTop: "0.75rem", color: "#f88" }}>
+                Error: {JSON.stringify(centralGuildState.error)}
+              </div>
+            )}
+          </div>
+
           {!state.loading && !state.error && (
             <>
               <div className="grid cols-2">
@@ -361,6 +460,19 @@ export default function GuildSettingsPage() {
           </p>
         </div>
       )}
+
+      {/* Temporary debug/status area (required) */}
+      <div className="card" style={{ padding: "1rem" }}>
+        <div style={{ fontWeight: 700, marginBottom: "0.75rem" }}>Debug / Status (temporary)</div>
+        <div style={{ fontFamily: "monospace", fontSize: "0.9rem", display: "grid", gap: "0.35rem" }}>
+          <div>adminApiBaseUrl: {adminApiBaseUrl}</div>
+          <div>userId: {userId || "(none)"}</div>
+          <div>guildId: {guildId || "(none)"}</div>
+          <div>activeGuildId: {activeGuildId || "(none)"}</div>
+          <div>lastCentralFetch: {centralGuildState.lastFetchedAt || "(never)"}</div>
+          <div>lastCentralError: {centralGuildState.error ? JSON.stringify(centralGuildState.error) : "(none)"}</div>
+        </div>
+      </div>
     </Layout>
   );
 }

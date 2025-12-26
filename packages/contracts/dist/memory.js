@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.MemoryWriteRequestSchema = exports.MemoryRecordSchema = exports.MemoryContentSchema = exports.MemorySourceSchema = exports.MemoryKindSchema = exports.MemoryScopeTypeSchema = exports.SECRET_LIKE_KEY_HINTS = exports.MAX_MEMORY_CONTENT_BYTES = void 0;
+exports.MemoryWriteRequestSchema = exports.MemoryRecordSchema = exports.MemoryContentSchema = exports.MemorySourceSchema = exports.MEMORY_KIND_POLICY = exports.MemoryKindSchema = exports.MemoryScopeTypeSchema = exports.SECRET_LIKE_KEY_HINTS = exports.MAX_MEMORY_CONTENT_BYTES = void 0;
+exports.checkMemoryKindPolicy = checkMemoryKindPolicy;
 const zod_1 = require("zod");
 exports.MAX_MEMORY_CONTENT_BYTES = 16 * 1024;
 exports.SECRET_LIKE_KEY_HINTS = [
@@ -60,6 +61,37 @@ exports.MemoryKindSchema = zod_1.z.enum([
     "project_state",
     "snail_lore",
 ]);
+exports.MEMORY_KIND_POLICY = {
+    profile_summary: {
+        allowedScopeTypes: ["user"],
+        platformAdminOnlyScopeTypes: [],
+    },
+    preferences: {
+        allowedScopeTypes: ["user", "guild"],
+        platformAdminOnlyScopeTypes: [],
+    },
+    project_state: {
+        allowedScopeTypes: ["user", "guild"],
+        platformAdminOnlyScopeTypes: ["user"],
+    },
+    snail_lore: {
+        allowedScopeTypes: ["user", "guild"],
+        platformAdminOnlyScopeTypes: [],
+    },
+};
+function checkMemoryKindPolicy(input) {
+    const policy = exports.MEMORY_KIND_POLICY[input.kind];
+    const allowedScopeTypes = policy.allowedScopeTypes;
+    const platformAdminOnlyScopeTypes = policy.platformAdminOnlyScopeTypes;
+    if (!allowedScopeTypes.includes(input.scopeType)) {
+        return { ok: false, reason: "scope_forbidden" };
+    }
+    if (platformAdminOnlyScopeTypes.includes(input.scopeType) &&
+        !input.isPlatformAdmin) {
+        return { ok: false, reason: "platform_admin_required" };
+    }
+    return { ok: true };
+}
 exports.MemorySourceSchema = zod_1.z.enum(["discord", "web", "admin-ui", "system"]);
 exports.MemoryContentSchema = zod_1.z
     .object({})

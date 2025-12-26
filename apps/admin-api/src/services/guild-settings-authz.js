@@ -65,6 +65,20 @@ async function requireGuildSettingsAdmin(req, guildIdRaw) {
     return { ok: true, roleSource: "platform_admin" };
   }
 
+  if (req.user?.authType === "internal_bot") {
+    const ctx = req.user?.interaction || {};
+    const ctxGuildId = ctx.guildId ? String(ctx.guildId).trim() : "";
+    const ctxPerms = ctx.permissions ? String(ctx.permissions).trim() : "";
+
+    if (!ctxGuildId || ctxGuildId !== guildId) {
+      return { ok: false, status: 403, error: "missing_interaction_context" };
+    }
+
+    return hasAdminOrManagePermission(ctxPerms)
+      ? { ok: true, roleSource: "interaction_permissions" }
+      : { ok: false, status: 403, error: "forbidden" };
+  }
+
   const botToken = getSlimyBotToken();
   if (!botToken) {
     return { ok: false, status: 500, error: "MISSING_SLIMYAI_BOT_TOKEN" };
@@ -109,4 +123,3 @@ module.exports = {
   resolveCallerDiscordId,
   requireGuildSettingsAdmin,
 };
-

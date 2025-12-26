@@ -61,8 +61,11 @@ jobs:
       - name: Verify admin-ui has no localhost in public output
         run: bash scripts/verify/admin-ui-no-localhost-build.sh
 
-      - name: Verify settings+memory v0 (admin-api regression)
-        run: bash scripts/verify/settings-memory-bridge-v0.sh
+      - name: Verify no localhost in client sources
+        run: bash scripts/verify/no-localhost-in-client-sources.sh
+
+      - name: Verify settings sync clients v0.1 (admin-api regression + client builds)
+        run: bash scripts/verify/settings-sync-clients-v01.sh
 
       - name: Verify continuity ledger present
         run: bash scripts/verify/continuity-ledger-present.sh

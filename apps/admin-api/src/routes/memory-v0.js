@@ -3,6 +3,7 @@
 const express = require("express");
 const prismaDatabase = require("../lib/database");
 const { requireAuth } = require("../middleware/auth");
+const { internalBotAuth } = require("../middleware/internal-bot-auth");
 const { requireCsrf } = require("../middleware/csrf");
 const { isPlatformAdmin, requireGuildSettingsAdmin, resolveCallerDiscordId } = require("../services/guild-settings-authz");
 
@@ -20,15 +21,18 @@ function normalizeScopeType(value) {
   return v;
 }
 
+router.use(internalBotAuth);
 router.use(requireAuth);
 
-function isProjectStateKind(kind) {
-  return kind === "project_state";
-}
-
 function ensureMemoryKindAllowed({ scopeType, kind, req }) {
-  if (scopeType === "user" && isProjectStateKind(kind) && !isPlatformAdmin(req)) {
-    return { ok: false, status: 403, error: "kind_forbidden" };
+  const checked = contracts.checkMemoryKindPolicy({
+    scopeType,
+    kind,
+    isPlatformAdmin: isPlatformAdmin(req),
+  });
+
+  if (!checked.ok) {
+    return { ok: false, status: 403, error: "kind_forbidden", reason: checked.reason };
   }
 
   return { ok: true };
@@ -80,7 +84,9 @@ router.get("/:scopeType/:scopeId", async (req, res) => {
     if (kindParsed) {
       const kindAllowed = ensureMemoryKindAllowed({ scopeType, kind: kindParsed, req });
       if (!kindAllowed.ok) {
-        return res.status(kindAllowed.status || 403).json({ ok: false, error: kindAllowed.error });
+        return res
+          .status(kindAllowed.status || 403)
+          .json({ ok: false, error: kindAllowed.error, reason: kindAllowed.reason });
       }
     }
 
@@ -159,7 +165,9 @@ router.post("/:scopeType/:scopeId", requireCsrf, express.json(), async (req, res
 
     const kindAllowed = ensureMemoryKindAllowed({ scopeType, kind: parsed.data.kind, req });
     if (!kindAllowed.ok) {
-      return res.status(kindAllowed.status || 403).json({ ok: false, error: kindAllowed.error });
+      return res
+        .status(kindAllowed.status || 403)
+        .json({ ok: false, error: kindAllowed.error, reason: kindAllowed.reason });
     }
 
     await prismaDatabase.initialize();

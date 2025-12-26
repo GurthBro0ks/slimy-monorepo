@@ -29,11 +29,11 @@ function isLoopbackHostname(hostname: string): boolean {
 function assertNoLoopbackInProd(baseUrl: string): void {
   const nodeEnv = (globalThis as any)?.process?.env?.NODE_ENV;
   if (nodeEnv !== "production") return;
+  if (baseUrl.startsWith("/")) return;
+
   try {
     const url = new URL(baseUrl);
-    if (isLoopbackHostname(url.hostname)) {
-      throw new Error("loopback baseUrl forbidden in production");
-    }
+    if (isLoopbackHostname(url.hostname)) throw new Error("loopback baseUrl forbidden in production");
   } catch {
     throw new Error("invalid admin-api baseUrl");
   }
@@ -47,7 +47,12 @@ async function fetchJson<T>(
   assertNoLoopbackInProd(client.baseUrl);
 
   const fetcher = client.fetchImpl ?? fetch;
-  const url = new URL(path.replace(/^\//, ""), client.baseUrl.replace(/\/+$/, "") + "/");
+  const normalizedPath = `/${path.replace(/^\//, "")}`;
+  const baseUrl = client.baseUrl.replace(/\/+$/, "");
+  const target =
+    baseUrl.startsWith("/")
+      ? `${baseUrl}${normalizedPath}`
+      : new URL(normalizedPath.replace(/^\//, ""), `${baseUrl}/`).toString();
   const headers = new Headers(init?.headers);
 
   for (const [k, v] of Object.entries(client.defaultHeaders ?? {})) {
@@ -55,7 +60,7 @@ async function fetchJson<T>(
   }
   if (!headers.has("accept")) headers.set("accept", "application/json");
 
-  const res = await fetcher(url.toString(), { ...init, headers });
+  const res = await fetcher(target, { ...init, headers });
   const resHeaders = res.headers;
 
   let body: unknown = null;
@@ -119,6 +124,37 @@ export type MemoryWriteRequestV0 = {
   content: Record<string, unknown>;
 };
 
+export type UserSettingsPatchV0 = {
+  prefs?: {
+    theme?: "neon" | "classic" | "system";
+    chat?: { markdown?: boolean; profanityFilter?: boolean };
+    snail?: { avatarId?: string; vibe?: string; loreFlags?: string[] };
+  };
+};
+
+export type GuildSettingsPatchV0 = {
+  prefs?: {
+    botEnabled?: boolean;
+    channels?: { adminLogChannelId?: string; globalChatChannelId?: string };
+    widget?: { enabled?: boolean };
+  };
+};
+
+function mergeDeep(target: any, patch: any): any {
+  if (!patch || typeof patch !== "object" || Array.isArray(patch)) return target;
+  if (!target || typeof target !== "object" || Array.isArray(target)) return { ...patch };
+
+  const out: any = { ...target };
+  for (const [k, v] of Object.entries(patch)) {
+    if (v && typeof v === "object" && !Array.isArray(v)) {
+      out[k] = mergeDeep(out[k], v);
+    } else if (v !== undefined) {
+      out[k] = v;
+    }
+  }
+  return out;
+}
+
 export function createAdminApiClient(client: AdminApiClientInit) {
   return {
     getUserSettings(userId: string) {
@@ -136,6 +172,25 @@ export function createAdminApiClient(client: AdminApiClientInit) {
           method: "PUT",
           headers: { "content-type": "application/json" },
           body: JSON.stringify(settings),
+        },
+      );
+    },
+    async patchUserSettings(userId: string, patch: UserSettingsPatchV0) {
+      const current = await fetchJson<{ ok: boolean; settings: UserSettingsV0 }>(
+        client,
+        `/api/settings/user/${encodeURIComponent(userId)}`,
+        { method: "GET" },
+      );
+      if (!current.ok) return current;
+
+      const next: UserSettingsV0 = mergeDeep(current.data.settings, patch);
+      return fetchJson<{ ok: boolean; settings: UserSettingsV0 }>(
+        client,
+        `/api/settings/user/${encodeURIComponent(userId)}`,
+        {
+          method: "PUT",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(next),
         },
       );
     },
@@ -157,6 +212,25 @@ export function createAdminApiClient(client: AdminApiClientInit) {
         },
       );
     },
+    async patchGuildSettings(guildId: string, patch: GuildSettingsPatchV0) {
+      const current = await fetchJson<{ ok: boolean; settings: GuildSettingsV0 }>(
+        client,
+        `/api/settings/guild/${encodeURIComponent(guildId)}`,
+        { method: "GET" },
+      );
+      if (!current.ok) return current;
+
+      const next: GuildSettingsV0 = mergeDeep(current.data.settings, patch);
+      return fetchJson<{ ok: boolean; settings: GuildSettingsV0 }>(
+        client,
+        `/api/settings/guild/${encodeURIComponent(guildId)}`,
+        {
+          method: "PUT",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(next),
+        },
+      );
+    },
     listMemory(scopeType: MemoryScopeType, scopeId: string, opts?: { kind?: MemoryKind }) {
       const qs = opts?.kind ? `?kind=${encodeURIComponent(opts.kind)}` : "";
       return fetchJson<{ ok: boolean; records: MemoryRecordV0[] }>(
@@ -165,14 +239,14 @@ export function createAdminApiClient(client: AdminApiClientInit) {
         { method: "GET" },
       );
     },
-    writeMemory(scopeType: MemoryScopeType, scopeId: string, body: MemoryWriteRequestV0) {
+    writeMemory(input: { scopeType: MemoryScopeType; scopeId: string } & MemoryWriteRequestV0) {
       return fetchJson<{ ok: boolean; record: MemoryRecordV0 }>(
         client,
-        `/api/memory/${encodeURIComponent(scopeType)}/${encodeURIComponent(scopeId)}`,
+        `/api/memory/${encodeURIComponent(input.scopeType)}/${encodeURIComponent(input.scopeId)}`,
         {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify(body),
+          body: JSON.stringify({ kind: input.kind, source: input.source, content: input.content }),
         },
       );
     },

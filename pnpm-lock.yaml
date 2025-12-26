@@ -180,6 +180,9 @@ importers:
       '@slimy/admin-api-client':
         specifier: workspace:*
         version: link:../../packages/admin-api-client
+      '@slimy/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
       discord.js:
         specifier: ^14.14.1
         version: 14.25.1

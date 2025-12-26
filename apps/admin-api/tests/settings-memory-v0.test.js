@@ -39,6 +39,18 @@ function buildTestApp(userOverrides = {}) {
   return app;
 }
 
+function buildTestAppNoUser() {
+  const app = express();
+  app.use(requestIdMiddleware);
+  app.use(express.json());
+
+  app.use("/api/settings", settingsV0Routes);
+  app.use("/api/memory", memoryV0Routes);
+  app.use(notFoundHandler);
+  app.use(errorHandler);
+  return app;
+}
+
 describe("settings+memory v0 bridge", () => {
   beforeEach(() => {
     jest.resetAllMocks();
@@ -69,6 +81,40 @@ describe("settings+memory v0 bridge", () => {
       chat: {},
       snail: { personalSheet: { enabled: false, sheetId: null } },
     });
+  });
+
+  test("internal bot auth can write self user settings (requires internal token + csrf)", async () => {
+    const prev = process.env.ADMIN_API_INTERNAL_BOT_TOKEN;
+    process.env.ADMIN_API_INTERNAL_BOT_TOKEN = "bot-token-test";
+
+    try {
+      const app = buildTestAppNoUser();
+
+      const mockPrisma = {
+        userSettings: {
+          upsert: jest.fn(({ create }) => Promise.resolve({ userId: create.userId, data: create.data })),
+          update: jest.fn(() => Promise.resolve({})),
+        },
+      };
+
+      prismaDatabase.initialize.mockResolvedValue(true);
+      prismaDatabase.getClient.mockReturnValue(mockPrisma);
+
+      const now = new Date().toISOString();
+
+      const res = await request(app)
+        .put("/api/settings/user/discord-user-1")
+        .set("x-slimy-internal-bot-token", "bot-token-test")
+        .set("x-slimy-bot-actor-discord-id", "discord-user-1")
+        .set("x-csrf-token", "bot-token-test")
+        .send({ userId: "discord-user-1", version: 1, updatedAt: now, prefs: {} });
+
+      expect(res.status).toBe(200);
+      expect(res.body.ok).toBe(true);
+      expect(res.body.settings).toHaveProperty("userId", "discord-user-1");
+    } finally {
+      process.env.ADMIN_API_INTERNAL_BOT_TOKEN = prev;
+    }
   });
 
   test("GET /api/settings/user/:userId forbids cross-user access", async () => {
@@ -122,6 +168,20 @@ describe("settings+memory v0 bridge", () => {
     expect(res.status).toBe(403);
     expect(res.body.ok).toBe(false);
     expect(res.body.error).toBe("kind_forbidden");
+  });
+
+  test("POST /api/memory/guild/:scopeId rejects profile_summary (user-scope only)", async () => {
+    const app = buildTestApp({ role: "admin" });
+
+    const res = await request(app)
+      .post("/api/memory/guild/guild-1")
+      .set("x-csrf-token", "csrf-test")
+      .send({ kind: "profile_summary", source: "system", content: { summary: "nope" } });
+
+    expect(res.status).toBe(403);
+    expect(res.body.ok).toBe(false);
+    expect(res.body.error).toBe("kind_forbidden");
+    expect(res.body.reason).toBe("scope_forbidden");
   });
 
   test("POST /api/memory/:scopeType/:scopeId rejects secret-like keys and oversized payloads", async () => {
