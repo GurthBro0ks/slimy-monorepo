@@ -39,6 +39,17 @@ function buildTestApp(userOverrides = {}) {
   return app;
 }
 
+function buildTestAppWithoutUser() {
+  const app = express();
+  app.use(requestIdMiddleware);
+  app.use(express.json());
+  app.use("/api/settings", settingsV0Routes);
+  app.use("/api/settings", settingsChangesV0Routes);
+  app.use(notFoundHandler);
+  app.use(errorHandler);
+  return app;
+}
+
 describe("settings sync events v0.2", () => {
   beforeEach(() => {
     jest.resetAllMocks();
@@ -238,5 +249,133 @@ describe("settings sync events v0.2", () => {
     expect(res.body.ok).toBe(false);
     expect(res.body.error).toBe("invalid_kind");
   });
-});
 
+  test("GET /api/settings/changes-v0 requires auth", async () => {
+    const app = buildTestAppWithoutUser();
+    const res = await request(app).get("/api/settings/changes-v0?scopeType=user&scopeId=discord-user-1&sinceId=0");
+    expect(res.status).toBe(401);
+    expect(res.body.ok).toBe(false);
+    expect(res.body.code).toBe("UNAUTHORIZED");
+  });
+
+  test("GET /api/settings/changes-v0 validates cursor/limit inputs", async () => {
+    const app = buildTestApp();
+
+    const invalidSince = await request(app).get("/api/settings/changes-v0?scopeType=user&scopeId=discord-user-1&sinceId=nope");
+    expect(invalidSince.status).toBe(400);
+    expect(invalidSince.body.ok).toBe(false);
+    expect(invalidSince.body.error).toBe("invalid_since_id");
+
+    const invalidLimit = await request(app).get("/api/settings/changes-v0?scopeType=user&scopeId=discord-user-1&sinceId=0&limit=nope");
+    expect(invalidLimit.status).toBe(400);
+    expect(invalidLimit.body.ok).toBe(false);
+    expect(invalidLimit.body.error).toBe("invalid_limit");
+  });
+
+  test("GET /api/settings/changes-v0 uses default limit, returns nextSinceId=sinceId when empty", async () => {
+    const app = buildTestApp();
+
+    const mockPrisma = {
+      settingsChangeEvent: {
+        findMany: jest.fn(() => Promise.resolve([])),
+      },
+    };
+
+    prismaDatabase.initialize.mockResolvedValue(true);
+    prismaDatabase.getClient.mockReturnValue(mockPrisma);
+
+    const res = await request(app).get("/api/settings/changes-v0?scopeType=user&scopeId=discord-user-1&sinceId=0");
+    expect(res.status).toBe(200);
+    expect(res.body.ok).toBe(true);
+    expect(res.body.events).toEqual([]);
+    expect(res.body.nextSinceId).toBe(0);
+
+    expect(mockPrisma.settingsChangeEvent.findMany).toHaveBeenCalledTimes(1);
+    expect(mockPrisma.settingsChangeEvent.findMany.mock.calls[0][0]).toMatchObject({
+      where: { scopeType: "user", scopeId: "discord-user-1", id: { gt: 0 } },
+      orderBy: { id: "asc" },
+      take: 50,
+    });
+  });
+
+  test("GET /api/settings/changes-v0 caps limit to 200 and coerces limit=0 to 1", async () => {
+    const app = buildTestApp();
+
+    const mockPrisma = {
+      settingsChangeEvent: {
+        findMany: jest.fn(() => Promise.resolve([])),
+      },
+    };
+
+    prismaDatabase.initialize.mockResolvedValue(true);
+    prismaDatabase.getClient.mockReturnValue(mockPrisma);
+
+    const capped = await request(app).get("/api/settings/changes-v0?scopeType=user&scopeId=discord-user-1&sinceId=0&limit=999");
+    expect(capped.status).toBe(200);
+    expect(capped.body.ok).toBe(true);
+    expect(mockPrisma.settingsChangeEvent.findMany.mock.calls[0][0].take).toBe(200);
+
+    mockPrisma.settingsChangeEvent.findMany.mockClear();
+
+    const coerced = await request(app).get("/api/settings/changes-v0?scopeType=user&scopeId=discord-user-1&sinceId=0&limit=0");
+    expect(coerced.status).toBe(200);
+    expect(coerced.body.ok).toBe(true);
+    expect(mockPrisma.settingsChangeEvent.findMany.mock.calls[0][0].take).toBe(1);
+  });
+
+  test("GET /api/settings/changes-v0 without sinceId returns oldest-first order", async () => {
+    const app = buildTestApp();
+
+    const mockPrisma = {
+      settingsChangeEvent: {
+        findMany: jest.fn(() =>
+          Promise.resolve([
+            { id: 3, createdAt: new Date("2025-01-01T00:00:03.000Z"), scopeType: "user", scopeId: "discord-user-1", kind: "user_settings_updated", actorUserId: "discord-user-1", actorIsAdmin: false, source: "discord", changedKeys: [] },
+            { id: 2, createdAt: new Date("2025-01-01T00:00:02.000Z"), scopeType: "user", scopeId: "discord-user-1", kind: "user_settings_updated", actorUserId: "discord-user-1", actorIsAdmin: false, source: "discord", changedKeys: [] },
+            { id: 1, createdAt: new Date("2025-01-01T00:00:01.000Z"), scopeType: "user", scopeId: "discord-user-1", kind: "user_settings_updated", actorUserId: "discord-user-1", actorIsAdmin: false, source: "discord", changedKeys: [] },
+          ]),
+        ),
+      },
+    };
+
+    prismaDatabase.initialize.mockResolvedValue(true);
+    prismaDatabase.getClient.mockReturnValue(mockPrisma);
+
+    const res = await request(app).get("/api/settings/changes-v0?scopeType=user&scopeId=discord-user-1");
+    expect(res.status).toBe(200);
+    expect(res.body.ok).toBe(true);
+    expect(res.body.events.map((e) => e.id)).toEqual([1, 2, 3]);
+    expect(res.body.nextSinceId).toBe(3);
+
+    expect(mockPrisma.settingsChangeEvent.findMany).toHaveBeenCalledTimes(1);
+    expect(mockPrisma.settingsChangeEvent.findMany.mock.calls[0][0]).toMatchObject({
+      where: { scopeType: "user", scopeId: "discord-user-1" },
+      orderBy: { id: "desc" },
+      take: 50,
+    });
+  });
+
+  test("GET /api/settings/changes-v0 applies kind filter to the DB query", async () => {
+    const app = buildTestApp();
+
+    const mockPrisma = {
+      settingsChangeEvent: {
+        findMany: jest.fn(() => Promise.resolve([])),
+      },
+    };
+
+    prismaDatabase.initialize.mockResolvedValue(true);
+    prismaDatabase.getClient.mockReturnValue(mockPrisma);
+
+    const res = await request(app).get("/api/settings/changes-v0?scopeType=user&scopeId=discord-user-1&sinceId=0&kind=user_settings_updated");
+    expect(res.status).toBe(200);
+    expect(res.body.ok).toBe(true);
+
+    expect(mockPrisma.settingsChangeEvent.findMany).toHaveBeenCalledTimes(1);
+    expect(mockPrisma.settingsChangeEvent.findMany.mock.calls[0][0].where).toMatchObject({
+      scopeType: "user",
+      scopeId: "discord-user-1",
+      kind: "user_settings_updated",
+    });
+  });
+});
