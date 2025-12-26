@@ -29,6 +29,7 @@ Date: 2025-12-26
 ## Key decisions
 - Web pages call admin-api using same-origin `/api/...` via `apps/web/next.config.js` rewrites (avoids hardcoding hostnames in client code).
 - Client-side login redirects use `/api/auth/login` (relative) to avoid baking `NEXT_PUBLIC_ADMIN_API_BASE` values into client bundles.
+  - Trigger: `.next/static` scan caught a baked `http://localhost:3080/api/auth/login` from client code paths; removed `process.env.NEXT_PUBLIC_ADMIN_API_BASE` usage in client redirects/status.
 
 ## Done checklist
 - [x] `/settings` exists and edits `UserSettings` via admin-api
