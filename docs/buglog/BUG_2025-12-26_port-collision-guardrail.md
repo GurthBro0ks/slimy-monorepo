@@ -6,6 +6,7 @@ Date: 2025-12-26
 - Repo: `/opt/slimy/slimy-monorepo`
 - Branch: `nuc2/verify-role-b33e616`
 - Start HEAD: `21273c2`
+- End HEAD: `7e7caa6`
 - Change type: verify script + optional CI hook (non-trivial, logged)
 
 ## Symptom / Motivation
@@ -34,3 +35,7 @@ Date: 2025-12-26
 
 ## Notes
 - Not wired into `.github/workflows/ci.yml` because host port occupancy on CI runners is not a stable invariant and could cause flaky failures.
+
+## Commands run (end)
+- `bash scripts/verify/compose-ports-available.sh` → `FAIL (expected when ports are already bound)`
+- `git commit -m "chore(verify): fail fast on compose port collisions"` → `7e7caa6`

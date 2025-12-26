@@ -6,6 +6,7 @@ Date: 2025-12-26
 - Repo: `/opt/slimy/slimy-monorepo`
 - Branch: `nuc2/verify-role-b33e616`
 - Start HEAD: `21273c2`
+- End HEAD: `4678a40`
 - Change type: security hardening + guardrails (non-trivial, logged)
 
 ## Symptom / Risk
@@ -40,3 +41,4 @@ Date: 2025-12-26
 
 ## Commands run (end)
 - `bash scripts/verify/settings-memory-bridge-v0.sh` → `[PASS] settings+memory v0 regression test passed`
+- `git commit -m "fix(admin-api): harden settings/memory v0 access"` → `4678a40`
