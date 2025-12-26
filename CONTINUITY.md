@@ -29,6 +29,7 @@
 - Settings+Memory v0: shared contracts + admin-api persistence/endpoints + regression check.
 - Settings+Memory v0 hardening: tightened authz + kind allowlist (blocks cross-user access; blocks `project_state` for `scopeType=user` for non-admins).
 - Settings Sync Clients v0.1: bot + admin-ui wired to central settings/memory endpoints (markdown toggle, widget toggle, `profile_summary` write); memory kind policy centralized in `@slimy/contracts`; internal bot auth token support added; CI runs v0.1 verify + no-localhost client source scan.
+- Settings Sync Events v0.2: settings update audit trail + cursor endpoint; events written on settings updates; bot + admin-ui consume changes on-demand; CI runs v0.2 regression.
 - AGENTS.md + CONTINUITY checks enforced in CI.
 - Local preflight: `scripts/verify/compose-ports-available.sh` detects host port collisions before `docker compose up`.
 - CI guardrail: `scripts/verify/compose-config-valid.sh` ensures `docker compose config` succeeds (catches compose/env/YAML issues).

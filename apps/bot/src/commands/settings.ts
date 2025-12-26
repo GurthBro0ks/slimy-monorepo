@@ -3,6 +3,11 @@ import type { ChatInputCommandInteraction } from "discord.js";
 import { PermissionFlagsBits, SlashCommandBuilder } from "discord.js";
 
 import { createAdminApiClientForInteraction } from "../lib/adminApi.js";
+import {
+  getFreshUserSettings,
+  noteGuildSettingsWrite,
+  noteUserSettingsWrite,
+} from "../lib/settingsSync.js";
 
 function normalizeOnOff(value: string): boolean | null {
   const v = String(value || "").trim().toLowerCase();
@@ -73,16 +78,16 @@ export async function handleSettingsCommand(
   const userId = interaction.user.id;
 
   if (!subcommandGroup && subcommand === "me") {
-    const result = await client.getUserSettings(userId);
-    if (!result.ok) {
+    const synced = await getFreshUserSettings(client, userId);
+    if (!synced.ok) {
       await interaction.reply({
         ephemeral: true,
-        content: `admin-api error: ${describeAdminApiError(result.error)}`,
+        content: `admin-api error: ${describeAdminApiError(synced.error)}`,
       });
       return;
     }
 
-    const markdown = Boolean(result.data.settings?.prefs?.chat?.markdown);
+    const markdown = Boolean(synced.settings?.prefs?.chat?.markdown);
     await interaction.reply({
       ephemeral: true,
       content: `Your settings:\n- markdown: ${markdown ? "on" : "off"}`,
@@ -107,6 +112,8 @@ export async function handleSettingsCommand(
       });
       return;
     }
+
+    void noteUserSettingsWrite(client, userId, result.data.settings);
 
     await interaction.reply({
       ephemeral: true,
@@ -153,6 +160,8 @@ export async function handleSettingsCommand(
       return;
     }
 
+    void noteGuildSettingsWrite(client, interaction.guildId, result.data.settings);
+
     await interaction.reply({
       ephemeral: true,
       content: `Updated guild widget: ${state ? "enabled" : "disabled"}.`,
@@ -162,4 +171,3 @@ export async function handleSettingsCommand(
 
   await interaction.reply({ ephemeral: true, content: "Unknown settings subcommand." });
 }
-

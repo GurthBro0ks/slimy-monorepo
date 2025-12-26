@@ -12,6 +12,7 @@ const discordRoutes = require("./discord");
 const diagRoutes = require("./diag");
 const meRoutes = require("./me");
 const settingsV0Routes = require("./settings-v0");
+const settingsChangesV0Routes = require("./settings-changes-v0");
 const memoryV0Routes = require("./memory-v0");
 const botRoutes = require("./bot");
 const statsRoutes = require("./stats");
@@ -72,6 +73,7 @@ router.use("/auth", (req, res) => {
 router.use("/api/discord", discordRoutes);
 router.use("/api/me", meRoutes);
 router.use("/api/settings", settingsV0Routes);
+router.use("/api/settings", settingsChangesV0Routes);
 router.use("/api/memory", memoryV0Routes);
 router.use("/api/club", clubRoutes);
 router.use("/api/snail", snailRoutes);

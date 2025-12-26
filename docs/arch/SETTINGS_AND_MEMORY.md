@@ -36,6 +36,22 @@
   - `GET  /api/memory/:scopeType/:scopeId?kind=`
   - `POST /api/memory/:scopeType/:scopeId`
 
+## Settings change events (v0.2)
+- Purpose: durable “settings changed” cursor + audit trail so clients can refresh without logic drift.
+- Storage: `settings_change_events` (Prisma model: `SettingsChangeEvent` in `apps/admin-api/prisma/schema.prisma`)
+- Events are written by admin-api on successful settings updates:
+  - `kind`: `user_settings_updated` / `guild_settings_updated` (allowlisted in `@slimy/contracts`)
+  - `source`: derived from `x-slimy-client` header (`discord` / `admin-ui` / `web` / `api` / `unknown`)
+  - `changedKeys`: shallow-ish diff paths under `prefs.*` (best-effort, capped)
+- Cursor endpoint:
+  - `GET /api/settings/changes-v0?scopeType=user|guild&scopeId=...&sinceId=...&limit=...&kind=...`
+  - Response: `{ ok: true, events: [...], nextSinceId }`
+  - Semantics: events are returned oldest-first; `nextSinceId` is the last event `id` in the response (or the request `sinceId` when empty)
+  - Caps: `limit` is clamped to `<= 200`.
+  - Authz mirrors settings:
+    - `scopeType=user`: only the authed user (or platform admin)
+    - `scopeType=guild`: require guild admin/manage (or platform admin); bot requests can use interaction permissions
+
 ## Bot -> admin-api auth (internal)
 - Discord bot requests can authenticate to these same endpoints using a shared secret token:
   - Env: `ADMIN_API_INTERNAL_BOT_TOKEN`

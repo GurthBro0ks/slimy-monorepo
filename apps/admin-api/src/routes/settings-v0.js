@@ -20,6 +20,49 @@ function isPlainObject(value) {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
+function diffObjectLeafPaths(prevValue, nextValue, prefix, out, depth = 0) {
+  if (out.length >= 100) return;
+  if (depth > 6) return;
+
+  const prevObj = isPlainObject(prevValue) ? prevValue : {};
+  const nextObj = isPlainObject(nextValue) ? nextValue : {};
+  const keys = new Set([...Object.keys(prevObj), ...Object.keys(nextObj)]);
+
+  for (const key of keys) {
+    if (out.length >= 100) return;
+    const p = prevObj[key];
+    const n = nextObj[key];
+    const path = prefix ? `${prefix}.${key}` : key;
+
+    if (isPlainObject(p) || isPlainObject(n)) {
+      diffObjectLeafPaths(isPlainObject(p) ? p : {}, isPlainObject(n) ? n : {}, path, out, depth + 1);
+      continue;
+    }
+
+    if (Array.isArray(p) || Array.isArray(n)) {
+      if (JSON.stringify(p ?? null) !== JSON.stringify(n ?? null)) out.push(path);
+      continue;
+    }
+
+    if (!Object.is(p, n)) out.push(path);
+  }
+}
+
+function changedPrefsKeys(prevSettings, nextSettings) {
+  const out = [];
+  diffObjectLeafPaths(prevSettings?.prefs, nextSettings?.prefs, "prefs", out, 0);
+  return out;
+}
+
+function resolveSettingsChangeSource(req) {
+  if (!contracts) return "unknown";
+  const raw = String(req.headers["x-slimy-client"] || "").trim();
+  if (!raw) return "unknown";
+  const parsed = contracts.SettingsChangeSourceSchema?.safeParse(raw);
+  if (parsed && parsed.success) return parsed.data;
+  return "unknown";
+}
+
 function ensureUserSettingsShape(userId, data) {
   if (!contracts) {
     throw new Error("contracts_unavailable");
@@ -145,11 +188,36 @@ router.put("/user/:userId", requireCsrf, express.json(), async (req, res) => {
     await prismaDatabase.initialize();
     const prisma = prismaDatabase.getClient();
 
-    const record = await prisma.userSettings.upsert({
-      where: { userId: targetUserId },
-      update: { data: next },
-      create: { userId: targetUserId, data: next },
-    });
+    const existing = await prisma.userSettings.findUnique({ where: { userId: targetUserId } });
+    const prev = ensureUserSettingsShape(targetUserId, existing?.data);
+    const changedKeys = changedPrefsKeys(prev, next);
+
+    const kind = "user_settings_updated";
+    const kindParsed = contracts.SettingsChangeKindSchema?.safeParse(kind);
+    if (kindParsed && !kindParsed.success) {
+      return res.status(500).json({ ok: false, error: "contracts_unavailable" });
+    }
+
+    const source = resolveSettingsChangeSource(req);
+
+    const [record] = await prisma.$transaction([
+      prisma.userSettings.upsert({
+        where: { userId: targetUserId },
+        update: { data: next },
+        create: { userId: targetUserId, data: next },
+      }),
+      prisma.settingsChangeEvent.create({
+        data: {
+          scopeType: "user",
+          scopeId: targetUserId,
+          kind,
+          actorUserId: callerId,
+          actorIsAdmin: isPlatformAdmin(req),
+          source,
+          changedKeys: changedKeys.length ? changedKeys : undefined,
+        },
+      }),
+    ]);
 
     return res.json({ ok: true, settings: ensureUserSettingsShape(targetUserId, record?.data) });
   } catch (err) {
@@ -243,11 +311,36 @@ router.put("/guild/:guildId", requireCsrf, express.json(), async (req, res) => {
       updatedAt: now,
     });
 
-    const record = await prisma.guildSettings.upsert({
-      where: { guildId },
-      update: { data: next },
-      create: { guildId, data: next },
-    });
+    const existing = await prisma.guildSettings.findUnique({ where: { guildId } });
+    const prev = ensureGuildSettingsShape(guildId, existing?.data);
+    const changedKeys = changedPrefsKeys(prev, next);
+
+    const kind = "guild_settings_updated";
+    const kindParsed = contracts.SettingsChangeKindSchema?.safeParse(kind);
+    if (kindParsed && !kindParsed.success) {
+      return res.status(500).json({ ok: false, error: "contracts_unavailable" });
+    }
+
+    const source = resolveSettingsChangeSource(req);
+
+    const [record] = await prisma.$transaction([
+      prisma.guildSettings.upsert({
+        where: { guildId },
+        update: { data: next },
+        create: { guildId, data: next },
+      }),
+      prisma.settingsChangeEvent.create({
+        data: {
+          scopeType: "guild",
+          scopeId: guildId,
+          kind,
+          actorUserId: resolveCallerDiscordId(req),
+          actorIsAdmin: isPlatformAdmin(req),
+          source,
+          changedKeys: changedKeys.length ? changedKeys : undefined,
+        },
+      }),
+    ]);
 
     return res.json({ ok: true, settings: ensureGuildSettingsShape(guildId, record?.data) });
   } catch (err) {

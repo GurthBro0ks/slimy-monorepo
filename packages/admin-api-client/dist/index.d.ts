@@ -1,3 +1,4 @@
+import type { SettingsChangeEvent, SettingsChangeKind, SettingsScopeType } from "../../contracts/dist/index.js";
 export type AdminApiJsonResult<T> = {
     ok: true;
     status: number;
@@ -53,6 +54,14 @@ export type GuildSettingsV0 = {
     updatedAt: string;
     prefs: GuildSettingsPrefs;
     [k: string]: unknown;
+};
+export type SettingsScopeTypeV0 = SettingsScopeType;
+export type SettingsChangeKindV0 = SettingsChangeKind;
+export type SettingsChangeEventV0 = SettingsChangeEvent;
+export type SettingsChangesResponseV0 = {
+    ok: true;
+    events: SettingsChangeEventV0[];
+    nextSinceId: number | null;
 };
 export type MemoryRecordV0 = {
     scopeType: MemoryScopeType;
@@ -119,6 +128,13 @@ export declare function createAdminApiClient(client: AdminApiClientInit): {
         ok: boolean;
         settings: GuildSettingsV0;
     }>>;
+    listSettingsChangesV0(input: {
+        scopeType: SettingsScopeTypeV0;
+        scopeId: string;
+        sinceId?: number | null;
+        limit?: number;
+        kind?: SettingsChangeKindV0;
+    }): Promise<AdminApiJsonResult<SettingsChangesResponseV0>>;
     listMemory(scopeType: MemoryScopeType, scopeId: string, opts?: {
         kind?: MemoryKind;
     }): Promise<AdminApiJsonResult<{
@@ -162,6 +178,13 @@ export declare function createAdminApiClientFromEnv(opts?: {
         ok: boolean;
         settings: GuildSettingsV0;
     }>>;
+    listSettingsChangesV0(input: {
+        scopeType: SettingsScopeTypeV0;
+        scopeId: string;
+        sinceId?: number | null;
+        limit?: number;
+        kind?: SettingsChangeKindV0;
+    }): Promise<AdminApiJsonResult<SettingsChangesResponseV0>>;
     listMemory(scopeType: MemoryScopeType, scopeId: string, opts?: {
         kind?: MemoryKind;
     }): Promise<AdminApiJsonResult<{

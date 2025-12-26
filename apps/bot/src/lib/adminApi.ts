@@ -28,6 +28,7 @@ export function createAdminApiClientForInteraction(interaction: ChatInputCommand
     baseUrl: env.adminApiBaseUrl,
     defaultHeaders: {
       "x-slimy-internal-bot-token": env.internalBotToken,
+      "x-slimy-client": "discord",
       "x-slimy-bot-actor-discord-id": actorDiscordId,
       "x-slimy-bot-interaction-guild-id": interactionGuildId,
       ...(interactionPermissions
@@ -37,4 +38,3 @@ export function createAdminApiClientForInteraction(interaction: ChatInputCommand
     },
   });
 }
-

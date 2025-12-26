@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.GuildSettingsSchema = exports.GuildSettingsPrefsSchema = exports.UserSettingsSchema = exports.UserSettingsPrefsSchema = exports.ThemeSchema = exports.SETTINGS_VERSION_V0 = void 0;
+exports.SettingsChangeEventSchema = exports.SettingsChangeSourceSchema = exports.SETTINGS_CHANGE_SOURCES = exports.SettingsChangeKindSchema = exports.SETTINGS_CHANGE_KINDS = exports.SettingsScopeTypeSchema = exports.GuildSettingsSchema = exports.GuildSettingsPrefsSchema = exports.UserSettingsSchema = exports.UserSettingsPrefsSchema = exports.ThemeSchema = exports.SETTINGS_VERSION_V0 = void 0;
 exports.defaultUserSettings = defaultUserSettings;
 exports.defaultGuildSettings = defaultGuildSettings;
 const zod_1 = require("zod");
@@ -55,6 +55,31 @@ exports.GuildSettingsSchema = zod_1.z
     prefs: exports.GuildSettingsPrefsSchema,
 })
     .passthrough();
+exports.SettingsScopeTypeSchema = zod_1.z.enum(["user", "guild"]);
+exports.SETTINGS_CHANGE_KINDS = [
+    "user_settings_updated",
+    "guild_settings_updated",
+];
+exports.SettingsChangeKindSchema = zod_1.z.enum(exports.SETTINGS_CHANGE_KINDS);
+exports.SETTINGS_CHANGE_SOURCES = [
+    "discord",
+    "admin-ui",
+    "web",
+    "api",
+    "unknown",
+];
+exports.SettingsChangeSourceSchema = zod_1.z.enum(exports.SETTINGS_CHANGE_SOURCES);
+exports.SettingsChangeEventSchema = zod_1.z.object({
+    id: zod_1.z.number().int().min(0),
+    createdAt: isoDateString,
+    scopeType: exports.SettingsScopeTypeSchema,
+    scopeId: zod_1.z.string().min(1),
+    kind: exports.SettingsChangeKindSchema,
+    actorUserId: zod_1.z.string().min(1),
+    actorIsAdmin: zod_1.z.boolean().optional(),
+    source: exports.SettingsChangeSourceSchema.optional(),
+    changedKeys: zod_1.z.array(zod_1.z.string()).optional(),
+});
 function legacyCentralDefaults() {
     return {
         profile: {},
