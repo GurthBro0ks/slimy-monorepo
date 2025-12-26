@@ -57,3 +57,6 @@ jobs:
 
       - name: Verify admin-ui has no localhost in public output
         run: bash scripts/verify/admin-ui-no-localhost-build.sh
+
+      - name: Verify continuity ledger present
+        run: bash scripts/verify/continuity-ledger-present.sh
