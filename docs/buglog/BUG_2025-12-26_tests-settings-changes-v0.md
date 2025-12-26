@@ -86,3 +86,8 @@ Output (snippet):
 - `bash scripts/verify/agents-md-present.sh` PASS
 - `bash scripts/verify/continuity-ledger-present.sh` PASS
 - `bash scripts/verify/settings-sync-events-v02.sh` PASS
+
+## Commits
+- `c0a0ddc` — `test(admin-api): add coverage for settings-changes-v0`
+- `eb160e5` — `chore(settings): centralize changes cursor limits`
+- Focused verify script: `scripts/verify/tests-settings-changes-v0.sh`
