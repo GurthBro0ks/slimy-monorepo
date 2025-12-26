@@ -375,6 +375,8 @@ export declare const GuildSettingsSchema: z.ZodObject<{
 export type GuildSettings = z.infer<typeof GuildSettingsSchema>;
 export declare const SettingsScopeTypeSchema: z.ZodEnum<["user", "guild"]>;
 export type SettingsScopeType = z.infer<typeof SettingsScopeTypeSchema>;
+export declare const SETTINGS_CHANGES_DEFAULT_LIMIT = 50;
+export declare const SETTINGS_CHANGES_MAX_LIMIT = 200;
 export declare const SETTINGS_CHANGE_KINDS: readonly ["user_settings_updated", "guild_settings_updated"];
 export declare const SettingsChangeKindSchema: z.ZodEnum<["user_settings_updated", "guild_settings_updated"]>;
 export type SettingsChangeKind = z.infer<typeof SettingsChangeKindSchema>;
