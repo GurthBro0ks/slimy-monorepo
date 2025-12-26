@@ -79,3 +79,4 @@ Date: 2025-12-26
 - `packages/admin-api-client/dist/index.js`
 - `scripts/verify/web-settings-ui-v03.sh`
 - `pnpm-lock.yaml`
+- `CONTINUITY.md`
