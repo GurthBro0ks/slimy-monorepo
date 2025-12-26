@@ -13,6 +13,8 @@ RUN corepack enable && corepack prepare pnpm@10.22.0 --activate
 # NOTE: Docker build context must be monorepo root (../..)
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/bot/package.json ./apps/bot/
+# Workspace packages are required for `workspace:*` deps (ex: @slimy/contracts).
+COPY packages ./packages/
 # Copy other workspace package.json files for dependency resolution (needed for pnpm workspace)
 COPY apps/admin-api/package.json ./apps/admin-api/
 COPY apps/admin-api/vendor ./apps/admin-api/vendor
@@ -20,7 +22,7 @@ COPY apps/admin-ui/package.json ./apps/admin-ui/
 COPY apps/web/package.json ./apps/web/
 
 # pnpm v10+ requires explicit build script approval (see pnpm-workspace.yaml)
-RUN pnpm install --frozen-lockfile --prod=false
+RUN pnpm install --frozen-lockfile --prod=false --filter @slimy/bot...
 
 FROM base AS builder
 WORKDIR /app
@@ -29,12 +31,14 @@ WORKDIR /app
 RUN corepack enable && corepack prepare pnpm@10.22.0 --activate
 
 COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /app/apps/bot/node_modules ./apps/bot/node_modules
+COPY --from=deps /app/packages ./packages
 COPY apps/bot ./apps/bot
-COPY packages ./packages
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 
-# Install dependencies and build the bot
-RUN pnpm install --frozen-lockfile --prefer-offline 2>&1 | tail -20 || true
+# Build shared workspace deps needed at runtime
+RUN pnpm --filter @slimy/contracts build
+RUN pnpm --filter @slimy/admin-api-client build
 
 # Build the TypeScript bot
 RUN pnpm --filter @slimy/bot build
@@ -47,14 +51,17 @@ ENV NODE_ENV=production
 RUN addgroup --system --gid 1001 botuser
 RUN adduser --system --uid 1001 botuser
 
-# Copy built artifacts from apps/bot in the builder stage
-COPY --from=builder --chown=botuser:botuser /app/apps/bot/dist ./dist
-COPY --from=builder --chown=botuser:botuser /app/apps/bot/package.json ./package.json
-
-# Copy production node_modules
+# Copy production node_modules + workspace packages (pnpm links expect both)
 COPY --from=deps --chown=botuser:botuser /app/node_modules ./node_modules
+COPY --from=deps --chown=botuser:botuser /app/apps/bot/node_modules ./apps/bot/node_modules
+COPY --from=builder --chown=botuser:botuser /app/packages ./packages
+
+# Copy built artifacts from apps/bot in the builder stage
+COPY --from=builder --chown=botuser:botuser /app/apps/bot/dist ./apps/bot/dist
+COPY --from=builder --chown=botuser:botuser /app/apps/bot/package.json ./apps/bot/package.json
 
 USER botuser
 
 # Run the bot
+WORKDIR /app/apps/bot
 CMD ["node", "dist/index.js"]

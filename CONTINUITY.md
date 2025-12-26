@@ -35,6 +35,7 @@
 - AGENTS.md + CONTINUITY checks enforced in CI.
 - Local preflight: `scripts/verify/compose-ports-available.sh` detects host port collisions before `docker compose up`.
 - CI guardrail: `scripts/verify/compose-config-valid.sh` ensures `docker compose config` succeeds (catches compose/env/YAML issues).
+- Bot image fix: ensure runtime deps (incl `discord.js`) are included; added local verify `scripts/verify/bot-runtime-deps.sh`.
 
 ### Now
 - Keep hard safety rails green (no loopback in public output; no secrets in memory).
