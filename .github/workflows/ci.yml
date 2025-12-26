@@ -64,6 +64,9 @@ jobs:
       - name: Verify no localhost in client sources
         run: bash scripts/verify/no-localhost-in-client-sources.sh
 
+      - name: Verify web settings UI v0.32 (no loopback in client artifacts)
+        run: bash scripts/verify/web-settings-ui-v032.sh
+
       - name: Verify settings sync clients v0.1 (admin-api regression + client builds)
         run: bash scripts/verify/settings-sync-clients-v01.sh
 
