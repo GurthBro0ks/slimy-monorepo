@@ -64,7 +64,10 @@ router.get("/changes-v0", async (req, res) => {
     if (req.query.limit !== undefined && requestedLimit === null) {
       return res.status(400).json({ ok: false, error: "invalid_limit" });
     }
-    const limit = Math.min(Math.max(requestedLimit ?? 50, 1), 200);
+
+    const defaultLimit = Number.isFinite(contracts.SETTINGS_CHANGES_DEFAULT_LIMIT) ? contracts.SETTINGS_CHANGES_DEFAULT_LIMIT : 50;
+    const maxLimit = Number.isFinite(contracts.SETTINGS_CHANGES_MAX_LIMIT) ? contracts.SETTINGS_CHANGES_MAX_LIMIT : 200;
+    const limit = Math.min(Math.max(requestedLimit ?? defaultLimit, 1), maxLimit);
 
     if (scopeType === "user") {
       const callerId = resolveCallerDiscordId(req);

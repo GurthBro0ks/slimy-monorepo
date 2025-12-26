@@ -9,6 +9,7 @@ const { errorHandler, notFoundHandler } = require("../src/middleware/error-handl
 const settingsV0Routes = require("../src/routes/settings-v0");
 const settingsChangesV0Routes = require("../src/routes/settings-changes-v0");
 const prismaDatabase = require("../src/lib/database");
+const contracts = require("@slimy/contracts");
 
 jest.mock("../src/lib/database");
 
@@ -294,7 +295,7 @@ describe("settings sync events v0.2", () => {
     expect(mockPrisma.settingsChangeEvent.findMany.mock.calls[0][0]).toMatchObject({
       where: { scopeType: "user", scopeId: "discord-user-1", id: { gt: 0 } },
       orderBy: { id: "asc" },
-      take: 50,
+      take: contracts.SETTINGS_CHANGES_DEFAULT_LIMIT,
     });
   });
 
@@ -313,7 +314,7 @@ describe("settings sync events v0.2", () => {
     const capped = await request(app).get("/api/settings/changes-v0?scopeType=user&scopeId=discord-user-1&sinceId=0&limit=999");
     expect(capped.status).toBe(200);
     expect(capped.body.ok).toBe(true);
-    expect(mockPrisma.settingsChangeEvent.findMany.mock.calls[0][0].take).toBe(200);
+    expect(mockPrisma.settingsChangeEvent.findMany.mock.calls[0][0].take).toBe(contracts.SETTINGS_CHANGES_MAX_LIMIT);
 
     mockPrisma.settingsChangeEvent.findMany.mockClear();
 
@@ -351,7 +352,7 @@ describe("settings sync events v0.2", () => {
     expect(mockPrisma.settingsChangeEvent.findMany.mock.calls[0][0]).toMatchObject({
       where: { scopeType: "user", scopeId: "discord-user-1" },
       orderBy: { id: "desc" },
-      take: 50,
+      take: contracts.SETTINGS_CHANGES_DEFAULT_LIMIT,
     });
   });
 

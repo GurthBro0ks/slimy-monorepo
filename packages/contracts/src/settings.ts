@@ -65,6 +65,9 @@ export type GuildSettings = z.infer<typeof GuildSettingsSchema>;
 export const SettingsScopeTypeSchema = z.enum(["user", "guild"]);
 export type SettingsScopeType = z.infer<typeof SettingsScopeTypeSchema>;
 
+export const SETTINGS_CHANGES_DEFAULT_LIMIT = 50;
+export const SETTINGS_CHANGES_MAX_LIMIT = 200;
+
 export const SETTINGS_CHANGE_KINDS = [
   "user_settings_updated",
   "guild_settings_updated",

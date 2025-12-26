@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.SettingsChangeEventSchema = exports.SettingsChangeSourceSchema = exports.SETTINGS_CHANGE_SOURCES = exports.SettingsChangeKindSchema = exports.SETTINGS_CHANGE_KINDS = exports.SettingsScopeTypeSchema = exports.GuildSettingsSchema = exports.GuildSettingsPrefsSchema = exports.UserSettingsSchema = exports.UserSettingsPrefsSchema = exports.ThemeSchema = exports.SETTINGS_VERSION_V0 = void 0;
+exports.SettingsChangeEventSchema = exports.SettingsChangeSourceSchema = exports.SETTINGS_CHANGE_SOURCES = exports.SettingsChangeKindSchema = exports.SETTINGS_CHANGE_KINDS = exports.SETTINGS_CHANGES_MAX_LIMIT = exports.SETTINGS_CHANGES_DEFAULT_LIMIT = exports.SettingsScopeTypeSchema = exports.GuildSettingsSchema = exports.GuildSettingsPrefsSchema = exports.UserSettingsSchema = exports.UserSettingsPrefsSchema = exports.ThemeSchema = exports.SETTINGS_VERSION_V0 = void 0;
 exports.defaultUserSettings = defaultUserSettings;
 exports.defaultGuildSettings = defaultGuildSettings;
 const zod_1 = require("zod");
@@ -56,6 +56,8 @@ exports.GuildSettingsSchema = zod_1.z
 })
     .passthrough();
 exports.SettingsScopeTypeSchema = zod_1.z.enum(["user", "guild"]);
+exports.SETTINGS_CHANGES_DEFAULT_LIMIT = 50;
+exports.SETTINGS_CHANGES_MAX_LIMIT = 200;
 exports.SETTINGS_CHANGE_KINDS = [
     "user_settings_updated",
     "guild_settings_updated",
