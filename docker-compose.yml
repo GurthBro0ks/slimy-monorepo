@@ -51,6 +51,7 @@ services:
       # Security
       SESSION_SECRET: ${SESSION_SECRET:-change_this_session_secret_minimum_32_chars}
       JWT_SECRET: ${JWT_SECRET:-change_this_jwt_secret_minimum_32_chars}
+      ADMIN_API_INTERNAL_BOT_TOKEN: ${ADMIN_API_INTERNAL_BOT_TOKEN:-}
       SESSION_COOKIE_DOMAIN: ${SESSION_COOKIE_DOMAIN:-.slimyai.xyz}
       COOKIE_DOMAIN: ${COOKIE_DOMAIN:-.slimyai.xyz}
       
@@ -159,6 +160,8 @@ services:
       NODE_ENV: ${NODE_ENV:-production}
       DISCORD_BOT_TOKEN: ${DISCORD_BOT_TOKEN}
       BOT_MODE: ${BOT_MODE:-keepalive}
+      ADMIN_API_INTERNAL_URL: "http://admin-api:3080"
+      ADMIN_API_INTERNAL_BOT_TOKEN: ${ADMIN_API_INTERNAL_BOT_TOKEN:-}
     networks:
       - slimy-network
     healthcheck:
