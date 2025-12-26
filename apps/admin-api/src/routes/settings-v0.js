@@ -3,6 +3,7 @@
 const express = require("express");
 const prismaDatabase = require("../lib/database");
 const { requireAuth } = require("../middleware/auth");
+const { internalBotAuth } = require("../middleware/internal-bot-auth");
 const { requireCsrf } = require("../middleware/csrf");
 const { isPlatformAdmin, requireGuildSettingsAdmin, resolveCallerDiscordId } = require("../services/guild-settings-authz");
 
@@ -59,6 +60,7 @@ function ensureGuildSettingsShape(guildId, data) {
   return parsed.success ? parsed.data : base;
 }
 
+router.use(internalBotAuth);
 router.use(requireAuth);
 
 router.get("/user/:userId", async (req, res) => {

@@ -68,12 +68,42 @@ export type MemoryWriteRequestV0 = {
     source: MemorySource;
     content: Record<string, unknown>;
 };
+export type UserSettingsPatchV0 = {
+    prefs?: {
+        theme?: "neon" | "classic" | "system";
+        chat?: {
+            markdown?: boolean;
+            profanityFilter?: boolean;
+        };
+        snail?: {
+            avatarId?: string;
+            vibe?: string;
+            loreFlags?: string[];
+        };
+    };
+};
+export type GuildSettingsPatchV0 = {
+    prefs?: {
+        botEnabled?: boolean;
+        channels?: {
+            adminLogChannelId?: string;
+            globalChatChannelId?: string;
+        };
+        widget?: {
+            enabled?: boolean;
+        };
+    };
+};
 export declare function createAdminApiClient(client: AdminApiClientInit): {
     getUserSettings(userId: string): Promise<AdminApiJsonResult<{
         ok: boolean;
         settings: UserSettingsV0;
     }>>;
     setUserSettings(userId: string, settings: UserSettingsV0): Promise<AdminApiJsonResult<{
+        ok: boolean;
+        settings: UserSettingsV0;
+    }>>;
+    patchUserSettings(userId: string, patch: UserSettingsPatchV0): Promise<AdminApiJsonResult<{
         ok: boolean;
         settings: UserSettingsV0;
     }>>;
@@ -85,13 +115,20 @@ export declare function createAdminApiClient(client: AdminApiClientInit): {
         ok: boolean;
         settings: GuildSettingsV0;
     }>>;
+    patchGuildSettings(guildId: string, patch: GuildSettingsPatchV0): Promise<AdminApiJsonResult<{
+        ok: boolean;
+        settings: GuildSettingsV0;
+    }>>;
     listMemory(scopeType: MemoryScopeType, scopeId: string, opts?: {
         kind?: MemoryKind;
     }): Promise<AdminApiJsonResult<{
         ok: boolean;
         records: MemoryRecordV0[];
     }>>;
-    writeMemory(scopeType: MemoryScopeType, scopeId: string, body: MemoryWriteRequestV0): Promise<AdminApiJsonResult<{
+    writeMemory(input: {
+        scopeType: MemoryScopeType;
+        scopeId: string;
+    } & MemoryWriteRequestV0): Promise<AdminApiJsonResult<{
         ok: boolean;
         record: MemoryRecordV0;
     }>>;
@@ -109,11 +146,19 @@ export declare function createAdminApiClientFromEnv(opts?: {
         ok: boolean;
         settings: UserSettingsV0;
     }>>;
+    patchUserSettings(userId: string, patch: UserSettingsPatchV0): Promise<AdminApiJsonResult<{
+        ok: boolean;
+        settings: UserSettingsV0;
+    }>>;
     getGuildSettings(guildId: string): Promise<AdminApiJsonResult<{
         ok: boolean;
         settings: GuildSettingsV0;
     }>>;
     setGuildSettings(guildId: string, settings: GuildSettingsV0): Promise<AdminApiJsonResult<{
+        ok: boolean;
+        settings: GuildSettingsV0;
+    }>>;
+    patchGuildSettings(guildId: string, patch: GuildSettingsPatchV0): Promise<AdminApiJsonResult<{
         ok: boolean;
         settings: GuildSettingsV0;
     }>>;
@@ -123,7 +168,10 @@ export declare function createAdminApiClientFromEnv(opts?: {
         ok: boolean;
         records: MemoryRecordV0[];
     }>>;
-    writeMemory(scopeType: MemoryScopeType, scopeId: string, body: MemoryWriteRequestV0): Promise<AdminApiJsonResult<{
+    writeMemory(input: {
+        scopeType: MemoryScopeType;
+        scopeId: string;
+    } & MemoryWriteRequestV0): Promise<AdminApiJsonResult<{
         ok: boolean;
         record: MemoryRecordV0;
     }>>;

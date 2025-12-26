@@ -22,7 +22,9 @@
 - The admin-api rejects secret-like keys anywhere in `content` (denylist includes):
   - `token`, `secret`, `password`, `key`, `auth`, `cookie`
 - The admin-api enforces a hard max size on `content` (see `MAX_MEMORY_CONTENT_BYTES` in `@slimy/contracts`).
-- Kind-level allowlist: non-admin callers cannot write `project_state` for `scopeType=user`.
+- Kind/scope policy is centralized in `@slimy/contracts` (`MEMORY_KIND_POLICY` + `checkMemoryKindPolicy`) so admin-api and clients cannot drift.
+  - `profile_summary` is `scopeType=user` only.
+  - `project_state` requires platform admin when `scopeType=user`.
 
 ## Endpoints (v0)
 - Settings:
@@ -33,6 +35,15 @@
 - Memory:
   - `GET  /api/memory/:scopeType/:scopeId?kind=`
   - `POST /api/memory/:scopeType/:scopeId`
+
+## Bot -> admin-api auth (internal)
+- Discord bot requests can authenticate to these same endpoints using a shared secret token:
+  - Env: `ADMIN_API_INTERNAL_BOT_TOKEN`
+  - Headers:
+    - `x-slimy-internal-bot-token` (must match env)
+    - `x-slimy-bot-actor-discord-id` (the Discord user ID the command is acting for)
+    - Guild-only: `x-slimy-bot-interaction-guild-id` + `x-slimy-bot-interaction-permissions` (Discord permissions bitfield)
+- This is intended for server-to-server calls; the token must not be exposed to browsers or stored in Memory.
 
 ## Future: MemoryProvider interface (swap-in)
 - Keep admin-api as the single API surface.

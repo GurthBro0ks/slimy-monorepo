@@ -1,22 +1,13 @@
-/**
- * Discord Bot Entry Point
- *
- * This is a minimal scaffold. Actual Discord bot logic will be
- * migrated from existing services.
- *
- * TODO:
- * - Import Discord.js client setup
- * - Add command handlers
- * - Connect to database
- * - Implement club analytics features
- */
+import { writeFile, unlink } from "fs/promises";
+import { resolve } from "path";
+import { fileURLToPath } from "url";
 
-import { writeFile, unlink } from 'fs/promises';
-import { resolve } from 'path';
-import { fileURLToPath } from 'url';
+import { Client, GatewayIntentBits } from "discord.js";
 
-import { parseNumber, isValidSnowflake } from './utils/parsing.js';
-import { calculateClubStats } from './utils/stats.js';
+import { resolveAdminApiBaseUrl } from "@slimy/admin-api-client";
+
+import { settingsCommand, handleSettingsCommand } from "./commands/settings.js";
+import { memoryCommand, handleMemoryCommand } from "./commands/memory.js";
 
 const READY_FILE = '/tmp/slimy-bot.ready';
 
@@ -39,38 +30,84 @@ async function clearReady() {
 }
 
 async function main() {
-  console.log('[bot] Starting Slimy Discord Bot (scaffold mode)...');
+  console.log("[bot] Starting Slimy Discord Bot (v0.1 settings sync)...");
 
-  // Check required environment variables
-  const token = process.env.DISCORD_BOT_TOKEN;
-
+  const token = String(process.env.DISCORD_BOT_TOKEN || "").trim();
   if (!token) {
-    console.error('[bot] ERROR: DISCORD_BOT_TOKEN is required');
-    console.log('[bot] This is a scaffold. Set DISCORD_BOT_TOKEN to run.');
+    console.error("[bot] ERROR: DISCORD_BOT_TOKEN is required");
     return;
   }
 
-  console.log('[bot] Configuration validated');
-  console.log('[bot] Utils available:', {
-    parseNumber,
-    isValidSnowflake,
-    calculateClubStats
+  // Fail fast on admin-api connectivity config (no localhost defaults; env must be set)
+  resolveAdminApiBaseUrl(process.env);
+  const internalBotToken = String(process.env.ADMIN_API_INTERNAL_BOT_TOKEN || "").trim();
+  if (!internalBotToken) {
+    console.error("[bot] ERROR: ADMIN_API_INTERNAL_BOT_TOKEN is required for bot -> admin-api auth");
+    return;
+  }
+
+  const devGuildId = String(process.env.DISCORD_DEV_GUILD_ID || "").trim();
+
+  const client = new Client({
+    intents: [GatewayIntentBits.Guilds],
   });
 
-  // TODO: Initialize Discord client
-  // TODO: Register command handlers
-  // TODO: Connect to database
+  client.once("ready", async () => {
+    try {
+      console.log("[bot] Logged in:", client.user?.tag || client.user?.id || "unknown");
 
-  console.log('[bot] Scaffold initialization complete');
-  console.log('[bot] Waiting for actual bot implementation...');
+      const commands = [settingsCommand.toJSON(), memoryCommand.toJSON()];
 
-  await markReady();
+      if (devGuildId) {
+        const guild = await client.guilds.fetch(devGuildId);
+        await guild.commands.set(commands);
+        console.log("[bot] Registered commands in dev guild:", devGuildId);
+      } else if (client.application) {
+        await client.application.commands.set(commands);
+        console.log("[bot] Registered global commands");
+      } else {
+        console.error("[bot] client.application unavailable; cannot register commands");
+      }
 
-  if (process.env.BOT_MODE === 'keepalive') {
-    console.log('[bot] Keepalive mode enabled (BOT_MODE=keepalive).');
-    // Keep the process alive while the scaffold mode is running.
-    setInterval(() => {}, 60_000);
-  }
+      await markReady();
+    } catch (err) {
+      console.error("[bot] Failed during ready/init:", err);
+    }
+  });
+
+  client.on("interactionCreate", async (interaction) => {
+    try {
+      if (!interaction.isChatInputCommand()) return;
+
+      if (interaction.commandName === "settings") {
+        await handleSettingsCommand(interaction);
+        return;
+      }
+
+      if (interaction.commandName === "memory") {
+        await handleMemoryCommand(interaction);
+        return;
+      }
+
+      await interaction.reply({ ephemeral: true, content: "Unknown command." });
+    } catch (err) {
+      try {
+        const message = err instanceof Error ? err.message : String(err);
+        if (interaction.isRepliable()) {
+          if (interaction.deferred || interaction.replied) {
+            await interaction.followUp({ ephemeral: true, content: `Error: ${message}` });
+          } else {
+            await interaction.reply({ ephemeral: true, content: `Error: ${message}` });
+          }
+        }
+      } catch {
+        /* ignore */
+      }
+      console.error("[bot] interaction handler failed:", err);
+    }
+  });
+
+  await client.login(token);
 }
 
 // Handle graceful shutdown
@@ -94,4 +131,4 @@ if (isMain) {
   });
 }
 
-export { parseNumber, isValidSnowflake, calculateClubStats };
+export {};

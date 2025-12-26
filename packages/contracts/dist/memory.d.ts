@@ -5,6 +5,35 @@ export declare const MemoryScopeTypeSchema: z.ZodEnum<["user", "guild"]>;
 export type MemoryScopeType = z.infer<typeof MemoryScopeTypeSchema>;
 export declare const MemoryKindSchema: z.ZodEnum<["profile_summary", "preferences", "project_state", "snail_lore"]>;
 export type MemoryKind = z.infer<typeof MemoryKindSchema>;
+export declare const MEMORY_KIND_POLICY: {
+    readonly profile_summary: {
+        readonly allowedScopeTypes: readonly ["user"];
+        readonly platformAdminOnlyScopeTypes: readonly [];
+    };
+    readonly preferences: {
+        readonly allowedScopeTypes: readonly ["user", "guild"];
+        readonly platformAdminOnlyScopeTypes: readonly [];
+    };
+    readonly project_state: {
+        readonly allowedScopeTypes: readonly ["user", "guild"];
+        readonly platformAdminOnlyScopeTypes: readonly ["user"];
+    };
+    readonly snail_lore: {
+        readonly allowedScopeTypes: readonly ["user", "guild"];
+        readonly platformAdminOnlyScopeTypes: readonly [];
+    };
+};
+export type MemoryKindPolicy = typeof MEMORY_KIND_POLICY;
+export declare function checkMemoryKindPolicy(input: {
+    scopeType: MemoryScopeType;
+    kind: MemoryKind;
+    isPlatformAdmin: boolean;
+}): {
+    ok: true;
+} | {
+    ok: false;
+    reason: "scope_forbidden" | "platform_admin_required";
+};
 export declare const MemorySourceSchema: z.ZodEnum<["discord", "web", "admin-ui", "system"]>;
 export type MemorySource = z.infer<typeof MemorySourceSchema>;
 export declare const MemoryContentSchema: z.ZodEffects<z.ZodObject<{}, "passthrough", z.ZodTypeAny, z.objectOutputType<{}, z.ZodTypeAny, "passthrough">, z.objectInputType<{}, z.ZodTypeAny, "passthrough">>, z.objectOutputType<{}, z.ZodTypeAny, "passthrough">, z.objectInputType<{}, z.ZodTypeAny, "passthrough">>;

@@ -28,16 +28,17 @@
 - Added verification scripts for “no localhost” regression (and CI step if present).
 - Settings+Memory v0: shared contracts + admin-api persistence/endpoints + regression check.
 - Settings+Memory v0 hardening: tightened authz + kind allowlist (blocks cross-user access; blocks `project_state` for `scopeType=user` for non-admins).
+- Settings Sync Clients v0.1: bot + admin-ui wired to central settings/memory endpoints (markdown toggle, widget toggle, `profile_summary` write); memory kind policy centralized in `@slimy/contracts`; internal bot auth token support added; CI runs v0.1 verify + no-localhost client source scan.
 - AGENTS.md + CONTINUITY checks enforced in CI.
 - Local preflight: `scripts/verify/compose-ports-available.sh` detects host port collisions before `docker compose up`.
 - CI guardrail: `scripts/verify/compose-config-valid.sh` ensures `docker compose config` succeeds (catches compose/env/YAML issues).
 
 ### Now
-- Wire bot `/commands` + Web/Admin UI clients to use the Settings+Memory v0 endpoints.
-- Reduce “tribal knowledge” by pinning working commands and invariants here.
+- Wire remaining clients (ex: `apps/web`, excluding `/chat`) to use the Settings+Memory v0 endpoints.
+- Keep hard safety rails green (no loopback in public output; no secrets in memory).
 
 ### Next
-- Add `/commands` + Web/Admin UI settings screens that call the same admin-api endpoints.
+- Add `apps/web` settings surface (non-chat) that calls the same admin-api endpoints.
 - Add “MemoryProvider” abstraction behind admin-api (DB v0 -> Memori later) without contract changes.
 
 ## Open questions (UNCONFIRMED if needed)

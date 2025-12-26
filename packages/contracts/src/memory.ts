@@ -71,6 +71,57 @@ export const MemoryKindSchema = z.enum([
 ]);
 export type MemoryKind = z.infer<typeof MemoryKindSchema>;
 
+export const MEMORY_KIND_POLICY = {
+  profile_summary: {
+    allowedScopeTypes: ["user"],
+    platformAdminOnlyScopeTypes: [],
+  },
+  preferences: {
+    allowedScopeTypes: ["user", "guild"],
+    platformAdminOnlyScopeTypes: [],
+  },
+  project_state: {
+    allowedScopeTypes: ["user", "guild"],
+    platformAdminOnlyScopeTypes: ["user"],
+  },
+  snail_lore: {
+    allowedScopeTypes: ["user", "guild"],
+    platformAdminOnlyScopeTypes: [],
+  },
+} as const satisfies Record<
+  MemoryKind,
+  {
+    allowedScopeTypes: readonly MemoryScopeType[];
+    platformAdminOnlyScopeTypes: readonly MemoryScopeType[];
+  }
+>;
+
+export type MemoryKindPolicy = typeof MEMORY_KIND_POLICY;
+
+export function checkMemoryKindPolicy(input: {
+  scopeType: MemoryScopeType;
+  kind: MemoryKind;
+  isPlatformAdmin: boolean;
+}): { ok: true } | { ok: false; reason: "scope_forbidden" | "platform_admin_required" } {
+  const policy = MEMORY_KIND_POLICY[input.kind];
+  const allowedScopeTypes = policy.allowedScopeTypes as readonly MemoryScopeType[];
+  const platformAdminOnlyScopeTypes =
+    policy.platformAdminOnlyScopeTypes as readonly MemoryScopeType[];
+
+  if (!allowedScopeTypes.includes(input.scopeType)) {
+    return { ok: false, reason: "scope_forbidden" };
+  }
+
+  if (
+    platformAdminOnlyScopeTypes.includes(input.scopeType) &&
+    !input.isPlatformAdmin
+  ) {
+    return { ok: false, reason: "platform_admin_required" };
+  }
+
+  return { ok: true };
+}
+
 export const MemorySourceSchema = z.enum(["discord", "web", "admin-ui", "system"]);
 export type MemorySource = z.infer<typeof MemorySourceSchema>;
 

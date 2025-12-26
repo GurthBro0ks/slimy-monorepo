@@ -16,11 +16,12 @@ function assertNoLoopbackInProd(baseUrl) {
     const nodeEnv = globalThis?.process?.env?.NODE_ENV;
     if (nodeEnv !== "production")
         return;
+    if (baseUrl.startsWith("/"))
+        return;
     try {
         const url = new URL(baseUrl);
-        if (isLoopbackHostname(url.hostname)) {
+        if (isLoopbackHostname(url.hostname))
             throw new Error("loopback baseUrl forbidden in production");
-        }
     }
     catch {
         throw new Error("invalid admin-api baseUrl");
@@ -29,7 +30,11 @@ function assertNoLoopbackInProd(baseUrl) {
 async function fetchJson(client, path, init) {
     assertNoLoopbackInProd(client.baseUrl);
     const fetcher = client.fetchImpl ?? fetch;
-    const url = new URL(path.replace(/^\//, ""), client.baseUrl.replace(/\/+$/, "") + "/");
+    const normalizedPath = `/${path.replace(/^\//, "")}`;
+    const baseUrl = client.baseUrl.replace(/\/+$/, "");
+    const target = baseUrl.startsWith("/")
+        ? `${baseUrl}${normalizedPath}`
+        : new URL(normalizedPath.replace(/^\//, ""), `${baseUrl}/`).toString();
     const headers = new Headers(init?.headers);
     for (const [k, v] of Object.entries(client.defaultHeaders ?? {})) {
         if (!headers.has(k))
@@ -37,7 +42,7 @@ async function fetchJson(client, path, init) {
     }
     if (!headers.has("accept"))
         headers.set("accept", "application/json");
-    const res = await fetcher(url.toString(), { ...init, headers });
+    const res = await fetcher(target, { ...init, headers });
     const resHeaders = res.headers;
     let body = null;
     try {
@@ -51,6 +56,22 @@ async function fetchJson(client, path, init) {
     }
     return { ok: true, status: res.status, data: body, headers: resHeaders };
 }
+function mergeDeep(target, patch) {
+    if (!patch || typeof patch !== "object" || Array.isArray(patch))
+        return target;
+    if (!target || typeof target !== "object" || Array.isArray(target))
+        return { ...patch };
+    const out = { ...target };
+    for (const [k, v] of Object.entries(patch)) {
+        if (v && typeof v === "object" && !Array.isArray(v)) {
+            out[k] = mergeDeep(out[k], v);
+        }
+        else if (v !== undefined) {
+            out[k] = v;
+        }
+    }
+    return out;
+}
 export function createAdminApiClient(client) {
     return {
         getUserSettings(userId) {
@@ -63,6 +84,17 @@ export function createAdminApiClient(client) {
                 body: JSON.stringify(settings),
             });
         },
+        async patchUserSettings(userId, patch) {
+            const current = await fetchJson(client, `/api/settings/user/${encodeURIComponent(userId)}`, { method: "GET" });
+            if (!current.ok)
+                return current;
+            const next = mergeDeep(current.data.settings, patch);
+            return fetchJson(client, `/api/settings/user/${encodeURIComponent(userId)}`, {
+                method: "PUT",
+                headers: { "content-type": "application/json" },
+                body: JSON.stringify(next),
+            });
+        },
         getGuildSettings(guildId) {
             return fetchJson(client, `/api/settings/guild/${encodeURIComponent(guildId)}`, { method: "GET" });
         },
@@ -73,15 +105,26 @@ export function createAdminApiClient(client) {
                 body: JSON.stringify(settings),
             });
         },
+        async patchGuildSettings(guildId, patch) {
+            const current = await fetchJson(client, `/api/settings/guild/${encodeURIComponent(guildId)}`, { method: "GET" });
+            if (!current.ok)
+                return current;
+            const next = mergeDeep(current.data.settings, patch);
+            return fetchJson(client, `/api/settings/guild/${encodeURIComponent(guildId)}`, {
+                method: "PUT",
+                headers: { "content-type": "application/json" },
+                body: JSON.stringify(next),
+            });
+        },
         listMemory(scopeType, scopeId, opts) {
             const qs = opts?.kind ? `?kind=${encodeURIComponent(opts.kind)}` : "";
             return fetchJson(client, `/api/memory/${encodeURIComponent(scopeType)}/${encodeURIComponent(scopeId)}${qs}`, { method: "GET" });
         },
-        writeMemory(scopeType, scopeId, body) {
-            return fetchJson(client, `/api/memory/${encodeURIComponent(scopeType)}/${encodeURIComponent(scopeId)}`, {
+        writeMemory(input) {
+            return fetchJson(client, `/api/memory/${encodeURIComponent(input.scopeType)}/${encodeURIComponent(input.scopeId)}`, {
                 method: "POST",
                 headers: { "content-type": "application/json" },
-                body: JSON.stringify(body),
+                body: JSON.stringify({ kind: input.kind, source: input.source, content: input.content }),
             });
         },
     };

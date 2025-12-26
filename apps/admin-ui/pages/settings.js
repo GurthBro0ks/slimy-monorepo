@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/router";
+import { createAdminApiClient } from "@slimy/admin-api-client";
 import { useSession } from "../lib/session";
 import Layout from "../components/Layout";
 
@@ -11,7 +12,65 @@ import Layout from "../components/Layout";
  */
 export default function SettingsPage() {
   const router = useRouter();
-  const { user, loading } = useSession();
+  const { user, loading, csrfToken } = useSession();
+
+  const userId = user?.discordId || user?.id || "";
+  const adminApiBaseUrl = "/api/admin-api";
+  const adminApi = useMemo(
+    () =>
+      createAdminApiClient({
+        baseUrl: adminApiBaseUrl,
+        defaultHeaders: csrfToken ? { "x-csrf-token": csrfToken } : {},
+      }),
+    [csrfToken],
+  );
+
+  const [markdownState, setMarkdownState] = useState({
+    loading: false,
+    saving: false,
+    enabled: false,
+    lastFetchedAt: null,
+    error: null,
+  });
+
+  const refreshUserSettings = useCallback(async () => {
+    if (!userId) return;
+    setMarkdownState((s) => ({ ...s, loading: true, error: null }));
+    const res = await adminApi.getUserSettings(userId);
+    if (!res.ok) {
+      setMarkdownState((s) => ({ ...s, loading: false, error: res.error, lastFetchedAt: new Date().toISOString() }));
+      return;
+    }
+
+    const enabled = Boolean(res.data?.settings?.prefs?.chat?.markdown);
+    setMarkdownState((s) => ({
+      ...s,
+      loading: false,
+      enabled,
+      lastFetchedAt: new Date().toISOString(),
+      error: null,
+    }));
+  }, [adminApi, userId]);
+
+  const setMarkdownEnabled = useCallback(async (nextEnabled) => {
+    if (!userId) return;
+    setMarkdownState((s) => ({ ...s, saving: true, error: null }));
+    const res = await adminApi.patchUserSettings(userId, {
+      prefs: { chat: { markdown: Boolean(nextEnabled) } },
+    });
+    if (!res.ok) {
+      setMarkdownState((s) => ({ ...s, saving: false, error: res.error }));
+      return;
+    }
+
+    setMarkdownState((s) => ({
+      ...s,
+      saving: false,
+      enabled: Boolean(res.data?.settings?.prefs?.chat?.markdown),
+      lastFetchedAt: new Date().toISOString(),
+      error: null,
+    }));
+  }, [adminApi, userId]);
 
   useEffect(() => {
     if (loading) return;
@@ -21,6 +80,12 @@ export default function SettingsPage() {
       router.replace(`/club/${user.activeGuildId}/settings`);
     }
   }, [loading, user?.activeGuildId, router]);
+
+  useEffect(() => {
+    if (loading) return;
+    if (!userId) return;
+    void refreshUserSettings();
+  }, [loading, userId, refreshUserSettings]);
 
   // Show loading while checking session
   if (loading) {
@@ -64,8 +129,43 @@ export default function SettingsPage() {
               <div style={{ fontWeight: 600, marginBottom: "0.5rem" }}>Theme & Appearance</div>
               <div style={{ opacity: 0.7 }}>Theme preferences coming soon.</div>
             </div>
+
+            <div style={{ marginTop: "1.5rem", paddingTop: "1rem", borderTop: "1px solid rgba(255,255,255,.1)" }}>
+              <div style={{ fontWeight: 600, marginBottom: "0.75rem" }}>Chat</div>
+              <label style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                <input
+                  type="checkbox"
+                  checked={Boolean(markdownState.enabled)}
+                  disabled={markdownState.loading || markdownState.saving}
+                  onChange={(e) => setMarkdownEnabled(e.target.checked)}
+                />
+                Markdown formatting
+              </label>
+              <div style={{ marginTop: "0.5rem", display: "flex", gap: "0.5rem" }}>
+                <button className="btn" onClick={refreshUserSettings} disabled={markdownState.loading}>
+                  Refresh
+                </button>
+                {(markdownState.loading || markdownState.saving) && (
+                  <div style={{ opacity: 0.7, paddingTop: "0.35rem" }}>
+                    {markdownState.saving ? "Saving..." : "Loading..."}
+                  </div>
+                )}
+              </div>
+            </div>
           </>
         )}
+      </div>
+
+      {/* Temporary debug/status area (required) */}
+      <div className="card" style={{ padding: "1rem" }}>
+        <div style={{ fontWeight: 700, marginBottom: "0.75rem" }}>Debug / Status (temporary)</div>
+        <div style={{ fontFamily: "monospace", fontSize: "0.9rem", display: "grid", gap: "0.35rem" }}>
+          <div>adminApiBaseUrl: {adminApiBaseUrl}</div>
+          <div>userId: {userId || "(none)"}</div>
+          <div>activeGuildId: {user?.activeGuildId || "(none)"}</div>
+          <div>lastSettingsFetch: {markdownState.lastFetchedAt || "(never)"}</div>
+          <div>lastError: {markdownState.error ? JSON.stringify(markdownState.error) : "(none)"}</div>
+        </div>
       </div>
     </Layout>
   );
