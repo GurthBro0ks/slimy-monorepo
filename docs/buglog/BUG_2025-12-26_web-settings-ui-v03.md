@@ -31,14 +31,17 @@ Date: 2025-12-26
 - Client-side login redirects use `/api/auth/login` (relative) to avoid baking `NEXT_PUBLIC_ADMIN_API_BASE` values into client bundles.
 
 ## Done checklist
-- [ ] `/settings` exists and edits `UserSettings` via admin-api
-- [ ] `/club/[guildId]/settings` exists and edits `GuildSettings` via admin-api
-- [ ] Debug/status strip on both pages
-- [ ] Optional: changes feed panel works (cursor endpoint)
-- [ ] Optional: memory viewer works (read-only)
-- [ ] `scripts/verify/web-settings-ui-v03.sh` added and PASS
-- [ ] `scripts/verify/no-localhost-in-client-sources.sh` PASS
-- [ ] Buglog includes commands + evidence
+- [x] `/settings` exists and edits `UserSettings` via admin-api
+- [x] `/club/[guildId]/settings` exists and edits `GuildSettings` via admin-api
+- [x] Debug/status strip on both pages
+- [x] Optional: changes feed panel works (cursor endpoint)
+- [x] Optional: memory viewer works (read-only)
+- [x] `scripts/verify/web-settings-ui-v03.sh` added and PASS
+- [x] `scripts/verify/no-localhost-in-client-sources.sh` PASS
+- [x] Buglog includes commands + evidence
+
+## Commit
+- `a63f9b1` — `feat(web): settings UI wired to central settings v0.3`
 
 ## Commands run (with outputs)
 - Discovery
