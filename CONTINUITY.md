@@ -32,6 +32,7 @@
 - Settings Sync Events v0.2: settings update audit trail + cursor endpoint; events written on settings updates; bot + admin-ui consume changes on-demand; CI runs v0.2 regression.
 - Web Settings UI v0.3: `apps/web` `/settings` + `/club/[guildId]/settings` JSON editors calling the same admin-api endpoints/contracts; web verify script scans built client artifacts for loopback; client login redirects use `/api/auth/login` (no baked `NEXT_PUBLIC_ADMIN_API_BASE`).
 - Web Settings UI v0.31: added “Basic Settings” panels above the JSON editors (theme/chat/snail + widget/channels) while keeping JSON as the advanced/source-of-truth view.
+- Web Settings UI v0.32: settings pages polished with save state machine, diff preview, reset, and stale-change warning (via settings change cursor) + v0.32 verify script.
 - AGENTS.md + CONTINUITY checks enforced in CI.
 - Local preflight: `scripts/verify/compose-ports-available.sh` detects host port collisions before `docker compose up`.
 - CI guardrail: `scripts/verify/compose-config-valid.sh` ensures `docker compose config` succeeds (catches compose/env/YAML issues).
