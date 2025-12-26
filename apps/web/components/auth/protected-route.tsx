@@ -46,12 +46,7 @@ export function ProtectedRoute({
       if (!fallback) {
         if (redirectTo === "/login" || !resolvedUser) {
           // For login redirects, we need to trigger login flow
-          const adminApiBase = process.env.NEXT_PUBLIC_ADMIN_API_BASE || "";
-          if (adminApiBase) {
-            window.location.href = `${adminApiBase}/api/auth/login`;
-          } else {
-            router.push("/");
-          }
+          window.location.href = "/api/auth/login";
         } else {
           router.push(redirectTo);
         }
