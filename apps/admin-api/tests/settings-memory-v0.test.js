@@ -92,9 +92,16 @@ describe("settings+memory v0 bridge", () => {
 
       const mockPrisma = {
         userSettings: {
-          upsert: jest.fn(({ create }) => Promise.resolve({ userId: create.userId, data: create.data })),
+          findUnique: jest.fn(() => Promise.resolve(null)),
+          upsert: jest.fn(({ create, update }) =>
+            Promise.resolve({ userId: create.userId, data: (update && update.data) || create.data }),
+          ),
           update: jest.fn(() => Promise.resolve({})),
         },
+        settingsChangeEvent: {
+          create: jest.fn(() => Promise.resolve({ id: 1 })),
+        },
+        $transaction: jest.fn((ops) => Promise.all(ops)),
       };
 
       prismaDatabase.initialize.mockResolvedValue(true);

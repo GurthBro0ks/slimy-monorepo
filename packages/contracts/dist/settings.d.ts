@@ -373,5 +373,45 @@ export declare const GuildSettingsSchema: z.ZodObject<{
     }>;
 }, z.ZodTypeAny, "passthrough">>;
 export type GuildSettings = z.infer<typeof GuildSettingsSchema>;
+export declare const SettingsScopeTypeSchema: z.ZodEnum<["user", "guild"]>;
+export type SettingsScopeType = z.infer<typeof SettingsScopeTypeSchema>;
+export declare const SETTINGS_CHANGE_KINDS: readonly ["user_settings_updated", "guild_settings_updated"];
+export declare const SettingsChangeKindSchema: z.ZodEnum<["user_settings_updated", "guild_settings_updated"]>;
+export type SettingsChangeKind = z.infer<typeof SettingsChangeKindSchema>;
+export declare const SETTINGS_CHANGE_SOURCES: readonly ["discord", "admin-ui", "web", "api", "unknown"];
+export declare const SettingsChangeSourceSchema: z.ZodEnum<["discord", "admin-ui", "web", "api", "unknown"]>;
+export type SettingsChangeSource = z.infer<typeof SettingsChangeSourceSchema>;
+export declare const SettingsChangeEventSchema: z.ZodObject<{
+    id: z.ZodNumber;
+    createdAt: z.ZodEffects<z.ZodString, string, string>;
+    scopeType: z.ZodEnum<["user", "guild"]>;
+    scopeId: z.ZodString;
+    kind: z.ZodEnum<["user_settings_updated", "guild_settings_updated"]>;
+    actorUserId: z.ZodString;
+    actorIsAdmin: z.ZodOptional<z.ZodBoolean>;
+    source: z.ZodOptional<z.ZodEnum<["discord", "admin-ui", "web", "api", "unknown"]>>;
+    changedKeys: z.ZodOptional<z.ZodArray<z.ZodString, "many">>;
+}, "strip", z.ZodTypeAny, {
+    id: number;
+    createdAt: string;
+    scopeType: "user" | "guild";
+    scopeId: string;
+    kind: "user_settings_updated" | "guild_settings_updated";
+    actorUserId: string;
+    actorIsAdmin?: boolean | undefined;
+    source?: "discord" | "admin-ui" | "web" | "api" | "unknown" | undefined;
+    changedKeys?: string[] | undefined;
+}, {
+    id: number;
+    createdAt: string;
+    scopeType: "user" | "guild";
+    scopeId: string;
+    kind: "user_settings_updated" | "guild_settings_updated";
+    actorUserId: string;
+    actorIsAdmin?: boolean | undefined;
+    source?: "discord" | "admin-ui" | "web" | "api" | "unknown" | undefined;
+    changedKeys?: string[] | undefined;
+}>;
+export type SettingsChangeEvent = z.infer<typeof SettingsChangeEventSchema>;
 export declare function defaultUserSettings(userId: string): UserSettings;
 export declare function defaultGuildSettings(guildId: string): GuildSettings;

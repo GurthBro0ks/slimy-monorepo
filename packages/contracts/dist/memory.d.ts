@@ -48,24 +48,24 @@ export declare const MemoryRecordSchema: z.ZodObject<{
     updatedAt: z.ZodEffects<z.ZodString, string, string>;
 }, "strip", z.ZodTypeAny, {
     updatedAt: string;
+    createdAt: string;
     scopeType: "user" | "guild";
     scopeId: string;
     kind: "profile_summary" | "preferences" | "project_state" | "snail_lore";
-    source: "system" | "discord" | "web" | "admin-ui";
+    source: "system" | "discord" | "admin-ui" | "web";
     content: {} & {
         [k: string]: unknown;
     };
-    createdAt: string;
 }, {
     updatedAt: string;
+    createdAt: string;
     scopeType: "user" | "guild";
     scopeId: string;
     kind: "profile_summary" | "preferences" | "project_state" | "snail_lore";
-    source: "system" | "discord" | "web" | "admin-ui";
+    source: "system" | "discord" | "admin-ui" | "web";
     content: {} & {
         [k: string]: unknown;
     };
-    createdAt: string;
 }>;
 export type MemoryRecord = z.infer<typeof MemoryRecordSchema>;
 export declare const MemoryWriteRequestSchema: z.ZodObject<{
@@ -74,13 +74,13 @@ export declare const MemoryWriteRequestSchema: z.ZodObject<{
     content: z.ZodEffects<z.ZodObject<{}, "passthrough", z.ZodTypeAny, z.objectOutputType<{}, z.ZodTypeAny, "passthrough">, z.objectInputType<{}, z.ZodTypeAny, "passthrough">>, z.objectOutputType<{}, z.ZodTypeAny, "passthrough">, z.objectInputType<{}, z.ZodTypeAny, "passthrough">>;
 }, "strip", z.ZodTypeAny, {
     kind: "profile_summary" | "preferences" | "project_state" | "snail_lore";
-    source: "system" | "discord" | "web" | "admin-ui";
+    source: "system" | "discord" | "admin-ui" | "web";
     content: {} & {
         [k: string]: unknown;
     };
 }, {
     kind: "profile_summary" | "preferences" | "project_state" | "snail_lore";
-    source: "system" | "discord" | "web" | "admin-ui";
+    source: "system" | "discord" | "admin-ui" | "web";
     content: {} & {
         [k: string]: unknown;
     };

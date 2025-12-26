@@ -20,10 +20,20 @@ export default function SettingsPage() {
     () =>
       createAdminApiClient({
         baseUrl: adminApiBaseUrl,
-        defaultHeaders: csrfToken ? { "x-csrf-token": csrfToken } : {},
+        defaultHeaders: {
+          "x-slimy-client": "admin-ui",
+          ...(csrfToken ? { "x-csrf-token": csrfToken } : null),
+        },
       }),
     [csrfToken],
   );
+
+  const [userChanges, setUserChanges] = useState({
+    sinceId: null,
+    lastCheckedAt: null,
+    lastEventCount: 0,
+    error: null,
+  });
 
   const [markdownState, setMarkdownState] = useState({
     loading: false,
@@ -52,6 +62,48 @@ export default function SettingsPage() {
     }));
   }, [adminApi, userId]);
 
+  const primeUserSettingsCursor = useCallback(async () => {
+    if (!userId) return;
+    const res = await adminApi.listSettingsChangesV0({ scopeType: "user", scopeId: userId, limit: 1 });
+    if (!res.ok) {
+      setUserChanges((s) => ({ ...s, error: res.error, lastCheckedAt: new Date().toISOString() }));
+      return;
+    }
+    setUserChanges((s) => ({
+      ...s,
+      sinceId: res.data.nextSinceId,
+      lastEventCount: res.data.events.length,
+      lastCheckedAt: new Date().toISOString(),
+      error: null,
+    }));
+  }, [adminApi, userId]);
+
+  const refreshUserSettingsIfChanged = useCallback(async () => {
+    if (!userId) return;
+    const res = await adminApi.listSettingsChangesV0({
+      scopeType: "user",
+      scopeId: userId,
+      sinceId: userChanges.sinceId,
+      limit: 1,
+    });
+    if (!res.ok) {
+      setUserChanges((s) => ({ ...s, error: res.error, lastCheckedAt: new Date().toISOString() }));
+      return;
+    }
+
+    setUserChanges((s) => ({
+      ...s,
+      sinceId: res.data.nextSinceId,
+      lastEventCount: res.data.events.length,
+      lastCheckedAt: new Date().toISOString(),
+      error: null,
+    }));
+
+    if (res.data.events.length) {
+      await refreshUserSettings();
+    }
+  }, [adminApi, userId, userChanges.sinceId, refreshUserSettings]);
+
   const setMarkdownEnabled = useCallback(async (nextEnabled) => {
     if (!userId) return;
     setMarkdownState((s) => ({ ...s, saving: true, error: null }));
@@ -70,7 +122,9 @@ export default function SettingsPage() {
       lastFetchedAt: new Date().toISOString(),
       error: null,
     }));
-  }, [adminApi, userId]);
+
+    void primeUserSettingsCursor();
+  }, [adminApi, userId, primeUserSettingsCursor]);
 
   useEffect(() => {
     if (loading) return;
@@ -85,7 +139,15 @@ export default function SettingsPage() {
     if (loading) return;
     if (!userId) return;
     void refreshUserSettings();
-  }, [loading, userId, refreshUserSettings]);
+    void primeUserSettingsCursor();
+  }, [loading, userId, refreshUserSettings, primeUserSettingsCursor]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const onFocus = () => void refreshUserSettingsIfChanged();
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, [refreshUserSettingsIfChanged]);
 
   // Show loading while checking session
   if (loading) {
@@ -142,7 +204,7 @@ export default function SettingsPage() {
                 Markdown formatting
               </label>
               <div style={{ marginTop: "0.5rem", display: "flex", gap: "0.5rem" }}>
-                <button className="btn" onClick={refreshUserSettings} disabled={markdownState.loading}>
+                <button className="btn" onClick={refreshUserSettingsIfChanged} disabled={markdownState.loading}>
                   Refresh
                 </button>
                 {(markdownState.loading || markdownState.saving) && (
@@ -164,6 +226,8 @@ export default function SettingsPage() {
           <div>userId: {userId || "(none)"}</div>
           <div>activeGuildId: {user?.activeGuildId || "(none)"}</div>
           <div>lastSettingsFetch: {markdownState.lastFetchedAt || "(never)"}</div>
+          <div>userChangesSinceId: {userChanges.sinceId ?? "(none)"}</div>
+          <div>lastChangesCheck: {userChanges.lastCheckedAt || "(never)"}</div>
           <div>lastError: {markdownState.error ? JSON.stringify(markdownState.error) : "(none)"}</div>
         </div>
       </div>

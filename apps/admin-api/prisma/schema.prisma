@@ -137,6 +137,22 @@ model MemoryRecord {
   @@map("memory_records")
 }
 
+model SettingsChangeEvent {
+  id           Int      @id @default(autoincrement())
+  createdAt    DateTime @default(now()) @map("created_at")
+  scopeType    String   @map("scope_type")
+  scopeId      String   @map("scope_id")
+  kind         String
+  actorUserId  String   @map("actor_user_id")
+  actorIsAdmin Boolean  @default(false) @map("actor_is_admin")
+  source       String?
+  changedKeys  Json?    @map("changed_keys")
+
+  @@index([scopeType, scopeId, id])
+  @@index([createdAt])
+  @@map("settings_change_events")
+}
+
 // Many-to-many relationship between users and guilds with roles
 model UserGuild {
   id     String @id @default(cuid())

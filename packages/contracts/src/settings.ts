@@ -62,6 +62,40 @@ export const GuildSettingsSchema = z
 
 export type GuildSettings = z.infer<typeof GuildSettingsSchema>;
 
+export const SettingsScopeTypeSchema = z.enum(["user", "guild"]);
+export type SettingsScopeType = z.infer<typeof SettingsScopeTypeSchema>;
+
+export const SETTINGS_CHANGE_KINDS = [
+  "user_settings_updated",
+  "guild_settings_updated",
+] as const;
+export const SettingsChangeKindSchema = z.enum(SETTINGS_CHANGE_KINDS);
+export type SettingsChangeKind = z.infer<typeof SettingsChangeKindSchema>;
+
+export const SETTINGS_CHANGE_SOURCES = [
+  "discord",
+  "admin-ui",
+  "web",
+  "api",
+  "unknown",
+] as const;
+export const SettingsChangeSourceSchema = z.enum(SETTINGS_CHANGE_SOURCES);
+export type SettingsChangeSource = z.infer<typeof SettingsChangeSourceSchema>;
+
+export const SettingsChangeEventSchema = z.object({
+  id: z.number().int().min(0),
+  createdAt: isoDateString,
+  scopeType: SettingsScopeTypeSchema,
+  scopeId: z.string().min(1),
+  kind: SettingsChangeKindSchema,
+  actorUserId: z.string().min(1),
+  actorIsAdmin: z.boolean().optional(),
+  source: SettingsChangeSourceSchema.optional(),
+  changedKeys: z.array(z.string()).optional(),
+});
+
+export type SettingsChangeEvent = z.infer<typeof SettingsChangeEventSchema>;
+
 function legacyCentralDefaults() {
   return {
     profile: {},

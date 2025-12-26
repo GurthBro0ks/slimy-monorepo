@@ -1,3 +1,10 @@
+import * as contracts from "../../contracts/dist/index.js";
+import type {
+  SettingsChangeEvent,
+  SettingsChangeKind,
+  SettingsScopeType,
+} from "../../contracts/dist/index.js";
+
 export type AdminApiJsonResult<T> =
   | { ok: true; status: number; data: T; headers: Headers }
   | { ok: false; status: number; error: unknown; headers: Headers };
@@ -108,6 +115,16 @@ export type GuildSettingsV0 = {
   [k: string]: unknown;
 };
 
+export type SettingsScopeTypeV0 = SettingsScopeType;
+export type SettingsChangeKindV0 = SettingsChangeKind;
+export type SettingsChangeEventV0 = SettingsChangeEvent;
+
+export type SettingsChangesResponseV0 = {
+  ok: true;
+  events: SettingsChangeEventV0[];
+  nextSinceId: number | null;
+};
+
 export type MemoryRecordV0 = {
   scopeType: MemoryScopeType;
   scopeId: string;
@@ -153,6 +170,26 @@ function mergeDeep(target: any, patch: any): any {
     }
   }
   return out;
+}
+
+function parseSettingsChangesResponse(payload: unknown): SettingsChangesResponseV0 | null {
+  if (!payload || typeof payload !== "object") return null;
+  const obj: any = payload;
+  if (obj.ok !== true) return null;
+  if (!Array.isArray(obj.events)) return null;
+
+  const events: SettingsChangeEventV0[] = [];
+  for (const raw of obj.events) {
+    const parsed = contracts.SettingsChangeEventSchema.safeParse(raw);
+    if (!parsed.success) return null;
+    events.push(parsed.data);
+  }
+
+  const nextRaw = obj.nextSinceId;
+  const nextSinceId =
+    typeof nextRaw === "number" && Number.isInteger(nextRaw) && nextRaw >= 0 ? nextRaw : null;
+
+  return { ok: true, events, nextSinceId };
 }
 
 export function createAdminApiClient(client: AdminApiClientInit) {
@@ -230,6 +267,31 @@ export function createAdminApiClient(client: AdminApiClientInit) {
           body: JSON.stringify(next),
         },
       );
+    },
+    async listSettingsChangesV0(input: {
+      scopeType: SettingsScopeTypeV0;
+      scopeId: string;
+      sinceId?: number | null;
+      limit?: number;
+      kind?: SettingsChangeKindV0;
+    }): Promise<AdminApiJsonResult<SettingsChangesResponseV0>> {
+      const params = new URLSearchParams();
+      params.set("scopeType", input.scopeType);
+      params.set("scopeId", input.scopeId);
+      if (typeof input.sinceId === "number") params.set("sinceId", String(input.sinceId));
+      if (typeof input.limit === "number") params.set("limit", String(input.limit));
+      if (input.kind) params.set("kind", input.kind);
+
+      const res = await fetchJson<unknown>(client, `/api/settings/changes-v0?${params.toString()}`, {
+        method: "GET",
+      });
+      if (!res.ok) return res as AdminApiJsonResult<SettingsChangesResponseV0>;
+
+      const parsed = parseSettingsChangesResponse(res.data);
+      if (!parsed) {
+        return { ok: false, status: res.status, error: "invalid_settings_changes_response", headers: res.headers };
+      }
+      return { ok: true, status: res.status, data: parsed, headers: res.headers };
     },
     listMemory(scopeType: MemoryScopeType, scopeId: string, opts?: { kind?: MemoryKind }) {
       const qs = opts?.kind ? `?kind=${encodeURIComponent(opts.kind)}` : "";

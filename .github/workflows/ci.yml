@@ -67,6 +67,9 @@ jobs:
       - name: Verify settings sync clients v0.1 (admin-api regression + client builds)
         run: bash scripts/verify/settings-sync-clients-v01.sh
 
+      - name: Verify settings sync events v0.2 (admin-api regression)
+        run: bash scripts/verify/settings-sync-events-v02.sh
+
       - name: Verify continuity ledger present
         run: bash scripts/verify/continuity-ledger-present.sh
 

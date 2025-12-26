@@ -33,10 +33,20 @@ export default function GuildSettingsPage() {
     () =>
       createAdminApiClient({
         baseUrl: adminApiBaseUrl,
-        defaultHeaders: csrfToken ? { "x-csrf-token": csrfToken } : {},
+        defaultHeaders: {
+          "x-slimy-client": "admin-ui",
+          ...(csrfToken ? { "x-csrf-token": csrfToken } : null),
+        },
       }),
     [csrfToken],
   );
+
+  const [guildChanges, setGuildChanges] = useState({
+    sinceId: null,
+    lastCheckedAt: null,
+    lastEventCount: 0,
+    error: null,
+  });
 
   const [centralGuildState, setCentralGuildState] = useState({
     loading: false,
@@ -45,6 +55,22 @@ export default function GuildSettingsPage() {
     lastFetchedAt: null,
     error: null,
   });
+
+  const primeGuildSettingsCursor = useCallback(async () => {
+    if (!guildId || !canAccessGuildSettings) return;
+    const res = await adminApi.listSettingsChangesV0({ scopeType: "guild", scopeId: guildId, limit: 1 });
+    if (!res.ok) {
+      setGuildChanges((s) => ({ ...s, error: res.error, lastCheckedAt: new Date().toISOString() }));
+      return;
+    }
+    setGuildChanges((s) => ({
+      ...s,
+      sinceId: res.data.nextSinceId,
+      lastEventCount: res.data.events.length,
+      lastCheckedAt: new Date().toISOString(),
+      error: null,
+    }));
+  }, [adminApi, guildId, canAccessGuildSettings]);
 
   const refreshCentralGuildSettings = useCallback(async () => {
     if (!guildId || !canAccessGuildSettings) return;
@@ -65,6 +91,32 @@ export default function GuildSettingsPage() {
     }));
   }, [adminApi, guildId, canAccessGuildSettings]);
 
+  const refreshCentralGuildSettingsIfChanged = useCallback(async () => {
+    if (!guildId || !canAccessGuildSettings) return;
+    const res = await adminApi.listSettingsChangesV0({
+      scopeType: "guild",
+      scopeId: guildId,
+      sinceId: guildChanges.sinceId,
+      limit: 1,
+    });
+    if (!res.ok) {
+      setGuildChanges((s) => ({ ...s, error: res.error, lastCheckedAt: new Date().toISOString() }));
+      return;
+    }
+
+    setGuildChanges((s) => ({
+      ...s,
+      sinceId: res.data.nextSinceId,
+      lastEventCount: res.data.events.length,
+      lastCheckedAt: new Date().toISOString(),
+      error: null,
+    }));
+
+    if (res.data.events.length) {
+      await refreshCentralGuildSettings();
+    }
+  }, [adminApi, guildId, canAccessGuildSettings, guildChanges.sinceId, refreshCentralGuildSettings]);
+
   const setWidgetEnabled = useCallback(async (nextEnabled) => {
     if (!guildId || !canAccessGuildSettings) return;
     setCentralGuildState((s) => ({ ...s, saving: true, error: null }));
@@ -83,11 +135,21 @@ export default function GuildSettingsPage() {
       lastFetchedAt: new Date().toISOString(),
       error: null,
     }));
-  }, [adminApi, guildId, canAccessGuildSettings]);
+
+    void primeGuildSettingsCursor();
+  }, [adminApi, guildId, canAccessGuildSettings, primeGuildSettingsCursor]);
 
   useEffect(() => {
     void refreshCentralGuildSettings();
-  }, [refreshCentralGuildSettings]);
+    void primeGuildSettingsCursor();
+  }, [refreshCentralGuildSettings, primeGuildSettingsCursor]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const onFocus = () => void refreshCentralGuildSettingsIfChanged();
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, [refreshCentralGuildSettingsIfChanged]);
 
   // Tab state - default to "personal", but switch to "guild" if user came from guild nav
   const [activeTab, setActiveTab] = useState("personal");
@@ -342,7 +404,7 @@ export default function GuildSettingsPage() {
               Widget enabled
             </label>
             <div style={{ marginTop: "0.5rem", display: "flex", gap: "0.5rem" }}>
-              <button className="btn" onClick={() => refreshCentralGuildSettings()} disabled={centralGuildState.loading}>
+              <button className="btn" onClick={() => refreshCentralGuildSettingsIfChanged()} disabled={centralGuildState.loading}>
                 Refresh
               </button>
               {(centralGuildState.loading || centralGuildState.saving) && (
@@ -470,6 +532,8 @@ export default function GuildSettingsPage() {
           <div>guildId: {guildId || "(none)"}</div>
           <div>activeGuildId: {activeGuildId || "(none)"}</div>
           <div>lastCentralFetch: {centralGuildState.lastFetchedAt || "(never)"}</div>
+          <div>guildChangesSinceId: {guildChanges.sinceId ?? "(none)"}</div>
+          <div>lastChangesCheck: {guildChanges.lastCheckedAt || "(never)"}</div>
           <div>lastCentralError: {centralGuildState.error ? JSON.stringify(centralGuildState.error) : "(none)"}</div>
         </div>
       </div>

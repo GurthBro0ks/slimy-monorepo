@@ -1,3 +1,4 @@
+import * as contracts from "../../contracts/dist/index.js";
 export function resolveAdminApiBaseUrl(env) {
     const e = env ?? globalThis?.process?.env ?? {};
     const baseUrl = (typeof e.ADMIN_API_INTERNAL_URL === "string" && e.ADMIN_API_INTERNAL_URL.trim()) ||
@@ -72,6 +73,25 @@ function mergeDeep(target, patch) {
     }
     return out;
 }
+function parseSettingsChangesResponse(payload) {
+    if (!payload || typeof payload !== "object")
+        return null;
+    const obj = payload;
+    if (obj.ok !== true)
+        return null;
+    if (!Array.isArray(obj.events))
+        return null;
+    const events = [];
+    for (const raw of obj.events) {
+        const parsed = contracts.SettingsChangeEventSchema.safeParse(raw);
+        if (!parsed.success)
+            return null;
+        events.push(parsed.data);
+    }
+    const nextRaw = obj.nextSinceId;
+    const nextSinceId = typeof nextRaw === "number" && Number.isInteger(nextRaw) && nextRaw >= 0 ? nextRaw : null;
+    return { ok: true, events, nextSinceId };
+}
 export function createAdminApiClient(client) {
     return {
         getUserSettings(userId) {
@@ -115,6 +135,27 @@ export function createAdminApiClient(client) {
                 headers: { "content-type": "application/json" },
                 body: JSON.stringify(next),
             });
+        },
+        async listSettingsChangesV0(input) {
+            const params = new URLSearchParams();
+            params.set("scopeType", input.scopeType);
+            params.set("scopeId", input.scopeId);
+            if (typeof input.sinceId === "number")
+                params.set("sinceId", String(input.sinceId));
+            if (typeof input.limit === "number")
+                params.set("limit", String(input.limit));
+            if (input.kind)
+                params.set("kind", input.kind);
+            const res = await fetchJson(client, `/api/settings/changes-v0?${params.toString()}`, {
+                method: "GET",
+            });
+            if (!res.ok)
+                return res;
+            const parsed = parseSettingsChangesResponse(res.data);
+            if (!parsed) {
+                return { ok: false, status: res.status, error: "invalid_settings_changes_response", headers: res.headers };
+            }
+            return { ok: true, status: res.status, data: parsed, headers: res.headers };
         },
         listMemory(scopeType, scopeId, opts) {
             const qs = opts?.kind ? `?kind=${encodeURIComponent(opts.kind)}` : "";
