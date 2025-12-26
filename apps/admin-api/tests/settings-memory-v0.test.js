@@ -71,6 +71,15 @@ describe("settings+memory v0 bridge", () => {
     });
   });
 
+  test("GET /api/settings/user/:userId forbids cross-user access", async () => {
+    const app = buildTestApp();
+
+    const res = await request(app).get("/api/settings/user/discord-user-2");
+    expect(res.status).toBe(403);
+    expect(res.body.ok).toBe(false);
+    expect(res.body.error).toBe("forbidden");
+  });
+
   test("PUT /api/settings/user/:userId validates schema", async () => {
     const app = buildTestApp();
 
@@ -91,6 +100,28 @@ describe("settings+memory v0 bridge", () => {
     expect(res.status).toBe(400);
     expect(res.body.ok).toBe(false);
     expect(res.body.error).toBe("invalid_settings");
+  });
+
+  test("GET /api/memory/user/:scopeId forbids cross-user access", async () => {
+    const app = buildTestApp();
+
+    const res = await request(app).get("/api/memory/user/discord-user-2");
+    expect(res.status).toBe(403);
+    expect(res.body.ok).toBe(false);
+    expect(res.body.error).toBe("forbidden");
+  });
+
+  test("POST /api/memory/user/:scopeId rejects project_state for non-admins", async () => {
+    const app = buildTestApp();
+
+    const res = await request(app)
+      .post("/api/memory/user/discord-user-1")
+      .set("x-csrf-token", "csrf-test")
+      .send({ kind: "project_state", source: "system", content: { summary: "nope" } });
+
+    expect(res.status).toBe(403);
+    expect(res.body.ok).toBe(false);
+    expect(res.body.error).toBe("kind_forbidden");
   });
 
   test("POST /api/memory/:scopeType/:scopeId rejects secret-like keys and oversized payloads", async () => {
@@ -142,4 +173,3 @@ describe("settings+memory v0 bridge", () => {
     });
   });
 });
-
