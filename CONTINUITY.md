@@ -1,0 +1,52 @@
+# CONTINUITY LEDGER
+
+## Goal (success criteria)
+- Maintain compaction-safe continuity for the Slimy monorepo (Codex/agents can resume work correctly).
+- Keep prod builds clean (no `localhost`/loopback in public-facing configs).
+- Prepare shared Settings + Memory so Discord (/commands) and Web UI stay in sync.
+
+## Constraints / Non-negotiables
+- **No localhost in prod**: Production artifacts must not reference `localhost`, `127.0.0.1`, or internal service DNS in any `NEXT_PUBLIC_*` or other client-visible output.
+- **Dev overrides only**: Localhost/loopback belongs in dev-only compose override files (ex: `docker-compose.dev.yml`) or local env—not in base prod defaults.
+- **Flight Recorder**: Any non-trivial fix/change gets a buglog entry in `docs/buglog/` with commands + evidence.
+- **UI debug/status rule**: Every UI page change should include a temporary debug/status area/button.
+
+## Key decisions
+- **Agent Rules**: Use `AGENTS.md` at repo root + per-folder overrides.
+- **Continuity Strategy**:
+  - `CONTINUITY.md` = canonical *current* state (short).
+  - `docs/buglog/` = detailed evidence + timelines.
+- **Shared Settings & Memory** (incoming):
+  - One canonical `UserSettings` per user and `GuildSettings` per guild (auto-init on first use).
+  - Discord bot commands and website UI both read/write the same settings via `admin-api` (or a dedicated shared service behind it).
+  - “Memory” starts as structured summaries/state in DB (not raw chat logs by default), then can evolve to Memori or another engine later.
+
+## State
+
+### Done
+- Admin UI prod hardening: no localhost public URLs; dev-only override supported; build guardrails to prevent loopback in `NEXT_PUBLIC_*`.
+- Added verification scripts for “no localhost” regression (and CI step if present).
+
+### Now
+- Add/standardize `AGENTS.md` (root + per-folder).
+- Establish explicit cross-service rules for Settings + Memory (Discord + Web).
+- Reduce “tribal knowledge” by pinning working commands and invariants here.
+
+### Next
+- Define Settings contract (types/schemas) shared by bot + web + admin-api (single source of truth).
+- Add `/commands` + Web UI settings screens that both call the same admin-api endpoints.
+- Add initial “Memory Store” (structured summaries/state + pointers) behind admin-api.
+
+## Open questions (UNCONFIRMED if needed)
+- UNCONFIRMED: Exact current location of shared settings schema/types in `packages/` (or if it needs to be created).
+- UNCONFIRMED: Whether “memory” should live in the primary DB first, or as a dedicated service container (later).
+
+## Working set (files/ids/commands)
+- Root: `CONTINUITY.md`, `AGENTS.md`
+- Per-folder: `apps/*/AGENTS.md`, `packages/AGENTS.md`, `scripts/AGENTS.md`, `docs/AGENTS.md`
+- Verify scripts: `scripts/verify/*`
+- Common commands:
+  - `docker compose up -d --build`
+  - `pnpm -w test` / `pnpm -w lint` (when available)
+  - `scripts/verify/*` (when touching env/auth/build outputs)
+
