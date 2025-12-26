@@ -60,3 +60,6 @@ jobs:
 
       - name: Verify continuity ledger present
         run: bash scripts/verify/continuity-ledger-present.sh
+
+      - name: Verify AGENTS.md present
+        run: bash scripts/verify/agents-md-present.sh
