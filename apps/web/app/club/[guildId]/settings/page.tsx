@@ -50,6 +50,39 @@ export default function WebGuildSettingsPage() {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
+  const parsedJson = useMemo(() => {
+    const text = rawJson.trim();
+    if (!text) return { ok: false as const, error: "empty_json" };
+    try {
+      return { ok: true as const, value: JSON.parse(text) };
+    } catch (e: any) {
+      return { ok: false as const, error: e?.message ? `invalid_json: ${e.message}` : "invalid_json" };
+    }
+  }, [rawJson]);
+
+  const basicEnabled = parsedJson.ok && typeof parsedJson.value === "object" && parsedJson.value !== null;
+  const basicValues = useMemo(() => {
+    if (!basicEnabled) return null;
+    const prefs = (parsedJson.value as any)?.prefs || {};
+    const widget = prefs?.widget || {};
+    const widgetEnabled = typeof widget?.enabled === "boolean" ? (widget.enabled ? "true" : "false") : "unset";
+    const botEnabled = typeof prefs?.botEnabled === "boolean" ? (prefs.botEnabled ? "true" : "false") : "unset";
+    const channels = prefs?.channels || {};
+    const adminLogChannelId = typeof channels?.adminLogChannelId === "string" ? channels.adminLogChannelId : "";
+    const globalChatChannelId = typeof channels?.globalChatChannelId === "string" ? channels.globalChatChannelId : "";
+    return { widgetEnabled, botEnabled, adminLogChannelId, globalChatChannelId };
+  }, [basicEnabled, parsedJson]);
+
+  const applyBasicUpdate = useCallback(
+    (updater: (draft: any) => void) => {
+      if (!basicEnabled) return;
+      const draft = JSON.parse(JSON.stringify(parsedJson.value));
+      updater(draft);
+      setRawJson(JSON.stringify(draft, null, 2));
+    },
+    [basicEnabled, parsedJson],
+  );
+
   const loadSettings = useCallback(async () => {
     if (!guildId) return;
     setError(null);
@@ -215,6 +248,105 @@ export default function WebGuildSettingsPage() {
 
       <Card>
         <CardHeader>
+          <CardTitle>Basic Settings (v0.31)</CardTitle>
+          <CardDescription>These controls update the JSON editor below (schema: `@slimy/contracts`).</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {!basicEnabled ? (
+            <div className="text-sm text-muted-foreground">
+              Basic controls are disabled until the JSON editor contains valid JSON. ({parsedJson.ok ? "—" : parsedJson.error})
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-4">
+              <div className="grid grid-cols-1 gap-2 md:grid-cols-2 md:items-center">
+                <label className="text-sm font-medium">Widget enabled</label>
+                <select
+                  className="h-9 rounded-md border bg-background px-3 text-sm"
+                  value={basicValues?.widgetEnabled || "unset"}
+                  onChange={(e) => {
+                    const next = e.target.value;
+                    applyBasicUpdate((draft) => {
+                      draft.prefs = typeof draft.prefs === "object" && draft.prefs ? { ...draft.prefs } : {};
+                      const widget = typeof draft.prefs.widget === "object" && draft.prefs.widget ? { ...draft.prefs.widget } : {};
+                      if (next === "unset") delete widget.enabled;
+                      else widget.enabled = next === "true";
+                      if (Object.keys(widget).length) draft.prefs.widget = widget;
+                      else delete draft.prefs.widget;
+                    });
+                  }}
+                >
+                  <option value="unset">(unset)</option>
+                  <option value="true">enabled</option>
+                  <option value="false">disabled</option>
+                </select>
+              </div>
+
+              <div className="grid grid-cols-1 gap-2 md:grid-cols-2 md:items-center">
+                <label className="text-sm font-medium">Bot enabled</label>
+                <select
+                  className="h-9 rounded-md border bg-background px-3 text-sm"
+                  value={basicValues?.botEnabled || "unset"}
+                  onChange={(e) => {
+                    const next = e.target.value;
+                    applyBasicUpdate((draft) => {
+                      draft.prefs = typeof draft.prefs === "object" && draft.prefs ? { ...draft.prefs } : {};
+                      if (next === "unset") delete draft.prefs.botEnabled;
+                      else draft.prefs.botEnabled = next === "true";
+                    });
+                  }}
+                >
+                  <option value="unset">(unset)</option>
+                  <option value="true">enabled</option>
+                  <option value="false">disabled</option>
+                </select>
+              </div>
+
+              <div className="grid grid-cols-1 gap-2 md:grid-cols-2 md:items-center">
+                <label className="text-sm font-medium">Admin log channel ID</label>
+                <input
+                  className="h-9 rounded-md border bg-background px-3 text-sm"
+                  value={basicValues?.adminLogChannelId || ""}
+                  onChange={(e) => {
+                    const next = e.target.value.trim();
+                    applyBasicUpdate((draft) => {
+                      draft.prefs = typeof draft.prefs === "object" && draft.prefs ? { ...draft.prefs } : {};
+                      const channels =
+                        typeof draft.prefs.channels === "object" && draft.prefs.channels ? { ...draft.prefs.channels } : {};
+                      if (!next) delete channels.adminLogChannelId;
+                      else channels.adminLogChannelId = next;
+                      if (Object.keys(channels).length) draft.prefs.channels = channels;
+                      else delete draft.prefs.channels;
+                    });
+                  }}
+                />
+              </div>
+
+              <div className="grid grid-cols-1 gap-2 md:grid-cols-2 md:items-center">
+                <label className="text-sm font-medium">Global chat channel ID</label>
+                <input
+                  className="h-9 rounded-md border bg-background px-3 text-sm"
+                  value={basicValues?.globalChatChannelId || ""}
+                  onChange={(e) => {
+                    const next = e.target.value.trim();
+                    applyBasicUpdate((draft) => {
+                      draft.prefs = typeof draft.prefs === "object" && draft.prefs ? { ...draft.prefs } : {};
+                      const channels =
+                        typeof draft.prefs.channels === "object" && draft.prefs.channels ? { ...draft.prefs.channels } : {};
+                      if (!next) delete channels.globalChatChannelId;
+                      else channels.globalChatChannelId = next;
+                      if (Object.keys(channels).length) draft.prefs.channels = channels;
+                      else delete draft.prefs.channels;
+                    });
+                  }}
+                />
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
           <CardTitle>GuildSettings JSON</CardTitle>
           <CardDescription>Edits are validated with `@slimy/contracts` and saved via admin-api.</CardDescription>
         </CardHeader>
@@ -331,4 +463,3 @@ export default function WebGuildSettingsPage() {
     </div>
   );
 }
-
