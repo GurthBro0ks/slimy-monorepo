@@ -38,6 +38,9 @@ importers:
       vitest:
         specifier: ^4.0.15
         version: 4.0.15(@opentelemetry/api@1.9.0)(@types/node@20.19.25)(@vitest/ui@4.0.15)(jiti@2.6.1)(jsdom@27.2.0)(lightningcss@1.30.2)(tsx@4.21.0)(yaml@2.8.1)
+      zod:
+        specifier: ^3.25.6
+        version: 3.25.76
 
   apps/admin-api:
     dependencies:
@@ -47,6 +50,9 @@ importers:
       '@sentry/node':
         specifier: ^8.43.0
         version: 8.55.0
+      '@slimy/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
       '@slimy/core':
         specifier: file:vendor/slimy-core
         version: file:apps/admin-api/vendor/slimy-core
@@ -144,6 +150,9 @@ importers:
 
   apps/admin-ui:
     dependencies:
+      '@slimy/admin-api-client':
+        specifier: workspace:*
+        version: link:../../packages/admin-api-client
       chart.js:
         specifier: ^4.5.1
         version: 4.5.1
@@ -168,6 +177,9 @@ importers:
 
   apps/bot:
     dependencies:
+      '@slimy/admin-api-client':
+        specifier: workspace:*
+        version: link:../../packages/admin-api-client
       discord.js:
         specifier: ^14.14.1
         version: 14.25.1
@@ -196,6 +208,9 @@ importers:
       '@radix-ui/react-tooltip':
         specifier: ^1.2.8
         version: 1.2.8(@types/react-dom@19.2.3(@types/react@19.2.7))(@types/react@19.2.7)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
+      '@slimy/admin-api-client':
+        specifier: workspace:*
+        version: link:../../packages/admin-api-client
       date-fns:
         specifier: ^4.1.0
         version: 4.1.0
@@ -353,6 +368,14 @@ importers:
       webpack-bundle-analyzer:
         specifier: ^4.9.0
         version: 4.10.2
+
+  packages/admin-api-client: {}
+
+  packages/contracts:
+    dependencies:
+      zod:
+        specifier: ^3.25.6
+        version: 3.25.76
 
   packages/shared-auth: {}
 

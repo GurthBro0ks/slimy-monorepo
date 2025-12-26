@@ -11,6 +11,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@slimy/admin-api-client": "workspace:*",
     "discord.js": "^14.14.1"
   },
   "devDependencies": {

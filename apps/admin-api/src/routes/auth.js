@@ -320,7 +320,7 @@ router.get("/callback", async (req, res) => {
           update: {},
           create: {
             userId: String(dbUser.discordId),
-            data: defaultUserSettings(),
+            data: defaultUserSettings(String(dbUser.discordId)),
           },
         });
       } catch (err) {

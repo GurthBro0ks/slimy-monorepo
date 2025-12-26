@@ -56,11 +56,11 @@ router.get("/settings", async (req, res) => {
       update: {},
       create: {
         userId: userDiscordId,
-        data: defaultUserSettings(),
+        data: defaultUserSettings(userDiscordId),
       },
     });
 
-    const settings = record?.data || defaultUserSettings();
+    const settings = record?.data || defaultUserSettings(userDiscordId);
     const version = Number.isFinite(Number(settings?.version))
       ? Number(settings.version)
       : DEFAULT_VERSION;
@@ -92,7 +92,7 @@ router.patch("/settings", requireCsrf, express.json(), async (req, res) => {
     const existing = await prisma.userSettings.findUnique({
       where: { userId: userDiscordId },
     });
-    const current = existing?.data || defaultUserSettings();
+    const current = existing?.data || defaultUserSettings(userDiscordId);
     const next = mergeSettings(current, patch);
 
     const record = await prisma.userSettings.upsert({
@@ -118,4 +118,3 @@ router.patch("/settings", requireCsrf, express.json(), async (req, res) => {
 });
 
 module.exports = router;
-

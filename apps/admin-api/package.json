@@ -19,6 +19,7 @@
   "dependencies": {
     "@prisma/client": "^6.19.0",
     "@sentry/node": "^8.43.0",
+    "@slimy/contracts": "workspace:*",
     "@slimy/core": "file:vendor/slimy-core",
     "axios": "^1.12.2",
     "bullmq": "^5.63.0",

@@ -355,11 +355,11 @@ router.get(
         update: {},
         create: {
           guildId,
-          data: defaultGuildSettings(),
+          data: defaultGuildSettings(guildId),
         },
       });
 
-      const settings = record?.data || defaultGuildSettings();
+      const settings = record?.data || defaultGuildSettings(guildId);
       const version = Number.isFinite(Number(settings?.version))
         ? Number(settings.version)
         : DEFAULT_VERSION;
@@ -393,7 +393,7 @@ async function updateCentralGuildSettings(req, res, next) {
     }
 
     const existing = await prisma.guildSettings.findUnique({ where: { guildId } });
-    const current = existing?.data || defaultGuildSettings();
+    const current = existing?.data || defaultGuildSettings(guildId);
     const nextSettings = mergeSettings(current, patch);
 
     const record = await prisma.guildSettings.upsert({
