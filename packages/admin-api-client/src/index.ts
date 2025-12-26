@@ -56,10 +56,13 @@ async function fetchJson<T>(
   const fetcher = client.fetchImpl ?? fetch;
   const normalizedPath = `/${path.replace(/^\//, "")}`;
   const baseUrl = client.baseUrl.replace(/\/+$/, "");
-  const target =
-    baseUrl.startsWith("/")
-      ? `${baseUrl}${normalizedPath}`
-      : new URL(normalizedPath.replace(/^\//, ""), `${baseUrl}/`).toString();
+  const target = (() => {
+    if (baseUrl.startsWith("/")) {
+      if (normalizedPath === baseUrl || normalizedPath.startsWith(`${baseUrl}/`)) return normalizedPath;
+      return `${baseUrl}${normalizedPath}`;
+    }
+    return new URL(normalizedPath.replace(/^\//, ""), `${baseUrl}/`).toString();
+  })();
   const headers = new Headers(init?.headers);
 
   for (const [k, v] of Object.entries(client.defaultHeaders ?? {})) {

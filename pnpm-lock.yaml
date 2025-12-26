@@ -214,6 +214,9 @@ importers:
       '@slimy/admin-api-client':
         specifier: workspace:*
         version: link:../../packages/admin-api-client
+      '@slimy/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
       date-fns:
         specifier: ^4.1.0
         version: 4.1.0

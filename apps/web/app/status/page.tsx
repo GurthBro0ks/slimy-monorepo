@@ -24,43 +24,32 @@ export default function StatusPage() {
   const checkStatus = useCallback(async () => {
     setRefreshing(true);
     
-    // Check if Admin API is configured
-    const adminApiBase = process.env.NEXT_PUBLIC_ADMIN_API_BASE;
-    
     // Check Admin API
-    if (!adminApiBase) {
-      setServices(prev => prev.map(s => 
-        s.name === "Admin API" 
-          ? { ...s, status: "not_configured", message: "NEXT_PUBLIC_ADMIN_API_BASE not configured" }
-          : s
-      ));
-    } else {
-      try {
-        const start = Date.now();
-        const res = await fetch("/api/diag");
-        const responseTime = Date.now() - start;
-        
-        if (res.ok) {
-          const data = await res.json();
-          setServices(prev => prev.map(s => 
-            s.name === "Admin API" 
-              ? { ...s, status: "operational", message: data.message || "Operational", responseTime }
-              : s
-          ));
-        } else {
-          setServices(prev => prev.map(s => 
-            s.name === "Admin API" 
-              ? { ...s, status: "down", message: "Service unavailable" }
-              : s
-          ));
-        }
-      } catch {
+    try {
+      const start = Date.now();
+      const res = await fetch("/api/diag");
+      const responseTime = Date.now() - start;
+
+      if (res.ok) {
+        const data = await res.json();
         setServices(prev => prev.map(s => 
           s.name === "Admin API" 
-            ? { ...s, status: "down", message: "Connection failed" }
+            ? { ...s, status: "operational", message: data.message || "Operational", responseTime }
+            : s
+        ));
+      } else {
+        setServices(prev => prev.map(s => 
+          s.name === "Admin API" 
+            ? { ...s, status: "down", message: "Service unavailable" }
             : s
         ));
       }
+    } catch {
+      setServices(prev => prev.map(s => 
+        s.name === "Admin API" 
+          ? { ...s, status: "down", message: "Connection failed" }
+          : s
+      ));
     }
 
     // Check Codes API (aggregates Snelp + Reddit)

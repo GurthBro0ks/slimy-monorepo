@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -8,13 +9,31 @@ import { useAuth } from "@/lib/auth/context";
 import { createWebCentralSettingsClient } from "@/lib/api/central-settings-client";
 import * as contracts from "@slimy/contracts";
 
-export default function SettingsPage() {
-  const { user, isLoading } = useAuth();
+type Status = { ok: true; status: number } | { ok: false; status: number; error: string };
 
-  const userId = useMemo(() => {
-    const raw = (user as any)?.discordId || (user as any)?.id || (user as any)?.sub || "";
-    return String(raw || "").trim() || null;
-  }, [user]);
+function safeString(value: unknown): string {
+  if (value === null || value === undefined) return "";
+  if (typeof value === "string") return value;
+  return String(value);
+}
+
+function resolveUserId(user: any): string | null {
+  return safeString(user?.discordId || user?.id || user?.sub || "").trim() || null;
+}
+
+function formatZodIssues(issues: any): string {
+  if (!Array.isArray(issues)) return "Validation failed";
+  return issues
+    .slice(0, 15)
+    .map((issue) => `${Array.isArray(issue.path) ? issue.path.join(".") : "value"}: ${issue.message}`)
+    .join("\n");
+}
+
+export default function WebGuildSettingsPage() {
+  const params = useParams();
+  const guildId = useMemo(() => safeString((params as any)?.guildId).trim(), [params]);
+  const { user, isLoading } = useAuth();
+  const userId = useMemo(() => resolveUserId(user), [user]);
 
   const client = useMemo(
     () => createWebCentralSettingsClient({ csrfToken: (user as any)?.csrfToken }),
@@ -22,38 +41,38 @@ export default function SettingsPage() {
   );
 
   const [rawJson, setRawJson] = useState<string>("");
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [lastStatus, setLastStatus] = useState<{ ok: boolean; status: number; error?: string } | null>(null);
-  const [lastFetchAt, setLastFetchAt] = useState<number | null>(null);
-
   const [eventsSinceId, setEventsSinceId] = useState<number | null>(null);
   const [events, setEvents] = useState<any[]>([]);
   const [memory, setMemory] = useState<any[]>([]);
 
+  const [lastStatus, setLastStatus] = useState<Status | null>(null);
+  const [lastFetchAt, setLastFetchAt] = useState<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
   const loadSettings = useCallback(async () => {
-    if (!userId) return;
+    if (!guildId) return;
     setError(null);
 
-    const res = await client.getUserSettings(userId);
+    const res = await client.getGuildSettings(guildId);
     if (!res.ok) {
-      setLastStatus({ ok: false, status: res.status, error: String(res.error || "request_failed") });
-      setError("Failed to load user settings");
+      setLastStatus({ ok: false, status: res.status, error: safeString(res.error) || "request_failed" });
+      setError("Failed to load guild settings");
       return;
     }
     if (!res.data?.ok) {
       setLastStatus({ ok: false, status: res.status, error: "upstream_not_ok" });
-      setError("Failed to load user settings");
+      setError("Failed to load guild settings");
       return;
     }
 
     setLastStatus({ ok: true, status: res.status });
     setLastFetchAt(Date.now());
     setRawJson(JSON.stringify(res.data.settings, null, 2));
-  }, [client, userId]);
+  }, [client, guildId]);
 
   const saveSettings = useCallback(async () => {
-    if (!userId) return;
+    if (!guildId) return;
     setSaving(true);
     setError(null);
 
@@ -61,32 +80,28 @@ export default function SettingsPage() {
       const parsed = JSON.parse(rawJson);
       const candidate = {
         ...(parsed || {}),
-        userId,
+        guildId,
         version: typeof parsed?.version === "number" ? parsed.version : contracts.SETTINGS_VERSION_V0,
         updatedAt: new Date().toISOString(),
         prefs: typeof parsed?.prefs === "object" && parsed?.prefs ? parsed.prefs : {},
       };
 
-      const validated = contracts.UserSettingsSchema.safeParse(candidate);
+      const validated = contracts.GuildSettingsSchema.safeParse(candidate);
       if (!validated.success) {
-        const msg = validated.error.issues
-          .slice(0, 15)
-          .map((issue) => `${issue.path.join(".") || "value"}: ${issue.message}`)
-          .join("\n");
+        setError(formatZodIssues(validated.error.issues));
         setLastStatus({ ok: false, status: 400, error: "contracts_validation_failed" });
-        setError(msg || "Validation failed");
         return;
       }
 
-      const res = await client.setUserSettings(userId, validated.data as any);
+      const res = await client.setGuildSettings(guildId, validated.data as any);
       if (!res.ok) {
-        setLastStatus({ ok: false, status: res.status, error: String(res.error || "request_failed") });
-        setError("Failed to save user settings");
+        setLastStatus({ ok: false, status: res.status, error: safeString(res.error) || "request_failed" });
+        setError("Failed to save guild settings");
         return;
       }
       if (!res.data?.ok) {
         setLastStatus({ ok: false, status: res.status, error: "upstream_not_ok" });
-        setError("Failed to save user settings");
+        setError("Failed to save guild settings");
         return;
       }
 
@@ -99,21 +114,21 @@ export default function SettingsPage() {
     } finally {
       setSaving(false);
     }
-  }, [client, rawJson, userId]);
+  }, [client, guildId, rawJson]);
 
   const checkEvents = useCallback(async () => {
-    if (!userId) return;
+    if (!guildId) return;
     setError(null);
 
     const res = await client.listSettingsChangesV0({
-      scopeType: "user",
-      scopeId: userId,
+      scopeType: "guild",
+      scopeId: guildId,
       sinceId: eventsSinceId ?? undefined,
       limit: contracts.SETTINGS_CHANGES_DEFAULT_LIMIT,
     });
 
     if (!res.ok) {
-      setLastStatus({ ok: false, status: res.status, error: String(res.error || "request_failed") });
+      setLastStatus({ ok: false, status: res.status, error: safeString(res.error) || "request_failed" });
       setError("Failed to load change events");
       return;
     }
@@ -121,15 +136,15 @@ export default function SettingsPage() {
     setLastStatus({ ok: true, status: res.status });
     setEvents(res.data.events);
     setEventsSinceId(res.data.nextSinceId ?? eventsSinceId);
-  }, [client, eventsSinceId, userId]);
+  }, [client, eventsSinceId, guildId]);
 
   const loadMemory = useCallback(async () => {
-    if (!userId) return;
+    if (!guildId) return;
     setError(null);
 
-    const res = await client.listMemory("user", userId);
+    const res = await client.listMemory("guild", guildId);
     if (!res.ok) {
-      setLastStatus({ ok: false, status: res.status, error: String(res.error || "request_failed") });
+      setLastStatus({ ok: false, status: res.status, error: safeString(res.error) || "request_failed" });
       setError("Failed to load memory");
       return;
     }
@@ -141,11 +156,11 @@ export default function SettingsPage() {
 
     setLastStatus({ ok: true, status: res.status });
     setMemory(res.data.records || []);
-  }, [client, userId]);
+  }, [client, guildId]);
 
   useEffect(() => {
-    if (!isLoading && userId) loadSettings().catch(() => {});
-  }, [isLoading, userId, loadSettings]);
+    if (!isLoading && user) loadSettings().catch(() => {});
+  }, [isLoading, user, loadSettings]);
 
   if (isLoading) {
     return (
@@ -160,23 +175,35 @@ export default function SettingsPage() {
       <div className="container max-w-4xl py-8 space-y-4">
         <Alert variant="destructive">
           <AlertTitle>Not signed in</AlertTitle>
-          <AlertDescription>Sign in to view and edit your settings.</AlertDescription>
+          <AlertDescription>Sign in to view and edit guild settings.</AlertDescription>
         </Alert>
       </div>
     );
   }
 
+  if (!guildId) {
+    return (
+      <div className="container max-w-4xl py-8 space-y-4">
+        <Alert variant="destructive">
+          <AlertTitle>Missing guildId</AlertTitle>
+          <AlertDescription>Open this page as `/club/&lt;guildId&gt;/settings`.</AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
+
+  const adminApiBase = "/api";
   const statusText = lastStatus
     ? lastStatus.ok
       ? `OK ${lastStatus.status}`
-      : `ERR ${lastStatus.status} (${lastStatus.error || "error"})`
+      : `ERR ${lastStatus.status} (${lastStatus.error})`
     : "—";
 
   return (
     <div className="container max-w-4xl py-8 space-y-6">
       <div className="space-y-1">
-        <h1 className="text-3xl font-bold tracking-tight">User Settings</h1>
-        <p className="text-muted-foreground">Central `UserSettings` for your account.</p>
+        <h1 className="text-3xl font-bold tracking-tight">Guild Settings</h1>
+        <p className="text-muted-foreground">Central `GuildSettings` for guildId: {guildId}</p>
       </div>
 
       {error ? (
@@ -188,7 +215,7 @@ export default function SettingsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>UserSettings JSON</CardTitle>
+          <CardTitle>GuildSettings JSON</CardTitle>
           <CardDescription>Edits are validated with `@slimy/contracts` and saved via admin-api.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -247,7 +274,7 @@ export default function SettingsPage() {
       <Card>
         <CardHeader>
           <CardTitle>Memory (read-only)</CardTitle>
-          <CardDescription>Lists up to 100 records for your user scope.</CardDescription>
+          <CardDescription>Lists up to 100 records for this guild scope.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           <Button onClick={() => loadMemory()} variant="secondary">
@@ -257,17 +284,14 @@ export default function SettingsPage() {
             {(memory || []).length ? (
               (memory || []).map((rec: any, idx: number) => {
                 const content = rec?.content && typeof rec.content === "object" ? rec.content : {};
-                const preview = JSON.stringify(content).slice(0, 200);
+                const preview = safeString(JSON.stringify(content)).slice(0, 200);
                 return (
                   <div key={`${rec.kind}-${rec.updatedAt}-${idx}`} className="rounded-md border p-3 text-sm">
                     <div className="font-mono">{rec.kind}</div>
                     <div className="text-muted-foreground">
                       {rec.updatedAt} • source {rec.source}
                     </div>
-                    <div className="mt-1 font-mono text-xs break-words">
-                      {preview}
-                      {preview.length >= 200 ? "…" : ""}
-                    </div>
+                    <div className="mt-1 font-mono text-xs break-words">{preview}{preview.length >= 200 ? "…" : ""}</div>
                   </div>
                 );
               })
@@ -285,10 +309,13 @@ export default function SettingsPage() {
         </CardHeader>
         <CardContent className="space-y-1 text-sm">
           <div>
-            admin-api base: <span className="font-mono">/api</span> (rewrite proxy)
+            admin-api base: <span className="font-mono">{adminApiBase}</span> (rewrite proxy)
           </div>
           <div>
-            scope: <span className="font-mono">user:{userId}</span>
+            scope: <span className="font-mono">guild:{guildId}</span>
+          </div>
+          <div>
+            userId: <span className="font-mono">{userId}</span>
           </div>
           <div>
             last status: <span className="font-mono">{statusText}</span>
@@ -304,3 +331,4 @@ export default function SettingsPage() {
     </div>
   );
 }
+

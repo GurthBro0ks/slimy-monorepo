@@ -51,12 +51,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }, []);
 
   const login = () => {
-    const adminApiBase = process.env.NEXT_PUBLIC_ADMIN_API_BASE || "";
-    if (adminApiBase) {
-      window.location.href = `${adminApiBase}/api/auth/login`;
-    } else {
-      console.error("NEXT_PUBLIC_ADMIN_API_BASE not configured");
-    }
+    window.location.href = "/api/auth/login";
   };
 
   const logout = async () => {
