@@ -22,13 +22,14 @@
 - The admin-api rejects secret-like keys anywhere in `content` (denylist includes):
   - `token`, `secret`, `password`, `key`, `auth`, `cookie`
 - The admin-api enforces a hard max size on `content` (see `MAX_MEMORY_CONTENT_BYTES` in `@slimy/contracts`).
+- Kind-level allowlist: non-admin callers cannot write `project_state` for `scopeType=user`.
 
 ## Endpoints (v0)
 - Settings:
   - `GET  /api/settings/user/:userId` (auto-init)
   - `PUT  /api/settings/user/:userId` (full replace; validated)
-  - `GET  /api/settings/guild/:guildId` (auto-init; admin only)
-  - `PUT  /api/settings/guild/:guildId` (full replace; validated; admin only)
+  - `GET  /api/settings/guild/:guildId` (auto-init; guild admin/manage or platform admin)
+  - `PUT  /api/settings/guild/:guildId` (full replace; validated; guild admin/manage or platform admin)
 - Memory:
   - `GET  /api/memory/:scopeType/:scopeId?kind=`
   - `POST /api/memory/:scopeType/:scopeId`
@@ -38,3 +39,7 @@
 - Introduce a `MemoryProvider` abstraction (DB v0 -> Memori or other backend later) behind admin-api,
   without changing client contracts.
 
+## Note: committed `dist/` artifacts (temporary)
+- `packages/contracts/dist/**` and `packages/admin-api-client/dist/**` are currently committed so runtime consumers
+  (ex: the admin-api Docker image) can `require("@slimy/contracts")` without adding a package build step yet.
+- This is intentionally temporary; prefer moving to “build packages in CI/Docker” and then stop committing `dist/` to avoid drift/noisy diffs.

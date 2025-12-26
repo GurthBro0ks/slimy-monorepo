@@ -2,8 +2,9 @@
 
 const express = require("express");
 const prismaDatabase = require("../lib/database");
-const { requireAuth, requireRole } = require("../middleware/auth");
+const { requireAuth } = require("../middleware/auth");
 const { requireCsrf } = require("../middleware/csrf");
+const { isPlatformAdmin, requireGuildSettingsAdmin, resolveCallerDiscordId } = require("../services/guild-settings-authz");
 
 let contracts = null;
 try {
@@ -20,7 +21,18 @@ function normalizeScopeType(value) {
 }
 
 router.use(requireAuth);
-router.use(requireRole("admin"));
+
+function isProjectStateKind(kind) {
+  return kind === "project_state";
+}
+
+function ensureMemoryKindAllowed({ scopeType, kind, req }) {
+  if (scopeType === "user" && isProjectStateKind(kind) && !isPlatformAdmin(req)) {
+    return { ok: false, status: 403, error: "kind_forbidden" };
+  }
+
+  return { ok: true };
+}
 
 router.get("/:scopeType/:scopeId", async (req, res) => {
   try {
@@ -40,6 +52,22 @@ router.get("/:scopeType/:scopeId", async (req, res) => {
       return res.status(400).json({ ok: false, error: "invalid_scope_id" });
     }
 
+    const scopeType = scopeParsed.data;
+    if (scopeType === "user") {
+      const callerId = resolveCallerDiscordId(req);
+      if (!callerId) {
+        return res.status(401).json({ ok: false, error: "unauthorized" });
+      }
+      if (!isPlatformAdmin(req) && callerId !== scopeId) {
+        return res.status(403).json({ ok: false, error: "forbidden" });
+      }
+    } else if (scopeType === "guild" && !isPlatformAdmin(req)) {
+      const authz = await requireGuildSettingsAdmin(req, scopeId);
+      if (!authz.ok) {
+        return res.status(authz.status || 403).json({ ok: false, error: authz.error });
+      }
+    }
+
     let kindParsed = null;
     if (kind) {
       const parsed = contracts.MemoryKindSchema.safeParse(kind);
@@ -49,12 +77,19 @@ router.get("/:scopeType/:scopeId", async (req, res) => {
       kindParsed = parsed.data;
     }
 
+    if (kindParsed) {
+      const kindAllowed = ensureMemoryKindAllowed({ scopeType, kind: kindParsed, req });
+      if (!kindAllowed.ok) {
+        return res.status(kindAllowed.status || 403).json({ ok: false, error: kindAllowed.error });
+      }
+    }
+
     await prismaDatabase.initialize();
     const prisma = prismaDatabase.getClient();
 
     const records = await prisma.memoryRecord.findMany({
       where: {
-        scopeType: scopeParsed.data,
+        scopeType,
         scopeId,
         ...(kindParsed ? { kind: kindParsed } : {}),
       },
@@ -101,16 +136,37 @@ router.post("/:scopeType/:scopeId", requireCsrf, express.json(), async (req, res
       return res.status(400).json({ ok: false, error: "invalid_scope_id" });
     }
 
+    const scopeType = scopeParsed.data;
+    if (scopeType === "user") {
+      const callerId = resolveCallerDiscordId(req);
+      if (!callerId) {
+        return res.status(401).json({ ok: false, error: "unauthorized" });
+      }
+      if (!isPlatformAdmin(req) && callerId !== scopeId) {
+        return res.status(403).json({ ok: false, error: "forbidden" });
+      }
+    } else if (scopeType === "guild" && !isPlatformAdmin(req)) {
+      const authz = await requireGuildSettingsAdmin(req, scopeId);
+      if (!authz.ok) {
+        return res.status(authz.status || 403).json({ ok: false, error: authz.error });
+      }
+    }
+
     const parsed = contracts.MemoryWriteRequestSchema.safeParse(req.body);
     if (!parsed.success) {
       return res.status(400).json({ ok: false, error: "invalid_memory", details: parsed.error.issues });
+    }
+
+    const kindAllowed = ensureMemoryKindAllowed({ scopeType, kind: parsed.data.kind, req });
+    if (!kindAllowed.ok) {
+      return res.status(kindAllowed.status || 403).json({ ok: false, error: kindAllowed.error });
     }
 
     await prismaDatabase.initialize();
     const prisma = prismaDatabase.getClient();
 
     const existing = await prisma.memoryRecord.findFirst({
-      where: { scopeType: scopeParsed.data, scopeId, kind: parsed.data.kind },
+      where: { scopeType, scopeId, kind: parsed.data.kind },
       orderBy: { updatedAt: "desc" },
     });
 
@@ -124,7 +180,7 @@ router.post("/:scopeType/:scopeId", requireCsrf, express.json(), async (req, res
         })
       : await prisma.memoryRecord.create({
           data: {
-            scopeType: scopeParsed.data,
+            scopeType,
             scopeId,
             kind: parsed.data.kind,
             source: parsed.data.source,
@@ -155,4 +211,3 @@ router.post("/:scopeType/:scopeId", requireCsrf, express.json(), async (req, res
 });
 
 module.exports = router;
-

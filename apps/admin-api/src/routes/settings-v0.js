@@ -2,8 +2,9 @@
 
 const express = require("express");
 const prismaDatabase = require("../lib/database");
-const { requireAuth, requireRole } = require("../middleware/auth");
+const { requireAuth } = require("../middleware/auth");
 const { requireCsrf } = require("../middleware/csrf");
+const { isPlatformAdmin, requireGuildSettingsAdmin, resolveCallerDiscordId } = require("../services/guild-settings-authz");
 
 let contracts = null;
 try {
@@ -13,12 +14,6 @@ try {
 }
 
 const router = express.Router();
-
-function resolveCallerDiscordId(req) {
-  const raw = req.user?.user || req.user || null;
-  const id = raw?.discordId || raw?.id || raw?.sub || null;
-  return id ? String(id) : null;
-}
 
 function isPlainObject(value) {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
@@ -77,8 +72,7 @@ router.get("/user/:userId", async (req, res) => {
     if (!callerId) {
       return res.status(401).json({ ok: false, error: "unauthorized" });
     }
-    const isAdmin = req.user?.role === "admin" || req.user?.role === "owner";
-    if (!isAdmin && callerId !== targetUserId) {
+    if (!isPlatformAdmin(req) && callerId !== targetUserId) {
       return res.status(403).json({ ok: false, error: "forbidden" });
     }
 
@@ -121,8 +115,7 @@ router.put("/user/:userId", requireCsrf, express.json(), async (req, res) => {
     if (!callerId) {
       return res.status(401).json({ ok: false, error: "unauthorized" });
     }
-    const isAdmin = req.user?.role === "admin" || req.user?.role === "owner";
-    if (!isAdmin && callerId !== targetUserId) {
+    if (!isPlatformAdmin(req) && callerId !== targetUserId) {
       return res.status(403).json({ ok: false, error: "forbidden" });
     }
 
@@ -163,11 +156,16 @@ router.put("/user/:userId", requireCsrf, express.json(), async (req, res) => {
   }
 });
 
-router.get("/guild/:guildId", requireRole("admin"), async (req, res) => {
+router.get("/guild/:guildId", async (req, res) => {
   try {
     const guildId = String(req.params.guildId || "").trim();
     if (!guildId) {
       return res.status(400).json({ ok: false, error: "invalid_guild_id" });
+    }
+
+    const authz = await requireGuildSettingsAdmin(req, guildId);
+    if (!authz.ok) {
+      return res.status(authz.status || 403).json({ ok: false, error: authz.error });
     }
 
     await prismaDatabase.initialize();
@@ -202,11 +200,16 @@ router.get("/guild/:guildId", requireRole("admin"), async (req, res) => {
   }
 });
 
-router.put("/guild/:guildId", requireRole("admin"), requireCsrf, express.json(), async (req, res) => {
+router.put("/guild/:guildId", requireCsrf, express.json(), async (req, res) => {
   try {
     const guildId = String(req.params.guildId || "").trim();
     if (!guildId) {
       return res.status(400).json({ ok: false, error: "invalid_guild_id" });
+    }
+
+    const authz = await requireGuildSettingsAdmin(req, guildId);
+    if (!authz.ok) {
+      return res.status(authz.status || 403).json({ ok: false, error: authz.error });
     }
 
     if (!contracts) {
@@ -252,4 +255,3 @@ router.put("/guild/:guildId", requireRole("admin"), requireCsrf, express.json(),
 });
 
 module.exports = router;
-
