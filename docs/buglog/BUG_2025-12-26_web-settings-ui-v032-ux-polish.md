@@ -122,4 +122,4 @@ Output:
 - Kept debug/status strip present and avoided any `/chat` changes.
 
 ## Commit
-- `27e0aa2` feat(web): polish settings UI v0.32 (save/diff/reset/changes)
+- Implementation commit: `374a719` feat(web): polish settings UI v0.32 (save/diff/reset/changes)
