@@ -27,10 +27,11 @@
 - Admin UI prod hardening: no localhost public URLs; dev-only override supported; build guardrails to prevent loopback in `NEXT_PUBLIC_*`.
 - Added verification scripts for “no localhost” regression (and CI step if present).
 - Settings+Memory v0: shared contracts + admin-api persistence/endpoints + regression check.
+- Settings+Memory v0 hardening: tightened authz + kind allowlist (blocks cross-user access; blocks `project_state` for `scopeType=user` for non-admins).
+- AGENTS.md + CONTINUITY checks enforced in CI.
+- Local preflight: `scripts/verify/compose-ports-available.sh` detects host port collisions before `docker compose up`.
 
 ### Now
-- Add/standardize `AGENTS.md` (root + per-folder).
-- Enforce `AGENTS.md` + `CONTINUITY.md` presence checks in CI.
 - Wire bot `/commands` + Web/Admin UI clients to use the Settings+Memory v0 endpoints.
 - Reduce “tribal knowledge” by pinning working commands and invariants here.
 
@@ -39,8 +40,7 @@
 - Add “MemoryProvider” abstraction behind admin-api (DB v0 -> Memori later) without contract changes.
 
 ## Open questions (UNCONFIRMED if needed)
-- UNCONFIRMED: Exact current location of shared settings schema/types in `packages/` (or if it needs to be created).
-- UNCONFIRMED: Whether “memory” should live in the primary DB first, or as a dedicated service container (later).
+- UNCONFIRMED: Whether “memory” should later move from primary DB to a dedicated service container (after v0).
 
 ## Working set (files/ids/commands)
 - Root: `CONTINUITY.md`, `AGENTS.md`
