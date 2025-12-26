@@ -31,6 +31,42 @@ export default function SettingsPage() {
   const [events, setEvents] = useState<any[]>([]);
   const [memory, setMemory] = useState<any[]>([]);
 
+  const parsedJson = useMemo(() => {
+    const text = rawJson.trim();
+    if (!text) return { ok: false as const, error: "empty_json" };
+    try {
+      return { ok: true as const, value: JSON.parse(text) };
+    } catch (e: any) {
+      return { ok: false as const, error: e?.message ? `invalid_json: ${e.message}` : "invalid_json" };
+    }
+  }, [rawJson]);
+
+  const basicEnabled = parsedJson.ok && typeof parsedJson.value === "object" && parsedJson.value !== null;
+  const basicValues = useMemo(() => {
+    if (!basicEnabled) return null;
+    const prefs = (parsedJson.value as any)?.prefs || {};
+    const theme = typeof prefs?.theme === "string" ? prefs.theme : "";
+    const chat = prefs?.chat || {};
+    const markdown = typeof chat?.markdown === "boolean" ? (chat.markdown ? "true" : "false") : "unset";
+    const profanityFilter = typeof chat?.profanityFilter === "boolean" ? (chat.profanityFilter ? "true" : "false") : "unset";
+    const snail = prefs?.snail || {};
+    const avatarId = typeof snail?.avatarId === "string" ? snail.avatarId : "";
+    const vibe = typeof snail?.vibe === "string" ? snail.vibe : "";
+    const loreFlags = Array.isArray(snail?.loreFlags) ? snail.loreFlags.filter((v: any) => typeof v === "string") : [];
+
+    return { theme, markdown, profanityFilter, avatarId, vibe, loreFlagsText: loreFlags.join(", ") };
+  }, [basicEnabled, parsedJson]);
+
+  const applyBasicUpdate = useCallback(
+    (updater: (draft: any) => void) => {
+      if (!basicEnabled) return;
+      const draft = JSON.parse(JSON.stringify(parsedJson.value));
+      updater(draft);
+      setRawJson(JSON.stringify(draft, null, 2));
+    },
+    [basicEnabled, parsedJson],
+  );
+
   const loadSettings = useCallback(async () => {
     if (!userId) return;
     setError(null);
@@ -185,6 +221,151 @@ export default function SettingsPage() {
           <AlertDescription className="whitespace-pre-wrap">{error}</AlertDescription>
         </Alert>
       ) : null}
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Basic Settings (v0.31)</CardTitle>
+          <CardDescription>These controls update the JSON editor below (schema: `@slimy/contracts`).</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {!basicEnabled ? (
+            <div className="text-sm text-muted-foreground">
+              Basic controls are disabled until the JSON editor contains valid JSON. ({parsedJson.ok ? "—" : parsedJson.error})
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-4">
+              <div className="grid grid-cols-1 gap-2 md:grid-cols-2 md:items-center">
+                <label className="text-sm font-medium">Theme</label>
+                <select
+                  className="h-9 rounded-md border bg-background px-3 text-sm"
+                  value={basicValues?.theme || ""}
+                  onChange={(e) => {
+                    const next = e.target.value;
+                    applyBasicUpdate((draft) => {
+                      draft.prefs = typeof draft.prefs === "object" && draft.prefs ? { ...draft.prefs } : {};
+                      if (!next) delete draft.prefs.theme;
+                      else draft.prefs.theme = next;
+                    });
+                  }}
+                >
+                  <option value="">(unset)</option>
+                  <option value="system">system</option>
+                  <option value="neon">neon</option>
+                  <option value="classic">classic</option>
+                </select>
+              </div>
+
+              <div className="grid grid-cols-1 gap-2 md:grid-cols-2 md:items-center">
+                <label className="text-sm font-medium">Chat markdown</label>
+                <select
+                  className="h-9 rounded-md border bg-background px-3 text-sm"
+                  value={basicValues?.markdown || "unset"}
+                  onChange={(e) => {
+                    const next = e.target.value;
+                    applyBasicUpdate((draft) => {
+                      draft.prefs = typeof draft.prefs === "object" && draft.prefs ? { ...draft.prefs } : {};
+                      const chat = typeof draft.prefs.chat === "object" && draft.prefs.chat ? { ...draft.prefs.chat } : {};
+                      if (next === "unset") delete chat.markdown;
+                      else chat.markdown = next === "true";
+                      if (Object.keys(chat).length) draft.prefs.chat = chat;
+                      else delete draft.prefs.chat;
+                    });
+                  }}
+                >
+                  <option value="unset">(unset)</option>
+                  <option value="true">enabled</option>
+                  <option value="false">disabled</option>
+                </select>
+              </div>
+
+              <div className="grid grid-cols-1 gap-2 md:grid-cols-2 md:items-center">
+                <label className="text-sm font-medium">Profanity filter</label>
+                <select
+                  className="h-9 rounded-md border bg-background px-3 text-sm"
+                  value={basicValues?.profanityFilter || "unset"}
+                  onChange={(e) => {
+                    const next = e.target.value;
+                    applyBasicUpdate((draft) => {
+                      draft.prefs = typeof draft.prefs === "object" && draft.prefs ? { ...draft.prefs } : {};
+                      const chat = typeof draft.prefs.chat === "object" && draft.prefs.chat ? { ...draft.prefs.chat } : {};
+                      if (next === "unset") delete chat.profanityFilter;
+                      else chat.profanityFilter = next === "true";
+                      if (Object.keys(chat).length) draft.prefs.chat = chat;
+                      else delete draft.prefs.chat;
+                    });
+                  }}
+                >
+                  <option value="unset">(unset)</option>
+                  <option value="true">enabled</option>
+                  <option value="false">disabled</option>
+                </select>
+              </div>
+
+              <div className="grid grid-cols-1 gap-2 md:grid-cols-2 md:items-center">
+                <label className="text-sm font-medium">Snail avatarId</label>
+                <input
+                  className="h-9 rounded-md border bg-background px-3 text-sm"
+                  value={basicValues?.avatarId || ""}
+                  onChange={(e) => {
+                    const next = e.target.value;
+                    applyBasicUpdate((draft) => {
+                      draft.prefs = typeof draft.prefs === "object" && draft.prefs ? { ...draft.prefs } : {};
+                      const snail = typeof draft.prefs.snail === "object" && draft.prefs.snail ? { ...draft.prefs.snail } : {};
+                      if (!next) delete snail.avatarId;
+                      else snail.avatarId = next;
+                      if (Object.keys(snail).length) draft.prefs.snail = snail;
+                      else delete draft.prefs.snail;
+                    });
+                  }}
+                />
+              </div>
+
+              <div className="grid grid-cols-1 gap-2 md:grid-cols-2 md:items-center">
+                <label className="text-sm font-medium">Snail vibe</label>
+                <input
+                  className="h-9 rounded-md border bg-background px-3 text-sm"
+                  value={basicValues?.vibe || ""}
+                  onChange={(e) => {
+                    const next = e.target.value;
+                    applyBasicUpdate((draft) => {
+                      draft.prefs = typeof draft.prefs === "object" && draft.prefs ? { ...draft.prefs } : {};
+                      const snail = typeof draft.prefs.snail === "object" && draft.prefs.snail ? { ...draft.prefs.snail } : {};
+                      if (!next) delete snail.vibe;
+                      else snail.vibe = next;
+                      if (Object.keys(snail).length) draft.prefs.snail = snail;
+                      else delete draft.prefs.snail;
+                    });
+                  }}
+                />
+              </div>
+
+              <div className="grid grid-cols-1 gap-2 md:grid-cols-2 md:items-center">
+                <label className="text-sm font-medium">Snail loreFlags (comma-separated)</label>
+                <input
+                  className="h-9 rounded-md border bg-background px-3 text-sm"
+                  value={basicValues?.loreFlagsText || ""}
+                  onChange={(e) => {
+                    const next = e.target.value;
+                    applyBasicUpdate((draft) => {
+                      const flags = next
+                        .split(",")
+                        .map((s) => s.trim())
+                        .filter(Boolean);
+
+                      draft.prefs = typeof draft.prefs === "object" && draft.prefs ? { ...draft.prefs } : {};
+                      const snail = typeof draft.prefs.snail === "object" && draft.prefs.snail ? { ...draft.prefs.snail } : {};
+                      if (!flags.length) delete snail.loreFlags;
+                      else snail.loreFlags = flags;
+                      if (Object.keys(snail).length) draft.prefs.snail = snail;
+                      else delete draft.prefs.snail;
+                    });
+                  }}
+                />
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>
