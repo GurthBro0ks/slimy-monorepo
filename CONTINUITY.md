@@ -30,6 +30,7 @@
 - Settings+Memory v0 hardening: tightened authz + kind allowlist (blocks cross-user access; blocks `project_state` for `scopeType=user` for non-admins).
 - AGENTS.md + CONTINUITY checks enforced in CI.
 - Local preflight: `scripts/verify/compose-ports-available.sh` detects host port collisions before `docker compose up`.
+- CI guardrail: `scripts/verify/compose-config-valid.sh` ensures `docker compose config` succeeds (catches compose/env/YAML issues).
 
 ### Now
 - Wire bot `/commands` + Web/Admin UI clients to use the Settings+Memory v0 endpoints.

@@ -25,6 +25,8 @@ Date: 2025-12-26
 
 ## Files changed
 - `scripts/verify/compose-ports-available.sh`
+- `scripts/verify/compose-config-valid.sh`
+- `.github/workflows/ci.yml`
 
 ## Verification evidence
 - `bash scripts/verify/compose-ports-available.sh` (example failure output):
@@ -35,7 +37,9 @@ Date: 2025-12-26
 
 ## Notes
 - Not wired into `.github/workflows/ci.yml` because host port occupancy on CI runners is not a stable invariant and could cause flaky failures.
+- Wired `docker compose config` validation into CI (safe/deterministic; no host port assumptions).
 
 ## Commands run (end)
 - `bash scripts/verify/compose-ports-available.sh` → `FAIL (expected when ports are already bound)`
+- `bash scripts/verify/compose-config-valid.sh` → `PASS: docker compose config is valid (services: db, admin-api, web, admin-ui, bot)`
 - `git commit -m "chore(verify): fail fast on compose port collisions"` → `7e7caa6`

@@ -55,6 +55,9 @@ jobs:
       - name: Run Build
         run: pnpm build
 
+      - name: Verify docker-compose config valid
+        run: bash scripts/verify/compose-config-valid.sh
+
       - name: Verify admin-ui has no localhost in public output
         run: bash scripts/verify/admin-ui-no-localhost-build.sh
 
