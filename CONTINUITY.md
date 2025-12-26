@@ -29,6 +29,7 @@
 
 ### Now
 - Add/standardize `AGENTS.md` (root + per-folder).
+- Enforce `AGENTS.md` + `CONTINUITY.md` presence checks in CI.
 - Establish explicit cross-service rules for Settings + Memory (Discord + Web).
 - Reduce “tribal knowledge” by pinning working commands and invariants here.
 
@@ -49,4 +50,3 @@
   - `docker compose up -d --build`
   - `pnpm -w test` / `pnpm -w lint` (when available)
   - `scripts/verify/*` (when touching env/auth/build outputs)
-
