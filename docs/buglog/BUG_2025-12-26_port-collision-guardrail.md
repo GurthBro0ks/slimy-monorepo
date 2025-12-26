@@ -6,7 +6,7 @@ Date: 2025-12-26
 - Repo: `/opt/slimy/slimy-monorepo`
 - Branch: `nuc2/verify-role-b33e616`
 - Start HEAD: `21273c2`
-- End HEAD: `7e7caa6`
+- End HEAD: `57f6abb`
 - Change type: verify script + optional CI hook (non-trivial, logged)
 
 ## Symptom / Motivation
@@ -43,3 +43,4 @@ Date: 2025-12-26
 - `bash scripts/verify/compose-ports-available.sh` → `FAIL (expected when ports are already bound)`
 - `bash scripts/verify/compose-config-valid.sh` → `PASS: docker compose config is valid (services: db, admin-api, web, admin-ui, bot)`
 - `git commit -m "chore(verify): fail fast on compose port collisions"` → `7e7caa6`
+- `git commit -m "chore(verify): validate docker compose config in CI"` → `57f6abb`
