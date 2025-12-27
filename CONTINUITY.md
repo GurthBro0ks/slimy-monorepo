@@ -38,6 +38,7 @@
 - Web Active Guild Scope v0.35: persisted `activeGuildId` in central UserSettings + `/settings` picker + activity widget scope switcher + v0.35 verify script (CI-safe).
 - Web Guild Identity v0.36: added cached guildId→name/icon identity layer and updated Active Club + Settings Activity UIs to show human-friendly labels/icons + v0.36 verify script (CI-safe).
 - Web Settings 500 fix v0.37: admin-api shared guilds now accepts `DISCORD_BOT_TOKEN` fallback; web `/api/discord/guilds` hardened + `/club` resolves active guild with graceful fallback + v0.37 verify script (CI-safe).
+- Web Club routing polish v0.38: `/club` explicit auth/no-club states + URL override “Set as Active Club”; `/settings` Active Club picker manual guild-id recovery; Settings Activity fallbacks + v0.38 verify script (CI-safe).
 - AGENTS.md + CONTINUITY checks enforced in CI.
 - Local preflight: `scripts/verify/compose-ports-available.sh` detects host port collisions before `docker compose up`.
 - CI guardrail: `scripts/verify/compose-config-valid.sh` ensures `docker compose config` succeeds (catches compose/env/YAML issues).
