@@ -73,6 +73,9 @@ jobs:
       - name: Verify web settings activity widget v0.34
         run: bash scripts/verify/web-settings-activity-v034.sh
 
+      - name: Verify web active guild scope v0.35
+        run: bash scripts/verify/web-active-guild-scope-v035.sh
+
       - name: Verify settings sync clients v0.1 (admin-api regression + client builds)
         run: bash scripts/verify/settings-sync-clients-v01.sh
 

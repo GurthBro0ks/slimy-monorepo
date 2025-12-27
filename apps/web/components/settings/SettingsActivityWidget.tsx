@@ -20,6 +20,8 @@ export type SettingsActivityWidgetProps = {
   scopeType: ScopeType;
   scopeId?: string;
   limit?: number;
+  defaultView?: "user" | "activeGuild";
+  enableActiveGuildSwitch?: boolean;
 };
 
 type FetchStatus = { ok: true; status: number } | { ok: false; status: number; error: string };
@@ -76,24 +78,74 @@ function summarizeChangedKeys(keys: string[] | undefined, max = 3): string {
 export function SettingsActivityWidget(props: SettingsActivityWidgetProps) {
   const { user, isLoading } = useAuth();
   const csrfToken = safeString((user as any)?.csrfToken || "").trim() || null;
+  const enableActiveGuildSwitch = props.enableActiveGuildSwitch ?? true;
 
   const client = useMemo(
     () => createWebCentralSettingsClient({ csrfToken }),
     [csrfToken],
   );
 
-  const resolvedScopeId = useMemo(() => {
-    if (props.scopeType === "guild") return safeString(props.scopeId).trim() || null;
+  const userScopeId = useMemo(() => {
+    if (props.scopeType !== "user") return null;
     if (props.scopeId) return safeString(props.scopeId).trim() || null;
     if (isLoading) return null;
     return resolveUserId(user as any);
   }, [isLoading, props.scopeId, props.scopeType, user]);
 
+  const guildScopeId = useMemo(() => {
+    if (props.scopeType !== "guild") return null;
+    return safeString(props.scopeId).trim() || null;
+  }, [props.scopeId, props.scopeType]);
+
+  const [activeGuildId, setActiveGuildId] = useState<string>("");
+  const [activeGuildLoadError, setActiveGuildLoadError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!enableActiveGuildSwitch) return;
+    if (props.scopeType !== "user") return;
+    if (!userScopeId) return;
+
+    let cancelled = false;
+    (async () => {
+      setActiveGuildLoadError(null);
+      const res = await client.getUserSettings(userScopeId);
+      if (cancelled) return;
+      if (!res.ok || !res.data?.ok) {
+        setActiveGuildLoadError("Failed to load UserSettings (activeGuildId)");
+        return;
+      }
+      const settings = res.data.settings as Record<string, unknown>;
+      const v = settings["activeGuildId"];
+      setActiveGuildId(typeof v === "string" ? v : "");
+    })().catch(() => {
+      if (cancelled) return;
+      setActiveGuildLoadError("Failed to load UserSettings (activeGuildId)");
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [client, enableActiveGuildSwitch, props.scopeType, userScopeId]);
+
+  const [view, setView] = useState<"user" | "activeGuild">(props.defaultView ?? "user");
+
+  const effectiveScopeType: ScopeType = useMemo(() => {
+    if (props.scopeType === "guild") return "guild";
+    if (!enableActiveGuildSwitch) return "user";
+    if (view === "activeGuild" && activeGuildId.trim()) return "guild";
+    return "user";
+  }, [activeGuildId, enableActiveGuildSwitch, props.scopeType, view]);
+
+  const effectiveScopeId = useMemo(() => {
+    if (effectiveScopeType === "guild") return props.scopeType === "guild" ? guildScopeId : activeGuildId.trim() || null;
+    return userScopeId;
+  }, [activeGuildId, effectiveScopeType, guildScopeId, props.scopeType, userScopeId]);
+
   const viewAllHref = useMemo(() => {
-    if (props.scopeType === "user") return "/settings";
-    if (!resolvedScopeId) return "/club";
-    return `/club/${encodeURIComponent(resolvedScopeId)}/settings`;
-  }, [props.scopeType, resolvedScopeId]);
+    if (effectiveScopeType === "user") return "/settings";
+    if (!effectiveScopeId) return "/club";
+    return `/club/${encodeURIComponent(effectiveScopeId)}/settings`;
+  }, [effectiveScopeId, effectiveScopeType]);
 
   const [events, setEvents] = useState<SettingsChangeEventV0[] | null>(null);
   const [fetchStatus, setFetchStatus] = useState<FetchStatus | null>(null);
@@ -103,9 +155,9 @@ export function SettingsActivityWidget(props: SettingsActivityWidgetProps) {
   const [selectedEvent, setSelectedEvent] = useState<SettingsChangeEventV0 | null>(null);
 
   const lastSeenKey = useMemo(() => {
-    if (!resolvedScopeId) return null;
-    return activityLastSeenStorageKeyV1(props.scopeType, resolvedScopeId);
-  }, [props.scopeType, resolvedScopeId]);
+    if (!effectiveScopeId) return null;
+    return activityLastSeenStorageKeyV1(effectiveScopeType, effectiveScopeId);
+  }, [effectiveScopeId, effectiveScopeType]);
 
   const [lastSeenId, setLastSeenId] = useState<number | null>(null);
 
@@ -120,14 +172,14 @@ export function SettingsActivityWidget(props: SettingsActivityWidgetProps) {
   const limit = typeof props.limit === "number" && props.limit > 0 ? Math.min(props.limit, 50) : 10;
 
   const refresh = useCallback(async () => {
-    if (!resolvedScopeId) return;
+    if (!effectiveScopeId) return;
     setIsRefreshing(true);
     setError(null);
     setSelectedEvent(null);
 
     const res = await client.listSettingsChangesV0({
-      scopeType: props.scopeType,
-      scopeId: resolvedScopeId,
+      scopeType: effectiveScopeType,
+      scopeId: effectiveScopeId,
       limit,
     });
 
@@ -142,13 +194,12 @@ export function SettingsActivityWidget(props: SettingsActivityWidgetProps) {
     setEvents(Array.isArray(res.data.events) ? res.data.events : []);
     setLastFetchedAtMs(Date.now());
     setIsRefreshing(false);
-  }, [client, limit, props.scopeType, resolvedScopeId]);
+  }, [client, effectiveScopeId, effectiveScopeType, limit]);
 
   useEffect(() => {
-    if (props.scopeType === "user" && !resolvedScopeId) return;
-    if (props.scopeType === "guild" && !resolvedScopeId) return;
+    if (!effectiveScopeId) return;
     void refresh();
-  }, [props.scopeType, refresh, resolvedScopeId]);
+  }, [effectiveScopeId, refresh]);
 
   const maxEventId = useMemo(() => {
     const list = events ?? [];
@@ -173,20 +224,40 @@ export function SettingsActivityWidget(props: SettingsActivityWidgetProps) {
   }, [lastSeenKey, maxEventId]);
 
   const scopeLabel = useMemo(() => {
-    if (props.scopeType === "user") return "User";
-    return resolvedScopeId ? `Guild: ${resolvedScopeId}` : "Guild";
-  }, [props.scopeType, resolvedScopeId]);
+    if (effectiveScopeType === "user") return "User";
+    if (props.scopeType === "guild") return effectiveScopeId ? `Guild: ${effectiveScopeId}` : "Guild";
+    return effectiveScopeId ? `Active Club: ${effectiveScopeId}` : "Active Club";
+  }, [effectiveScopeId, effectiveScopeType, props.scopeType]);
 
   const debug = useMemo(() => {
     return {
-      scopeType: props.scopeType,
-      scopeId: resolvedScopeId,
+      widgetScopeType: props.scopeType,
+      widgetScopeId: props.scopeId ?? null,
+      view,
+      enableActiveGuildSwitch,
+      userScopeId,
+      activeGuildId: activeGuildId || null,
+      effectiveScopeType,
+      effectiveScopeId,
       limit,
       eventsCount: events?.length ?? null,
       lastFetchedAtMs,
       fetchStatus,
     };
-  }, [events?.length, fetchStatus, lastFetchedAtMs, limit, props.scopeType, resolvedScopeId]);
+  }, [
+    activeGuildId,
+    effectiveScopeId,
+    effectiveScopeType,
+    enableActiveGuildSwitch,
+    events?.length,
+    fetchStatus,
+    lastFetchedAtMs,
+    limit,
+    props.scopeId,
+    props.scopeType,
+    userScopeId,
+    view,
+  ]);
 
   return (
     <Card className="rounded-2xl border border-emerald-500/30 bg-zinc-900/40 shadow-sm">
@@ -197,6 +268,34 @@ export function SettingsActivityWidget(props: SettingsActivityWidgetProps) {
             <CardDescription className="text-xs sm:text-sm">
               Recent settings changes • {scopeLabel}
             </CardDescription>
+            {props.scopeType === "user" && enableActiveGuildSwitch ? (
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <label className="text-xs text-zinc-400">Scope</label>
+                <select
+                  className="h-8 rounded-md border bg-background px-2 text-xs"
+                  value={view}
+                  onChange={(e) => setView(e.target.value === "activeGuild" ? "activeGuild" : "user")}
+                  disabled={!userScopeId}
+                >
+                  <option value="user">User</option>
+                  <option value="activeGuild" disabled={!activeGuildId.trim()}>
+                    Active Club
+                  </option>
+                </select>
+                {!activeGuildId.trim() ? (
+                  <div className="text-xs text-zinc-400">
+                    No active club selected.{" "}
+                    <Link href="/settings" className="underline">
+                      Set it in settings
+                    </Link>
+                    .
+                  </div>
+                ) : null}
+                {activeGuildLoadError ? (
+                  <div className="text-xs text-red-300">{activeGuildLoadError}</div>
+                ) : null}
+              </div>
+            ) : null}
           </div>
           <div className="flex flex-wrap items-center gap-2">
             {typeof newEventCount === "number" && newEventCount > 0 && (
@@ -206,7 +305,7 @@ export function SettingsActivityWidget(props: SettingsActivityWidgetProps) {
               variant="outline"
               size="sm"
               onClick={() => void refresh()}
-              disabled={isRefreshing || !resolvedScopeId}
+              disabled={isRefreshing || !effectiveScopeId}
             >
               {isRefreshing ? "Refreshing…" : "Refresh"}
             </Button>
@@ -214,7 +313,7 @@ export function SettingsActivityWidget(props: SettingsActivityWidgetProps) {
               variant="outline"
               size="sm"
               onClick={markAsSeen}
-              disabled={!resolvedScopeId || !events?.length}
+              disabled={!effectiveScopeId || !events?.length}
             >
               Mark as seen
             </Button>
@@ -226,19 +325,19 @@ export function SettingsActivityWidget(props: SettingsActivityWidgetProps) {
       </CardHeader>
 
       <CardContent className="space-y-3">
-        {!resolvedScopeId && props.scopeType === "user" && (
+        {!userScopeId && props.scopeType === "user" && (
           <div className="rounded-xl border border-zinc-700 bg-zinc-950/40 p-3 text-sm text-zinc-200">
             Sign in to view user settings activity.
           </div>
         )}
 
-        {!resolvedScopeId && props.scopeType === "guild" && (
+        {!guildScopeId && props.scopeType === "guild" && (
           <div className="rounded-xl border border-zinc-700 bg-zinc-950/40 p-3 text-sm text-zinc-200">
             Select a guild to view activity.
           </div>
         )}
 
-        {resolvedScopeId && events === null && (
+        {effectiveScopeId && events === null && (
           <div className="space-y-2">
             <Skeleton className="h-5 w-3/4" />
             <Skeleton className="h-5 w-2/3" />
@@ -253,13 +352,13 @@ export function SettingsActivityWidget(props: SettingsActivityWidgetProps) {
           </div>
         )}
 
-        {resolvedScopeId && events !== null && events.length === 0 && !error && (
+        {effectiveScopeId && events !== null && events.length === 0 && !error && (
           <div className="rounded-xl border border-zinc-700 bg-zinc-950/40 p-3 text-sm text-zinc-200">
             No recent settings changes.
           </div>
         )}
 
-        {resolvedScopeId && events?.length ? (
+        {effectiveScopeId && events?.length ? (
           <div className="space-y-2">
             {events.map((e) => {
               const isNew = typeof lastSeenId === "number" ? e.id > lastSeenId : true;
@@ -332,8 +431,12 @@ export function SettingsActivityWidget(props: SettingsActivityWidgetProps) {
         <div className="rounded-xl border border-zinc-700 bg-zinc-950/40 p-3 text-xs text-zinc-300">
           <div className="font-medium text-zinc-200">Debug</div>
           <div className="mt-1 grid grid-cols-1 gap-1 sm:grid-cols-2">
-            <div>scopeType: {debug.scopeType}</div>
-            <div>scopeId: {debug.scopeId ?? "(none)"}</div>
+            <div>widgetScopeType: {debug.widgetScopeType}</div>
+            <div>widgetScopeId: {debug.widgetScopeId ?? "(none)"}</div>
+            <div>view: {debug.view}</div>
+            <div>activeGuildId: {debug.activeGuildId ?? "(none)"}</div>
+            <div>effectiveScopeType: {debug.effectiveScopeType}</div>
+            <div>effectiveScopeId: {debug.effectiveScopeId ?? "(none)"}</div>
             <div>limit: {debug.limit}</div>
             <div>events: {debug.eventsCount ?? "(loading)"}</div>
             <div>
