@@ -25,9 +25,20 @@ app.use("/discord", discordRouter);
 
 describe("GET /discord/guilds", () => {
   const SLIMYAI_BOT_TOKEN = "mock-bot-token";
+  const ORIGINAL_SLIMYAI_BOT_TOKEN = process.env.SLIMYAI_BOT_TOKEN;
+  const ORIGINAL_DISCORD_BOT_TOKEN = process.env.DISCORD_BOT_TOKEN;
   
   beforeAll(() => {
     process.env.SLIMYAI_BOT_TOKEN = SLIMYAI_BOT_TOKEN;
+    process.env.DISCORD_BOT_TOKEN = "";
+  });
+
+  afterAll(() => {
+    if (ORIGINAL_SLIMYAI_BOT_TOKEN === undefined) delete process.env.SLIMYAI_BOT_TOKEN;
+    else process.env.SLIMYAI_BOT_TOKEN = ORIGINAL_SLIMYAI_BOT_TOKEN;
+
+    if (ORIGINAL_DISCORD_BOT_TOKEN === undefined) delete process.env.DISCORD_BOT_TOKEN;
+    else process.env.DISCORD_BOT_TOKEN = ORIGINAL_DISCORD_BOT_TOKEN;
   });
 
   afterEach(() => {
@@ -128,5 +139,75 @@ describe("GET /discord/guilds", () => {
 	    expect(guilds[2].connectable).toBe(true);
 	    expect(guilds[2].roleLabel).toBe("member");
 	    expect(guilds[2].roleSource).toBe("default");
+	  });
+
+	  it("should fall back to DISCORD_BOT_TOKEN when SLIMYAI_BOT_TOKEN is missing", async () => {
+    delete process.env.SLIMYAI_BOT_TOKEN;
+    process.env.DISCORD_BOT_TOKEN = SLIMYAI_BOT_TOKEN;
+
+    prismaDatabase.findUserByDiscordId.mockResolvedValue({
+      id: "test-user-id",
+      discordAccessToken: "mock-access-token",
+    });
+
+    const mockUserGuilds = [
+      { id: "1176605506912141444", name: "Primary Guild", icon: "icon-a", permissions: "0" },
+      { id: "guild-b", name: "Guild B", icon: "icon-b", owner: true, permissions: "0" },
+      { id: "guild-c", name: "Guild C", icon: "icon-c", permissions: "0" },
+      { id: "guild-d", name: "Guild D", icon: "icon-d", owner: true, permissions: "0" },
+      { id: "guild-e", name: "Guild E", icon: "icon-e", permissions: "0" },
+    ];
+
+    const mockMemberPrimary = {
+      roles: ["1178129227321712701", "other-role"],
+    };
+
+    fetch.mockImplementation((url, options) => {
+      if (url === "https://discord.com/api/v10/users/@me/guilds") {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve(mockUserGuilds),
+        });
+      }
+      if (url === "https://discord.com/api/v10/guilds/1176605506912141444") {
+        if (options.headers.Authorization !== `Bot ${SLIMYAI_BOT_TOKEN}`) {
+          return Promise.resolve({ ok: false, status: 401 });
+        }
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ id: "1176605506912141444" }) });
+      }
+      if (url === "https://discord.com/api/v10/guilds/guild-b") {
+        if (options.headers.Authorization !== `Bot ${SLIMYAI_BOT_TOKEN}`) {
+          return Promise.resolve({ ok: false, status: 401 });
+        }
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ id: "guild-b" }) });
+      }
+      if (url === "https://discord.com/api/v10/guilds/guild-c") {
+        if (options.headers.Authorization !== `Bot ${SLIMYAI_BOT_TOKEN}`) {
+          return Promise.resolve({ ok: false, status: 401 });
+        }
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ id: "guild-c" }) });
+      }
+      if (url === "https://discord.com/api/v10/guilds/guild-d") {
+        return Promise.resolve({ ok: false, status: 404 });
+      }
+      if (url === "https://discord.com/api/v10/guilds/guild-e") {
+        return Promise.resolve({ ok: false, status: 404 });
+      }
+      if (url.includes("/members/test-user-id")) {
+        if (options.headers.Authorization !== `Bot ${SLIMYAI_BOT_TOKEN}`) {
+          return Promise.resolve({ ok: false, status: 401, text: () => "Unauthorized" });
+        }
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve(mockMemberPrimary),
+        });
+      }
+      return Promise.reject(new Error(`Unknown URL: ${url}`));
+    });
+
+    const res = await request(app).get("/discord/guilds");
+
+    expect(res.status).toBe(200);
+    expect(res.body.guilds).toHaveLength(3);
 	  });
 	});

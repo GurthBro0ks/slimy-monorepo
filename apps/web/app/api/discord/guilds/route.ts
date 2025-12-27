@@ -9,6 +9,10 @@ export async function GET() {
     const cookieStore = await cookies();
     const cookieHeader = cookieStore.toString();
 
+    if (!cookieHeader.trim()) {
+      return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+    }
+
     const result = await apiClient.get<{ guilds: any[] }>("/api/discord/guilds", {
       useCache: false,
       headers: {
@@ -17,13 +21,23 @@ export async function GET() {
     });
 
     if (!result.ok) {
-      return NextResponse.json(result, { status: result.status || 401 });
+      const status = typeof result.status === "number" ? result.status : 502;
+
+      if (status === 401 || status === 403) {
+        return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+      }
+
+      if (status >= 500) {
+        return NextResponse.json({ error: "upstream_failed" }, { status: 502 });
+      }
+
+      return NextResponse.json({ error: "request_failed" }, { status });
     }
 
     return NextResponse.json(result.data);
     
   } catch (error) {
-    console.error("[Guilds API] Error:", error);
+    console.error("[Guilds API] Error:", (error as any)?.message || error);
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }
