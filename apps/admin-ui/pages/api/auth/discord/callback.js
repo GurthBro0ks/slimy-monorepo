@@ -4,10 +4,20 @@ export default async function handler(req, res) {
     return res.status(405).json({ ok: false, error: { code: "METHOD_NOT_ALLOWED" } });
   }
 
-  const base =
-    process.env.ADMIN_API_INTERNAL_URL && !process.env.ADMIN_API_INTERNAL_URL.includes("localhost")
-      ? process.env.ADMIN_API_INTERNAL_URL
-      : "http://admin-api:3080";
+  const fallbackBase = "http://admin-api:3080";
+  const rawBase = String(process.env.ADMIN_API_INTERNAL_URL || "").trim();
+  let base = fallbackBase;
+
+  if (rawBase) {
+    try {
+      const parsed = new URL(rawBase);
+      if (parsed.protocol === "http:" || parsed.protocol === "https:") {
+        base = rawBase;
+      }
+    } catch {
+      base = fallbackBase;
+    }
+  }
 
   // admin-api real callback route
   const upstream = new URL("/api/auth/callback", base);
@@ -39,7 +49,7 @@ export default async function handler(req, res) {
   } catch (e) {
     return res.status(502).json({
       ok: false,
-      error: { code: "UPSTREAM_UNREACHABLE", message: String(e?.message || e) },
+      error: { code: "UPSTREAM_UNREACHABLE", message: "upstream_unreachable" },
     });
   }
 
