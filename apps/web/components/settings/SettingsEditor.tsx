@@ -33,6 +33,20 @@ type DiffSummary = {
   changed: string[];
 };
 
+type SettingsDraftV1 = {
+  v: 1;
+  rawJson: string;
+  savedAtMs: number;
+};
+
+type DraftBannerState =
+  | null
+  | {
+      savedAtMs: number;
+      rawJson: string;
+      parseError?: string;
+    };
+
 type ModalState =
   | null
   | {
@@ -78,6 +92,41 @@ function stripEphemeralFields(value: any): any {
   const out: any = Array.isArray(value) ? value.slice() : { ...value };
   if (!Array.isArray(out)) delete out.updatedAt;
   return out;
+}
+
+function settingsDraftStorageKeyV1(scopeType: ScopeType, scopeId: string): string {
+  return `slimy:settings-draft:v1:${scopeType}:${scopeId}`;
+}
+
+function readSettingsDraftV1(key: string): SettingsDraftV1 | null {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") return null;
+    if (parsed.v !== 1) return null;
+    if (typeof parsed.rawJson !== "string") return null;
+    if (typeof parsed.savedAtMs !== "number") return null;
+    return parsed as SettingsDraftV1;
+  } catch {
+    return null;
+  }
+}
+
+function writeSettingsDraftV1(key: string, draft: SettingsDraftV1): void {
+  try {
+    localStorage.setItem(key, JSON.stringify(draft));
+  } catch {
+    // ignore (quota / disabled storage)
+  }
+}
+
+function clearSettingsDraft(key: string): void {
+  try {
+    localStorage.removeItem(key);
+  } catch {
+    // ignore
+  }
 }
 
 function formatZodIssues(issues: any): string {
@@ -169,6 +218,9 @@ export function SettingsEditor(props: {
   basicFieldsConfig: BasicFieldConfig[];
 }) {
   const { user, isLoading } = useAuth();
+  const resolvedUser = user && (user as any).user ? (user as any).user : user;
+  const role = (user as any)?.role ?? (resolvedUser as any)?.role;
+  const isPlatformAdmin = role === "admin";
 
   const resolvedScopeId = useMemo(() => {
     if (props.scopeId) return String(props.scopeId).trim() || null;
@@ -180,6 +232,11 @@ export function SettingsEditor(props: {
     () => createWebCentralSettingsClient({ csrfToken: safeString((user as any)?.csrfToken || "").trim() || null }),
     [user],
   );
+
+  const draftKey = useMemo(() => {
+    if (!resolvedScopeId) return null;
+    return settingsDraftStorageKeyV1(props.scopeType, resolvedScopeId);
+  }, [props.scopeType, resolvedScopeId]);
 
   const [rawJson, setRawJson] = useState("");
   const [serverSettings, setServerSettings] = useState<any | null>(null);
@@ -195,6 +252,15 @@ export function SettingsEditor(props: {
   const [memory, setMemory] = useState<any[]>([]);
 
   const [modal, setModal] = useState<ModalState>(null);
+  const [draftBanner, setDraftBanner] = useState<DraftBannerState>(null);
+  const [diffShowJson, setDiffShowJson] = useState(false);
+
+  const [memoryKindFilter, setMemoryKindFilter] = useState<string>("");
+  const [newMemoryKind, setNewMemoryKind] = useState<string>("");
+  const [newMemoryTitle, setNewMemoryTitle] = useState<string>("");
+  const [newMemoryBody, setNewMemoryBody] = useState<string>("");
+  const [newMemoryError, setNewMemoryError] = useState<string | null>(null);
+  const [creatingMemory, setCreatingMemory] = useState(false);
 
   const parsedJson = useMemo(() => {
     const text = rawJson.trim();
@@ -267,6 +333,116 @@ export function SettingsEditor(props: {
     if (saveState === "saved" && compareState.isDirty) setSaveState("idle");
   }, [compareState.isDirty, saveState]);
 
+  useEffect(() => {
+    if (!compareState.isDirty) return;
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [compareState.isDirty]);
+
+  useEffect(() => {
+    if (!compareState.isDirty) return;
+    const onClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (!target) return;
+      const anchor = target.closest("a") as HTMLAnchorElement | null;
+      if (!anchor) return;
+
+      if (anchor.target && anchor.target !== "_self") return;
+      if (e.defaultPrevented) return;
+      if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+
+      const hrefAttr = anchor.getAttribute("href");
+      if (!hrefAttr) return;
+      if (hrefAttr.startsWith("#")) return;
+      if (hrefAttr.startsWith("mailto:") || hrefAttr.startsWith("tel:")) return;
+
+      const ok = window.confirm("You have unsaved changes. Leave this page without saving?");
+      if (!ok) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    };
+
+    document.addEventListener("click", onClick, true);
+    return () => document.removeEventListener("click", onClick, true);
+  }, [compareState.isDirty]);
+
+  const clearDraft = useCallback(() => {
+    if (!draftKey) return;
+    clearSettingsDraft(draftKey);
+    setDraftBanner(null);
+  }, [draftKey]);
+
+  const reconcileDraftWithServer = useCallback(
+    (server: any) => {
+      if (!draftKey) return;
+      const stored = readSettingsDraftV1(draftKey);
+      if (!stored) {
+        setDraftBanner(null);
+        return;
+      }
+
+      const text = stored.rawJson.trim();
+      if (!text) {
+        clearSettingsDraft(draftKey);
+        setDraftBanner(null);
+        return;
+      }
+
+      try {
+        const parsed = JSON.parse(text);
+        const candidate = buildCandidate(parsed, { updatedAtMode: "preserve" });
+        const beforeStable = stableJson(stripEphemeralFields(server));
+        const afterStable = stableJson(stripEphemeralFields(candidate));
+        if (beforeStable === afterStable) {
+          clearSettingsDraft(draftKey);
+          setDraftBanner(null);
+          return;
+        }
+        setDraftBanner({ savedAtMs: stored.savedAtMs, rawJson: stored.rawJson });
+      } catch (err: any) {
+        setDraftBanner({
+          savedAtMs: stored.savedAtMs,
+          rawJson: stored.rawJson,
+          parseError: err?.message ? String(err.message) : "invalid_json",
+        });
+      }
+    },
+    [buildCandidate, draftKey],
+  );
+
+  useEffect(() => {
+    if (!draftKey) return;
+    if (!serverSettings) return;
+    reconcileDraftWithServer(serverSettings);
+  }, [draftKey, reconcileDraftWithServer, serverSettings]);
+
+  useEffect(() => {
+    if (!draftKey) return;
+    if (saveState === "saving") return;
+
+    const handle = window.setTimeout(() => {
+      const text = rawJson.trim();
+      if (!text) {
+        clearSettingsDraft(draftKey);
+        return;
+      }
+
+      if (parsedJson.ok && !compareState.isDirty) {
+        clearSettingsDraft(draftKey);
+        return;
+      }
+
+      writeSettingsDraftV1(draftKey, { v: 1, rawJson, savedAtMs: Date.now() });
+    }, 800);
+
+    return () => window.clearTimeout(handle);
+  }, [compareState.isDirty, draftKey, parsedJson.ok, rawJson, saveState]);
+
   const loadSettings = useCallback(async () => {
     if (!resolvedScopeId) return;
     setError(null);
@@ -292,6 +468,9 @@ export function SettingsEditor(props: {
     setServerSettings(res.data.settings);
     setRawJson(JSON.stringify(res.data.settings, null, 2));
     setSaveState("idle");
+    setDiffShowJson(false);
+
+    if (draftKey) reconcileDraftWithServer(res.data.settings);
 
     const cursorRes = await client.listSettingsChangesV0({
       scopeType: props.scopeType,
@@ -302,7 +481,7 @@ export function SettingsEditor(props: {
       setEvents(cursorRes.data.events || []);
       setEventsSinceId(cursorRes.data.nextSinceId ?? null);
     }
-  }, [client, props.scopeType, resolvedScopeId]);
+  }, [client, draftKey, props.scopeType, reconcileDraftWithServer, resolvedScopeId]);
 
   const checkEvents = useCallback(async () => {
     if (!resolvedScopeId) return;
@@ -330,7 +509,7 @@ export function SettingsEditor(props: {
     if (!resolvedScopeId) return;
     setError(null);
 
-    const res = await client.listMemory(props.scopeType, resolvedScopeId);
+    const res = await client.listMemory(props.scopeType, resolvedScopeId, memoryKindFilter ? { kind: memoryKindFilter as any } : undefined);
     if (!res.ok) {
       setLastStatus({ ok: false, status: res.status, error: safeString(res.error) || "request_failed" });
       setError("Failed to load memory");
@@ -344,7 +523,7 @@ export function SettingsEditor(props: {
 
     setLastStatus({ ok: true, status: res.status });
     setMemory(res.data.records || []);
-  }, [client, props.scopeType, resolvedScopeId]);
+  }, [client, memoryKindFilter, props.scopeType, resolvedScopeId]);
 
   useEffect(() => {
     if (!isLoading && resolvedScopeId) loadSettings().catch(() => {});
@@ -355,10 +534,11 @@ export function SettingsEditor(props: {
       kind: "reset",
       onConfirm: () => {
         setModal(null);
+        clearDraft();
         void loadSettings();
       },
     });
-  }, [loadSettings]);
+  }, [clearDraft, loadSettings]);
 
   const doSave = useCallback(
     async (candidateForSave: any) => {
@@ -390,6 +570,7 @@ export function SettingsEditor(props: {
       setSaveState("saved");
       setServerSettings(res.data.settings);
       setRawJson(JSON.stringify(res.data.settings, null, 2));
+      clearDraft();
 
       const cursorRes = await client.listSettingsChangesV0({
         scopeType: props.scopeType,
@@ -402,7 +583,7 @@ export function SettingsEditor(props: {
         setEventsSinceId(cursorRes.data.nextSinceId ?? eventsSinceId);
       }
     },
-    [client, eventsSinceId, props.scopeType, resolvedScopeId],
+    [clearDraft, client, eventsSinceId, props.scopeType, resolvedScopeId],
   );
 
   const prepareSave = useCallback(async () => {
@@ -477,7 +658,11 @@ export function SettingsEditor(props: {
     setModal({
       kind: "diff",
       pending: candidateForCompare,
-      diff,
+      diff: {
+        added: diff.added.slice().sort(),
+        removed: diff.removed.slice().sort(),
+        changed: diff.changed.slice().sort(),
+      },
       remoteChanged,
       remoteEventsPreview,
       onConfirm: () => {
@@ -497,6 +682,74 @@ export function SettingsEditor(props: {
     serverSettings,
     validateCandidate,
   ]);
+
+  const allowedMemoryKinds = useMemo(() => {
+    const policy = (contracts as any)?.MEMORY_KIND_POLICY || {};
+    const out: string[] = [];
+    for (const [kind, rule] of Object.entries(policy)) {
+      const allowed = Array.isArray((rule as any)?.allowedScopeTypes) ? (rule as any).allowedScopeTypes : [];
+      const adminOnly = Array.isArray((rule as any)?.platformAdminOnlyScopeTypes) ? (rule as any).platformAdminOnlyScopeTypes : [];
+      if (!allowed.includes(props.scopeType)) continue;
+      if (adminOnly.includes(props.scopeType) && !isPlatformAdmin) continue;
+      out.push(kind);
+    }
+    return out.sort();
+  }, [isPlatformAdmin, props.scopeType]);
+
+  useEffect(() => {
+    if (!newMemoryKind && allowedMemoryKinds.length) setNewMemoryKind(allowedMemoryKinds[0]);
+  }, [allowedMemoryKinds, newMemoryKind]);
+
+  const createMemoryRecord = useCallback(async () => {
+    if (!resolvedScopeId) return;
+    setNewMemoryError(null);
+
+    const kind = String(newMemoryKind || "").trim();
+    if (!kind) {
+      setNewMemoryError("Pick a kind");
+      return;
+    }
+
+    const content = {
+      title: String(newMemoryTitle || "").trim(),
+      body: String(newMemoryBody || "").trim(),
+    };
+
+    const parsed = contracts.MemoryWriteRequestSchema.safeParse({
+      kind,
+      source: "web",
+      content,
+    });
+    if (!parsed.success) {
+      setNewMemoryError(formatZodIssues(parsed.error.issues));
+      return;
+    }
+
+    setCreatingMemory(true);
+    try {
+      const res = await client.writeMemory({
+        scopeType: props.scopeType,
+        scopeId: resolvedScopeId,
+        ...(parsed.data as any),
+      });
+      if (!res.ok) {
+        setNewMemoryError(safeString(res.error) || "request_failed");
+        return;
+      }
+      if (!res.data?.ok) {
+        setNewMemoryError("upstream_not_ok");
+        return;
+      }
+
+      setNewMemoryTitle("");
+      setNewMemoryBody("");
+      await loadMemory();
+    } catch (err: any) {
+      setNewMemoryError(err?.message ? String(err.message) : "request_failed");
+    } finally {
+      setCreatingMemory(false);
+    }
+  }, [client, loadMemory, newMemoryBody, newMemoryKind, newMemoryTitle, props.scopeType, resolvedScopeId]);
 
   if (isLoading) {
     return (
@@ -543,6 +796,37 @@ export function SettingsEditor(props: {
         <h1 className="text-3xl font-bold tracking-tight">{props.title}</h1>
         {props.description ? <p className="text-muted-foreground">{props.description}</p> : null}
       </div>
+
+      {draftBanner ? (
+        <Alert>
+          <AlertTitle>Draft found</AlertTitle>
+          <AlertDescription className="space-y-3">
+            <div className="text-sm text-muted-foreground">
+              Draft saved at <span className="font-mono">{new Date(draftBanner.savedAtMs).toISOString()}</span>
+              {draftBanner.parseError ? <> • invalid JSON ({draftBanner.parseError})</> : null}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  setRawJson(draftBanner.rawJson);
+                  setDraftBanner(null);
+                }}
+              >
+                Restore draft
+              </Button>
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  clearDraft();
+                }}
+              >
+                Discard draft
+              </Button>
+            </div>
+          </AlertDescription>
+        </Alert>
+      ) : null}
 
       {error ? (
         <Alert variant="destructive">
@@ -618,7 +902,7 @@ export function SettingsEditor(props: {
               Reload
             </Button>
             <Button onClick={() => resetToServer()} variant="secondary" disabled={saveState === "saving"}>
-              Reset to server defaults
+              Discard changes
             </Button>
             <Button onClick={() => prepareSave()} disabled={saveState === "saving"}>
               {saveLabel}
@@ -627,6 +911,109 @@ export function SettingsEditor(props: {
               {compareState.isDirty ? "Unsaved changes" : "No local changes"} • last saved:{" "}
               <span className="font-mono">{lastSavedAt ? new Date(lastSavedAt).toISOString() : "—"}</span>
             </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Memory</CardTitle>
+          <CardDescription>Structured memory records for this scope (no raw chat transcripts).</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex flex-wrap items-center gap-2">
+            <label className="text-sm font-medium">Filter</label>
+            <select
+              className="h-9 rounded-md border bg-background px-3 text-sm"
+              value={memoryKindFilter}
+              onChange={(e) => setMemoryKindFilter(e.target.value)}
+              disabled={saveState === "saving"}
+            >
+              <option value="">(all kinds)</option>
+              {allowedMemoryKinds.map((k) => (
+                <option key={k} value={k}>
+                  {k}
+                </option>
+              ))}
+            </select>
+            <Button onClick={() => loadMemory()} variant="secondary" size="sm" disabled={saveState === "saving"}>
+              Load
+            </Button>
+          </div>
+
+          <div className="rounded-md border p-3 space-y-3">
+            <div className="font-medium">Create record</div>
+            {newMemoryError ? (
+              <Alert variant="destructive">
+                <AlertTitle>Memory write failed</AlertTitle>
+                <AlertDescription className="whitespace-pre-wrap">{newMemoryError}</AlertDescription>
+              </Alert>
+            ) : null}
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+              <div className="space-y-1">
+                <label className="text-sm font-medium">Kind</label>
+                <select
+                  className="h-9 w-full rounded-md border bg-background px-3 text-sm"
+                  value={newMemoryKind}
+                  onChange={(e) => setNewMemoryKind(e.target.value)}
+                  disabled={creatingMemory || saveState === "saving"}
+                >
+                  {allowedMemoryKinds.length ? null : <option value="">(no allowed kinds)</option>}
+                  {allowedMemoryKinds.map((k) => (
+                    <option key={k} value={k}>
+                      {k}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-1">
+                <label className="text-sm font-medium">Title</label>
+                <input
+                  className="h-9 w-full rounded-md border bg-background px-3 text-sm"
+                  value={newMemoryTitle}
+                  onChange={(e) => setNewMemoryTitle(e.target.value)}
+                  disabled={creatingMemory || saveState === "saving"}
+                />
+              </div>
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Body</label>
+              <textarea
+                className="w-full min-h-[120px] rounded-md border bg-background p-3 font-mono text-sm"
+                value={newMemoryBody}
+                onChange={(e) => setNewMemoryBody(e.target.value)}
+                disabled={creatingMemory || saveState === "saving"}
+                spellCheck={false}
+              />
+            </div>
+            <div className="flex justify-end">
+              <Button onClick={() => createMemoryRecord()} disabled={creatingMemory || saveState === "saving" || !allowedMemoryKinds.length}>
+                {creatingMemory ? "Saving..." : "Save memory record"}
+              </Button>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            {(memory || []).length ? (
+              (memory || []).map((rec: any, idx: number) => {
+                const content = rec?.content && typeof rec.content === "object" ? rec.content : {};
+                const preview = safeString(JSON.stringify(content)).slice(0, 280);
+                return (
+                  <div key={`${rec.kind}-${rec.updatedAt}-${idx}`} className="rounded-md border p-3 text-sm">
+                    <div className="font-mono">{rec.kind}</div>
+                    <div className="text-muted-foreground">
+                      {rec.updatedAt} • source {rec.source}
+                    </div>
+                    <div className="mt-1 font-mono text-xs break-words">
+                      {preview}
+                      {preview.length >= 280 ? "…" : ""}
+                    </div>
+                  </div>
+                );
+              })
+            ) : (
+              <div className="text-sm text-muted-foreground">No memory loaded.</div>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -644,6 +1031,9 @@ export function SettingsEditor(props: {
             scope: <span className="font-mono">{props.scopeType}:{resolvedScopeId}</span>
           </div>
           <div>
+            draft key: <span className="font-mono">{draftKey ?? "—"}</span>
+          </div>
+          <div>
             last status: <span className="font-mono">{statusText}</span>
           </div>
           <div>
@@ -655,9 +1045,6 @@ export function SettingsEditor(props: {
           <div className="flex flex-wrap gap-2">
             <Button onClick={() => checkEvents()} variant="secondary" size="sm" disabled={saveState === "saving"}>
               Check changes
-            </Button>
-            <Button onClick={() => loadMemory()} variant="secondary" size="sm" disabled={saveState === "saving"}>
-              Load memory
             </Button>
           </div>
           <div className="space-y-2">
@@ -675,28 +1062,6 @@ export function SettingsEditor(props: {
               ))
             ) : (
               <div className="text-muted-foreground">No events loaded.</div>
-            )}
-          </div>
-          <div className="space-y-2">
-            {(memory || []).length ? (
-              (memory || []).map((rec: any, idx: number) => {
-                const content = rec?.content && typeof rec.content === "object" ? rec.content : {};
-                const preview = safeString(JSON.stringify(content)).slice(0, 200);
-                return (
-                  <div key={`${rec.kind}-${rec.updatedAt}-${idx}`} className="rounded-md border p-3">
-                    <div className="font-mono">{rec.kind}</div>
-                    <div className="text-muted-foreground">
-                      {rec.updatedAt} • source {rec.source}
-                    </div>
-                    <div className="mt-1 font-mono text-xs break-words">
-                      {preview}
-                      {preview.length >= 200 ? "…" : ""}
-                    </div>
-                  </div>
-                );
-              })
-            ) : (
-              <div className="text-muted-foreground">No memory loaded.</div>
             )}
           </div>
         </CardContent>
@@ -749,42 +1114,65 @@ export function SettingsEditor(props: {
               ) : null}
 
               <div className="grid grid-cols-1 gap-3">
-                <div className="rounded-md border p-3">
-                  <div className="font-medium">Changed keys</div>
-                  <div className="mt-1 text-xs text-muted-foreground">
-                    added {modal.diff.added.length} • removed {modal.diff.removed.length} • changed {modal.diff.changed.length}
-                    (excluding `updatedAt`)
+                <div className="rounded-md border p-3 space-y-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <div className="font-medium">Changed keys</div>
+                      <div className="mt-1 text-xs text-muted-foreground">
+                        added {modal.diff.added.length} • removed {modal.diff.removed.length} • changed {modal.diff.changed.length}
+                        (excluding `updatedAt`)
+                      </div>
+                    </div>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => setDiffShowJson((v) => !v)}
+                    >
+                      {diffShowJson ? "Hide JSON" : "Show JSON"}
+                    </Button>
                   </div>
-                  <div className="mt-2 grid grid-cols-1 gap-2 text-sm font-mono">
-                    {(modal.diff.added.slice(0, 25) || []).map((p) => (
-                      <div key={`a:${p}`}>+ {p}</div>
-                    ))}
-                    {(modal.diff.removed.slice(0, 25) || []).map((p) => (
-                      <div key={`r:${p}`}>- {p}</div>
-                    ))}
-                    {(modal.diff.changed.slice(0, 25) || []).map((p) => (
-                      <div key={`c:${p}`}>~ {p}</div>
-                    ))}
-                    {modal.diff.added.length + modal.diff.removed.length + modal.diff.changed.length > 75 ? (
-                      <div className="text-muted-foreground">…truncated</div>
-                    ) : null}
+
+                  <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                    <div className="rounded-md border bg-muted/20 p-3">
+                      <div className="font-medium">Added</div>
+                      <div className="mt-1 font-mono text-xs space-y-1">
+                        {modal.diff.added.length ? modal.diff.added.slice(0, 50).map((p) => <div key={`a:${p}`}>+ {p}</div>) : <div className="text-muted-foreground">—</div>}
+                        {modal.diff.added.length > 50 ? <div className="text-muted-foreground">…truncated</div> : null}
+                      </div>
+                    </div>
+                    <div className="rounded-md border bg-muted/20 p-3">
+                      <div className="font-medium">Removed</div>
+                      <div className="mt-1 font-mono text-xs space-y-1">
+                        {modal.diff.removed.length ? modal.diff.removed.slice(0, 50).map((p) => <div key={`r:${p}`}>- {p}</div>) : <div className="text-muted-foreground">—</div>}
+                        {modal.diff.removed.length > 50 ? <div className="text-muted-foreground">…truncated</div> : null}
+                      </div>
+                    </div>
+                    <div className="rounded-md border bg-muted/20 p-3">
+                      <div className="font-medium">Changed</div>
+                      <div className="mt-1 font-mono text-xs space-y-1">
+                        {modal.diff.changed.length ? modal.diff.changed.slice(0, 50).map((p) => <div key={`c:${p}`}>~ {p}</div>) : <div className="text-muted-foreground">—</div>}
+                        {modal.diff.changed.length > 50 ? <div className="text-muted-foreground">…truncated</div> : null}
+                      </div>
+                    </div>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                  <div className="rounded-md border p-3">
-                    <div className="font-medium">Current (server)</div>
-                    <pre className="mt-2 max-h-[280px] overflow-auto whitespace-pre-wrap break-words font-mono text-xs">
-                      {serverSettings ? stableJson(stripEphemeralFields(serverSettings)) : "—"}
-                    </pre>
+                {diffShowJson ? (
+                  <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                    <div className="rounded-md border p-3">
+                      <div className="font-medium">Current (server)</div>
+                      <pre className="mt-2 max-h-[280px] overflow-auto whitespace-pre-wrap break-words font-mono text-xs">
+                        {serverSettings ? stableJson(stripEphemeralFields(serverSettings)) : "—"}
+                      </pre>
+                    </div>
+                    <div className="rounded-md border p-3">
+                      <div className="font-medium">Pending (local)</div>
+                      <pre className="mt-2 max-h-[280px] overflow-auto whitespace-pre-wrap break-words font-mono text-xs">
+                        {stableJson(stripEphemeralFields(modal.pending))}
+                      </pre>
+                    </div>
                   </div>
-                  <div className="rounded-md border p-3">
-                    <div className="font-medium">Pending (local)</div>
-                    <pre className="mt-2 max-h-[280px] overflow-auto whitespace-pre-wrap break-words font-mono text-xs">
-                      {stableJson(stripEphemeralFields(modal.pending))}
-                    </pre>
-                  </div>
-                </div>
+                ) : null}
               </div>
 
               <div className="flex flex-wrap gap-2 justify-end">
