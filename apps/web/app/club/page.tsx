@@ -5,7 +5,7 @@ import { useAuth } from "@/lib/auth/context";
 import { createWebCentralSettingsClient } from "@/lib/api/central-settings-client";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState, Suspense } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 
 function safeString(value: unknown): string {
   if (value === null || value === undefined) return "";
@@ -34,6 +34,9 @@ function ClubContent() {
   const [resolvedGuildId, setResolvedGuildId] = useState<string>("");
   const [resolvedGuildSource, setResolvedGuildSource] = useState<string>("none");
   const [resolveError, setResolveError] = useState<string | null>(null);
+
+  const [setActiveStatus, setSetActiveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [setActiveError, setSetActiveError] = useState<string | null>(null);
 
   useEffect(() => {
     if (queryGuildId) {
@@ -101,8 +104,69 @@ function ClubContent() {
      <div className="h-[800px] w-full bg-[#050010] text-[#00ff00] font-mono p-4 flex flex-col items-center justify-center border-2 border-dashed border-[#5a189a]">
         <h2 className="text-2xl mb-2">CONNECTED TO GRID</h2>
         <p className="text-[#e0aaff] mb-4">Target Node: {guildId || 'UNKNOWN'}</p>
+
+        {queryGuildId ? (
+          <div
+            data-testid="club-url-override"
+            className="mb-4 w-full max-w-3xl rounded border border-[#9d4edd] bg-[#120014] p-3 text-sm text-[#e0aaff]"
+          >
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <div className="font-semibold">Viewing club from URL override</div>
+                <div className="text-xs text-[#c77dff]">
+                  This overrides any saved Active Club selection.
+                </div>
+              </div>
+              <button
+                type="button"
+                className="inline-flex items-center justify-center bg-[#240046] border-2 border-[#9d4edd] text-[#e0aaff] font-mono text-sm px-3 py-2 hover:bg-[#3c096c] hover:text-white hover:border-[#00ff00] transition-colors disabled:opacity-60"
+                disabled={!userId || setActiveStatus === "saving"}
+                onClick={() => {
+                  if (!userId) return;
+                  const nextId = queryGuildId.trim();
+                  if (!nextId) return;
+
+                  setSetActiveStatus("saving");
+                  setSetActiveError(null);
+                  (async () => {
+                    const currentRes = await client.getUserSettings(userId);
+                    if (!currentRes.ok || !currentRes.data?.ok) {
+                      setSetActiveStatus("error");
+                      setSetActiveError("Failed to load UserSettings before updating Active Club");
+                      return;
+                    }
+
+                    const nextSettings = JSON.parse(JSON.stringify(currentRes.data.settings)) as Record<string, unknown>;
+                    nextSettings["activeGuildId"] = nextId;
+                    nextSettings["updatedAt"] = new Date().toISOString();
+
+                    const writeRes = await client.setUserSettings(userId, nextSettings as any);
+                    if (!writeRes.ok || !writeRes.data?.ok) {
+                      setSetActiveStatus("error");
+                      setSetActiveError("Failed to save Active Club to UserSettings");
+                      return;
+                    }
+
+                    setSetActiveStatus("saved");
+                    setResolvedGuildId(nextId);
+                    setResolvedGuildSource("userSettings:activeGuildId");
+                  })().catch((err) => {
+                    setSetActiveStatus("error");
+                    setSetActiveError(safeString((err as any)?.message) || "active_club_save_failed");
+                  });
+                }}
+              >
+                {setActiveStatus === "saving" ? "Saving…" : setActiveStatus === "saved" ? "Active Club set" : "Set as Active Club"}
+              </button>
+            </div>
+            {setActiveError ? (
+              <div className="mt-2 text-xs text-red-300">{setActiveError}</div>
+            ) : null}
+          </div>
+        ) : null}
+
 	        {guildId ? (
-	           <div className="space-y-3">
+	           <div data-testid="club-state-guild" className="space-y-3">
               <div className="p-4 border border-[#00ff00] bg-[#001000]">
                  SPREADSHEET_DATA_STREAM_ACTIVE
               </div>
@@ -119,24 +183,30 @@ function ClubContent() {
 	           </div>
 	        ) : (
              <div className="space-y-3 text-center">
-               <p className="text-red-500">No active club selected.</p>
-               <p className="text-[#e0aaff]">Pick an Active Club on Settings to make this page work without a URL parameter.</p>
+               <p data-testid="club-state-no-guild" className="text-[#e0aaff] font-semibold">
+                 Pick an Active Club to load this page.
+               </p>
+               <p className="text-[#c77dff] text-sm">
+                 Tip: deep links like <span className="font-mono">/club?guildId=…</span> always work.
+               </p>
                <Link
                  href="/settings"
                  className="inline-flex items-center justify-center bg-[#240046] border-2 border-[#9d4edd] text-[#e0aaff] font-mono text-lg px-4 py-2 hover:bg-[#3c096c] hover:text-white hover:border-[#00ff00] transition-colors"
                >
-                 Open Settings
+                 Pick Active Club in Settings
                </Link>
              </div>
 	        )}
 
-         <div className="mt-6 w-full max-w-3xl rounded border border-[#00ff00] bg-[#001000] p-3 text-left text-xs text-[#00ff00]">
+         <div data-testid="club-debug" className="mt-6 w-full max-w-3xl rounded border border-[#00ff00] bg-[#001000] p-3 text-left text-xs text-[#00ff00]">
            <div className="font-semibold">Debug</div>
            <div className="mt-1 grid grid-cols-1 gap-1 sm:grid-cols-2">
              <div>query.guildId: {queryGuildId || "(none)"}</div>
              <div>resolved.guildId: {resolvedGuildId || "(none)"}</div>
              <div>resolved.source: {resolvedGuildSource}</div>
              <div>resolveError: {resolveError || "(none)"}</div>
+             <div>setActive.status: {setActiveStatus}</div>
+             <div>setActive.error: {setActiveError || "(none)"}</div>
            </div>
          </div>
      </div>
@@ -145,18 +215,55 @@ function ClubContent() {
 
 export default function ClubPage() {
   const { user, isLoading } = useAuth();
-  const router = useRouter();
 
-  useEffect(() => { if (!isLoading && !user) router.push("/"); }, [user, isLoading, router]);
-  if (isLoading || !user) return <div className="p-10 text-[#00ff00] font-mono">LOADING_MODULE...</div>;
+  if (isLoading) {
+    return <div className="p-10 text-[#00ff00] font-mono">LOADING_MODULE...</div>;
+  }
+
+  if (!user) {
+    return (
+      <div className="p-4 w-full flex justify-center" data-testid="club-page">
+        <RetroWindowWrapper title="CLUB_ANALYTICS // SPREADSHEET">
+          <div className="h-[800px] w-full bg-[#050010] text-[#00ff00] font-mono p-4 flex flex-col items-center justify-center border-2 border-dashed border-[#5a189a]">
+            <h2 className="text-2xl mb-2">AUTH REQUIRED</h2>
+            <p data-testid="club-state-unauth" className="text-[#e0aaff] mb-4 text-center">
+              Sign in to load clubs and pick an Active Club.
+            </p>
+            <div className="flex flex-wrap items-center justify-center gap-3">
+              <Link
+                href="/api/auth/login"
+                className="inline-flex items-center justify-center bg-[#240046] border-2 border-[#9d4edd] text-[#e0aaff] font-mono text-lg px-4 py-2 hover:bg-[#3c096c] hover:text-white hover:border-[#00ff00] transition-colors"
+              >
+                Sign in
+              </Link>
+              <Link
+                href="/settings"
+                className="inline-flex items-center justify-center bg-[#240046] border-2 border-[#9d4edd] text-[#e0aaff] font-mono text-lg px-4 py-2 hover:bg-[#3c096c] hover:text-white hover:border-[#00ff00] transition-colors"
+              >
+                Open Settings
+              </Link>
+            </div>
+
+            <div data-testid="club-debug" className="mt-6 w-full max-w-3xl rounded border border-[#00ff00] bg-[#001000] p-3 text-left text-xs text-[#00ff00]">
+              <div className="font-semibold">Debug</div>
+              <div className="mt-1 grid grid-cols-1 gap-1 sm:grid-cols-2">
+                <div>auth: unauthenticated</div>
+                <div>user: (none)</div>
+              </div>
+            </div>
+          </div>
+        </RetroWindowWrapper>
+      </div>
+    );
+  }
 
   return (
-     <div className="p-4 w-full flex justify-center">
-        <RetroWindowWrapper title="CLUB_ANALYTICS // SPREADSHEET">
-           <Suspense fallback={<div className="p-10 text-[#00ff00] font-mono">LOADING_GRID...</div>}>
-              <ClubContent />
-           </Suspense>
-        </RetroWindowWrapper>
-     </div>
+    <div className="p-4 w-full flex justify-center" data-testid="club-page">
+      <RetroWindowWrapper title="CLUB_ANALYTICS // SPREADSHEET">
+        <Suspense fallback={<div className="p-10 text-[#00ff00] font-mono">LOADING_GRID...</div>}>
+          <ClubContent />
+        </Suspense>
+      </RetroWindowWrapper>
+    </div>
   );
 }

@@ -255,10 +255,10 @@ export function SettingsActivityWidget(props: SettingsActivityWidgetProps) {
   const resolveGuildDisplay = useCallback(
     (guildId: string) => {
       const id = safeString(guildId).trim();
-      if (!id) return { name: "Unknown guild", iconUrl: undefined as string | undefined, isKnown: false, id: "" };
+      if (!id) return { name: "Guild (unknown)", iconUrl: undefined as string | undefined, isKnown: false, id: "" };
       const identity = guildIdentityMap?.[id];
       if (identity) return { name: identity.name, iconUrl: identity.iconUrl, isKnown: true, id };
-      return { name: "Unknown guild", iconUrl: undefined as string | undefined, isKnown: false, id };
+      return { name: `Guild ${id}`, iconUrl: undefined as string | undefined, isKnown: false, id };
     },
     [guildIdentityMap],
   );
@@ -439,12 +439,22 @@ export function SettingsActivityWidget(props: SettingsActivityWidgetProps) {
           <div className="rounded-xl border border-red-500/40 bg-red-950/20 p-3 text-sm text-red-200">
             <div className="font-medium">Error</div>
             <div className="mt-1 whitespace-pre-wrap">{error}</div>
+            <div className="mt-2 text-xs text-red-200/90">
+              <Link href={viewAllHref} className="underline">
+                Open settings
+              </Link>
+            </div>
           </div>
         )}
 
         {effectiveScopeId && events !== null && events.length === 0 && !error && (
           <div className="rounded-xl border border-zinc-700 bg-zinc-950/40 p-3 text-sm text-zinc-200">
-            No recent settings changes.
+            <div>No recent settings changes.</div>
+            <div className="mt-2 text-xs text-zinc-400">
+              <Link href={viewAllHref} className="underline">
+                Open settings
+              </Link>
+            </div>
           </div>
         )}
 
