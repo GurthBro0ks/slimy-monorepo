@@ -11,6 +11,7 @@ import { CopyBox } from "@/components/ui/copy-box";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/lib/auth/context";
 import { createWebCentralSettingsClient } from "@/lib/api/central-settings-client";
+import { getGuildIdentityMap } from "@/lib/guildIdentity";
 
 import type { SettingsChangeEventV0 } from "@slimy/admin-api-client";
 
@@ -153,6 +154,34 @@ export function SettingsActivityWidget(props: SettingsActivityWidgetProps) {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastFetchedAtMs, setLastFetchedAtMs] = useState<number | null>(null);
   const [selectedEvent, setSelectedEvent] = useState<SettingsChangeEventV0 | null>(null);
+  const [guildIdentityMap, setGuildIdentityMap] = useState<Record<string, { id: string; name: string; iconUrl?: string }> | null>(null);
+  const [guildIdentityError, setGuildIdentityError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const needsGuildIdentity =
+      effectiveScopeType === "guild" || !!events?.some((e) => e.scopeType === "guild");
+
+    if (!needsGuildIdentity) {
+      setGuildIdentityMap(null);
+      setGuildIdentityError(null);
+      return;
+    }
+
+    let cancelled = false;
+    (async () => {
+      setGuildIdentityError(null);
+      const map = await getGuildIdentityMap();
+      if (cancelled) return;
+      setGuildIdentityMap(map);
+    })().catch((err) => {
+      if (cancelled) return;
+      setGuildIdentityError(safeString((err as any)?.message) || "guild_identity_load_failed");
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [effectiveScopeType, events]);
 
   const lastSeenKey = useMemo(() => {
     if (!effectiveScopeId) return null;
@@ -223,11 +252,30 @@ export function SettingsActivityWidget(props: SettingsActivityWidgetProps) {
     setLastSeenId(maxEventId);
   }, [lastSeenKey, maxEventId]);
 
+  const resolveGuildDisplay = useCallback(
+    (guildId: string) => {
+      const id = safeString(guildId).trim();
+      if (!id) return { name: "Unknown guild", iconUrl: undefined as string | undefined, isKnown: false, id: "" };
+      const identity = guildIdentityMap?.[id];
+      if (identity) return { name: identity.name, iconUrl: identity.iconUrl, isKnown: true, id };
+      return { name: "Unknown guild", iconUrl: undefined as string | undefined, isKnown: false, id };
+    },
+    [guildIdentityMap],
+  );
+
   const scopeLabel = useMemo(() => {
-    if (effectiveScopeType === "user") return "User";
-    if (props.scopeType === "guild") return effectiveScopeId ? `Guild: ${effectiveScopeId}` : "Guild";
-    return effectiveScopeId ? `Active Club: ${effectiveScopeId}` : "Active Club";
-  }, [effectiveScopeId, effectiveScopeType, props.scopeType]);
+    if (effectiveScopeType === "user") return "You";
+    const guild = resolveGuildDisplay(safeString(effectiveScopeId));
+    const prefix = props.scopeType === "guild" ? "Guild" : "Active Club";
+    return `${prefix}: ${guild.name}`;
+  }, [effectiveScopeId, effectiveScopeType, props.scopeType, resolveGuildDisplay]);
+
+  const scopeSecondary = useMemo(() => {
+    if (effectiveScopeType !== "guild") return null;
+    const guild = resolveGuildDisplay(safeString(effectiveScopeId));
+    if (guild.isKnown) return null;
+    return guild.id || null;
+  }, [effectiveScopeId, effectiveScopeType, resolveGuildDisplay]);
 
   const debug = useMemo(() => {
     return {
@@ -237,24 +285,32 @@ export function SettingsActivityWidget(props: SettingsActivityWidgetProps) {
       enableActiveGuildSwitch,
       userScopeId,
       activeGuildId: activeGuildId || null,
+      activeGuildLoadError,
       effectiveScopeType,
       effectiveScopeId,
+      scopeSecondary,
       limit,
       eventsCount: events?.length ?? null,
       lastFetchedAtMs,
       fetchStatus,
+      guildIdentityCount: guildIdentityMap ? Object.keys(guildIdentityMap).length : null,
+      guildIdentityError,
     };
   }, [
     activeGuildId,
+    activeGuildLoadError,
     effectiveScopeId,
     effectiveScopeType,
     enableActiveGuildSwitch,
     events?.length,
     fetchStatus,
+    guildIdentityError,
+    guildIdentityMap,
     lastFetchedAtMs,
     limit,
     props.scopeId,
     props.scopeType,
+    scopeSecondary,
     userScopeId,
     view,
   ]);
@@ -268,6 +324,35 @@ export function SettingsActivityWidget(props: SettingsActivityWidgetProps) {
             <CardDescription className="text-xs sm:text-sm">
               Recent settings changes • {scopeLabel}
             </CardDescription>
+            {effectiveScopeType === "guild" && effectiveScopeId ? (
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                {(() => {
+                  const g = resolveGuildDisplay(effectiveScopeId);
+                  return (
+                    <>
+                      {g.iconUrl ? (
+                        <img
+                          src={g.iconUrl}
+                          alt=""
+                          className="h-6 w-6 rounded border border-zinc-700 object-cover"
+                        />
+                      ) : (
+                        <div className="h-6 w-6 rounded border border-zinc-700 bg-zinc-900" />
+                      )}
+                      <div className="text-xs text-zinc-200">
+                        <span className="font-medium">{g.name}</span>
+                        {scopeSecondary ? (
+                          <span className="ml-2 font-mono text-zinc-500">({scopeSecondary})</span>
+                        ) : null}
+                      </div>
+                      {guildIdentityError ? (
+                        <div className="text-xs text-red-300">{guildIdentityError}</div>
+                      ) : null}
+                    </>
+                  );
+                })()}
+              </div>
+            ) : null}
             {props.scopeType === "user" && enableActiveGuildSwitch ? (
               <div className="mt-2 flex flex-wrap items-center gap-2">
                 <label className="text-xs text-zinc-400">Scope</label>
@@ -298,6 +383,11 @@ export function SettingsActivityWidget(props: SettingsActivityWidgetProps) {
             ) : null}
           </div>
           <div className="flex flex-wrap items-center gap-2">
+            {events !== null ? (
+              <Badge variant="secondary" className="text-xs">
+                {events.length} shown
+              </Badge>
+            ) : null}
             {typeof newEventCount === "number" && newEventCount > 0 && (
               <Badge className="bg-emerald-600">{newEventCount} new</Badge>
             )}
@@ -396,6 +486,34 @@ export function SettingsActivityWidget(props: SettingsActivityWidgetProps) {
                     </div>
                   </div>
 
+                  <div className="flex flex-wrap items-center gap-2 text-sm text-zinc-200">
+                    <span className="text-zinc-400">Scope:</span>
+                    {e.scopeType === "guild" ? (
+                      (() => {
+                        const g = resolveGuildDisplay(e.scopeId);
+                        return (
+                          <>
+                            {g.iconUrl ? (
+                              <img
+                                src={g.iconUrl}
+                                alt=""
+                                className="h-5 w-5 rounded border border-zinc-700 object-cover"
+                              />
+                            ) : (
+                              <div className="h-5 w-5 rounded border border-zinc-700 bg-zinc-900" />
+                            )}
+                            <span className="font-medium">{g.name}</span>
+                            {!g.isKnown && g.id ? (
+                              <span className="font-mono text-xs text-zinc-500">({g.id})</span>
+                            ) : null}
+                          </>
+                        );
+                      })()
+                    ) : (
+                      <span className="font-medium">You</span>
+                    )}
+                  </div>
+
                   <div className="text-sm text-zinc-200">
                     <span className="text-zinc-400">Actor:</span> {e.actorUserId}
                   </div>
@@ -428,22 +546,26 @@ export function SettingsActivityWidget(props: SettingsActivityWidgetProps) {
           </div>
         )}
 
-        <div className="rounded-xl border border-zinc-700 bg-zinc-950/40 p-3 text-xs text-zinc-300">
-          <div className="font-medium text-zinc-200">Debug</div>
-          <div className="mt-1 grid grid-cols-1 gap-1 sm:grid-cols-2">
-            <div>widgetScopeType: {debug.widgetScopeType}</div>
-            <div>widgetScopeId: {debug.widgetScopeId ?? "(none)"}</div>
-            <div>view: {debug.view}</div>
-            <div>activeGuildId: {debug.activeGuildId ?? "(none)"}</div>
-            <div>effectiveScopeType: {debug.effectiveScopeType}</div>
-            <div>effectiveScopeId: {debug.effectiveScopeId ?? "(none)"}</div>
-            <div>limit: {debug.limit}</div>
-            <div>events: {debug.eventsCount ?? "(loading)"}</div>
-            <div>
-              lastFetch:{" "}
-              {typeof debug.lastFetchedAtMs === "number"
-                ? new Date(debug.lastFetchedAtMs).toLocaleTimeString()
-                : "(never)"}
+	        <div className="rounded-xl border border-zinc-700 bg-zinc-950/40 p-3 text-xs text-zinc-300">
+	          <div className="font-medium text-zinc-200">Debug</div>
+	          <div className="mt-1 grid grid-cols-1 gap-1 sm:grid-cols-2">
+	            <div>widgetScopeType: {debug.widgetScopeType}</div>
+	            <div>widgetScopeId: {debug.widgetScopeId ?? "(none)"}</div>
+	            <div>view: {debug.view}</div>
+	            <div>activeGuildId: {debug.activeGuildId ?? "(none)"}</div>
+	            <div>activeGuildLoadError: {debug.activeGuildLoadError ?? "(none)"}</div>
+	            <div>effectiveScopeType: {debug.effectiveScopeType}</div>
+	            <div>effectiveScopeId: {debug.effectiveScopeId ?? "(none)"}</div>
+	            <div>scopeSecondary: {debug.scopeSecondary ?? "(none)"}</div>
+	            <div>limit: {debug.limit}</div>
+	            <div>events: {debug.eventsCount ?? "(loading)"}</div>
+	            <div>guildIdentityCount: {debug.guildIdentityCount ?? "(loading)"}</div>
+	            <div>guildIdentityError: {debug.guildIdentityError ?? "(none)"}</div>
+	            <div>
+	              lastFetch:{" "}
+	              {typeof debug.lastFetchedAtMs === "number"
+	                ? new Date(debug.lastFetchedAtMs).toLocaleTimeString()
+	                : "(never)"}
             </div>
             <div>
               status:{" "}
