@@ -142,3 +142,6 @@ HTTP/1.1 401 Unauthorized
 ## Verification evidence
 - Admin API tests include `DISCORD_BOT_TOKEN` fallback coverage (`apps/admin-api/tests/discord-guilds.test.js`).
 - Web build + client artifact scan passed (`scripts/verify/web-runtime-env-required-v037.sh`).
+
+## Commits
+- `6255953` fix(web): restore settings + guild fetch (active club) v0.37
