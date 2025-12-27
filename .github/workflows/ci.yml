@@ -79,6 +79,9 @@ jobs:
       - name: Verify web guild identity v0.36
         run: bash scripts/verify/web-guild-identity-v036.sh
 
+      - name: Verify web runtime env required v0.37
+        run: bash scripts/verify/web-runtime-env-required-v037.sh
+
       - name: Verify settings sync clients v0.1 (admin-api regression + client builds)
         run: bash scripts/verify/settings-sync-clients-v01.sh
 

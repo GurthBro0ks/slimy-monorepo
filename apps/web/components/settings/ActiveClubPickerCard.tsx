@@ -158,6 +158,19 @@ export function ActiveClubPickerCard() {
     };
   }, [activeGuildId]);
 
+  const guildIdentityHelp = useMemo(() => {
+    if (!guildIdentityError) return null;
+    const m = guildIdentityError.match(/guilds_fetch_failed:(\d+)/);
+    const status = m ? Number(m[1]) : null;
+    if (status === 401) {
+      return "Can’t load guild list (unauthorized). Try signing out/in.";
+    }
+    if (typeof status === "number" && status >= 500) {
+      return "Server error fetching guild list. Try again in a moment.";
+    }
+    return "Can’t load guild list right now.";
+  }, [guildIdentityError]);
+
   return (
     <Card className="rounded-2xl border border-emerald-500/30 bg-zinc-900/40 shadow-sm">
       <CardHeader className="gap-2">
@@ -221,6 +234,13 @@ export function ActiveClubPickerCard() {
               <div className="whitespace-pre-wrap">{error}</div>
               <CopyBox content={error} label="Copy error" />
             </AlertDescription>
+          </Alert>
+        ) : null}
+
+        {guildIdentityHelp ? (
+          <Alert>
+            <AlertTitle>Guild list unavailable</AlertTitle>
+            <AlertDescription>{guildIdentityHelp}</AlertDescription>
           </Alert>
         ) : null}
 

@@ -14,7 +14,9 @@ function sleep(ms) {
 }
 
 function getSlimyBotToken() {
-  return String(process.env.SLIMYAI_BOT_TOKEN || "").trim();
+  const explicit = String(process.env.SLIMYAI_BOT_TOKEN || "").trim();
+  if (explicit) return explicit;
+  return String(process.env.DISCORD_BOT_TOKEN || "").trim();
 }
 
 function hasAdminOrManagePermission(permissions) {
@@ -200,4 +202,3 @@ module.exports = {
   computeRoleLabelFromRoles,
   fetchMemberRoles,
 };
-
