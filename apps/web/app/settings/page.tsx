@@ -1,6 +1,7 @@
 "use client";
 
 import { SettingsEditor, type BasicFieldConfig } from "@/components/settings/SettingsEditor";
+import { ActiveClubPickerCard } from "@/components/settings/ActiveClubPickerCard";
 
 export default function SettingsPage() {
   const basicFieldsConfig: BasicFieldConfig[] = [
@@ -121,11 +122,14 @@ export default function SettingsPage() {
   ];
 
   return (
-    <SettingsEditor
-      scopeType="user"
-      title="User Settings"
-      description="Central UserSettings for your account."
-      basicFieldsConfig={basicFieldsConfig}
-    />
+    <div className="space-y-6">
+      <ActiveClubPickerCard />
+      <SettingsEditor
+        scopeType="user"
+        title="User Settings"
+        description="Central UserSettings for your account."
+        basicFieldsConfig={basicFieldsConfig}
+      />
+    </div>
   );
 }
