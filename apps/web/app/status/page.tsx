@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CheckCircle, XCircle, AlertCircle, HelpCircle, RefreshCw } from "lucide-react";
+import { SettingsActivityWidget } from "@/components/settings/SettingsActivityWidget";
 
 interface ServiceStatus {
   name: string;
@@ -138,9 +139,9 @@ export default function StatusPage() {
     }
   };
 
-  return (
-    <div className="container px-4 py-16">
-      <div className="mx-auto max-w-4xl">
+	  return (
+	    <div className="container px-4 py-16">
+	      <div className="mx-auto max-w-4xl">
         <div className="mb-8 flex items-center justify-between">
           <div>
             <h1 className="mb-2 text-4xl font-bold">System Status</h1>
@@ -159,8 +160,8 @@ export default function StatusPage() {
           </Button>
         </div>
 
-        <div className="space-y-4">
-          {services.map((service) => (
+	        <div className="space-y-4">
+	          {services.map((service) => (
             <Card key={service.name} className="rounded-2xl border border-emerald-500/30 bg-zinc-900/40 shadow-sm">
               <CardHeader>
                 <div className="flex items-center justify-between">
@@ -184,9 +185,13 @@ export default function StatusPage() {
                 </CardContent>
               )}
             </Card>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
+	          ))}
+	        </div>
+
+	        <div className="mt-8">
+	          <SettingsActivityWidget scopeType="user" limit={10} />
+	        </div>
+	      </div>
+	    </div>
+	  );
 }
