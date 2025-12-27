@@ -82,6 +82,9 @@ jobs:
       - name: Verify web runtime env required v0.37
         run: bash scripts/verify/web-runtime-env-required-v037.sh
 
+      - name: Verify web club routing polish v0.38
+        run: bash scripts/verify/web-club-routing-polish-v038.sh
+
       - name: Verify settings sync clients v0.1 (admin-api regression + client builds)
         run: bash scripts/verify/settings-sync-clients-v01.sh
 

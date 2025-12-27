@@ -25,6 +25,10 @@ function resolveUserId(user: any): string | null {
   return safeString(user?.discordId || user?.id || user?.sub || "").trim() || null;
 }
 
+function isSnowflake(id: string): boolean {
+  return /^\d{17,19}$/.test(id);
+}
+
 type GuildOption = {
   id: string;
   name: string;
@@ -63,6 +67,9 @@ export function ActiveClubPickerCard() {
   const [lastSavedAtMs, setLastSavedAtMs] = useState<number | null>(null);
   const [guildIdentityMap, setGuildIdentityMap] = useState<Record<string, { id: string; name: string; iconUrl?: string }> | null>(null);
   const [guildIdentityError, setGuildIdentityError] = useState<string | null>(null);
+  const [manualEnabled, setManualEnabled] = useState(false);
+  const [manualGuildId, setManualGuildId] = useState("");
+  const [manualError, setManualError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!userId) return;
@@ -105,6 +112,16 @@ export function ActiveClubPickerCard() {
       cancelled = true;
     };
   }, [userId]);
+
+  const refreshIdentity = useCallback(async () => {
+    setGuildIdentityError(null);
+    try {
+      const map = await getGuildIdentityMap({ forceRefresh: true });
+      setGuildIdentityMap(map);
+    } catch (err) {
+      setGuildIdentityError(safeString((err as any)?.message) || "guild_identity_load_failed");
+    }
+  }, []);
 
   const persist = useCallback(
     async (nextGuildIdRaw: string) => {
@@ -157,6 +174,15 @@ export function ActiveClubPickerCard() {
       clubSettings: `/club/${encodeURIComponent(gid)}/settings`,
     };
   }, [activeGuildId]);
+
+  const guildIdentityStatus = useMemo(() => {
+    if (!guildIdentityError) return null;
+    const m = guildIdentityError.match(/guilds_fetch_failed:(\d+)/);
+    const status = m ? Number(m[1]) : null;
+    if (status === 401) return { label: "Guild list unavailable (401)", kind: "unauthorized" as const };
+    if (typeof status === "number" && status >= 500) return { label: "Guild list unavailable (upstream)", kind: "upstream" as const };
+    return { label: "Guild list unavailable", kind: "unknown" as const };
+  }, [guildIdentityError]);
 
   const guildIdentityHelp = useMemo(() => {
     if (!guildIdentityError) return null;
@@ -239,8 +265,36 @@ export function ActiveClubPickerCard() {
 
         {guildIdentityHelp ? (
           <Alert>
-            <AlertTitle>Guild list unavailable</AlertTitle>
-            <AlertDescription>{guildIdentityHelp}</AlertDescription>
+            <AlertTitle className="flex flex-wrap items-center gap-2">
+              <span>Guild list unavailable</span>
+              {guildIdentityStatus ? <Badge variant="secondary">{guildIdentityStatus.label}</Badge> : null}
+            </AlertTitle>
+            <AlertDescription className="space-y-2">
+              <div>{guildIdentityHelp}</div>
+              <div className="flex flex-wrap items-center gap-2">
+                <Button type="button" variant="secondary" size="sm" onClick={() => void refreshIdentity()}>
+                  Retry
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setManualEnabled(true);
+                    setManualError(null);
+                    setManualGuildId(activeGuildId || manualGuildId);
+                  }}
+                  data-testid="activeclub-continue-with-id"
+                >
+                  Continue with ID
+                </Button>
+                {guildIdentityStatus?.kind === "unauthorized" ? (
+                  <Button asChild type="button" variant="outline" size="sm">
+                    <Link href="/api/auth/login">Sign in</Link>
+                  </Button>
+                ) : null}
+              </div>
+            </AlertDescription>
           </Alert>
         ) : null}
 
@@ -271,6 +325,74 @@ export function ActiveClubPickerCard() {
           </div>
         </div>
 
+        <div className="rounded-xl border border-zinc-700 bg-zinc-950/40 p-3 text-sm text-zinc-200">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <div className="font-medium text-zinc-100">Paste Guild ID</div>
+              <div className="text-xs text-zinc-400">
+                Recovery path when lists are unavailable. Must be a Discord snowflake (17–19 digits).
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  setManualEnabled((v) => !v);
+                  setManualError(null);
+                  setManualGuildId(activeGuildId || manualGuildId);
+                }}
+              >
+                {manualEnabled ? "Hide" : "Show"}
+              </Button>
+            </div>
+          </div>
+
+          {manualEnabled ? (
+            <div className="mt-3 space-y-2" data-testid="activeclub-manual-guildid">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                <input
+                  className="h-9 w-full rounded-md border bg-background px-3 text-sm"
+                  placeholder="123456789012345678"
+                  value={manualGuildId}
+                  onChange={(e) => {
+                    setManualGuildId(e.target.value);
+                    setManualError(null);
+                  }}
+                  inputMode="numeric"
+                />
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="secondary"
+                  disabled={!userId || saveState === "saving"}
+                  onClick={() => {
+                    if (!userId) return;
+                    const nextId = manualGuildId.trim();
+                    if (!nextId) {
+                      setManualError("Enter a guild ID.");
+                      return;
+                    }
+                    if (!isSnowflake(nextId)) {
+                      setManualError("Invalid guild ID (expected 17–19 digit snowflake).");
+                      return;
+                    }
+                    setManualError(null);
+                    void persist(nextId);
+                  }}
+                >
+                  Save as Active Club
+                </Button>
+              </div>
+              {manualError ? <div className="text-xs text-red-300">{manualError}</div> : null}
+              <div className="text-xs text-zinc-400">
+                Note: this does not validate membership; it only sets the default guild scope used across web UI.
+              </div>
+            </div>
+          ) : null}
+        </div>
+
         <div className="rounded-xl border border-zinc-700 bg-zinc-950/40 p-3 text-xs text-zinc-300">
           <div className="font-medium text-zinc-200">Debug</div>
           <div className="mt-1 grid grid-cols-1 gap-1 sm:grid-cols-2">
@@ -281,6 +403,7 @@ export function ActiveClubPickerCard() {
             <div>guildOptions: {guildOptions.length}</div>
             <div>identityMap: {guildIdentityMap ? Object.keys(guildIdentityMap).length : "(loading)"}</div>
             <div>identityError: {guildIdentityError ?? "(none)"}</div>
+            <div>manualEnabled: {manualEnabled ? "true" : "false"}</div>
             <div>
               lastSaved:{" "}
               {typeof lastSavedAtMs === "number" ? new Date(lastSavedAtMs).toLocaleTimeString() : "(never)"}
