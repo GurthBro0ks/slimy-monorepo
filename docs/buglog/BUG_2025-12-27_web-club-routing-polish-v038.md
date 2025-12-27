@@ -74,3 +74,6 @@ Output (tail):
 
 ## Verification evidence
 - `scripts/verify/web-club-routing-polish-v038.sh` passed (includes a web build + client artifact scan for loopback/internal hosts + rg checks for the new UX recovery paths).
+
+## Commits
+- `3ea26bc` feat(web): club routing + active club recovery v0.38
