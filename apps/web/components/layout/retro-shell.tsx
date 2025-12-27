@@ -1,13 +1,12 @@
 'use client';
 import React, { useEffect, useRef } from 'react';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
 import { ChatWidget } from '../chat/chat-widget';
 
 export function RetroShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const router = useRouter();
   const slimeContainerRef = useRef<HTMLDivElement>(null);
 
   const isLoginPage = pathname === '/';
@@ -42,8 +41,8 @@ export function RetroShell({ children }: { children: React.ReactNode }) {
   }, [pathname]);
 
   const handleLogout = async () => {
-     try { await fetch('/api/auth/logout', { method: 'POST' }); } catch (e) {}
-     window.location.href = "/?logged_out=true";
+    await fetch('/api/auth/logout', { method: 'POST' }).catch(() => undefined);
+    window.location.href = "/?logged_out=true";
   };
 
   if (!showHeader) return <>{children}</>;
@@ -121,7 +120,15 @@ export function RetroShell({ children }: { children: React.ReactNode }) {
 
       <header className="web-header">
         <Link href="/" className="web-logo"><div style={{ width: 32, height: 32, position: "relative" }}><Image src="/brand/snail-glitch.png" alt="Snail" width={32} height={32} style={{ objectFit: "contain" }} /></div>slimyai.xyz</Link>
-        {showNav && <nav className="web-nav"><Link href="/dashboard" className="nav-btn">Dashboard</Link><Link href="/chat" className="nav-btn">Chat</Link><Link href="/club" className="nav-btn">Club</Link><button onClick={handleLogout} className="nav-btn">Log Out</button></nav>}
+        {showNav && (
+          <nav className="web-nav">
+            <Link href="/dashboard" className="nav-btn">Dashboard</Link>
+            <Link href="/chat" className="nav-btn">Chat</Link>
+            <Link href="/club" className="nav-btn">Club</Link>
+            <Link href="/settings" className="nav-btn">Settings</Link>
+            <button onClick={handleLogout} className="nav-btn">Log Out</button>
+          </nav>
+        )}
       </header>
 
       <div className="marquee-container">

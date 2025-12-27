@@ -67,6 +67,9 @@ jobs:
       - name: Verify web settings UI v0.32 (no loopback in client artifacts)
         run: bash scripts/verify/web-settings-ui-v032.sh
 
+      - name: Verify web settings UI v0.33 (nav + drafts guardrails)
+        run: bash scripts/verify/web-settings-ui-v033.sh
+
       - name: Verify settings sync clients v0.1 (admin-api regression + client builds)
         run: bash scripts/verify/settings-sync-clients-v01.sh
 
