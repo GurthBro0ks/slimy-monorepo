@@ -11,6 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { CopyBox } from "@/components/ui/copy-box";
 import { useAuth } from "@/lib/auth/context";
 import { createWebCentralSettingsClient } from "@/lib/api/central-settings-client";
+import { getGuildIdentityMap } from "@/lib/guildIdentity";
 
 type SaveState = "idle" | "saving" | "saved" | "error";
 
@@ -60,6 +61,8 @@ export function ActiveClubPickerCard() {
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [error, setError] = useState<string | null>(null);
   const [lastSavedAtMs, setLastSavedAtMs] = useState<number | null>(null);
+  const [guildIdentityMap, setGuildIdentityMap] = useState<Record<string, { id: string; name: string; iconUrl?: string }> | null>(null);
+  const [guildIdentityError, setGuildIdentityError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!userId) return;
@@ -79,6 +82,29 @@ export function ActiveClubPickerCard() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    if (!userId) {
+      setGuildIdentityMap(null);
+      setGuildIdentityError(null);
+      return;
+    }
+
+    let cancelled = false;
+    (async () => {
+      setGuildIdentityError(null);
+      const map = await getGuildIdentityMap();
+      if (cancelled) return;
+      setGuildIdentityMap(map);
+    })().catch((err) => {
+      if (cancelled) return;
+      setGuildIdentityError(safeString((err as any)?.message) || "guild_identity_load_failed");
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
 
   const persist = useCallback(
     async (nextGuildIdRaw: string) => {
@@ -113,6 +139,15 @@ export function ActiveClubPickerCard() {
     },
     [client, userId],
   );
+
+  const activeGuildIdentity = useMemo(() => {
+    const gid = activeGuildId.trim();
+    if (!gid) return null;
+    const fromMap = guildIdentityMap?.[gid];
+    if (fromMap) return fromMap;
+    const fromUser = guildOptions.find((g) => g.id === gid);
+    return fromUser ? { id: fromUser.id, name: fromUser.name } : null;
+  }, [activeGuildId, guildIdentityMap, guildOptions]);
 
   const activeClubLinks = useMemo(() => {
     const gid = activeGuildId.trim();
@@ -149,6 +184,36 @@ export function ActiveClubPickerCard() {
           </div>
         ) : null}
 
+        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-zinc-700 bg-zinc-950/30 p-3">
+          {activeGuildIdentity?.iconUrl ? (
+            <img
+              src={activeGuildIdentity.iconUrl}
+              alt=""
+              className="h-8 w-8 rounded border border-zinc-700 object-cover"
+            />
+          ) : (
+            <div className="h-8 w-8 rounded border border-zinc-700 bg-zinc-900" />
+          )}
+          <div className="min-w-[220px]">
+            <div className="text-sm font-medium text-zinc-100">
+              {activeGuildIdentity?.name || (activeGuildId ? "Unknown club" : "No active club")}
+            </div>
+            <div className="text-xs text-zinc-400">
+              {activeGuildId ? "Used as default guild scope across web UI." : "Pick a guild to make club pages feel consistent."}
+            </div>
+          </div>
+          {activeClubLinks ? (
+            <div className="ml-auto flex flex-wrap items-center gap-2">
+              <Button asChild variant="secondary" size="sm">
+                <Link href={activeClubLinks.club}>Open club</Link>
+              </Button>
+              <Button asChild variant="secondary" size="sm">
+                <Link href={activeClubLinks.clubSettings}>Club settings</Link>
+              </Button>
+            </div>
+          ) : null}
+        </div>
+
         {error ? (
           <Alert variant="destructive">
             <AlertTitle>Active club update failed</AlertTitle>
@@ -176,23 +241,13 @@ export function ActiveClubPickerCard() {
               <option value="">(none)</option>
               {guildOptions.map((g) => (
                 <option key={g.id} value={g.id}>
-                  {g.name}
+                  {(guildIdentityMap?.[g.id]?.name || g.name) + ` (${g.id})`}
                 </option>
               ))}
             </select>
             <Button onClick={() => void load()} variant="secondary" size="sm" disabled={!userId || saveState === "saving"}>
               Reload
             </Button>
-            {activeClubLinks ? (
-              <>
-                <Button asChild variant="secondary" size="sm">
-                  <Link href={activeClubLinks.club}>Open club</Link>
-                </Button>
-                <Button asChild variant="secondary" size="sm">
-                  <Link href={activeClubLinks.clubSettings}>Club settings</Link>
-                </Button>
-              </>
-            ) : null}
           </div>
         </div>
 
@@ -200,8 +255,12 @@ export function ActiveClubPickerCard() {
           <div className="font-medium text-zinc-200">Debug</div>
           <div className="mt-1 grid grid-cols-1 gap-1 sm:grid-cols-2">
             <div>userId: {userId ?? "(none)"}</div>
-            <div>activeGuildId: {activeGuildId ? <span className="font-mono">{activeGuildId}</span> : "(none)"}</div>
+            <div>
+              activeGuildId: {activeGuildId ? <span className="font-mono">{activeGuildId}</span> : "(none)"}
+            </div>
             <div>guildOptions: {guildOptions.length}</div>
+            <div>identityMap: {guildIdentityMap ? Object.keys(guildIdentityMap).length : "(loading)"}</div>
+            <div>identityError: {guildIdentityError ?? "(none)"}</div>
             <div>
               lastSaved:{" "}
               {typeof lastSavedAtMs === "number" ? new Date(lastSavedAtMs).toLocaleTimeString() : "(never)"}
@@ -212,4 +271,3 @@ export function ActiveClubPickerCard() {
     </Card>
   );
 }
-
