@@ -36,6 +36,7 @@
 - Web Settings UI v0.33: settings discoverability + drafts/unsaved guards + improved diff + memory panel + v0.33 verify script (CI-safe).
 - Web Settings Activity v0.34: added Settings Activity widget (recent change events) on `/status` (user scope) + `/club` (guild scope) + v0.34 verify script (CI-safe).
 - Web Active Guild Scope v0.35: persisted `activeGuildId` in central UserSettings + `/settings` picker + activity widget scope switcher + v0.35 verify script (CI-safe).
+- Web Guild Identity v0.36: added cached guildId→name/icon identity layer and updated Active Club + Settings Activity UIs to show human-friendly labels/icons + v0.36 verify script (CI-safe).
 - AGENTS.md + CONTINUITY checks enforced in CI.
 - Local preflight: `scripts/verify/compose-ports-available.sh` detects host port collisions before `docker compose up`.
 - CI guardrail: `scripts/verify/compose-config-valid.sh` ensures `docker compose config` succeeds (catches compose/env/YAML issues).
