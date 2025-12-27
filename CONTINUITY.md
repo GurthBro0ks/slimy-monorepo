@@ -34,6 +34,7 @@
 - Web Settings UI v0.31: added “Basic Settings” panels above the JSON editors (theme/chat/snail + widget/channels) while keeping JSON as the advanced/source-of-truth view.
 - Web Settings UI v0.32: settings pages polished with save state machine, diff preview, reset, and stale-change warning (via settings change cursor) + v0.32 verify script.
 - Web Settings UI v0.33: settings discoverability + drafts/unsaved guards + improved diff + memory panel + v0.33 verify script (CI-safe).
+- Web Settings Activity v0.34: added Settings Activity widget (recent change events) on `/status` (user scope) + `/club` (guild scope) + v0.34 verify script (CI-safe).
 - AGENTS.md + CONTINUITY checks enforced in CI.
 - Local preflight: `scripts/verify/compose-ports-available.sh` detects host port collisions before `docker compose up`.
 - CI guardrail: `scripts/verify/compose-config-valid.sh` ensures `docker compose config` succeeds (catches compose/env/YAML issues).
