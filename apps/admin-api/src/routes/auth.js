@@ -24,7 +24,7 @@ console.log("!!! AUTH LOGIC LOADED v304 (ACTIVE GUILD) !!!");
 // These ensure we never generate authorize URLs with localhost:3080 or /api/admin-api redirect_uris.
 const CANONICAL_ADMIN_ORIGIN = "https://admin.slimyai.xyz";
 const CANONICAL_AUTHORIZE_URL = `${CANONICAL_ADMIN_ORIGIN}/api/auth/discord/authorize-url`;
-const CANONICAL_CALLBACK_URL = `${CANONICAL_ADMIN_ORIGIN}/api/auth/discord/callback`;
+const CANONICAL_CALLBACK_URL = `${CANONICAL_ADMIN_ORIGIN}/api/auth/callback`;
 
 const DISCORD = {
   API: "https://discord.com/api/v10",
@@ -38,6 +38,14 @@ const DISCORD_PERMISSIONS = {
   MANAGE_CHANNELS: 0x10n,
   MANAGE_ROLES: 0x10000000n,
 };
+
+const CANONICAL_ADMIN_HOSTNAME = (() => {
+  try {
+    return new URL(CANONICAL_ADMIN_ORIGIN).hostname;
+  } catch {
+    return "admin.slimyai.xyz";
+  }
+})();
 
 function parsePermissions(value) {
   try {
@@ -183,6 +191,91 @@ function isLocalOrigin(origin) {
   }
 }
 
+function normalizePostLoginPath(value) {
+  if (!value || typeof value !== "string") return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  if (!trimmed.startsWith("/")) return null;
+  if (trimmed.startsWith("//")) return null;
+  if (trimmed.includes("\\")) return null;
+  if (trimmed.includes("\r") || trimmed.includes("\n")) return null;
+  return trimmed;
+}
+
+function isCallbackPath(pathname) {
+  const p = String(pathname || "").split("?")[0].split("#")[0];
+  return (
+    p === "/api/auth/callback" ||
+    p.startsWith("/api/auth/callback/") ||
+    p === "/api/auth/discord/callback" ||
+    p.startsWith("/api/auth/discord/callback/")
+  );
+}
+
+function enforceNoCallbackRedirect(redirectUrl, requestOrigin) {
+  const fallbackOrigin = (() => {
+    try {
+      return new URL(String(requestOrigin || "")).origin;
+    } catch {
+      return "";
+    }
+  })();
+
+  try {
+    if (typeof redirectUrl === "string" && redirectUrl.startsWith("/")) {
+      return isCallbackPath(redirectUrl) ? "/" : redirectUrl;
+    }
+
+    const u = new URL(String(redirectUrl || ""));
+    if (isCallbackPath(u.pathname)) {
+      return fallbackOrigin ? new URL("/", fallbackOrigin).toString() : "/";
+    }
+    return u.toString();
+  } catch {
+    return "/";
+  }
+}
+
+function enforceNoLoopbackRedirectInProd(redirectUrl, fallbackPath = "/") {
+  if (process.env.NODE_ENV !== "production") return redirectUrl;
+
+  try {
+    if (typeof redirectUrl === "string" && redirectUrl.startsWith("/")) return redirectUrl;
+    const u = new URL(String(redirectUrl || ""));
+    return isLocalHostname(u.hostname) ? fallbackPath : u.toString();
+  } catch {
+    return fallbackPath;
+  }
+}
+
+function safeDebugOrigin(origin) {
+  const raw = String(origin || "");
+  if (process.env.NODE_ENV !== "production") return raw;
+  return isLocalOrigin(raw) ? CANONICAL_ADMIN_ORIGIN : raw;
+}
+
+function safeDebugUrl(urlString) {
+  const raw = String(urlString || "");
+  if (process.env.NODE_ENV !== "production") return raw;
+  try {
+    const u = new URL(raw);
+    if (isLocalHostname(u.hostname)) return "REDACTED_LOOPBACK";
+  } catch {
+    // keep relative paths as-is; never echo loopback here
+  }
+  return raw;
+}
+
+function isCanonicalAdminRequest(req) {
+  try {
+    const origin = getRequestOrigin(req);
+    const u = new URL(origin);
+    return u.hostname === CANONICAL_ADMIN_HOSTNAME;
+  } catch {
+    return false;
+  }
+}
+
 router.get("/login", (req, res) => {
   // Safety net: legacy endpoint. Always send the browser to the canonical admin-ui entrypoint.
   return res.redirect(302, CANONICAL_AUTHORIZE_URL);
@@ -193,7 +286,46 @@ router.get("/callback", async (req, res) => {
   // Internal admin-ui -> admin-api proxy calls set a header so token exchange continues to work.
   const internal =
     String(req.headers["x-slimy-internal-auth-callback"] || "").trim() === "1";
-  if (!internal) {
+
+  const defaultPath =
+    normalizePostLoginPath(String(process.env.ADMIN_UI_POST_LOGIN_REDIRECT || "")) ||
+    "/guilds";
+
+  const debug = String(req.query?.debug || "").trim() === "1";
+  if (debug) {
+    const cookieRedirectUri =
+      typeof req.cookies?.oauth_redirect_uri === "string" ? req.cookies.oauth_redirect_uri : "";
+    const cookieReturnTo = typeof req.cookies?.oauth_return_to === "string" ? req.cookies.oauth_return_to : "";
+
+    const computed = enforceNoCallbackRedirect(
+      resolvePostLoginRedirectUrl({
+        cookieRedirectUri,
+        headers: req.headers || {},
+        returnToCookie: cookieReturnTo,
+        allowedOrigins: getAllowedOrigins(),
+        isLocalOrigin,
+        clientUrl: config.clientUrl,
+        defaultPath,
+      }),
+      getRequestOrigin(req),
+    );
+
+    const requestOrigin = safeDebugOrigin(getRequestOrigin(req));
+
+    return res.status(200).json({
+      ok: true,
+      internal,
+      requestOrigin,
+      redirectUri: safeDebugUrl(resolveDiscordRedirectUri(req)),
+      postLoginDefaultPath: defaultPath,
+      postLoginRedirect: safeDebugUrl(computed),
+      note: "no redirect performed in debug mode",
+    });
+  }
+
+  // If a browser hits admin-api directly on the canonical admin domain (via Caddy), do not bounce
+  // back to the same callback URL (that creates a self-redirect loop).
+  if (!internal && !isCanonicalAdminRequest(req)) {
     const qs = typeof req.url === "string" && req.url.includes("?") ? req.url.slice(req.url.indexOf("?")) : "";
     return res.redirect(302, `${CANONICAL_CALLBACK_URL}${qs}`);
   }
@@ -441,10 +573,22 @@ router.get("/callback", async (req, res) => {
       allowedOrigins: getAllowedOrigins(),
       isLocalOrigin,
       clientUrl: config.clientUrl,
-      defaultPath: "/guilds",
+      defaultPath,
     });
 
-    return res.redirect(redirectUrl);
+    const requestOrigin = getRequestOrigin(req);
+    const safeRedirect = enforceNoCallbackRedirect(redirectUrl, requestOrigin);
+    const loopbackSafe = enforceNoLoopbackRedirectInProd(safeRedirect, defaultPath);
+
+    // Structured monitoring for callback redirect (no secrets; loopback redacted in prod)
+    console.log("[auth/callback] Redirect decision", {
+      requestOrigin: safeDebugOrigin(requestOrigin),
+      redirectTarget: safeDebugUrl(loopbackSafe),
+      callbackLoopGuardTriggered: safeRedirect !== redirectUrl,
+      loopbackGuardTriggered: loopbackSafe !== safeRedirect,
+    });
+
+    return res.redirect(loopbackSafe);
   } catch (err) {
     console.error("[auth/callback] CRITICAL ERROR:", err);
     return res.redirect("/?error=server_error");
