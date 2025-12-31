@@ -33,6 +33,7 @@ NODE_ENV=production
 DISCORD_CLIENT_ID=your_oauth_app_id
 DISCORD_CLIENT_SECRET=your_oauth_secret
 DISCORD_REDIRECT_URI=https://admin.slimyai.xyz/api/auth/callback
+ADMIN_UI_POST_LOGIN_REDIRECT=/guilds
 
 # Discord Bot credentials - for checking bot membership
 DISCORD_BOT_TOKEN=your_bot_token

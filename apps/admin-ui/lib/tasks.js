@@ -3,6 +3,14 @@
 const API_BASE =
   process.env.NEXT_PUBLIC_ADMIN_API_BASE ?? "";
 
+/**
+ * SSR / test / node-safe EventSource accessor
+ */
+const getEventSource = () => {
+  if (typeof window === "undefined") return null;
+  return globalThis.EventSource ?? null;
+};
+
 function safeParse(data) {
   if (typeof data !== "string") return data;
   try {
@@ -52,8 +60,16 @@ export async function runTaskStream({
 
 export function subscribeTask(taskId, { onEvent } = {}) {
   return new Promise((resolve) => {
+    const ES = getEventSource();
+    if (!ES) {
+      // SSR or unsupported environment - resolve immediately
+      console.warn("EventSource not available in this environment");
+      resolve({ status: "unavailable" });
+      return;
+    }
+
     let settled = false;
-    const source = new EventSource(
+    const source = new ES(
       `${API_BASE}/api/tasks/${taskId}/stream`,
       { withCredentials: true },
     );
@@ -72,7 +88,7 @@ export function subscribeTask(taskId, { onEvent } = {}) {
       if (payload && onEvent) {
         onEvent({ event: "error", data: payload });
       }
-      if (source.readyState === EventSource.CLOSED) {
+      if (source.readyState === ES.CLOSED) {
         cleanup();
         resolve({ status: "closed" });
       }
@@ -89,7 +105,7 @@ export function subscribeTask(taskId, { onEvent } = {}) {
     });
 
     source.onerror = () => {
-      if (source.readyState === EventSource.CLOSED) {
+      if (source.readyState === ES.CLOSED) {
         cleanup();
         if (!settled) {
           settled = true;

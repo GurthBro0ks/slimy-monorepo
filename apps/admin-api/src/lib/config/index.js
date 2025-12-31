@@ -139,7 +139,7 @@ function loadConfig() {
     "http://localhost:3000",
   ];
 
-  const DEFAULT_REDIRECT_URI = "https://admin.slimyai.xyz/api/auth/discord/callback";
+  const DEFAULT_REDIRECT_URI = "https://admin.slimyai.xyz/api/auth/callback";
   const DEFAULT_SCOPES = "identify guilds";
 
   const rawConfig = {

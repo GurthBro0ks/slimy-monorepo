@@ -63,8 +63,8 @@ const CLIENT_BASE_URL = resolveClientBaseUrl();
 
 const DEFAULT_DISCORD_REDIRECT_URI =
   process.env.NODE_ENV === "production"
-    ? "https://admin.slimyai.xyz/api/auth/discord/callback"
-    : "http://localhost:3081/api/auth/discord/callback";
+    ? "https://admin.slimyai.xyz/api/auth/callback"
+    : "http://localhost:3001/api/auth/callback";
 
 const config = {
   discord: {

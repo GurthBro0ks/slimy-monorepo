@@ -14,7 +14,7 @@ function isLocalOrigin(origin) {
 describe("resolvePostLoginRedirectUrl", () => {
   test("prefers oauth_redirect_uri cookie origin + oauth_return_to", () => {
     const url = resolvePostLoginRedirectUrl({
-      cookieRedirectUri: "http://localhost:3001/api/auth/discord/callback",
+      cookieRedirectUri: "http://localhost:3001/api/auth/callback",
       headers: {},
       returnToCookie: "/guilds",
       allowedOrigins: ["http://localhost:3000", "http://localhost:3001"],
@@ -54,4 +54,3 @@ describe("resolvePostLoginRedirectUrl", () => {
     expect(url).toBe("http://localhost:3000/guilds");
   });
 });
-

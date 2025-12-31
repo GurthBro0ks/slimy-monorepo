@@ -3,9 +3,10 @@
   "private": true,
   "scripts": {
     "dev": "next dev -p 3081",
+    "lint": "pnpm exec eslint .",
     "build": "next build",
     "start": "next start -p 3081",
-    "test": "node tests/oauth-origin.test.js && node tests/oauth-tripwire.test.js && node tests/auth-callback-proxy.test.js"
+    "test": "node tests/oauth-origin.test.js && node tests/oauth-tripwire.test.js && node tests/auth-callback-proxy.test.js && node tests/oauth-post-login-redirect-tripwire.test.js"
   },
   "dependencies": {
     "chart.js": "^4.5.1",

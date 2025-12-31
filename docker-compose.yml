@@ -36,7 +36,9 @@ services:
       DISCORD_CLIENT_ID: ${DISCORD_CLIENT_ID}
       DISCORD_CLIENT_SECRET: ${DISCORD_CLIENT_SECRET}
       # Route callback through admin-ui so cookies land on the same host.
-      DISCORD_REDIRECT_URI: ${DISCORD_REDIRECT_URI:-https://admin.slimyai.xyz/api/auth/discord/callback}
+      DISCORD_REDIRECT_URI: ${DISCORD_REDIRECT_URI:-https://admin.slimyai.xyz/api/auth/callback}
+      # Where the browser lands after a successful OAuth callback (must be a safe relative path).
+      ADMIN_UI_POST_LOGIN_REDIRECT: ${ADMIN_UI_POST_LOGIN_REDIRECT:-/guilds}
       DISCORD_OAUTH_SCOPES: ${DISCORD_OAUTH_SCOPES:-identify guilds}
       DISCORD_BOT_TOKEN: ${DISCORD_BOT_TOKEN}
       # Optional; if unset, app may fall back to DISCORD_BOT_TOKEN.
@@ -141,6 +143,10 @@ services:
       NEXT_PUBLIC_ADMIN_API_PUBLIC_URL: ${NEXT_PUBLIC_ADMIN_API_PUBLIC_URL:-https://admin.slimyai.xyz}
       NEXT_PUBLIC_DISCORD_CLIENT_ID: ${NEXT_PUBLIC_DISCORD_CLIENT_ID:-}
       NEXT_PUBLIC_DISCORD_REDIRECT_URI: ${NEXT_PUBLIC_DISCORD_REDIRECT_URI:-}
+      # Server-side OAuth source of truth (used by /api/auth/discord/authorize-url).
+      DISCORD_REDIRECT_URI: ${DISCORD_REDIRECT_URI:-https://admin.slimyai.xyz/api/auth/callback}
+      # Where the browser lands after a successful OAuth callback (must be a safe relative path).
+      ADMIN_UI_POST_LOGIN_REDIRECT: ${ADMIN_UI_POST_LOGIN_REDIRECT:-/guilds}
       ADMIN_UI_ORIGIN: ${ADMIN_UI_ORIGIN:-}
       ADMIN_API_INTERNAL_URL: "http://admin-api:3080"
       ALLOW_LOCALHOST_OAUTH: ${ALLOW_LOCALHOST_OAUTH:-0}

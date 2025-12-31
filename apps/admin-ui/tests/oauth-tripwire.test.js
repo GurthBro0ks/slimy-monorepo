@@ -30,16 +30,16 @@ const authorizeFile = path.join(__dirname, "..", "pages", "api", "auth", "discor
 const authorizeSrc = read(authorizeFile);
 
 assert.ok(
-  authorizeSrc.includes("/api/auth/discord/callback"),
-  `[tripwire] ${rel(authorizeFile)} must use /api/auth/discord/callback`,
+  authorizeSrc.includes("process.env.DISCORD_REDIRECT_URI"),
+  `[tripwire] ${rel(authorizeFile)} must use DISCORD_REDIRECT_URI as the redirect_uri source of truth`,
 );
 assert.ok(
-  !authorizeSrc.includes("/api/auth/callback"),
-  `[tripwire] ${rel(authorizeFile)} must not reference legacy /api/auth/callback`,
+  !authorizeSrc.includes("/api/auth/discord/callback"),
+  `[tripwire] ${rel(authorizeFile)} must not hardcode /api/auth/discord/callback`,
 );
 assert.ok(
-  !authorizeSrc.includes("/api/admin-api/"),
-  `[tripwire] ${rel(authorizeFile)} must not reference /api/admin-api/`,
+  !authorizeSrc.includes("api/admin-api/api/auth/callback"),
+  `[tripwire] ${rel(authorizeFile)} must not reference the legacy api/admin-api/api/auth/callback redirect`,
 );
 assert.ok(
   !authorizeSrc.includes("localhost:3080"),
@@ -80,4 +80,3 @@ assert.deepStrictEqual(
 console.log("[PASS] no legacy auth/proxy references in client bundle");
 
 console.log("\n=== All oauth tripwires passed ===");
-

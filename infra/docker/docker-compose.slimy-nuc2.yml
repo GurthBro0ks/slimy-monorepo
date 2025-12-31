@@ -40,8 +40,10 @@ services:
       BACKUP_MYSQL_DIR: /var/backups/slimy/mysql
       BACKUP_DATA_DIR: /var/backups/slimy/data
       CORS_ORIGIN: https://admin.slimyai.xyz
-      # Canonical OAuth redirect for admin-ui (avoid legacy /api/auth/callback).
-      DISCORD_REDIRECT_URI: https://admin.slimyai.xyz/api/auth/discord/callback
+      # Canonical OAuth redirect for admin-ui.
+      DISCORD_REDIRECT_URI: https://admin.slimyai.xyz/api/auth/callback
+      # Where the browser lands after a successful OAuth callback (must be a safe relative path).
+      ADMIN_UI_POST_LOGIN_REDIRECT: /guilds
 
     depends_on:
       slimy-db:
@@ -82,7 +84,9 @@ services:
       PORT: 3000
       ADMIN_API_INTERNAL_URL: "http://admin-api:3080"
       ADMIN_UI_ORIGIN: https://admin.slimyai.xyz
-      NEXT_PUBLIC_DISCORD_REDIRECT_URI: https://admin.slimyai.xyz/api/auth/discord/callback
+      DISCORD_REDIRECT_URI: https://admin.slimyai.xyz/api/auth/callback
+      NEXT_PUBLIC_DISCORD_REDIRECT_URI: https://admin.slimyai.xyz/api/auth/callback
+      ADMIN_UI_POST_LOGIN_REDIRECT: /guilds
       ALLOW_LOCALHOST_OAUTH: "0"
     depends_on:
       admin-api:
@@ -141,6 +145,13 @@ services:
   caddy:
     image: caddy:2
     container_name: slimy-caddy
+    # This host runs Caddy via systemd (`/etc/caddy/Caddyfile`). Running a second
+    # Caddy in Docker (host network) can conflict on :80/:443 and fight over ACME
+    # certificate challenges/storage.
+    #
+    # Enable only when you explicitly want Docker-managed Caddy:
+    # `docker compose --profile docker-caddy up -d caddy`
+    profiles: ["docker-caddy"]
     restart: unless-stopped
     depends_on:
       web:

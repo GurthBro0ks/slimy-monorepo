@@ -5,7 +5,8 @@ services:
   # Example: ADMIN_API_PORT=3082 docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
   admin-api:
     environment:
-      DISCORD_REDIRECT_URI: http://localhost:${ADMIN_UI_PORT:-3001}/api/auth/discord/callback
+      DISCORD_REDIRECT_URI: http://localhost:${ADMIN_UI_PORT:-3001}/api/auth/callback
+      ADMIN_UI_POST_LOGIN_REDIRECT: ${ADMIN_UI_POST_LOGIN_REDIRECT:-/guilds}
       SESSION_COOKIE_DOMAIN: .localhost
       COOKIE_DOMAIN: .localhost
       CORS_ORIGIN: http://localhost:3000
@@ -27,4 +28,6 @@ services:
     environment:
       NEXT_PUBLIC_ADMIN_API_BASE: http://localhost:${ADMIN_API_PORT:-3080}
       NEXT_PUBLIC_ADMIN_API_PUBLIC_URL: http://localhost:${ADMIN_API_PORT:-3080}
+      DISCORD_REDIRECT_URI: http://localhost:${ADMIN_UI_PORT:-3001}/api/auth/callback
+      ADMIN_UI_POST_LOGIN_REDIRECT: ${ADMIN_UI_POST_LOGIN_REDIRECT:-/guilds}
       ALLOW_LOCALHOST_OAUTH: "1"
