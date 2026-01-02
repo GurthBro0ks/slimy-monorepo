@@ -241,3 +241,14 @@ Output (snippets):
 
 Deployment notes:
 - `docker compose -f infra/docker/docker-compose.slimy-nuc2.yml up -d --build admin-ui` rebuilt `admin-ui` and also recreated `admin-api` as part of the compose run; both returned to `healthy` afterward.
+
+## Step 6 — “RUN ANALYZIG” typo (evidence-driven)
+Repo search:
+- `rg -n -i "RUN ANALYZIG|ANALYZIG" -S` → no hits in source (only prior buglog mentions).
+
+Built asset search (admin-ui container):
+- `docker exec slimy-admin-ui sh -lc 'grep -Rni "ANALYZIG" /app/apps/admin-ui/.next | head -n 20 || true'` → no hits.
+- `docker exec slimy-admin-ui sh -lc 'grep -Rni "RUN ANALYZ" /app/apps/admin-ui/.next | head -n 20 || true'` → no hits.
+
+Status:
+- Could not locate the string in source or built admin-ui assets. Needs a screenshot + page URL (and ideally the DOM text context) to fix precisely.
