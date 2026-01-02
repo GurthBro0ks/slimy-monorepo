@@ -187,13 +187,42 @@ Commit message target: `fix(proxy): route /socket.io to socket server`
 Commit message target: `fix(admin-ui): remove duplicate /api from admin-api settings requests`
 
 ### Commands / outputs
-- TODO
+- Confirm correct upstream endpoint exists (unauthenticated shows 401 instead of 404):
+  ```bash
+  curl -i https://admin.slimyai.xyz/api/settings/guild/1176605506912141444 | head -n 15
+  ```
+  Output (excerpt):
+  ```text
+  HTTP/2 401
+  {"ok":false,"code":"UNAUTHORIZED","message":"Authentication required"}
+  ```
+
+- Run admin-ui tripwire tests (verifies no `/api/admin-api/` client references):
+  ```bash
+  pnpm -C apps/admin-ui test
+  ```
+  Output (excerpt):
+  ```text
+  [PASS] no legacy auth/proxy references in client bundle
+  === All oauth tripwires passed ===
+  ```
+
+- Deploy admin-ui:
+  ```bash
+  docker compose -f infra/docker/docker-compose.slimy-nuc2.yml up -d --build admin-ui
+  ```
+  Output (tail):
+  ```text
+  ✔ Container slimy-admin-ui   Started
+  ```
 
 ### Files changed
-- TODO
+- `apps/admin-ui/pages/settings.js`
+- `apps/admin-ui/pages/club/[guildId]/settings.js`
 
 ### Verification evidence
-- TODO
+- Tripwire test now passes (no `/api/admin-api/` references in client bundle).
+- Expected runtime behavior: settings client calls `/api/settings/...` (no more `/api/admin-api/api/...`).
 
 ---
 
