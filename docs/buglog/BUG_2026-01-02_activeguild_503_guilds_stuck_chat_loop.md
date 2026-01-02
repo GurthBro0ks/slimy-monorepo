@@ -202,3 +202,21 @@ Change summary (smallest safe change):
 
 Files changed:
 - `apps/admin-api/src/socket.js`
+
+## Deployment / Verification (host)
+Commands run:
+- `docker compose -f infra/docker/docker-compose.slimy-nuc2.yml up -d --build admin-api`
+- `docker compose -f infra/docker/docker-compose.slimy-nuc2.yml ps`
+- `curl -sS -D- https://admin.slimyai.xyz/api/health -o /dev/null`
+- `curl -sS -i -H 'Origin: https://admin.slimyai.xyz' "https://admin.slimyai.xyz/socket.io/?EIO=4&transport=polling&t=$(date +%s)" | head -n 25`
+
+Evidence (snippets):
+```
+slimy-admin-api ... Up ... (healthy)
+```
+
+```
+HTTP/2 200
+...
+0{"sid":"REDACTED","upgrades":["websocket"],"pingInterval":25000,"pingTimeout":20000,"maxPayload":1000000}
+```
