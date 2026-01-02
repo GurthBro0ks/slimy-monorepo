@@ -165,3 +165,29 @@ Output:
 Test Suites: 1 passed, 1 total
 Tests:       10 passed, 10 total
 ```
+
+## Step 3 — Fix `/api/guilds` pending/hanging + `server_error`
+Finding:
+- `GET /api/guilds` can become slow and/or return `500 server_error` when Discord is rate-limiting (`429`) or when the bot membership checks cause long waits.
+
+Change summary (smallest safe change):
+- Add short Discord fetch timeouts in `discord-shared-guilds`.
+- Avoid per-guild bot membership checks for non-manageable guilds (reduces Discord API load).
+- Do not retry `429` during guild-list bot membership checks (keeps request fast).
+- Map Discord failures surfaced as `err.status`:
+  - `401/403` → `401 discord_token_invalid`
+  - `429` → `429 discord_rate_limited`
+
+Files changed:
+- `apps/admin-api/src/services/discord-shared-guilds.js`
+- `apps/admin-api/src/routes/guilds.js`
+- `apps/admin-api/tests/guilds-list-discord-error-mapping.test.js`
+
+Commands run:
+- `pnpm -C apps/admin-api test -- "tests/guilds-list-.*\\.test\\.js"`
+
+Output:
+```
+Test Suites: 2 passed, 2 total
+Tests:       3 passed, 3 total
+```
