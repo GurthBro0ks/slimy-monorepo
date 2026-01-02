@@ -21,7 +21,7 @@ const prismaDatabase = require("../lib/database");
 const { requireGuildSettingsAdmin } = require("../services/guild-settings-authz");
 const {
   botInstalledInGuild,
-  getSharedGuildsForUser,
+  getAllUserGuildsWithBotStatus,
   getSlimyBotToken,
 } = require("../services/discord-shared-guilds");
 const {
@@ -93,11 +93,43 @@ router.get("/", async (req, res) => {
       return res.status(400).json({ error: "missing_discord_token" });
     }
 
-    const guilds = await getSharedGuildsForUser({
+    const rawGuilds = await getAllUserGuildsWithBotStatus({
       discordAccessToken: userRecord.discordAccessToken,
       userDiscordId: String(lookupId),
       concurrency: 4,
     });
+
+    let guilds = rawGuilds;
+
+    // Minimal hardening: if bot membership checks are unreliable (e.g. rotated/invalid bot token),
+    // preserve "installed" semantics for already-known guilds based on DB presence.
+    try {
+      const prisma = prismaDatabase.getClient();
+      const ids = rawGuilds.map((g) => String(g?.id || "")).filter(Boolean);
+      if (ids.length) {
+        const known = await prisma.guild.findMany({
+          where: { id: { in: ids } },
+          select: { id: true },
+        });
+        const knownIds = new Set(known.map((g) => String(g.id)));
+
+        if (knownIds.size) {
+          guilds = rawGuilds.map((g) => {
+            const id = String(g?.id || "");
+            const botInstalled = Boolean(g?.botInstalled) || (id && knownIds.has(id));
+            return {
+              ...g,
+              botInstalled,
+              installed: botInstalled,
+              botInGuild: botInstalled,
+              connectable: botInstalled,
+            };
+          });
+        }
+      }
+    } catch (err) {
+      console.warn("[guilds] failed to patch botInstalled from DB:", err?.message || err);
+    }
 
     return res.json({ guilds });
   } catch (err) {
@@ -105,7 +137,7 @@ router.get("/", async (req, res) => {
     if (code === "MISSING_SLIMYAI_BOT_TOKEN") {
       return res.status(500).json({ error: "MISSING_SLIMYAI_BOT_TOKEN" });
     }
-    console.error("[guilds] failed to fetch shared guilds", { code });
+    console.error("[guilds] failed to fetch guilds with bot status", { code });
     return res.status(500).json({ error: "server_error" });
   }
 });

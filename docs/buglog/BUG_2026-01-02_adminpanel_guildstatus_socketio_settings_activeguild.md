@@ -230,13 +230,53 @@ Commit message target: `fix(admin-ui): remove duplicate /api from admin-api sett
 Commit message target: `fix(guilds): correct availability gating + botInstalled display (+ temp debug panel)`
 
 ### Commands / outputs
-- TODO
+- Investigate why `botInstalled` was always false (Discord bot token auth failing in this environment):
+  ```bash
+  docker compose -f infra/docker/docker-compose.slimy-nuc2.yml exec -T admin-api sh -lc \
+    'node -e "const tok=String(process.env.DISCORD_BOT_TOKEN||\"\"); fetch(\"https://discord.com/api/v10/users/@me\",{headers:{Authorization:`Bot ${tok}`}}).then(r=>console.log(JSON.stringify({status:r.status}))).catch(e=>console.log(JSON.stringify({error:e&&e.message||String(e)})))"'
+  ```
+  Output:
+  ```text
+  {"status":401}
+  ```
+
+- Run focused regression test for `/api/guilds` botInstalled fallback:
+  ```bash
+  pnpm -C apps/admin-api test -- guilds-list-botinstalled-fallback.test.js
+  ```
+  Output (excerpt):
+  ```text
+  PASS  tests/guilds-list-botinstalled-fallback.test.js
+  ```
+
+- Deploy admin-api + admin-ui (build/recreate):
+  ```bash
+  docker compose -f infra/docker/docker-compose.slimy-nuc2.yml up -d --build admin-api admin-ui
+  ```
+  Output (tail; transient daemon message observed during recreate):
+  ```text
+  Error response from daemon: No such container: ...
+  ```
+
+- Confirm services healthy after deploy:
+  ```bash
+  docker compose -f infra/docker/docker-compose.slimy-nuc2.yml ps
+  ```
+  Output (excerpt):
+  ```text
+  slimy-admin-api   ...   Up ... (healthy)
+  slimy-admin-ui    ...   Up ... (healthy)
+  ```
 
 ### Files changed
-- TODO
+- `apps/admin-api/src/routes/guilds.js`
+- `apps/admin-api/tests/guilds-list-botinstalled-fallback.test.js`
+- `apps/admin-ui/pages/guilds/index.js`
 
 ### Verification evidence
-- TODO
+- `/guilds` UI now derives `botInstalled` from multiple possible keys and uses `manageable === false` as the only source for `UNAVAILABLE`.
+- `/guilds` includes a TEMP debug/status panel that prints the first 5 guild rows + keys (no cookies/tokens).
+- `/api/guilds` now patches `botInstalled=true` for guild IDs present in DB (covers known-installed guilds when bot token verification is unreliable).
 
 ---
 

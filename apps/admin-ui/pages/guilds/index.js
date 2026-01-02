@@ -215,9 +215,11 @@ export default function GuildsIndex() {
         {error && <div style={{ color: "#f87171" }}>{error}</div>}
         <div style={{ display: "grid", gap: "1rem" }}>
           {guilds.map((guild) => {
-            const installed = !!guild.installed;
-            const isManageable = guild.manageable !== false; // User can manage based on Discord perms
-            const canSelect = isManageable; // Manageable guilds are always selectable
+            const botInstalled = Boolean(
+              guild.botInstalled ?? guild.installed ?? guild.botInGuild ?? guild.connectable,
+            );
+            const isManageable = guild.manageable !== false; // UNAVAILABLE === not manageable
+            const canSelect = isManageable;
             return (
               <div
                 key={guild.id}
@@ -236,7 +238,7 @@ export default function GuildsIndex() {
                     Role: {((guild.roleLabel || guild.role || "member") + "").toUpperCase()}
                   </div>
                   <div style={{ opacity: 0.6, fontSize: "0.8rem" }}>
-                    {installed ? "Bot installed" : "Bot not installed"}
+                    {botInstalled ? "Bot installed" : "Bot not installed"}
                   </div>
                 </div>
                 <div style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
@@ -246,18 +248,44 @@ export default function GuildsIndex() {
                     disabled={selectingGuildId === guild.id || !canSelect}
                   >
                     {!isManageable
-                      ? "Unavailable"
+                      ? "UNAVAILABLE"
                       : selectingGuildId === guild.id
                         ? "Selecting…"
-                        : installed
-                          ? "Open"
-                          : "Invite Bot"}
+                        : botInstalled
+                          ? "OPEN"
+                          : "INVITE BOT"}
                   </button>
                 </div>
               </div>
             );
           })}
         </div>
+      </div>
+
+      {/* TEMP debug/status area (removable later) */}
+      <div className="card" style={{ padding: "1rem", marginTop: "1rem" }}>
+        <div style={{ fontWeight: 700, marginBottom: "0.75rem" }}>Debug / Status (temporary)</div>
+        <pre style={{ margin: 0, fontSize: "0.85rem", overflowX: "auto" }}>
+          {JSON.stringify(
+            {
+              total: guilds.length,
+              sample: guilds.slice(0, 5).map((g) => ({
+                id: g.id,
+                name: g.name,
+                roleLabel: g.roleLabel,
+                role: g.role,
+                manageable: g.manageable,
+                botInstalled: g.botInstalled,
+                installed: g.installed,
+                botInGuild: g.botInGuild,
+                connectable: g.connectable,
+                keys: Object.keys(g).sort(),
+              })),
+            },
+            null,
+            2,
+          )}
+        </pre>
       </div>
     </Layout>
   );
