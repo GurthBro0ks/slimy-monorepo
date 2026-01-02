@@ -2,6 +2,13 @@
 /**
  * Repo Health Report Generator
  * Produces JSON + HTML reports with charts, delta comparison with previous runs
+ *
+ * Features:
+ * - Git status, health checks, repo stats
+ * - Environment fingerprint (node/pnpm/docker/uname/df)
+ * - Report retention (--keep=N, default 30)
+ * - Offline Chart.js support with CDN fallback
+ * - Graceful docker handling for CI environments
  */
 
 import { execSync } from 'node:child_process';
@@ -11,6 +18,28 @@ import os from 'node:os';
 
 const REPO_ROOT = path.resolve(new URL('.', import.meta.url).pathname, '../..');
 const REPORTS_DIR = path.join(REPO_ROOT, 'docs/reports');
+
+// ============================================================================
+// CLI Arguments
+// ============================================================================
+
+const args = process.argv.slice(2);
+const keepArg = args.find(a => a.startsWith('--keep='));
+const KEEP_COUNT = keepArg ? parseInt(keepArg.split('=')[1], 10) : 30;
+
+if (args.includes('--help') || args.includes('-h')) {
+  console.log(`
+Usage: node scripts/report/run.mjs [options]
+
+Options:
+  --keep=N    Keep last N reports per host (default: 30)
+  --help, -h  Show this help message
+
+Environment Variables:
+  REPORT_HOST  Override hostname in report filenames
+`);
+  process.exit(0);
+}
 
 // ============================================================================
 // Utility Functions
@@ -46,6 +75,81 @@ function getHost() {
 }
 
 // ============================================================================
+// Vendor Files (Offline Chart.js Support)
+// ============================================================================
+
+function ensureVendorFiles() {
+  const vendorDir = path.join(REPORTS_DIR, 'vendor');
+  const chartDest = path.join(vendorDir, 'chart.umd.min.js');
+  const chartSrc = path.join(REPO_ROOT, 'scripts/report/vendor/chart.umd.min.js');
+
+  if (!fs.existsSync(vendorDir)) {
+    fs.mkdirSync(vendorDir, { recursive: true });
+  }
+
+  // Copy Chart.js if source exists and destination doesn't (or is older)
+  if (fs.existsSync(chartSrc)) {
+    const needsCopy = !fs.existsSync(chartDest) ||
+      fs.statSync(chartSrc).mtimeMs > fs.statSync(chartDest).mtimeMs;
+
+    if (needsCopy) {
+      fs.copyFileSync(chartSrc, chartDest);
+      console.log('  [vendor] Copied Chart.js to reports/vendor/');
+    }
+  } else {
+    console.log('  [vendor] Warning: Chart.js source not found, will use CDN only');
+  }
+}
+
+// ============================================================================
+// Report Retention (Pruning)
+// ============================================================================
+
+function pruneOldReports(host, keep) {
+  console.log(`  [prune] Checking retention (keep=${keep}) for host=${host}...`);
+
+  // Find all REPORT_*_<host>.json files (excluding LATEST_*)
+  const files = fs.readdirSync(REPORTS_DIR);
+  const pattern = new RegExp(`^REPORT_(\\d{4}-\\d{2}-\\d{2}_\\d{4})_${host}\\.json$`);
+
+  const reports = files
+    .map(f => {
+      const match = f.match(pattern);
+      if (match) {
+        return { timestamp: match[1], base: `REPORT_${match[1]}_${host}` };
+      }
+      return null;
+    })
+    .filter(Boolean)
+    .sort((a, b) => b.timestamp.localeCompare(a.timestamp)); // Newest first
+
+  const deleted = [];
+
+  if (reports.length > keep) {
+    const toDelete = reports.slice(keep);
+    for (const r of toDelete) {
+      // Delete both JSON and HTML
+      for (const ext of ['.json', '.html']) {
+        const filepath = path.join(REPORTS_DIR, r.base + ext);
+        if (fs.existsSync(filepath)) {
+          fs.unlinkSync(filepath);
+          deleted.push(r.base + ext);
+        }
+      }
+    }
+    console.log(`  [prune] Deleted ${deleted.length} files (${toDelete.length} report sets)`);
+  } else {
+    console.log(`  [prune] No pruning needed (${reports.length} reports, keep=${keep})`);
+  }
+
+  return {
+    host,
+    kept: Math.min(reports.length, keep),
+    deleted
+  };
+}
+
+// ============================================================================
 // Data Collection Functions
 // ============================================================================
 
@@ -64,6 +168,30 @@ function collectGitInfo() {
   };
 }
 
+function collectEnvFingerprint() {
+  console.log('  [env] Collecting environment fingerprint...');
+  const envErrors = [];
+
+  const collect = (name, cmd, timeout = 10000) => {
+    const result = run(cmd, { timeout });
+    if (!result.ok) {
+      envErrors.push({ field: name, error: result.output });
+      return null;
+    }
+    return result.output;
+  };
+
+  return {
+    nodeVersion: collect('nodeVersion', 'node -v'),
+    pnpmVersion: collect('pnpmVersion', 'pnpm -v'),
+    dockerVersion: collect('dockerVersion', 'docker --version'),
+    dockerComposeVersion: collect('dockerComposeVersion', 'docker compose version'),
+    uname: collect('uname', 'uname -a'),
+    diskRoot: collect('diskRoot', 'df -h /'),
+    envErrors: envErrors.length > 0 ? envErrors : undefined
+  };
+}
+
 function collectHealthChecks() {
   console.log('  [health] Running health checks...');
 
@@ -71,9 +199,19 @@ function collectHealthChecks() {
   console.log('    - Running tests...');
   const tests = run('pnpm -w run test', { timeout: 300000 });
 
-  // Docker compose status
-  console.log('    - Checking docker compose...');
-  const docker = run('docker compose ps --format "table {{.Name}}\t{{.Status}}\t{{.Ports}}"');
+  // Check if docker is available before running docker commands
+  console.log('    - Checking docker availability...');
+  const dockerAvailable = run('docker info', { timeout: 10000 });
+
+  let docker;
+  if (!dockerAvailable.ok) {
+    console.log('    - Docker not available, skipping compose check...');
+    docker = { ok: null, output: 'Docker not available (skipped)', skipped: true };
+  } else {
+    console.log('    - Checking docker compose...');
+    docker = run('docker compose ps --format "table {{.Name}}\t{{.Status}}\t{{.Ports}}"');
+    docker.skipped = false;
+  }
 
   // Admin health endpoint
   console.log('    - Checking admin health endpoint...');
@@ -85,7 +223,7 @@ function collectHealthChecks() {
 
   return {
     tests: { ok: tests.ok, output: tests.output },
-    docker: { ok: docker.ok, output: docker.output },
+    docker: { ok: docker.ok, output: docker.output, skipped: docker.skipped },
     adminHealth: { ok: adminHealth.ok, output: adminHealth.output },
     socketIo: { ok: socketIo.ok, output: socketIo.output }
   };
@@ -201,7 +339,7 @@ function calculateDelta(current, previous) {
 // ============================================================================
 
 function generateHtml(report) {
-  const { timestamp, host, git, health, stats, delta } = report;
+  const { timestamp, host, git, health, stats, delta, env } = report;
 
   // Prepare language data for pie chart
   const langData = Object.entries(stats.languages)
@@ -215,10 +353,21 @@ function generateHtml(report) {
   const folderLabels = stats.folders.map(f => f.path);
   const folderValues = stats.folders.map(f => f.bytes);
 
-  // Status indicator
-  const allHealthOk = health.tests.ok && health.docker.ok && health.adminHealth.ok;
+  // Status indicator (docker skipped doesn't count as failure)
+  const dockerOk = health.docker.skipped || health.docker.ok;
+  const allHealthOk = health.tests.ok && dockerOk && health.adminHealth.ok;
   const statusColor = allHealthOk ? '#22c55e' : '#ef4444';
   const statusText = allHealthOk ? 'HEALTHY' : 'ISSUES DETECTED';
+
+  // Docker status display
+  let dockerStatus;
+  if (health.docker.skipped) {
+    dockerStatus = '<span style="color: #ffa657;">⏭️ Skipped</span>';
+  } else if (health.docker.ok) {
+    dockerStatus = '<span class="ok">✅ Running</span>';
+  } else {
+    dockerStatus = '<span class="fail">❌ Error</span>';
+  }
 
   // Delta section HTML
   let deltaHtml = '';
@@ -243,13 +392,38 @@ function generateHtml(report) {
     `;
   }
 
+  // Environment section HTML
+  const envHtml = env ? `
+    <div class="card">
+      <h2>Environment</h2>
+      <table class="summary-table">
+        <tr><td>Node</td><td><code>${escapeHtml(env.nodeVersion || 'N/A')}</code></td></tr>
+        <tr><td>pnpm</td><td><code>${escapeHtml(env.pnpmVersion || 'N/A')}</code></td></tr>
+        <tr><td>Docker</td><td><code>${escapeHtml(env.dockerVersion || 'N/A')}</code></td></tr>
+        <tr><td>Docker Compose</td><td><code>${escapeHtml(env.dockerComposeVersion || 'N/A')}</code></td></tr>
+      </table>
+      <details>
+        <summary>System Info</summary>
+        <pre>${escapeHtml(env.uname || 'N/A')}</pre>
+        <pre>${escapeHtml(env.diskRoot || 'N/A')}</pre>
+      </details>
+    </div>
+  ` : '';
+
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Repo Health Report - ${host} - ${timestamp}</title>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <!-- Offline-first: try local vendor, fallback to CDN -->
+  <script src="vendor/chart.umd.min.js"></script>
+  <script>
+    if (typeof Chart === 'undefined') {
+      console.warn('Local Chart.js not found, loading from CDN...');
+      document.write('<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"><\\/script>');
+    }
+  </script>
   <style>
     :root {
       --bg: #0d1117;
@@ -365,13 +539,15 @@ function generateHtml(report) {
         <h2>Health Checks</h2>
         <table class="summary-table">
           <tr><td>Tests</td><td class="${health.tests.ok ? 'ok' : 'fail'}">${health.tests.ok ? '✅ Pass' : '❌ Fail'}</td></tr>
-          <tr><td>Docker</td><td class="${health.docker.ok ? 'ok' : 'fail'}">${health.docker.ok ? '✅ Running' : '❌ Error'}</td></tr>
+          <tr><td>Docker</td><td>${dockerStatus}</td></tr>
           <tr><td>Admin API</td><td class="${health.adminHealth.ok ? 'ok' : 'fail'}">${health.adminHealth.ok ? '✅ OK' : '❌ Error'}</td></tr>
           <tr><td>Socket.IO</td><td class="${health.socketIo.ok ? 'ok' : 'fail'}">${health.socketIo.ok ? '✅ OK' : '❌ Error'}</td></tr>
         </table>
       </div>
 
       ${deltaHtml}
+
+      ${envHtml}
 
       <!-- Language Chart -->
       <div class="card">
@@ -413,61 +589,65 @@ function generateHtml(report) {
   <script>
     // Language Pie Chart
     ${langData.length > 0 ? `
-    new Chart(document.getElementById('langChart'), {
-      type: 'pie',
-      data: {
-        labels: ${JSON.stringify(langLabels)},
-        datasets: [{
-          data: ${JSON.stringify(langValues)},
-          backgroundColor: [
-            '#58a6ff', '#f778ba', '#7ee787', '#ffa657', '#a5d6ff',
-            '#d2a8ff', '#79c0ff', '#ff7b72', '#ffc658', '#56d4dd'
-          ]
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: {
-            position: 'right',
-            labels: { color: '#c9d1d9', font: { size: 11 } }
+    if (typeof Chart !== 'undefined') {
+      new Chart(document.getElementById('langChart'), {
+        type: 'pie',
+        data: {
+          labels: ${JSON.stringify(langLabels)},
+          datasets: [{
+            data: ${JSON.stringify(langValues)},
+            backgroundColor: [
+              '#58a6ff', '#f778ba', '#7ee787', '#ffa657', '#a5d6ff',
+              '#d2a8ff', '#79c0ff', '#ff7b72', '#ffc658', '#56d4dd'
+            ]
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: 'right',
+              labels: { color: '#c9d1d9', font: { size: 11 } }
+            }
           }
         }
-      }
-    });
+      });
+    }
     ` : ''}
 
     // Folder Bar Chart
-    new Chart(document.getElementById('folderChart'), {
-      type: 'bar',
-      data: {
-        labels: ${JSON.stringify(folderLabels)},
-        datasets: [{
-          label: 'Size (MB)',
-          data: ${JSON.stringify(folderValues.map(b => (b / 1024 / 1024).toFixed(2)))},
-          backgroundColor: '#58a6ff'
-        }]
-      },
-      options: {
-        indexAxis: 'y',
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: { display: false }
+    if (typeof Chart !== 'undefined') {
+      new Chart(document.getElementById('folderChart'), {
+        type: 'bar',
+        data: {
+          labels: ${JSON.stringify(folderLabels)},
+          datasets: [{
+            label: 'Size (MB)',
+            data: ${JSON.stringify(folderValues.map(b => (b / 1024 / 1024).toFixed(2)))},
+            backgroundColor: '#58a6ff'
+          }]
         },
-        scales: {
-          x: {
-            grid: { color: '#30363d' },
-            ticks: { color: '#8b949e' }
+        options: {
+          indexAxis: 'y',
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false }
           },
-          y: {
-            grid: { display: false },
-            ticks: { color: '#c9d1d9', font: { size: 10 } }
+          scales: {
+            x: {
+              grid: { color: '#30363d' },
+              ticks: { color: '#8b949e' }
+            },
+            y: {
+              grid: { display: false },
+              ticks: { color: '#c9d1d9', font: { size: 10 } }
+            }
           }
         }
-      }
-    });
+      });
+    }
   </script>
 </body>
 </html>`;
@@ -494,7 +674,8 @@ async function main() {
 
   console.log(`Timestamp: ${timestamp}`);
   console.log(`Host: ${host}`);
-  console.log(`Repo: ${REPO_ROOT}\n`);
+  console.log(`Repo: ${REPO_ROOT}`);
+  console.log(`Retention: keep=${KEEP_COUNT}\n`);
 
   // Ensure reports directory exists
   if (!fs.existsSync(REPORTS_DIR)) {
@@ -502,9 +683,13 @@ async function main() {
     console.log(`Created reports directory: ${REPORTS_DIR}\n`);
   }
 
+  // Ensure vendor files (offline Chart.js)
+  ensureVendorFiles();
+
   // Collect data
   console.log('Collecting data...');
   const git = collectGitInfo();
+  const env = collectEnvFingerprint();
   const health = collectHealthChecks();
   const stats = collectRepoStats();
 
@@ -520,6 +705,7 @@ async function main() {
     timestampShort: timestamp,
     host,
     git,
+    env,
     health,
     stats,
     delta
@@ -540,17 +726,28 @@ async function main() {
   fs.copyFileSync(jsonPath, latestPath);
   console.log(`Written: ${latestPath}`);
 
+  // Prune old reports
+  const pruned = pruneOldReports(host, KEEP_COUNT);
+  report.pruned = pruned;
+
+  // Update JSON with pruned info
+  fs.writeFileSync(jsonPath, JSON.stringify(report, null, 2));
+  fs.copyFileSync(jsonPath, latestPath);
+
   // Summary
   console.log('\n=== Report Summary ===');
   console.log(`Branch: ${git.branch}`);
   console.log(`HEAD: ${git.head}`);
   console.log(`Dirty: ${git.dirty}`);
   console.log(`Tests: ${health.tests.ok ? 'PASS' : 'FAIL'}`);
-  console.log(`Docker: ${health.docker.ok ? 'OK' : 'ERROR'}`);
+  console.log(`Docker: ${health.docker.skipped ? 'SKIPPED' : (health.docker.ok ? 'OK' : 'ERROR')}`);
   console.log(`Admin Health: ${health.adminHealth.ok ? 'OK' : 'ERROR'}`);
   console.log(`Socket.IO: ${health.socketIo.ok ? 'OK' : 'ERROR'}`);
   if (delta) {
     console.log(`Delta: HEAD changed=${delta.headChanged}, Branch changed=${delta.branchChanged}`);
+  }
+  if (pruned.deleted.length > 0) {
+    console.log(`Pruned: ${pruned.deleted.length} files deleted`);
   }
 
   console.log('\n=== Done ===');
