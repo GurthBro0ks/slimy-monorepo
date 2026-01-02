@@ -15,7 +15,7 @@ export default function SettingsPage() {
   const { user, loading, csrfToken } = useSession();
 
   const userId = user?.discordId || user?.id || "";
-  const adminApiBaseUrl = "/api/admin-api";
+  const adminApiBaseUrl = "/api";
   const adminApi = useMemo(
     () =>
       createAdminApiClient({
@@ -25,7 +25,7 @@ export default function SettingsPage() {
           ...(csrfToken ? { "x-csrf-token": csrfToken } : null),
         },
       }),
-    [csrfToken],
+    [adminApiBaseUrl, csrfToken],
   );
 
   const [userChanges, setUserChanges] = useState({

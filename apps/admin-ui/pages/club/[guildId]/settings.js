@@ -28,7 +28,7 @@ export default function GuildSettingsPage() {
       (activeGuildAppRole === "admin" || activeGuildAppRole === "club"));
 
   const userId = user?.discordId || user?.id || "";
-  const adminApiBaseUrl = "/api/admin-api";
+  const adminApiBaseUrl = "/api";
   const adminApi = useMemo(
     () =>
       createAdminApiClient({
@@ -38,7 +38,7 @@ export default function GuildSettingsPage() {
           ...(csrfToken ? { "x-csrf-token": csrfToken } : null),
         },
       }),
-    [csrfToken],
+    [adminApiBaseUrl, csrfToken],
   );
 
   const [guildChanges, setGuildChanges] = useState({
