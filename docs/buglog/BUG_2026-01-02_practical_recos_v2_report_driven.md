@@ -67,12 +67,92 @@ Findings (unauthenticated session):
   - console shows 401 + redirect log.
 
 ## Fixes
-- Pending
+### Fix A: Chat UI truthfulness + no fake status
+What changed:
+- Chat socket status is now tracked centrally and only reports:
+  - `connecting` after creating a Socket.IO client
+  - `connected` only after a real `connect` event
+  - `error`/`disconnected` only after real events
+  - `not configured` (UI label) when no socket attempt exists
+- Prevent unauthenticated pages from initiating a chat socket connection (stops “vibes” websocket attempts before redirect).
+
+Files:
+- `apps/admin-ui/lib/socket.js`
+- `apps/admin-ui/components/SlimeChatBar.jsx`
+- `apps/admin-ui/pages/chat/index.js`
+- `apps/admin-ui/components/Layout.js`
+
+### Fix B: Debug/status panel on every page (behind a flag)
+What changed:
+- Debug panel is hidden by default; enable via:
+  - `localStorage.setItem('slimyDebug','1')`
+- Panel includes:
+  - route
+  - `NODE_ENV` + Next `buildId`
+  - `/api/auth/me` status + timestamp
+  - active guild id (session + route)
+  - chat socket status + last error
+  - admin-api health/diag status
+  - `Copy Debug` button (compact JSON payload)
+
+Files:
+- `apps/admin-ui/components/debug/DebugDock.tsx`
+- `apps/admin-ui/lib/slimy-debug.js`
+
+### Fix C: Guardrails to reduce React cascades
+What changed:
+- Added a global (minimal) error boundary wrapper around pages so rendering failures don’t white-screen the entire app.
+- Added cancellation guards to chat callbacks and defensive message handling.
+
+Files:
+- `apps/admin-ui/pages/_app.js`
+- `apps/admin-ui/components/SlimeChatBar.jsx`
+- `apps/admin-ui/pages/chat/index.js`
 
 ## Verification
-- Pending
+### Repo Health Report (after)
+Command:
+- `pnpm report:nuc2`
+
+Outputs:
+- `docs/reports/REPORT_2026-01-02_2243_nuc2.json`
+- `docs/reports/REPORT_2026-01-02_2243_nuc2.html`
+- `docs/reports/LATEST_nuc2.json`
+
+Delta summary vs baseline report (`docs/reports/REPORT_2026-01-02_2208_nuc2.json`):
+- Head: `2cb40aa` → `a8f468e` (code changes landed)
+- Tests: OK → OK
+- Docker: OK → OK
+- Admin Health: OK → OK
+- Socket.IO: OK → OK
+
+### Browser evidence (post-deploy)
+Automation: Playwright-in-Docker, with debug enabled via `localStorage.slimyDebug=1`.
+
+Screenshots:
+- `/guilds`: `docs/buglog/assets/2026-01-02_practical_recos_v2_report_driven/postdeploy/guilds.png`
+- `/chat`: `docs/buglog/assets/2026-01-02_practical_recos_v2_report_driven/postdeploy/chat.png`
+
+Network/console captures:
+- `/guilds`: `docs/buglog/assets/2026-01-02_practical_recos_v2_report_driven/postdeploy/guilds.json`
+- `/chat`: `docs/buglog/assets/2026-01-02_practical_recos_v2_report_driven/postdeploy/chat.json`
+
+Key evidence:
+- Unauthenticated `/chat` no longer makes a `/socket.io` websocket attempt before redirect (baseline did); now `websockets=[]` in `postdeploy/chat.json`.
+- DebugDock is visible on `/guilds` and `/chat` when enabled (see screenshots).
+
+### Tests/Lint
+- `pnpm -C apps/admin-ui test`: PASS
+- `pnpm -C apps/admin-ui lint`: warnings only (`@typescript-eslint/no-explicit-any`), exit code 0
 
 ## Files Changed
+- `apps/admin-ui/components/Layout.js`
+- `apps/admin-ui/components/SlimeChatBar.jsx`
+- `apps/admin-ui/components/debug/DebugDock.tsx`
+- `apps/admin-ui/lib/slimy-debug.js`
+- `apps/admin-ui/lib/socket.js`
+- `apps/admin-ui/pages/_app.js`
+- `apps/admin-ui/pages/chat/index.js`
 - `docs/buglog/BUG_2026-01-02_practical_recos_v2_report_driven.md`
 
 ## Commands Run (selected)
@@ -82,6 +162,36 @@ Baseline report:
   - Written: `docs/reports/REPORT_2026-01-02_2208_nuc2.html`
   - Written: `docs/reports/LATEST_nuc2.json`
   - Summary: Tests PASS, Docker OK, Admin Health OK, Socket.IO OK
+
+Baseline browser evidence (Playwright-in-Docker):
+- `docker run ... mcr.microsoft.com/playwright:latest ... pw_evidence.mjs .../baseline`
+  - Screenshot: `docs/buglog/assets/2026-01-02_practical_recos_v2_report_driven/baseline/chat.png`
+  - Notable: websocket attempt observed before redirect:
+    - `wss://admin.slimyai.xyz/socket.io/?EIO=4&transport=websocket`
+
+Build + deploy (nuc2 docker compose):
+- `docker compose -f infra/docker/docker-compose.slimy-nuc2.yml build admin-ui`
+- `docker compose -f infra/docker/docker-compose.slimy-nuc2.yml up -d admin-ui`
+- `docker compose -f infra/docker/docker-compose.slimy-nuc2.yml ps`
+  - `slimy-admin-ui` healthy after restart
+
+Post-deploy browser evidence:
+- `docker run ... mcr.microsoft.com/playwright:latest ... pw_evidence_after.mjs .../postdeploy`
+
+Tests:
+- `pnpm -C apps/admin-ui test`
+
+Lint:
+- `pnpm -C apps/admin-ui lint`
+
+Commit:
+- `git commit -m "fix(admin-ui): truthful chat status + debug panel + react guardrails (report-driven)"`
+
+After report:
+- `pnpm report:nuc2`
+  - Written: `docs/reports/REPORT_2026-01-02_2243_nuc2.json`
+  - Written: `docs/reports/REPORT_2026-01-02_2243_nuc2.html`
+  - Written: `docs/reports/LATEST_nuc2.json`
 
 Repo status (baseline):
 - `git status --porcelain=v1`
