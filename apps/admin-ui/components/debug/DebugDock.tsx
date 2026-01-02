@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/router";
 import { useSession } from "../../lib/session";
+import { getSocketStatusSnapshot, subscribeSocketStatus } from "../../lib/socket";
+import { isSlimyDebugEnabled, setSlimyDebugEnabled } from "../../lib/slimy-debug";
 
 type HealthState =
   | { status: "idle" | "loading" }
@@ -21,8 +23,8 @@ type GuildSummary = {
   roleSource?: string;
 };
 
-const LS_ENABLED = "slimy_debug_ui_enabled";
 const LS_OPEN = "slimy_debug_ui_open";
+const LS_OPEN_V2 = "slimyDebugOpen";
 
 function readLocalStorageFlag(key: string): boolean {
   if (typeof window === "undefined") return false;
@@ -66,19 +68,31 @@ export function DebugDock() {
   const [enabled, setEnabled] = useState<boolean>(false);
   const [open, setOpen] = useState<boolean>(false);
 
+  const [buildId, setBuildId] = useState<string | null>(null);
   const [health, setHealth] = useState<HealthState>({ status: "idle" });
   const [diag, setDiag] = useState<DiagState>({ status: "idle" });
   const [guilds, setGuilds] = useState<GuildSummary[] | null>(null);
+  const [meStatus, setMeStatus] = useState<{ status: "idle" | "loading" | "ok" | "unauth" | "error"; code: number | null; ts: string | null }>({
+    status: "idle",
+    code: null,
+    ts: null,
+  });
+  const [chatStatus, setChatStatus] = useState<any>(() => getSocketStatusSnapshot());
 
   const activeGuildId = useMemo(() => getActiveGuildId(pathname), [pathname]);
+  const sessionActiveGuildId = useMemo(() => {
+    if (!user) return null;
+    const value = (user as any).activeGuildId;
+    return value ? String(value) : null;
+  }, [user]);
   const activeGuild = useMemo(() => {
     if (!activeGuildId || !guilds) return null;
     return guilds.find((g) => String(g.id) === String(activeGuildId)) || null;
   }, [activeGuildId, guilds]);
 
   useEffect(() => {
-    const initialEnabled = envEnabled || readLocalStorageFlag(LS_ENABLED);
-    const initialOpen = readLocalStorageFlag(LS_OPEN);
+    const initialEnabled = envEnabled || isSlimyDebugEnabled();
+    const initialOpen = readLocalStorageFlag(LS_OPEN_V2) || readLocalStorageFlag(LS_OPEN);
     setEnabled(initialEnabled);
     setOpen(initialOpen);
   }, [envEnabled]);
@@ -89,7 +103,7 @@ export function DebugDock() {
       e.preventDefault();
       setEnabled((prev) => {
         const next = !prev;
-        if (!envEnabled) writeLocalStorageFlag(LS_ENABLED, next);
+        if (!envEnabled) setSlimyDebugEnabled(next);
         return next;
       });
     };
@@ -98,8 +112,32 @@ export function DebugDock() {
   }, [envEnabled]);
 
   useEffect(() => {
-    writeLocalStorageFlag(LS_OPEN, open);
+    writeLocalStorageFlag(LS_OPEN_V2, open);
   }, [open]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      setBuildId((window as any).__NEXT_DATA__?.buildId ?? null);
+    } catch {
+      setBuildId(null);
+    }
+  }, []);
+
+  useEffect(() => subscribeSocketStatus(setChatStatus), []);
+
+  useEffect(() => {
+    if (envEnabled) return;
+
+    const tick = () => {
+      const next = isSlimyDebugEnabled();
+      setEnabled((prev) => (prev === next ? prev : next));
+    };
+
+    tick();
+    const interval = setInterval(tick, 750);
+    return () => clearInterval(interval);
+  }, [envEnabled]);
 
   useEffect(() => {
     if (!enabled) return;
@@ -108,11 +146,14 @@ export function DebugDock() {
     const run = async () => {
       setHealth({ status: "loading" });
       setDiag({ status: "loading" });
+      setMeStatus((prev) => ({ ...prev, status: "loading" }));
 
 	      const [healthRes, diagRes] = await Promise.allSettled([
 	        fetch("/api/health", { cache: "no-store", credentials: "include" }),
 	        fetch("/api/diag", { cache: "no-store", credentials: "include" }),
 	      ]);
+
+      const meRes = await fetch("/api/auth/me", { cache: "no-store", credentials: "include" }).catch(() => null);
 
       if (canceled) return;
 
@@ -140,12 +181,21 @@ export function DebugDock() {
       } else {
         setDiag({ status: "error", requestId: null, code: "NETWORK" });
       }
+
+      if (meRes) {
+        if (meRes.status === 401) setMeStatus({ status: "unauth", code: 401, ts: new Date().toISOString() });
+        else if (meRes.ok) setMeStatus({ status: "ok", code: meRes.status, ts: new Date().toISOString() });
+        else setMeStatus({ status: "error", code: meRes.status, ts: new Date().toISOString() });
+      } else {
+        setMeStatus({ status: "error", code: null, ts: new Date().toISOString() });
+      }
     };
 
     run().catch(() => {
       if (!canceled) {
         setHealth({ status: "error", requestId: null, code: "UNKNOWN" });
         setDiag({ status: "error", requestId: null, code: "UNKNOWN" });
+        setMeStatus({ status: "error", code: null, ts: new Date().toISOString() });
       }
     });
 
@@ -188,12 +238,13 @@ export function DebugDock() {
     return {
       ts: new Date().toISOString(),
       route: pathname,
-      env: { NODE_ENV: process.env.NODE_ENV, NEXT_PUBLIC_DEBUG_UI: envEnabled ? "1" : "0" },
+      env: { NODE_ENV: process.env.NODE_ENV, buildId, NEXT_PUBLIC_DEBUG_UI: envEnabled ? "1" : "0" },
       user: user
         ? {
             id: (user as any).id ?? null,
             discordId: (user as any).discordId ?? (user as any).discord_id ?? null,
             role: (user as any).role ?? null,
+            activeGuildId: (user as any).activeGuildId ?? null,
           }
         : null,
       activeGuild: activeGuildId
@@ -218,56 +269,109 @@ export function DebugDock() {
               ? diag.authenticated ?? null
               : null,
       },
+      authMe: meStatus,
+      chat: chatStatus,
     };
-  }, [activeGuild?.name, activeGuild?.roleLabel, activeGuild?.roleSource, activeGuildId, diag, envEnabled, health, pathname, user]);
+  }, [activeGuild?.name, activeGuild?.roleLabel, activeGuild?.roleSource, activeGuildId, buildId, chatStatus, diag, envEnabled, health, meStatus, pathname, user]);
 
   const copyBlob = async () => {
-    const payload = JSON.stringify(debugBlob, null, 2);
+    const payload = JSON.stringify(debugBlob);
     await navigator.clipboard.writeText(payload);
   };
 
   if (!enabled) return null;
 
   return (
-    <div className="fixed bottom-3 right-3 z-[9999] text-xs">
+    <div
+      style={{
+        position: "fixed",
+        right: 12,
+        bottom: 12,
+        zIndex: 10000,
+        fontSize: 12,
+        fontFamily:
+          'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
+      }}
+    >
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="rounded border border-black bg-white px-3 py-2 font-mono shadow"
+        style={{
+          borderRadius: 10,
+          border: "1px solid rgba(255,255,255,0.18)",
+          background: "rgba(0,0,0,0.65)",
+          color: "rgba(255,255,255,0.92)",
+          padding: "8px 10px",
+          boxShadow: "0 10px 30px rgba(0,0,0,0.35)",
+          cursor: "pointer",
+        }}
         aria-expanded={open}
       >
         Debug
       </button>
 
       {open ? (
-        <div className="mt-2 w-[360px] max-w-[90vw] rounded border border-black bg-white p-3 font-mono shadow-lg">
-          <div className="flex items-center justify-between gap-2">
-            <div className="font-semibold">Status</div>
-            <div className="flex gap-2">
+        <div
+          style={{
+            marginTop: 10,
+            width: 380,
+            maxWidth: "90vw",
+            borderRadius: 12,
+            border: "1px solid rgba(255,255,255,0.18)",
+            background: "rgba(0,0,0,0.75)",
+            color: "rgba(255,255,255,0.92)",
+            padding: 12,
+            boxShadow: "0 16px 44px rgba(0,0,0,0.45)",
+            lineHeight: 1.4,
+            whiteSpace: "pre-wrap",
+            wordBreak: "break-word",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+            <div style={{ fontWeight: 700 }}>Status</div>
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
               <button
                 type="button"
                 onClick={() => {
                   if (!envEnabled) {
-                    writeLocalStorageFlag(LS_ENABLED, false);
+                    setSlimyDebugEnabled(false);
                     setEnabled(false);
                   } else {
                     setOpen(false);
                   }
                 }}
-                className="rounded border border-black px-2 py-1"
+                style={{
+                  borderRadius: 10,
+                  border: "1px solid rgba(255,255,255,0.18)",
+                  background: "rgba(0,0,0,0.4)",
+                  color: "rgba(255,255,255,0.92)",
+                  padding: "6px 8px",
+                  cursor: "pointer",
+                }}
                 title={envEnabled ? "Close" : "Disable"}
               >
                 {envEnabled ? "Close" : "Disable"}
               </button>
-              <button type="button" onClick={copyBlob} className="rounded border border-black px-2 py-1">
-                Copy Debug Blob
+              <button
+                type="button"
+                onClick={copyBlob}
+                style={{
+                  borderRadius: 10,
+                  border: "1px solid rgba(255,255,255,0.18)",
+                  background: "rgba(0,0,0,0.4)",
+                  color: "rgba(255,255,255,0.92)",
+                  padding: "6px 8px",
+                  cursor: "pointer",
+                }}
+              >
+                Copy Debug
               </button>
             </div>
           </div>
 
-          <div className="mt-2 space-y-1">
+          <div style={{ marginTop: 10, display: "grid", gap: 6 }}>
             <div>route: {pathname}</div>
-            <div>env: {process.env.NODE_ENV}</div>
+            <div>env: {process.env.NODE_ENV} {buildId ? `(build ${buildId})` : ""}</div>
             <div>
               user:{" "}
               {sessionLoading
@@ -276,11 +380,18 @@ export function DebugDock() {
                   ? `${(user as any).id ?? "?"} (${(user as any).role ?? "member"})`
                   : "none"}
             </div>
+            <div>auth/me: {meStatus.status}{meStatus.code ? ` (HTTP ${meStatus.code})` : ""}{meStatus.ts ? ` @ ${meStatus.ts}` : ""}</div>
+            <div>activeGuildId (session): {sessionActiveGuildId || "none"}</div>
             <div>
-              activeGuild: {activeGuildId || "none"}{" "}
+              routeGuildId: {activeGuildId || "none"}{" "}
               {activeGuildId && activeGuild?.roleLabel
                 ? `(${activeGuild.roleLabel}${activeGuild.roleSource ? `:${activeGuild.roleSource}` : ""})`
                 : ""}
+            </div>
+            <div>
+              chat: {chatStatus?.state || "unknown"}
+              {chatStatus?.socketId ? ` (id ${chatStatus.socketId})` : ""}
+              {chatStatus?.lastError ? ` err=${chatStatus.lastError}` : ""}
             </div>
             <div>
               admin-api health:{" "}
@@ -299,8 +410,8 @@ export function DebugDock() {
                   : diag.status}
             </div>
             {!envEnabled ? (
-              <div className="mt-2 opacity-70">
-                Tip: toggle with Ctrl+Shift+D (persists in localStorage).
+              <div style={{ marginTop: 8, opacity: 0.7 }}>
+                Tip: enable via `localStorage.setItem('slimyDebug','1')` or Ctrl+Shift+D.
               </div>
             ) : null}
           </div>

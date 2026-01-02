@@ -2,17 +2,19 @@
 
 import { useEffect, useState, useRef } from "react";
 import { useSession } from "../lib/session";
-import { getSocket } from "../lib/socket";
+import { getSocket, getSocketStatusSnapshot, subscribeSocketStatus } from "../lib/socket";
+import { debugError, debugLog, debugWarn } from "../lib/slimy-debug";
 
 export default function SlimeChatBar({ guildId }) {
   const { user } = useSession();
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
-  const [error, setError] = useState(null);
-  const [connecting, setConnecting] = useState(true);
+  const [localError, setLocalError] = useState(null);
+  const [socketStatus, setSocketStatus] = useState(() => getSocketStatusSnapshot());
   const socketRef = useRef(null);
   const messagesEndRef = useRef(null);
+  const mountedRef = useRef(true);
 
   const isAdmin = user?.role === "admin";
   const roleLabel = isAdmin ? "(admin)" : "";
@@ -31,13 +33,22 @@ export default function SlimeChatBar({ guildId }) {
         const cachedMessages = JSON.parse(cached);
         if (Array.isArray(cachedMessages)) {
           setMessages(cachedMessages);
-          console.log("[chat-bar] loaded", cachedMessages.length, "cached messages for", roomKey);
+          debugLog("[chat-bar] loaded", cachedMessages.length, "cached messages for", roomKey);
         }
       }
     } catch (err) {
-      console.warn("[chat-bar] failed to load cache:", err);
+      debugWarn("[chat-bar] failed to load cache:", err);
     }
   }, [user, cacheKey, roomKey]);
+
+  useEffect(() => subscribeSocketStatus(setSocketStatus), []);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   // Socket connection effect
   useEffect(() => {
@@ -45,29 +56,25 @@ export default function SlimeChatBar({ guildId }) {
 
     const socket = getSocket();
     const socketUrl = socket?.io?.uri || socket?.io?._uri || "same-origin";
-    console.log("[chat-bar] connecting to", socketUrl);
+    debugLog("[chat-bar] connecting to", socketUrl);
 
     socketRef.current = socket;
 
     const handleConnect = () => {
-      console.log("[chat-bar] connected");
-      setConnecting(false);
-      setError(null);
+      debugLog("[chat-bar] connected");
+      setLocalError(null);
     };
 
     const handleDisconnect = (reason) => {
-      console.log("[chat-bar] disconnected:", reason);
-      setConnecting(false);
-      setError("Disconnected from chat.");
+      debugLog("[chat-bar] disconnected:", reason);
     };
 
     const handleError = (err) => {
-      console.error("[chat-bar] socket error:", err);
-      setConnecting(false);
-      setError(err.error || err.message || "Connection error");
+      debugError("[chat-bar] socket error:", err);
     };
 
     const handleMessage = (message) => {
+      if (!message || typeof message !== "object") return;
       // Filter messages: admins see all, non-admins see only non-admin messages
       if (message.adminOnly && !isAdmin) {
         return;
@@ -79,18 +86,17 @@ export default function SlimeChatBar({ guildId }) {
           const last50 = updated.slice(-50);
           localStorage.setItem(cacheKey, JSON.stringify(last50));
         } catch (err) {
-          console.warn("[chat-bar] failed to cache messages:", err);
+          debugWarn("[chat-bar] failed to cache messages:", err);
         }
         return updated;
       });
     };
 
     const handleConnectError = (err) => {
-      console.error("[chat-bar] connect_error:", err.message);
-      setConnecting(false);
-      setError("Failed to connect to chat.");
+      debugError("[chat-bar] connect_error:", err?.message);
     };
 
+    if (!socket) return;
     socket.on("connect", handleConnect);
     socket.on("disconnect", handleDisconnect);
     socket.on("error", handleError);
@@ -104,7 +110,7 @@ export default function SlimeChatBar({ guildId }) {
       socket.off("chat:message", handleMessage);
       socket.off("connect_error", handleConnectError);
     };
-  }, [user, isAdmin]);
+  }, [user, isAdmin, cacheKey]);
 
   useEffect(() => {
     if (isOpen && messagesEndRef.current) {
@@ -122,8 +128,9 @@ export default function SlimeChatBar({ guildId }) {
     };
 
     socketRef.current.emit("chat:message", message, (response) => {
+      if (!mountedRef.current) return;
       if (response?.error) {
-        setError(response.error);
+        setLocalError(response.error);
       }
     });
 
@@ -138,6 +145,40 @@ export default function SlimeChatBar({ guildId }) {
   };
 
   if (!user) return null;
+
+  const showNotConfigured =
+    socketStatus.state === "idle" && !socketStatus.socketCreated && !socketStatus.attemptedAt;
+  const connectionLabel = showNotConfigured
+    ? "Not configured"
+    : socketStatus.state === "connected"
+      ? "Connected"
+      : socketStatus.state === "connecting"
+        ? "Connecting..."
+        : socketStatus.state === "disabled"
+          ? "Disabled"
+          : socketStatus.state === "disconnected"
+            ? "Disconnected"
+            : socketStatus.state === "error"
+              ? "Error"
+              : "Idle";
+  const connectionColor = showNotConfigured
+    ? "#9ca3af"
+    : socketStatus.state === "connected"
+      ? "#34d399"
+      : socketStatus.state === "connecting"
+        ? "#fbbf24"
+        : socketStatus.state === "error" || socketStatus.state === "disconnected"
+          ? "#ef4444"
+          : "#9ca3af";
+
+  const socketErrorText =
+    socketStatus.state === "error"
+      ? socketStatus.lastError || "Connection error"
+      : socketStatus.state === "disconnected"
+        ? socketStatus.disconnectReason || "Disconnected"
+        : null;
+
+  const disableInput = socketStatus.state === "connecting";
 
   return (
     <div
@@ -180,14 +221,12 @@ export default function SlimeChatBar({ guildId }) {
               {roleLabel}
             </span>
           )}
-          {connecting && (
-            <span style={{ fontSize: "0.75rem", color: "#fbbf24" }}>
-              Connecting...
-            </span>
-          )}
-          {error && (
+          <span style={{ fontSize: "0.75rem", color: connectionColor }}>
+            {connectionLabel}
+          </span>
+          {(localError || socketErrorText) && (
             <span style={{ fontSize: "0.75rem", color: "#ef4444" }}>
-              {error}
+              {localError || socketErrorText}
             </span>
           )}
         </div>
@@ -220,7 +259,7 @@ export default function SlimeChatBar({ guildId }) {
               lineHeight: "1.2",
             }}
           >
-            {messages.length === 0 && !error && !connecting && (
+            {messages.length === 0 && !(localError || socketErrorText) && socketStatus.state !== "connecting" && (
               <div style={{ color: "#9ca3af", textAlign: "center", marginTop: "2rem", fontSize: "0.75rem" }}>
                 No messages yet. Start chatting!
               </div>
@@ -231,13 +270,13 @@ export default function SlimeChatBar({ guildId }) {
                 style={{
                   padding: "4px 6px",
                   backgroundColor: msg.adminOnly ? "#374151" : "transparent",
-                  borderLeft: `2px solid ${msg.from.color}`,
+                  borderLeft: `2px solid ${msg?.from?.color || "#9ca3af"}`,
                   borderRadius: "2px",
                 }}
               >
                 <div style={{ display: "flex", alignItems: "baseline", gap: "0.4rem", marginBottom: "2px" }}>
-                  <span style={{ color: msg.from.color, fontWeight: "600", fontSize: "0.75rem" }}>
-                    {msg.from.name}
+                  <span style={{ color: msg?.from?.color || "#9ca3af", fontWeight: "600", fontSize: "0.75rem" }}>
+                    {msg?.from?.name || "User"}
                   </span>
                   <span style={{ color: "#6b7280", fontSize: "0.65rem" }}>
                     {new Date(msg.ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -257,7 +296,7 @@ export default function SlimeChatBar({ guildId }) {
           </div>
 
           {/* Input Box */}
-          {!error && (
+          {!(localError || socketErrorText) && (
             <div
               style={{
                 padding: "0.5rem 0.75rem",
@@ -272,7 +311,7 @@ export default function SlimeChatBar({ guildId }) {
                 onChange={(e) => setInput(e.target.value)}
                 onKeyPress={handleKeyPress}
                 placeholder={guildId ? "Type a message..." : "Select a guild first"}
-                disabled={!guildId || connecting}
+                disabled={!guildId || disableInput}
                 style={{
                   flex: 1,
                   padding: "0.4rem 0.6rem",
@@ -285,14 +324,14 @@ export default function SlimeChatBar({ guildId }) {
               />
               <button
                 onClick={handleSend}
-                disabled={!input.trim() || !guildId || connecting}
+                disabled={!input.trim() || !guildId || disableInput}
                 style={{
                   padding: "0.4rem 0.8rem",
-                  backgroundColor: input.trim() && guildId && !connecting ? "#3b82f6" : "#4b5563",
+                  backgroundColor: input.trim() && guildId && !disableInput ? "#3b82f6" : "#4b5563",
                   color: "#f3f4f6",
                   border: "none",
                   borderRadius: "0.25rem",
-                  cursor: input.trim() && guildId && !connecting ? "pointer" : "not-allowed",
+                  cursor: input.trim() && guildId && !disableInput ? "pointer" : "not-allowed",
                   fontSize: "0.75rem",
                   fontWeight: "600",
                 }}

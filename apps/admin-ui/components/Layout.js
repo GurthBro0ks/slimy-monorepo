@@ -6,7 +6,8 @@ import Link from "next/link";
 import { useRouter } from "next/router";
 import { useSession } from "../lib/session";
 import { useApi } from "../lib/api";
-import { ensureActiveGuildCookie, readActiveGuildSyncInfo, useActiveGuild } from "../lib/active-guild";
+import { disconnectSocket } from "../lib/socket";
+import { ensureActiveGuildCookie, useActiveGuild } from "../lib/active-guild";
 import DiagWidget from "./DiagWidget";
 import SlimeChatBar from "./SlimeChatBar";
 import SlimeChatWidget from "./SlimeChatWidget";
@@ -25,7 +26,6 @@ export default function Layout({ guildId, children, title, hideSidebar = false }
   const { user, refresh, csrfToken, loading: sessionLoading } = useSession();
   const activeGuild = useActiveGuild({ explicitGuildId: guildId, router });
   const [open, setOpen] = useState(false);
-  const [syncInfo, setSyncInfo] = useState(() => readActiveGuildSyncInfo());
   const canvasRef = useRef(null);
   const closeMenu = () => setOpen(false);
   const baseRole = user?.role || "member";
@@ -153,9 +153,6 @@ export default function Layout({ guildId, children, title, hideSidebar = false }
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  const showGuildDebug = router.pathname !== "/";
-  const syncTimestamp = syncInfo?.ts ? new Date(syncInfo.ts).toISOString() : "";
-
   useEffect(() => {
     if (!user || !activeGuild.guildId) return;
     let cancelled = false;
@@ -163,7 +160,6 @@ export default function Layout({ guildId, children, title, hideSidebar = false }
     (async () => {
       const result = await ensureActiveGuildCookie(activeGuild.guildId, { csrfToken });
       if (cancelled) return;
-      setSyncInfo(readActiveGuildSyncInfo());
       if (result?.performed && result?.ok) {
         await refresh();
       }
@@ -173,6 +169,12 @@ export default function Layout({ guildId, children, title, hideSidebar = false }
       cancelled = true;
     };
   }, [user?.id, user?.discordId, activeGuild.guildId, csrfToken, refresh]);
+
+  useEffect(() => {
+    if (sessionLoading) return;
+    if (user) return;
+    disconnectSocket();
+  }, [sessionLoading, user]);
 
   const content = useMemo(() => {
     if (sessionLoading) return children;
@@ -550,39 +552,6 @@ export default function Layout({ guildId, children, title, hideSidebar = false }
 	      {/* Slime Chat bottom bar (shows for all logged-in users) */}
 	      {user && <SlimeChatBar guildId={pageGuildId || activeGuildId} />}
 	      <SlimeChatWidget />
-
-      {showGuildDebug && (
-        <div
-          style={{
-            position: "fixed",
-            right: 12,
-            bottom: 12,
-            zIndex: 60,
-            maxWidth: 520,
-            padding: "10px 12px",
-            borderRadius: 10,
-            background: "rgba(0,0,0,0.55)",
-            border: "1px solid rgba(255,255,255,0.12)",
-            color: "rgba(255,255,255,0.9)",
-            fontFamily:
-              'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
-            fontSize: 12,
-            lineHeight: 1.4,
-            whiteSpace: "pre-wrap",
-            wordBreak: "break-all",
-          }}
-        >
-          {`path: ${router.asPath || router.pathname || "(unknown)"}
-activeGuildId: ${user?.activeGuildId || "(none)"}
-activeGuildAppRole: ${user?.activeGuildAppRole || "(none)"}
-sessionActiveGuildReady: ${user?.activeGuildId && user?.activeGuildAppRole ? "yes" : "no"}
-selectedGuildId: ${activeGuild.guildId || "(none)"}
-selectedGuildSource: ${activeGuild.source}
-lastGuildSyncId: ${syncInfo?.guildId || "(none)"}
-lastGuildSyncStatus: ${syncInfo?.status || "(none)"}
-lastGuildSyncAt: ${syncTimestamp || "(none)"}`}
-        </div>
-      )}
     </>
   );
 }

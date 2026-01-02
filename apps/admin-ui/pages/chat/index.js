@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Layout from "../../components/Layout";
 import { useSession } from "../../lib/session";
-import { getSocket, disconnectSocket } from "../../lib/socket";
+import { getSocket } from "../../lib/socket";
 import { useRouter } from "next/router";
 import { useGatedGuilds } from "../../lib/gated-guilds";
 
@@ -38,6 +38,7 @@ export default function SlimeChatPage() {
   const [error, setError] = useState("");
   const [adminOnly, setAdminOnly] = useState(false);
   const listRef = useRef(null);
+  const mountedRef = useRef(true);
 
   const isAdmin = user?.role === "admin" || serverActiveGuildAppRole === "admin";
   const hasAccess = useMemo(() => {
@@ -68,8 +69,21 @@ export default function SlimeChatPage() {
   }, [loading, gated.loading, user, serverActiveGuildId, hasAccess, router]);
 
   useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (loading) return;
+    if (!user) return;
+    if (!guildId) return;
+    if (!hasAccess) return;
+
     const socket = getSocket();
     const handler = (payload) => {
+      if (!payload || typeof payload !== "object") return;
       if (!guildId || payload.guildId === guildId) {
         setMessages((prev) => {
           if (payload.messageId) {
@@ -88,9 +102,7 @@ export default function SlimeChatPage() {
     return () => {
       socket.off("chat:message", handler);
     };
-  }, [guildId]);
-
-  useEffect(() => () => disconnectSocket(), []);
+  }, [guildId, hasAccess, loading, user?.id]);
 
   useEffect(() => {
     if (!listRef.current) return;
@@ -102,6 +114,8 @@ export default function SlimeChatPage() {
   }, [messages]);
 
   const handleSend = useCallback(() => {
+    if (loading) return;
+    if (!user) return;
     if (!guildId || !input.trim()) return;
     const text = input.trim();
     setInput("");
@@ -126,6 +140,7 @@ export default function SlimeChatPage() {
     setMessages((prev) => [...prev, localMessage]);
     const requestBot = /@slimy(\.ai)?/i.test(text);
     socket.emit("chat:message", { guildId, text, messageId, requestBot, adminOnly }, (ack) => {
+      if (!mountedRef.current) return;
       if (ack && ack.error) {
         setError(ack.error);
         setMessages((prev) =>
@@ -135,7 +150,7 @@ export default function SlimeChatPage() {
         );
       }
     });
-  }, [guildId, input, user, adminOnly]);
+  }, [adminOnly, guildId, input, loading, user]);
 
   const header = useMemo(() => {
     const list = Array.isArray(gated.guilds) ? gated.guilds : [];
@@ -164,7 +179,7 @@ export default function SlimeChatPage() {
             <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "1rem", flexWrap: "wrap" }}>
               <div>
                 <h3 style={{ margin: 0 }}>{header}</h3>
-                <div style={{ opacity: 0.7, fontSize: "0.9rem" }}>Connected as {user?.globalName || user?.username}</div>
+                <div style={{ opacity: 0.7, fontSize: "0.9rem" }}>Signed in as {user?.globalName || user?.username}</div>
                 <div style={{ opacity: 0.7, fontSize: "0.85rem" }}>
                   <a href="/guilds" style={{ textDecoration: "underline" }}>Change guild</a>
                   {" · "}
