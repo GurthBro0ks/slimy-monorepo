@@ -191,3 +191,14 @@ Output:
 Test Suites: 2 passed, 2 total
 Tests:       3 passed, 3 total
 ```
+
+## Step 4 — Chat connect/disconnect loop (server-side stabilization)
+Hypothesis:
+- Socket.IO auth uses the session-store guild list; when it’s empty/missing, non-admins get `no_guild_context` and are disconnected.
+- During Discord rate limits or session-store issues, this can cause a connect → disconnect loop in the UI.
+
+Change summary (smallest safe change):
+- Add a DB fallback in the Socket.IO auth middleware: if session-store has no guilds, hydrate guild ids from DB via `getUserGuilds` (same strategy used in HTTP auth middleware).
+
+Files changed:
+- `apps/admin-api/src/socket.js`
