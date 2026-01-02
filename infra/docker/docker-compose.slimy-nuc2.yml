@@ -74,6 +74,8 @@ services:
     build:
       context: ../..
       dockerfile: apps/admin-ui/Dockerfile
+      args:
+        ADMIN_API_INTERNAL_URL: "http://admin-api:3080"
     container_name: slimy-admin-ui
     restart: unless-stopped
     env_file:
