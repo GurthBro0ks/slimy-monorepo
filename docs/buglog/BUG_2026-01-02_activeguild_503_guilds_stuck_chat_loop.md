@@ -238,3 +238,6 @@ Output (snippets):
 [PASS] auth callback proxy tripwires
 [PASS] oauth post-login redirect tripwires
 ```
+
+Deployment notes:
+- `docker compose -f infra/docker/docker-compose.slimy-nuc2.yml up -d --build admin-ui` rebuilt `admin-ui` and also recreated `admin-api` as part of the compose run; both returned to `healthy` afterward.
