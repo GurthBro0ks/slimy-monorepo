@@ -865,6 +865,11 @@ router.post("/active-guild", async (req, res) => {
   const normalizedUserId = String(userId);
 
   try {
+    const DISCORD_TIMEOUT_MS = 8_000;
+    const discordTimeoutSignal =
+      typeof globalThis.AbortSignal?.timeout === "function"
+        ? globalThis.AbortSignal.timeout(DISCORD_TIMEOUT_MS)
+        : undefined;
     const ADMIN_PERMISSION = 0x8n;
     const MANAGE_GUILD_PERMISSION = 0x20n;
     const hasAdminOrManagePermission = (permissions) => {
@@ -911,46 +916,7 @@ router.post("/active-guild", async (req, res) => {
       return res.status(400).json({ ok: false, error: "missing_discord_token" });
     }
 
-    const guildsRes = await fetch(`${DISCORD.API}/users/@me/guilds`, {
-      headers: { Authorization: `Bearer ${discordAccessToken}` },
-    });
-
-    if (!guildsRes.ok) {
-      return res.status(503).json({
-        ok: false,
-        error: "discord_user_guilds_failed",
-        message: `Discord /users/@me/guilds failed (${guildsRes.status})`,
-      });
-    }
-
-    const guilds = await guildsRes.json().catch(() => []);
-    const list = Array.isArray(guilds) ? guilds : [];
-    const userGuild = list.find((g) => String(g?.id || "") === normalizedGuildId) || null;
-
-    if (!userGuild) {
-      return res.status(400).json({
-        ok: false,
-        error: "guild_not_in_user_guilds",
-        message: "Guild must be present in your Discord guild list",
-      });
-    }
-
-    const manageable =
-      Boolean(userGuild.owner) || hasAdminOrManagePermission(userGuild.permissions);
-
-    // 3. Best-effort bot installation check using bot token (DO NOT block selection)
-    const botToken = getSlimyBotToken();
-    let botInstalled = null;
-    if (botToken) {
-      try {
-        botInstalled = await botInstalledInGuild(normalizedGuildId, botToken);
-      } catch (err) {
-        console.warn("[auth/active-guild] Bot membership check failed:", err?.message || err);
-        botInstalled = null;
-      }
-    }
-
-    // 4. Get guild info from database (best-effort)
+    // 2. DB lookup for membership/guild info (best-effort, also used as fallback when Discord is rate-limited)
     let guildInfo = null;
     let userGuildRecord = null;
     try {
@@ -973,6 +939,91 @@ router.post("/active-guild", async (req, res) => {
       }
     } catch (err) {
       console.warn("[auth/active-guild] DB lookup failed:", err?.message || err);
+    }
+
+    // 3. Validate the user actually belongs to this guild (aligns semantics with GET /api/guilds)
+    let guildsRes = null;
+    try {
+      guildsRes = await fetch(`${DISCORD.API}/users/@me/guilds`, {
+        headers: { Authorization: `Bearer ${discordAccessToken}` },
+        signal: discordTimeoutSignal,
+      });
+    } catch (err) {
+      console.warn(
+        "[auth/active-guild] Discord /users/@me/guilds request failed:",
+        err?.name || err?.message || err,
+      );
+      guildsRes = null;
+    }
+
+    if (!guildsRes) {
+      if (!userGuildRecord) {
+        return res.status(503).json({
+          ok: false,
+          error: "discord_user_guilds_unavailable",
+          message: "Discord /users/@me/guilds unavailable (and no DB fallback)",
+        });
+      }
+    } else if (!guildsRes.ok) {
+      const status = Number(guildsRes.status) || 0;
+
+      if (status === 401 || status === 403) {
+        return res.status(401).json({
+          ok: false,
+          error: "discord_token_invalid",
+          message: "Discord token invalid or expired; please re-authenticate",
+        });
+      }
+
+      // If Discord is rate-limiting, allow selecting previously-known guilds (DB fallback)
+      if (status === 429) {
+        const retryAfter = guildsRes.headers?.get?.("retry-after");
+        if (retryAfter) res.set("Retry-After", String(retryAfter));
+
+        if (!userGuildRecord) {
+          return res.status(429).json({
+            ok: false,
+            error: "discord_rate_limited",
+            message: "Discord rate limited; retry later",
+            retryAfterSeconds: retryAfter ? Number(retryAfter) : undefined,
+          });
+        }
+      } else if (!userGuildRecord) {
+        return res.status(503).json({
+          ok: false,
+          error: "discord_user_guilds_failed",
+          message: `Discord /users/@me/guilds failed (${status || "unknown"})`,
+        });
+      }
+    }
+
+    const guilds = guildsRes?.ok ? await guildsRes.json().catch(() => []) : [];
+    const list = Array.isArray(guilds) ? guilds : [];
+    const userGuild = list.find((g) => String(g?.id || "") === normalizedGuildId) || null;
+
+    if (guildsRes?.ok && !userGuild) {
+      return res.status(400).json({
+        ok: false,
+        error: "guild_not_in_user_guilds",
+        message: "Guild must be present in your Discord guild list",
+      });
+    }
+
+    const manageable =
+      userGuild
+        ? Boolean(userGuild.owner) || hasAdminOrManagePermission(userGuild.permissions)
+        : Boolean(userGuildRecord);
+
+    // 4. Best-effort bot installation check using bot token (DO NOT block selection)
+    const botToken = getSlimyBotToken();
+    let botInstalled = null;
+    if (botToken) {
+      try {
+        botInstalled = await botInstalledInGuild(normalizedGuildId, botToken);
+      } catch (err) {
+        console.warn("[auth/active-guild] Bot membership check failed:", err?.message || err);
+        botInstalled = null;
+      }
     }
 
     // 5. Compute role for this guild
