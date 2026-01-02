@@ -50,6 +50,7 @@
 - Admin-ui auth proxy hardening: `admin-ui` discord callback proxy honors `ADMIN_API_INTERNAL_URL` even when it is loopback, and no longer leaks upstream fetch error messages to clients.
 - Web chat hardening (chat-iframe-wrapper): added `/chat` as an iframe wrapper around `apps/web/public/slimechat/index.html` (legacy UI quarantined) with required debug/status box + iframe load status + cache-busting query param; backed up previous `apps/web/app/chat/page.tsx`.
 - Discord OAuth redirect_uri hardening: `apps/admin-ui` authorize URL now uses `DISCORD_REDIRECT_URI` directly (no `/api/admin-api` prefix drift) with a debug endpoint; added `/api/auth/callback` alias and updated compose/docs defaults to `https://admin.slimyai.xyz/api/auth/callback` (dev: `http://localhost:3001/api/auth/callback`).
+- Admin UI Practical Recos v2 (2026-01-02): chat status truth-gated + debug/status panel behind `localStorage.slimyDebug=1` + minimal error boundary/async guards (buglog: `docs/buglog/BUG_2026-01-02_practical_recos_v2_report_driven.md`).
 
 ### Now
 - Keep hard safety rails green (no loopback in public output; no secrets in memory).
