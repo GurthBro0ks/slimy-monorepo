@@ -16,24 +16,48 @@ jest.mock("../../src/services/discord-shared-guilds", () => ({
 describe("POST /api/auth/active-guild", () => {
   let app;
   let mockPrisma;
+  let mockUserGuilds;
+  const originalFetch = global.fetch;
 
   beforeEach(() => {
     jest.clearAllMocks();
 
     mockPrisma = {
       user: {
-        findUnique: jest.fn().mockResolvedValue({ id: "db-user-id", discordId: "user-123" }),
+        findUnique: jest.fn().mockResolvedValue({
+          id: "db-user-id",
+          discordId: "user-123",
+          discordAccessToken: "discord-access-token-test",
+        }),
         update: jest.fn().mockResolvedValue({})
       },
       userGuild: {
         findFirst: jest.fn().mockResolvedValue(null),
       },
       guild: {
-        findUnique: jest.fn().mockResolvedValue({ discordId: "guild-123", name: "Test Guild" }),
+        findUnique: jest.fn().mockResolvedValue({ id: "guild-123", name: "Test Guild" }),
       },
     };
+    prismaDatabase.initialize = jest.fn().mockResolvedValue(true);
     prismaDatabase.getClient = jest.fn(() => mockPrisma);
     prismaDatabase.client = null;
+
+    mockUserGuilds = [
+      { id: "guild-1", name: "Guild One", owner: false, permissions: "32" },
+      { id: "guild-123", name: "Test Guild", owner: false, permissions: "32" },
+      { id: sharedGuilds.PRIMARY_GUILD_ID, name: "Primary Guild", owner: false, permissions: "32" },
+    ];
+
+    global.fetch = jest.fn(async (url) => {
+      if (String(url).includes("/users/@me/guilds")) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => mockUserGuilds,
+        };
+      }
+      return { ok: false, status: 404, json: async () => ({}) };
+    });
 
     app = express();
     app.use(express.json());
@@ -45,7 +69,11 @@ describe("POST /api/auth/active-guild", () => {
     app.use("/api/auth", authRoutes);
   });
 
-  it("rejects guilds where bot is not installed (O(1) check)", async () => {
+  afterEach(() => {
+    global.fetch = originalFetch;
+  });
+
+  it("allows selecting manageable guild even when bot not installed", async () => {
     sharedGuilds.getSlimyBotToken.mockReturnValue("bot-token");
     sharedGuilds.botInstalledInGuild.mockResolvedValue(false);
 
@@ -53,12 +81,17 @@ describe("POST /api/auth/active-guild", () => {
       .post("/api/auth/active-guild")
       .send({ guildId: "guild-1" });
 
-    expect(res.status).toBe(400);
-    expect(res.body).toMatchObject({ ok: false, error: "guild_not_shared" });
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({
+      ok: true,
+      activeGuildId: "guild-1",
+      manageable: true,
+      botInstalled: false,
+    });
     expect(sharedGuilds.botInstalledInGuild).toHaveBeenCalledWith("guild-1", "bot-token");
   });
 
-  it("returns 503 when bot membership check fails", async () => {
+  it("allows selection when bot membership check fails (no retry-spam 400)", async () => {
     sharedGuilds.getSlimyBotToken.mockReturnValue("bot-token");
     sharedGuilds.botInstalledInGuild.mockRejectedValue(new Error("Discord API error"));
 
@@ -66,19 +99,19 @@ describe("POST /api/auth/active-guild", () => {
       .post("/api/auth/active-guild")
       .send({ guildId: "guild-1" });
 
-    expect(res.status).toBe(503);
-    expect(res.body).toMatchObject({ ok: false, error: "bot_membership_unverifiable" });
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({ ok: true, activeGuildId: "guild-1", botInstalled: null });
   });
 
-  it("returns 503 when bot token is missing", async () => {
+  it("allows selection when bot token is missing", async () => {
     sharedGuilds.getSlimyBotToken.mockReturnValue("");
 
     const res = await request(app)
       .post("/api/auth/active-guild")
       .send({ guildId: "guild-1" });
 
-    expect(res.status).toBe(503);
-    expect(res.body).toMatchObject({ ok: false, error: "bot_token_missing" });
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({ ok: true, activeGuildId: "guild-1", botInstalled: null });
   });
 
   it("succeeds when bot is installed in guild", async () => {
@@ -94,6 +127,8 @@ describe("POST /api/auth/active-guild", () => {
       ok: true,
       activeGuildId: "guild-123",
       appRole: "member",
+      manageable: true,
+      botInstalled: true,
     });
     const setCookie = res.headers["set-cookie"] || [];
     expect(setCookie.join(";")).toContain("slimy_admin_active_guild_id=");
@@ -114,6 +149,7 @@ describe("POST /api/auth/active-guild", () => {
       ok: true,
       activeGuildId: sharedGuilds.PRIMARY_GUILD_ID,
       appRole: "club",
+      manageable: true,
     });
     expect(sharedGuilds.fetchMemberRoles).toHaveBeenCalledWith(
       sharedGuilds.PRIMARY_GUILD_ID,
@@ -127,6 +163,10 @@ describe("POST /api/auth/active-guild", () => {
     sharedGuilds.botInstalledInGuild.mockResolvedValue(true);
 
     // Send numeric-like guildId
+    mockUserGuilds = [
+      ...mockUserGuilds,
+      { id: "1234567890123456789", name: "Numeric Guild", owner: false, permissions: "32" },
+    ];
     const res = await request(app)
       .post("/api/auth/active-guild")
       .send({ guildId: 1234567890123456789n.toString() });
@@ -134,5 +174,19 @@ describe("POST /api/auth/active-guild", () => {
     expect(res.status).toBe(200);
     expect(res.body.activeGuildId).toBe("1234567890123456789");
     expect(sharedGuilds.botInstalledInGuild).toHaveBeenCalledWith("1234567890123456789", "bot-token");
+  });
+
+  it("rejects selecting a guild not present in the user's Discord guild list", async () => {
+    mockUserGuilds = [{ id: "guild-1", name: "Guild One", owner: false, permissions: "32" }];
+
+    sharedGuilds.getSlimyBotToken.mockReturnValue("bot-token");
+    sharedGuilds.botInstalledInGuild.mockResolvedValue(true);
+
+    const res = await request(app)
+      .post("/api/auth/active-guild")
+      .send({ guildId: "guild-not-in-list" });
+
+    expect(res.status).toBe(400);
+    expect(res.body).toMatchObject({ ok: false, error: "guild_not_in_user_guilds" });
   });
 });

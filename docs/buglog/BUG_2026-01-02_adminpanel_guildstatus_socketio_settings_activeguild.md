@@ -284,13 +284,33 @@ Commit message target: `fix(guilds): correct availability gating + botInstalled 
 Commit message target: `fix(auth): accept manageable guild selection; prevent active-guild retry spam`
 
 ### Commands / outputs
-- TODO
+- Run focused auth regression tests (updated semantics + cookie behavior):
+  ```bash
+  pnpm -C apps/admin-api test -- tests/auth/active-guild.test.js tests/auth/active-guild.cookie.test.js
+  ```
+  Output (excerpt):
+  ```text
+  Test Suites: 2 passed, 2 total
+  Tests:       9 passed, 9 total
+  ```
+
+- Deploy admin-api:
+  ```bash
+  docker compose -f infra/docker/docker-compose.slimy-nuc2.yml up -d --build admin-api
+  ```
+  Output (tail):
+  ```text
+  ✔ Container slimy-admin-api  Started
+  ```
 
 ### Files changed
-- TODO
+- `apps/admin-api/src/routes/auth.js`
+- `apps/admin-api/tests/auth/active-guild.test.js`
+- `apps/admin-api/tests/auth/active-guild.cookie.test.js`
 
 ### Verification evidence
-- TODO
+- `POST /api/auth/active-guild` no longer 400s just because `botInstalled=false`; selection is accepted and cookie is set (stops Layout retry spam).
+- Route now validates `guildId` is present in the user’s Discord guild list (uses stored Discord access token), aligning semantics with `/api/guilds`.
 
 ---
 

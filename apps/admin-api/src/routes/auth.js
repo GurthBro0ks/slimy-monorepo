@@ -865,86 +865,117 @@ router.post("/active-guild", async (req, res) => {
   const normalizedUserId = String(userId);
 
   try {
-    // 1. Get Prisma client
+    const ADMIN_PERMISSION = 0x8n;
+    const MANAGE_GUILD_PERMISSION = 0x20n;
+    const hasAdminOrManagePermission = (permissions) => {
+      if (permissions === undefined || permissions === null) return false;
+      try {
+        const permsBigInt = BigInt(permissions);
+        const isAdmin = (permsBigInt & ADMIN_PERMISSION) === ADMIN_PERMISSION;
+        const canManage = (permsBigInt & MANAGE_GUILD_PERMISSION) === MANAGE_GUILD_PERMISSION;
+        return isAdmin || canManage;
+      } catch {
+        return false;
+      }
+    };
+
+    // 1. Get Prisma client (required for Discord access token lookup)
     let prisma = null;
     try {
-      prisma = typeof prismaDatabase.getClient === "function" ? prismaDatabase.getClient() : null;
-      if (!prisma && prismaDatabase?.client) {
-        prisma = prismaDatabase.client;
-      }
+      await prismaDatabase.initialize();
+      prisma = prismaDatabase.getClient();
     } catch {
-      // DB unavailable
+      prisma = null;
     }
 
-    // 2. O(1) bot installation check using bot token
-    const botToken = getSlimyBotToken();
-    if (!botToken) {
-      console.error("[auth/active-guild] SLIMYAI_BOT_TOKEN not configured");
+    if (!prisma) {
       return res.status(503).json({
         ok: false,
-        error: "bot_token_missing",
-        message: "Bot token not configured",
+        error: "db_unavailable",
+        message: "Database unavailable",
       });
     }
 
-    let botInstalled;
-    try {
-      botInstalled = await botInstalledInGuild(normalizedGuildId, botToken);
-    } catch (err) {
-      console.error("[auth/active-guild] Bot membership check failed:", err?.message || err);
+    // 2. Validate the user actually belongs to this guild (aligns semantics with GET /api/guilds)
+    const isSnowflake = /^\d{17,19}$/.test(normalizedUserId);
+    const dbUser = await prisma.user.findUnique({
+      where: isSnowflake ? { discordId: normalizedUserId } : { id: normalizedUserId },
+    });
+
+    if (!dbUser) {
+      return res.status(401).json({ ok: false, error: "unauthorized" });
+    }
+
+    const discordAccessToken = dbUser.discordAccessToken || "";
+    if (!discordAccessToken) {
+      return res.status(400).json({ ok: false, error: "missing_discord_token" });
+    }
+
+    const guildsRes = await fetch(`${DISCORD.API}/users/@me/guilds`, {
+      headers: { Authorization: `Bearer ${discordAccessToken}` },
+    });
+
+    if (!guildsRes.ok) {
       return res.status(503).json({
         ok: false,
-        error: "bot_membership_unverifiable",
-        message: "Could not verify bot membership in guild",
+        error: "discord_user_guilds_failed",
+        message: `Discord /users/@me/guilds failed (${guildsRes.status})`,
       });
     }
 
-    if (!botInstalled) {
+    const guilds = await guildsRes.json().catch(() => []);
+    const list = Array.isArray(guilds) ? guilds : [];
+    const userGuild = list.find((g) => String(g?.id || "") === normalizedGuildId) || null;
+
+    if (!userGuild) {
       return res.status(400).json({
         ok: false,
-        error: "guild_not_shared",
-        message: "Guild must be a shared guild with bot installed",
+        error: "guild_not_in_user_guilds",
+        message: "Guild must be present in your Discord guild list",
       });
     }
 
-    // 3. Get guild info from database
-    let guildInfo = null;
-    let userGuildRecord = null;
-    if (prisma) {
+    const manageable =
+      Boolean(userGuild.owner) || hasAdminOrManagePermission(userGuild.permissions);
+
+    // 3. Best-effort bot installation check using bot token (DO NOT block selection)
+    const botToken = getSlimyBotToken();
+    let botInstalled = null;
+    if (botToken) {
       try {
-        // First, find the user record
-        const isSnowflake = /^\d{17,19}$/.test(normalizedUserId);
-        const dbUser = await prisma.user.findUnique({
-          where: isSnowflake ? { discordId: normalizedUserId } : { id: normalizedUserId },
-        });
-
-        if (dbUser) {
-          // Check if user has access to this guild via UserGuild record
-          userGuildRecord = await prisma.userGuild.findFirst({
-            where: {
-              userId: dbUser.id,
-              guild: { discordId: normalizedGuildId },
-            },
-            include: { guild: true },
-          });
-
-          if (userGuildRecord?.guild) {
-            guildInfo = userGuildRecord.guild;
-          }
-        }
-
-        // If no UserGuild record, try to find guild directly
-        if (!guildInfo) {
-          guildInfo = await prisma.guild.findUnique({
-            where: { discordId: normalizedGuildId },
-          });
-        }
+        botInstalled = await botInstalledInGuild(normalizedGuildId, botToken);
       } catch (err) {
-        console.warn("[auth/active-guild] DB lookup failed:", err?.message || err);
+        console.warn("[auth/active-guild] Bot membership check failed:", err?.message || err);
+        botInstalled = null;
       }
     }
 
-    // 4. Compute role for this guild
+    // 4. Get guild info from database (best-effort)
+    let guildInfo = null;
+    let userGuildRecord = null;
+    try {
+      userGuildRecord = await prisma.userGuild.findFirst({
+        where: {
+          userId: dbUser.id,
+          guild: { id: normalizedGuildId },
+        },
+        include: { guild: true },
+      });
+
+      if (userGuildRecord?.guild) {
+        guildInfo = userGuildRecord.guild;
+      }
+
+      if (!guildInfo) {
+        guildInfo = await prisma.guild.findUnique({
+          where: { id: normalizedGuildId },
+        });
+      }
+    } catch (err) {
+      console.warn("[auth/active-guild] DB lookup failed:", err?.message || err);
+    }
+
+    // 5. Compute role for this guild
     let appRole = "member";
     const isPrimary = normalizedGuildId === PRIMARY_GUILD_ID;
 
@@ -963,21 +994,18 @@ router.post("/active-guild", async (req, res) => {
       appRole = computeRoleLabelFromRoles(userGuildRecord.roles);
     }
 
-    // 5. Update lastActiveGuildId in DB
-    if (prisma) {
-      try {
-        const isSnowflake = /^\d{17,19}$/.test(normalizedUserId);
-        await prisma.user.update({
-          where: isSnowflake ? { discordId: normalizedUserId } : { id: normalizedUserId },
-          data: { lastActiveGuildId: normalizedGuildId },
-        });
-      } catch (err) {
-        console.warn("[auth/active-guild] Failed to update lastActiveGuildId:", err?.message || err);
-        // Continue anyway - we'll still set the cookie
-      }
+    // 6. Update lastActiveGuildId in DB (best-effort)
+    try {
+      await prisma.user.update({
+        where: isSnowflake ? { discordId: normalizedUserId } : { id: normalizedUserId },
+        data: { lastActiveGuildId: normalizedGuildId },
+      });
+    } catch (err) {
+      console.warn("[auth/active-guild] Failed to update lastActiveGuildId:", err?.message || err);
+      // Continue anyway - we'll still set the cookie
     }
 
-    // 6. Set the active guild cookie
+    // 7. Set the active guild cookie
     const cookieOptions = getCookieOptions(req);
     res.cookie(ACTIVE_GUILD_COOKIE_NAME, normalizedGuildId, {
       ...cookieOptions,
@@ -986,12 +1014,14 @@ router.post("/active-guild", async (req, res) => {
       maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
     });
 
-    // 7. Return success with activeGuildId and appRole
+    // 8. Return success with activeGuildId and appRole
     return res.json({
       ok: true,
       activeGuildId: normalizedGuildId,
       appRole,
-      guildName: guildInfo?.name || null,
+      manageable,
+      botInstalled,
+      guildName: guildInfo?.name || userGuild?.name || null,
     });
   } catch (err) {
     console.error("[auth/active-guild] Error:", err);
