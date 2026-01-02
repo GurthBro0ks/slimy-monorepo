@@ -371,3 +371,6 @@ GET /api/health -> HTTP/2 200
 /api/admin-api/api/settings/... -> HTTP/2 404 (expected unused path)
 compose ps -> admin-api + admin-ui healthy
 ```
+
+Ops note:
+- `infra/docker/docker-compose.slimy-nuc2.yml` should pass `ADMIN_API_INTERNAL_URL` as a Docker build arg for `admin-ui` so Next.js rewrites do not default to `http://localhost:3080`.
