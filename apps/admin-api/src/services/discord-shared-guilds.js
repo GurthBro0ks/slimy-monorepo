@@ -192,6 +192,62 @@ async function getSharedGuildsForUser({
   return out;
 }
 
+function normalizeGuildEntryWithBotStatus(guild, botInstalled) {
+  const isPrimary = String(guild.id) === PRIMARY_GUILD_ID;
+  const isAdmin = Boolean(guild.owner) || hasAdminOrManagePermission(guild.permissions);
+  return {
+    id: String(guild.id),
+    name: guild.name,
+    icon: guild.icon ?? null,
+    botInstalled,
+    manageable: isAdmin, // User can manage/invite based on Discord permissions
+    connectable: botInstalled, // Backward compat: true only if bot installed
+    isPrimary,
+    roleLabel: isAdmin ? "admin" : "member",
+    roleSource: "permissions",
+    role: isAdmin ? "admin" : "member",
+    installed: botInstalled,
+    botInGuild: botInstalled,
+  };
+}
+
+async function getAllUserGuildsWithBotStatus({
+  discordAccessToken,
+  userDiscordId,
+  concurrency = 4,
+} = {}) {
+  const botToken = getSlimyBotToken();
+  if (!botToken) {
+    const err = new Error("MISSING_SLIMYAI_BOT_TOKEN");
+    err.code = "MISSING_SLIMYAI_BOT_TOKEN";
+    throw err;
+  }
+  if (!discordAccessToken) {
+    const err = new Error("missing_discord_token");
+    err.code = "missing_discord_token";
+    throw err;
+  }
+  if (!userDiscordId) {
+    const err = new Error("missing_user_discord_id");
+    err.code = "missing_user_discord_id";
+    throw err;
+  }
+
+  const userGuilds = await fetchUserGuilds(discordAccessToken);
+  const limit = createLimiter(Math.max(1, Math.min(8, Number(concurrency) || 4)));
+
+  const results = await Promise.all(
+    userGuilds.map((g) =>
+      limit(async () => {
+        const botInstalled = await botInstalledInGuild(g.id, botToken);
+        return normalizeGuildEntryWithBotStatus(g, botInstalled);
+      }),
+    ),
+  );
+
+  return results;
+}
+
 module.exports = {
   PRIMARY_GUILD_ID,
   ADMIN_ROLE_IDS,
@@ -199,6 +255,7 @@ module.exports = {
   getSlimyBotToken,
   botInstalledInGuild,
   getSharedGuildsForUser,
+  getAllUserGuildsWithBotStatus,
   computeRoleLabelFromRoles,
   fetchMemberRoles,
 };
