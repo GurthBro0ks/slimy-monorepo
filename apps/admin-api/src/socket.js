@@ -4,6 +4,7 @@ const { Server } = require("socket.io");
 const config = require("./config");
 const { verifySession, COOKIE_NAME } = require("../lib/jwt");
 const { getSession } = require("../lib/session-store");
+const prismaDatabase = require("./lib/database");
 const metrics = require("./lib/metrics");
 const { askChatBot } = require("./services/chat-bot");
 
@@ -70,6 +71,27 @@ function initSocket(server) {
       const guilds = Array.isArray(sessionData?.guilds) ? sessionData.guilds : [];
       socket.guildIds = guilds.map((g) => String(g.id));
       socket.isAdmin = socket.user.role === "admin";
+
+      // Fallback: hydrate guild ids from DB if session-store has none (prevents connect/disconnect loops).
+      if (!socket.isAdmin && socket.guildIds.length === 0) {
+        try {
+          await prismaDatabase.initialize();
+          const lookupId = socket.user?.discordId || socket.user?.id;
+          const dbUser = lookupId ? await prismaDatabase.findUserByDiscordId(String(lookupId)) : null;
+          if (dbUser?.id) {
+            const userGuilds = await prismaDatabase.getUserGuilds(dbUser.id);
+            const hydrated = Array.isArray(userGuilds)
+              ? userGuilds
+                  .map((ug) => ug?.guild?.id || ug?.guildId || ug?.guild_id || null)
+                  .filter(Boolean)
+                  .map(String)
+              : [];
+            if (hydrated.length) socket.guildIds = hydrated;
+          }
+        } catch (err) {
+          console.warn("[slime-chat] DB guild hydration failed:", err?.message || err);
+        }
+      }
 
       console.log("[slime-chat] connection", {
         userId: socket.user.id,
