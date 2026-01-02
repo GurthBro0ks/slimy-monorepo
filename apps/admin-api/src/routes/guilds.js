@@ -133,7 +133,22 @@ router.get("/", async (req, res) => {
 
     return res.json({ guilds });
   } catch (err) {
+    const status = Number(err?.status) || 0;
     const code = err?.code || err?.message || "server_error";
+
+    if (status === 401 || status === 403) {
+      return res.status(401).json({ error: "discord_token_invalid" });
+    }
+    if (status === 429) {
+      return res.status(429).json({ error: "discord_rate_limited" });
+    }
+
+    if (
+      String(code).includes("Database not configured") ||
+      String(code).includes("not connected")
+    ) {
+      return res.status(503).json({ error: "db_unavailable" });
+    }
     if (code === "MISSING_SLIMYAI_BOT_TOKEN") {
       return res.status(500).json({ error: "MISSING_SLIMYAI_BOT_TOKEN" });
     }

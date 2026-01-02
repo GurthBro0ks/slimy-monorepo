@@ -1,6 +1,7 @@
 "use strict";
 
 const DISCORD_API_BASE = "https://discord.com/api/v10";
+const DISCORD_TIMEOUT_MS = 8_000;
 
 const PRIMARY_GUILD_ID = "1176605506912141444";
 const ADMIN_ROLE_IDS = new Set(["1178129227321712701", "1216250443257217124"]);
@@ -56,10 +57,19 @@ function createLimiter(concurrency) {
     });
 }
 
+function getDiscordTimeoutSignal() {
+  return typeof globalThis.AbortSignal?.timeout === "function"
+    ? globalThis.AbortSignal.timeout(DISCORD_TIMEOUT_MS)
+    : undefined;
+}
+
 async function fetchWith429Retry(url, options, maxRetries = 3) {
   let attempt = 0;
   while (true) {
-    const res = await fetch(url, options);
+    const res = await fetch(url, {
+      ...(options || {}),
+      signal: options?.signal || getDiscordTimeoutSignal(),
+    });
     if (res.status !== 429 || attempt >= maxRetries) return res;
     attempt += 1;
     const retryAfter = Number(res.headers?.get?.("retry-after") || "1");
@@ -70,6 +80,7 @@ async function fetchWith429Retry(url, options, maxRetries = 3) {
 async function fetchUserGuilds(discordAccessToken) {
   const res = await fetch(`${DISCORD_API_BASE}/users/@me/guilds`, {
     headers: { Authorization: `Bearer ${discordAccessToken}` },
+    signal: getDiscordTimeoutSignal(),
   });
 
   if (!res.ok) {
@@ -83,9 +94,12 @@ async function fetchUserGuilds(discordAccessToken) {
 }
 
 async function botInstalledInGuild(guildId, botToken) {
-  const res = await fetchWith429Retry(`${DISCORD_API_BASE}/guilds/${guildId}`, {
-    headers: { Authorization: `Bot ${botToken}` },
-  });
+  // Do not retry for guild-list calls; keep responses fast and avoid hanging on rate limits.
+  const res = await fetchWith429Retry(
+    `${DISCORD_API_BASE}/guilds/${guildId}`,
+    { headers: { Authorization: `Bot ${botToken}` }, signal: getDiscordTimeoutSignal() },
+    0,
+  );
 
   if (res.ok) return true;
   if (res.status === 404 || res.status === 403) return false;
@@ -96,7 +110,8 @@ async function botInstalledInGuild(guildId, botToken) {
 async function fetchMemberRoles(guildId, userDiscordId, botToken) {
   const res = await fetchWith429Retry(
     `${DISCORD_API_BASE}/guilds/${guildId}/members/${userDiscordId}`,
-    { headers: { Authorization: `Bot ${botToken}` } },
+    { headers: { Authorization: `Bot ${botToken}` }, signal: getDiscordTimeoutSignal() },
+    1,
   );
 
   if (!res.ok) return null;
@@ -239,7 +254,9 @@ async function getAllUserGuildsWithBotStatus({
   const results = await Promise.all(
     userGuilds.map((g) =>
       limit(async () => {
-        const botInstalled = await botInstalledInGuild(g.id, botToken);
+        const isManageable = Boolean(g?.owner) || hasAdminOrManagePermission(g?.permissions);
+        const shouldCheckBot = isManageable || String(g?.id) === PRIMARY_GUILD_ID;
+        const botInstalled = shouldCheckBot ? await botInstalledInGuild(g.id, botToken) : false;
         return normalizeGuildEntryWithBotStatus(g, botInstalled);
       }),
     ),
