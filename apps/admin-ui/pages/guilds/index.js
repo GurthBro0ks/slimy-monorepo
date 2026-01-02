@@ -81,7 +81,9 @@ export default function GuildsIndex() {
 
   const handleOpen = async (guild) => {
     if (!guild) return;
-    if (!guild.installed || guild.connectable === false) return;
+    // Allow opening if user is manageable (has permissions), even without bot installed
+    const isManageable = guild.manageable !== false;
+    if (!isManageable) return;
     const guildId = guild.id;
     setSelectingGuildId(guildId);
     setError(null);
@@ -214,7 +216,8 @@ export default function GuildsIndex() {
         <div style={{ display: "grid", gap: "1rem" }}>
           {guilds.map((guild) => {
             const installed = !!guild.installed;
-            const canSelect = installed && guild.connectable !== false;
+            const isManageable = guild.manageable !== false; // User can manage based on Discord perms
+            const canSelect = isManageable; // Manageable guilds are always selectable
             return (
               <div
                 key={guild.id}
@@ -237,31 +240,18 @@ export default function GuildsIndex() {
                   </div>
                 </div>
                 <div style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
-                  {!installed && (
-                    <button
-                      disabled
-                      title="Coming soon"
-                      style={{
-                        display: "inline-block",
-                        padding: "0.5rem 1rem",
-                        borderRadius: "8px",
-                        background: "linear-gradient(135deg, rgb(109,40,217), rgb(34,197,94))",
-                        color: "white",
-                        fontSize: "0.85rem",
-                        fontWeight: 600,
-                        cursor: "not-allowed",
-                        opacity: 0.7,
-                      }}
-                    >
-                      Invite Bot
-                    </button>
-                  )}
                   <button
                     className="btn"
                     onClick={() => handleOpen(guild)}
                     disabled={selectingGuildId === guild.id || !canSelect}
                   >
-                    {!canSelect ? "Unavailable" : selectingGuildId === guild.id ? "Selecting…" : "Open"}
+                    {!isManageable
+                      ? "Unavailable"
+                      : selectingGuildId === guild.id
+                        ? "Selecting…"
+                        : installed
+                          ? "Open"
+                          : "Invite Bot"}
                   </button>
                 </div>
               </div>
