@@ -55,6 +55,7 @@
 - Keep hard safety rails green (no loopback in public output; no secrets in memory).
 - Ops note (nuc2): `docker compose` reads `.env` and can silently override OAuth redirects; keep `DISCORD_REDIRECT_URI` on the canonical `https://admin.slimyai.xyz/api/auth/callback` (verify via `/api/auth/discord/authorize-url?debug=1`).
 - Admin panel stabilization (2026-01-02): fix Socket.IO chat connectivity, settings URL/proxy prefixing (`/api/admin-api`), guild availability/botInstalled gating, and `active-guild` 400 retry loop; then small UI typo + minimal anti-cascade guards.
+- Admin panel stabilization (2026-01-02): investigate `active-guild` `503` + `/api/guilds` stuck + chat connect/disconnect loop cascade (buglog: `docs/buglog/BUG_2026-01-02_activeguild_503_guilds_stuck_chat_loop.md`).
 - Investigate `discord-callback-self-redirect-loop`: `/api/auth/callback` 302 loops back to itself after successful Discord authorization (Chrome `ERR_TOO_MANY_REDIRECTS`).
 
 ### Next

@@ -189,4 +189,69 @@ describe("POST /api/auth/active-guild", () => {
     expect(res.status).toBe(400);
     expect(res.body).toMatchObject({ ok: false, error: "guild_not_in_user_guilds" });
   });
+
+  it("returns 401 when Discord access token is invalid/expired", async () => {
+    global.fetch = jest.fn(async (url) => {
+      if (String(url).includes("/users/@me/guilds")) {
+        return { ok: false, status: 401, headers: { get: () => null }, json: async () => [] };
+      }
+      return { ok: false, status: 404, headers: { get: () => null }, json: async () => ({}) };
+    });
+
+    const res = await request(app)
+      .post("/api/auth/active-guild")
+      .send({ guildId: "guild-1" });
+
+    expect(res.status).toBe(401);
+    expect(res.body).toMatchObject({ ok: false, error: "discord_token_invalid" });
+  });
+
+  it("returns 429 when Discord rate-limits and no DB fallback exists", async () => {
+    global.fetch = jest.fn(async (url) => {
+      if (String(url).includes("/users/@me/guilds")) {
+        return {
+          ok: false,
+          status: 429,
+          headers: { get: (k) => (String(k).toLowerCase() === "retry-after" ? "1" : null) },
+          json: async () => [],
+        };
+      }
+      return { ok: false, status: 404, headers: { get: () => null }, json: async () => ({}) };
+    });
+
+    const res = await request(app)
+      .post("/api/auth/active-guild")
+      .send({ guildId: "guild-1" });
+
+    expect(res.status).toBe(429);
+    expect(res.body).toMatchObject({ ok: false, error: "discord_rate_limited" });
+  });
+
+  it("allows selection when Discord rate-limits but DB fallback exists", async () => {
+    mockPrisma.userGuild.findFirst.mockResolvedValue({
+      userId: "db-user-id",
+      guildId: "guild-1",
+      roles: [],
+      guild: { id: "guild-1", name: "Guild One" },
+    });
+
+    global.fetch = jest.fn(async (url) => {
+      if (String(url).includes("/users/@me/guilds")) {
+        return {
+          ok: false,
+          status: 429,
+          headers: { get: (k) => (String(k).toLowerCase() === "retry-after" ? "1" : null) },
+          json: async () => [],
+        };
+      }
+      return { ok: false, status: 404, headers: { get: () => null }, json: async () => ({}) };
+    });
+
+    const res = await request(app)
+      .post("/api/auth/active-guild")
+      .send({ guildId: "guild-1" });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({ ok: true, activeGuildId: "guild-1", manageable: true });
+  });
 });
