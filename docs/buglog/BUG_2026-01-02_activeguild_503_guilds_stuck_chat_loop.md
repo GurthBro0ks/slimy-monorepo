@@ -220,3 +220,21 @@ HTTP/2 200
 ...
 0{"sid":"REDACTED","upgrades":["websocket"],"pingInterval":25000,"pingTimeout":20000,"maxPayload":1000000}
 ```
+
+## Step 5 — Stop client retry cascades (minimal)
+Change summary (smallest safe change):
+- Extend `active-guild` sync backoff to include `429`, `503`, and network `"error"` statuses (prevents tight retry loops when Discord/admin-api is degraded).
+
+Files changed:
+- `apps/admin-ui/lib/active-guild.js`
+
+Commands run:
+- `pnpm -C apps/admin-ui test`
+
+Output (snippets):
+```
+[PASS] authorize-url canonical redirect_uri
+[PASS] no legacy auth/proxy references in client bundle
+[PASS] auth callback proxy tripwires
+[PASS] oauth post-login redirect tripwires
+```

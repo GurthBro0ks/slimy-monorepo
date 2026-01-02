@@ -89,7 +89,7 @@ export async function ensureActiveGuildCookie(
   const lastStatus = String(last.status || "");
   const shouldBackoff =
     last.guildId === normalizedGuildId &&
-    ["400", "401", "403", "404"].includes(lastStatus);
+    ["400", "401", "403", "404", "429", "503", "error"].includes(lastStatus);
   const effectiveMinIntervalMs = shouldBackoff ? Math.max(minIntervalMs, 60_000) : minIntervalMs;
 
   if (last.guildId === normalizedGuildId && last.ts && now - last.ts < effectiveMinIntervalMs) {
@@ -101,15 +101,15 @@ export async function ensureActiveGuildCookie(
   writeLocalStorageValue(ACTIVE_GUILD_SYNC_STATUS_KEY, "pending");
 
   const headers = { "Content-Type": "application/json" };
-	  if (csrfToken) headers["x-csrf-token"] = csrfToken;
+  if (csrfToken) headers["x-csrf-token"] = csrfToken;
 
-	  try {
-	    const response = await fetch("/api/auth/active-guild", {
-	      method: "POST",
-	      credentials: "include",
-	      headers,
-	      body: JSON.stringify({ guildId: normalizedGuildId }),
-	    });
+  try {
+    const response = await fetch("/api/auth/active-guild", {
+      method: "POST",
+      credentials: "include",
+      headers,
+      body: JSON.stringify({ guildId: normalizedGuildId }),
+    });
 
     writeLocalStorageValue(ACTIVE_GUILD_SYNC_STATUS_KEY, response.status);
 
