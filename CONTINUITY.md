@@ -44,10 +44,18 @@
 - CI guardrail: `scripts/verify/compose-config-valid.sh` ensures `docker compose config` succeeds (catches compose/env/YAML issues).
 - Bot image fix: ensure runtime deps (incl `discord.js`) are included; added local verify `scripts/verify/bot-runtime-deps.sh`.
 - Admin-api migration hardening: run `prisma migrate deploy` on container startup (prevents settings/memory endpoints 500ing when DB migrations are missing).
+- Prod DB recovery (nuc2): resolved failed Prisma migration `20251213160000_align_admin_api_schema` and applied missing central settings/memory/event migrations so `slimy-admin-api` stays up.
+- Prisma drift fix: aligned `apps/admin-api/prisma/schema.prisma` with short varchar columns used in existing migrations (prevents `migrate diff` drift alarms).
+- NUC2 compose hardening: docker Caddy service is profile-gated (systemd Caddy is canonical) to avoid port/ACME conflicts.
 - Admin-ui auth proxy hardening: `admin-ui` discord callback proxy honors `ADMIN_API_INTERNAL_URL` even when it is loopback, and no longer leaks upstream fetch error messages to clients.
+- Web chat hardening (chat-iframe-wrapper): added `/chat` as an iframe wrapper around `apps/web/public/slimechat/index.html` (legacy UI quarantined) with required debug/status box + iframe load status + cache-busting query param; backed up previous `apps/web/app/chat/page.tsx`.
+- Discord OAuth redirect_uri hardening: `apps/admin-ui` authorize URL now uses `DISCORD_REDIRECT_URI` directly (no `/api/admin-api` prefix drift) with a debug endpoint; added `/api/auth/callback` alias and updated compose/docs defaults to `https://admin.slimyai.xyz/api/auth/callback` (dev: `http://localhost:3001/api/auth/callback`).
 
 ### Now
 - Keep hard safety rails green (no loopback in public output; no secrets in memory).
+- Ops note (nuc2): `docker compose` reads `.env` and can silently override OAuth redirects; keep `DISCORD_REDIRECT_URI` on the canonical `https://admin.slimyai.xyz/api/auth/callback` (verify via `/api/auth/discord/authorize-url?debug=1`).
+- Admin panel stabilization (2026-01-02): fix Socket.IO chat connectivity, settings URL/proxy prefixing (`/api/admin-api`), guild availability/botInstalled gating, and `active-guild` 400 retry loop; then small UI typo + minimal anti-cascade guards.
+- Investigate `discord-callback-self-redirect-loop`: `/api/auth/callback` 302 loops back to itself after successful Discord authorization (Chrome `ERR_TOO_MANY_REDIRECTS`).
 
 ### Next
 - Web Settings UI: polish/UX and deep links (keep non-chat scope).
