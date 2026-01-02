@@ -63,6 +63,7 @@ export default [
       "**/build/**",
       "**/.next/**",
       "**/out/**",
+      "**/vendor/**",
     ],
   },
   {
