@@ -86,7 +86,13 @@ export async function ensureActiveGuildCookie(
 
   const now = Date.now();
   const last = readActiveGuildSyncInfo();
-  if (last.guildId === normalizedGuildId && last.ts && now - last.ts < minIntervalMs) {
+  const lastStatus = String(last.status || "");
+  const shouldBackoff =
+    last.guildId === normalizedGuildId &&
+    ["400", "401", "403", "404"].includes(lastStatus);
+  const effectiveMinIntervalMs = shouldBackoff ? Math.max(minIntervalMs, 60_000) : minIntervalMs;
+
+  if (last.guildId === normalizedGuildId && last.ts && now - last.ts < effectiveMinIntervalMs) {
     return { ok: false, skipped: true, reason: "recent_attempt", status: last.status || "" };
   }
 
