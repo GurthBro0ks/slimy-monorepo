@@ -54,10 +54,51 @@ function run(cmd, opts = {}) {
       timeout: opts.timeout || 120000,
       ...opts
     });
-    return { ok: true, output: result.trim() };
+    const shouldTrim = opts.trim !== false;
+    const output = shouldTrim ? result.trim() : result.replace(/\s+$/, '');
+    return { ok: true, output };
   } catch (err) {
     return { ok: false, output: `__ERROR__: ${err.message}\n${err.stderr || ''}`.trim() };
   }
+}
+
+function curlProbeHeaders(url, opts = {}) {
+  const cookie = typeof opts.cookie === 'string' ? opts.cookie : '';
+  const cookieHeader = cookie ? `-H ${JSON.stringify(`Cookie: ${cookie}`)}` : '';
+  const cmd = [
+    'curl -sS --max-time 10',
+    cookieHeader,
+    '-H "Accept: application/json"',
+    '-D -',
+    '-o /dev/null',
+    JSON.stringify(String(url)),
+    '-w "\\n__STATUS__:%{http_code}\\n"'
+  ].filter(Boolean).join(' ');
+
+  const res = run(cmd, { trim: false, timeout: 15000 });
+  if (!res.ok) return { ok: false, error: res.output };
+
+  const parts = String(res.output).split('__STATUS__:');
+  const raw = parts[0] || '';
+  const statusStr = (parts[1] || '').trim();
+  const status = Number.parseInt(statusStr, 10);
+
+  const headers = {};
+  for (const line of raw.split(/\r?\n/)) {
+    const idx = line.indexOf(':');
+    if (idx <= 0) continue;
+    const name = line.slice(0, idx).trim().toLowerCase();
+    const value = line.slice(idx + 1).trim();
+    if (!name) continue;
+    headers[name] = value;
+  }
+
+  return {
+    ok: Number.isFinite(status),
+    status: Number.isFinite(status) ? status : null,
+    headers,
+    raw: raw.trim()
+  };
 }
 
 function getTimestamp() {
@@ -158,13 +199,46 @@ function collectGitInfo() {
   const branch = run('git rev-parse --abbrev-ref HEAD');
   const head = run('git rev-parse --short HEAD');
   const status = run('git status --short');
+  const statusPorcelain = run('git status --porcelain=v1', { trim: false });
   const dirty = status.ok && status.output.length > 0;
+
+  const DIRTY_FILES_LIMIT = 50;
+  const porcelainLines = statusPorcelain.ok && statusPorcelain.output
+    ? statusPorcelain.output.split('\n').filter(Boolean)
+    : [];
+  const dirtyFiles = porcelainLines.slice(0, DIRTY_FILES_LIMIT).map(line => {
+    const statusCode = line.slice(0, 2);
+    const filePath = line.length > 3 ? line.slice(3) : '';
+    return { status: statusCode, path: filePath };
+  });
+
+  const DIFFSTAT_LIMIT = 50;
+  const diffStatWorktree = run('git diff --stat');
+  const diffStatCached = run('git diff --stat --cached');
+  const diffStatParts = [];
+  if (diffStatCached.ok && diffStatCached.output) {
+    diffStatParts.push('--- staged ---', diffStatCached.output);
+  }
+  if (diffStatWorktree.ok && diffStatWorktree.output) {
+    diffStatParts.push('--- unstaged ---', diffStatWorktree.output);
+  }
+  const diffStatCombined = diffStatParts.join('\n').trim();
+  const diffStatLines = diffStatCombined ? diffStatCombined.split('\n') : [];
+  const diffStatTruncated = diffStatLines.length > DIFFSTAT_LIMIT;
+  const diffStat = diffStatLines.slice(0, DIFFSTAT_LIMIT).join('\n').trim();
 
   return {
     branch: branch.ok ? branch.output : '__ERROR__',
     head: head.ok ? head.output : '__ERROR__',
     dirty,
-    status: status.ok ? status.output : status.output
+    status: status.ok ? status.output : status.output,
+    dirtyFiles,
+    dirtyFilesLimit: DIRTY_FILES_LIMIT,
+    dirtyFilesTotal: porcelainLines.length,
+    dirtyFilesTruncated: porcelainLines.length > DIRTY_FILES_LIMIT,
+    diffStat: diffStat || undefined,
+    diffStatLimit: DIFFSTAT_LIMIT,
+    diffStatTruncated
   };
 }
 
@@ -221,11 +295,40 @@ function collectHealthChecks() {
   console.log('    - Checking socket.io endpoint...');
   const socketIo = run('curl -sS --max-time 10 "https://admin.slimyai.xyz/socket.io/?EIO=4&transport=polling"');
 
+  // Discord guild endpoints (optional auth-cookie check; do not print cookie values)
+  console.log('    - Checking discord guild endpoints (headers)...');
+  const reportAdminCookie = String(process.env.REPORT_ADMIN_COOKIE || '').trim();
+  const guildsProbe = curlProbeHeaders('https://admin.slimyai.xyz/api/guilds', { cookie: reportAdminCookie });
+  const discordGuildsProbe = curlProbeHeaders('https://admin.slimyai.xyz/api/discord/guilds', { cookie: reportAdminCookie });
+  const discordGuildsHeaders = {
+    authProvided: Boolean(reportAdminCookie),
+    guilds: {
+      ok: guildsProbe.ok,
+      status: guildsProbe.status,
+      xRequestId: guildsProbe.headers?.['x-request-id'] || null,
+      xSlimyDiscordSource: guildsProbe.headers?.['x-slimy-discord-source'] || null,
+      xSlimyDiscordStale: guildsProbe.headers?.['x-slimy-discord-stale'] || null,
+    },
+    discordGuilds: {
+      ok: discordGuildsProbe.ok,
+      status: discordGuildsProbe.status,
+      xRequestId: discordGuildsProbe.headers?.['x-request-id'] || null,
+      xSlimyDiscordSource: discordGuildsProbe.headers?.['x-slimy-discord-source'] || null,
+      xSlimyDiscordStale: discordGuildsProbe.headers?.['x-slimy-discord-stale'] || null,
+    },
+    note: reportAdminCookie ? null : 'REPORT_ADMIN_COOKIE not set; auth header checks skipped (expected 401 unauth)'
+  };
+  discordGuildsHeaders.ok = reportAdminCookie
+    ? (discordGuildsHeaders.guilds.status === 200 && Boolean(discordGuildsHeaders.guilds.xSlimyDiscordSource) &&
+      discordGuildsHeaders.discordGuilds.status === 200 && Boolean(discordGuildsHeaders.discordGuilds.xSlimyDiscordSource))
+    : (discordGuildsHeaders.guilds.status === 401 && discordGuildsHeaders.discordGuilds.status === 401);
+
   return {
     tests: { ok: tests.ok, output: tests.output },
     docker: { ok: docker.ok, output: docker.output, skipped: docker.skipped },
     adminHealth: { ok: adminHealth.ok, output: adminHealth.output },
-    socketIo: { ok: socketIo.ok, output: socketIo.output }
+    socketIo: { ok: socketIo.ok, output: socketIo.output },
+    discordGuildsHeaders
   };
 }
 
@@ -251,11 +354,19 @@ function collectRepoStats() {
       }
     } catch (e) {
       console.log('    - Warning: Failed to parse tokei output');
-      languages = { __ERROR__: 'Failed to parse tokei output' };
+      languages = {
+        error: 'tokei_parse_failed',
+        hint: 'tokei output was not valid JSON. Reinstall/upgrade tokei and re-run the report.',
+        __WARNING__: 'Failed to parse tokei output'
+      };
     }
   } else {
     console.log('    - Warning: tokei not available or failed');
-    languages = { __WARNING__: 'tokei not installed or failed' };
+    languages = {
+      error: 'tokei_unavailable',
+      hint: 'Install tokei (language stats): brew install tokei | sudo apt-get install tokei | cargo install tokei',
+      __WARNING__: 'tokei not installed or failed'
+    };
   }
 
   // Largest folders
@@ -342,8 +453,10 @@ function generateHtml(report) {
   const { timestamp, host, git, health, stats, delta, env } = report;
 
   // Prepare language data for pie chart
+  const languagesError = stats.languages && typeof stats.languages === 'object' ? stats.languages.error : undefined;
+  const languagesHint = stats.languages && typeof stats.languages === 'object' ? stats.languages.hint : undefined;
   const langData = Object.entries(stats.languages)
-    .filter(([k]) => !k.startsWith('__'))
+    .filter(([, v]) => v && typeof v === 'object' && typeof v.code === 'number')
     .sort((a, b) => b[1].code - a[1].code)
     .slice(0, 10);
   const langLabels = langData.map(([k]) => k);
@@ -368,6 +481,13 @@ function generateHtml(report) {
   } else {
     dockerStatus = '<span class="fail">❌ Error</span>';
   }
+
+  const discordGuildsHeaders = health.discordGuildsHeaders || null;
+  const discordGuildsHeadersStatus = discordGuildsHeaders
+    ? (discordGuildsHeaders.ok
+      ? '<span class="ok">✅ OK</span>'
+      : (discordGuildsHeaders.authProvided ? '<span class="fail">❌ Error</span>' : '<span class="meta">⏭️ Skipped</span>'))
+    : '<span class="meta">⏭️ Skipped</span>';
 
   // Delta section HTML
   let deltaHtml = '';
@@ -531,6 +651,18 @@ function generateHtml(report) {
           <tr><td>HEAD</td><td><code>${git.head}</code></td></tr>
           <tr><td>Dirty</td><td class="${git.dirty ? 'fail' : 'ok'}">${git.dirty ? 'Yes' : 'No'}</td></tr>
         </table>
+        ${git.dirty && Array.isArray(git.dirtyFiles) && git.dirtyFiles.length > 0 ? `
+          <details>
+            <summary>Dirty files (top ${git.dirtyFiles.length}${typeof git.dirtyFilesTotal === 'number' ? ` of ${git.dirtyFilesTotal}` : ''})</summary>
+            <pre>${escapeHtml(git.dirtyFiles.map(f => `${f.status} ${f.path}`).join('\n'))}${git.dirtyFilesTruncated ? '\n\n(truncated)' : ''}</pre>
+          </details>
+        ` : ''}
+        ${git.dirty && git.diffStat ? `
+          <details>
+            <summary>Diff stat${git.diffStatTruncated ? ' (truncated)' : ''}</summary>
+            <pre>${escapeHtml(git.diffStat)}</pre>
+          </details>
+        ` : ''}
         ${git.status ? `<details><summary>Working tree changes</summary><pre>${escapeHtml(git.status)}</pre></details>` : ''}
       </div>
 
@@ -541,18 +673,35 @@ function generateHtml(report) {
           <tr><td>Tests</td><td class="${health.tests.ok ? 'ok' : 'fail'}">${health.tests.ok ? '✅ Pass' : '❌ Fail'}</td></tr>
           <tr><td>Docker</td><td>${dockerStatus}</td></tr>
           <tr><td>Admin API</td><td class="${health.adminHealth.ok ? 'ok' : 'fail'}">${health.adminHealth.ok ? '✅ OK' : '❌ Error'}</td></tr>
-          <tr><td>Socket.IO</td><td class="${health.socketIo.ok ? 'ok' : 'fail'}">${health.socketIo.ok ? '✅ OK' : '❌ Error'}</td></tr>
+          <tr><td>Socket.IO (endpoint)</td><td class="${health.socketIo.ok ? 'ok' : 'fail'}">${health.socketIo.ok ? '✅ OK' : '❌ Error'}</td></tr>
+          <tr><td>Discord guild endpoints (headers)</td><td>${discordGuildsHeadersStatus}</td></tr>
         </table>
+        ${discordGuildsHeaders?.note ? `<p class="meta">${escapeHtml(String(discordGuildsHeaders.note))}</p>` : ''}
       </div>
 
       ${deltaHtml}
 
       ${envHtml}
 
+      <!-- Truth Gate Checklist -->
+      <div class="card full-width">
+        <h2>Truth Gate Checklist (Manual)</h2>
+        <p class="meta">Goal: avoid phantom chat “connected” states and avoid socket.io traffic on unauth/non-chat pages.</p>
+        <ul style="margin-left: 1.25rem; margin-top: 0.75rem; color: var(--text);">
+          <li><strong>Unauth</strong>: open <code>/login</code> in an incognito window → DevTools Network should show <strong>zero</strong> <code>/socket.io</code> requests and <strong>zero</strong> WS entries.</li>
+          <li><strong>Auth</strong>: log in (Discord) → on non-chat pages, chat should remain idle and <code>/socket.io</code> should not appear.</li>
+          <li><strong>/chat</strong>: if chat is intended to connect, expect real evidence: Socket.IO polling open packet (<code>0{"sid":...}</code>) and/or WebSocket <code>101</code> upgrade.</li>
+          <li><strong>DebugDock</strong>: enable <code>localStorage.slimyDebug=1</code>, then “Copy Debug” and paste into incident notes alongside Network evidence.</li>
+        </ul>
+      </div>
+
       <!-- Language Chart -->
       <div class="card">
         <h2>Top Languages (by code lines)</h2>
-        ${langData.length > 0 ? `
+        ${languagesError ? `
+          <p class="meta"><span class="fail">Language chart unavailable:</span> <code>${escapeHtml(String(languagesError))}</code></p>
+          ${languagesHint ? `<pre>${escapeHtml(String(languagesHint))}</pre>` : ''}
+        ` : langData.length > 0 ? `
           <div class="chart-container">
             <canvas id="langChart"></canvas>
           </div>
@@ -582,6 +731,16 @@ function generateHtml(report) {
           <summary>Admin Health Response</summary>
           <pre>${escapeHtml(health.adminHealth.output)}</pre>
         </details>
+        <details>
+          <summary>Socket.IO Polling Response (Endpoint Reachability)</summary>
+          <pre>${escapeHtml(health.socketIo.output)}</pre>
+        </details>
+        ${discordGuildsHeaders ? `
+        <details>
+          <summary>Discord Guild Endpoints (Headers)</summary>
+          <pre>${escapeHtml(JSON.stringify(discordGuildsHeaders, null, 2))}</pre>
+        </details>
+        ` : ''}
       </div>
     </div>
   </div>
@@ -743,6 +902,10 @@ async function main() {
   console.log(`Docker: ${health.docker.skipped ? 'SKIPPED' : (health.docker.ok ? 'OK' : 'ERROR')}`);
   console.log(`Admin Health: ${health.adminHealth.ok ? 'OK' : 'ERROR'}`);
   console.log(`Socket.IO: ${health.socketIo.ok ? 'OK' : 'ERROR'}`);
+  if (health.discordGuildsHeaders) {
+    const label = health.discordGuildsHeaders.authProvided ? 'Auth' : 'Unauth';
+    console.log(`Discord Guild Headers (${label}): ${health.discordGuildsHeaders.ok ? 'OK' : 'ERROR'}`);
+  }
   if (delta) {
     console.log(`Delta: HEAD changed=${delta.headChanged}, Branch changed=${delta.branchChanged}`);
   }

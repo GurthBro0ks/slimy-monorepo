@@ -88,12 +88,13 @@ describe("discord-shared-guilds user guild list cache", () => {
 
     expect(first).toHaveLength(1);
     expect(first.__slimyMeta).toMatchObject({
-      source: "cache",
+      source: "stale",
       stale: true,
       discordRateLimited: true,
     });
     expect(typeof first.__slimyMeta.retryAfterMs).toBe("number");
     expect(first.__slimyMeta.retryAfterMs).toBeGreaterThanOrEqual(10_000);
+    expect(first.__slimyMeta.cooldownRemainingMs).toBeGreaterThanOrEqual(10_000);
     expect(global.fetch).toHaveBeenCalledTimes(1);
 
     const second = await svc.getAllUserGuildsWithBotStatus({
@@ -105,5 +106,45 @@ describe("discord-shared-guilds user guild list cache", () => {
     expect(second).toHaveLength(1);
     expect(global.fetch).toHaveBeenCalledTimes(1);
   });
-});
 
+  test("coalesces in-flight Discord user guild fetches (no duplicate upstream calls)", async () => {
+    const svc = require("../src/services/discord-shared-guilds");
+
+    global.fetch.mockImplementation((url) => {
+      if (url === "https://discord.com/api/v10/users/@me/guilds") {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve([{ id: "g1", name: "G1", owner: false, permissions: "0" }]),
+          headers: { get: () => null },
+        });
+      }
+      if (url === "https://discord.com/api/v10/guilds/g1") {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve({}),
+          headers: { get: () => null },
+        });
+      }
+      return Promise.reject(new Error(`Unexpected URL: ${url}`));
+    });
+
+    const [a, b] = await Promise.all([
+      svc.getSharedGuildsForUser({
+        discordAccessToken: "token-1",
+        userDiscordId: "user-1",
+        concurrency: 1,
+      }),
+      svc.getSharedGuildsForUser({
+        discordAccessToken: "token-1",
+        userDiscordId: "user-1",
+        concurrency: 1,
+      }),
+    ]);
+
+    expect(a).toHaveLength(1);
+    expect(b).toHaveLength(1);
+    expect(global.fetch).toHaveBeenCalledTimes(2); // users/@me/guilds + guilds/g1
+  });
+});

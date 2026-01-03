@@ -61,6 +61,9 @@
 - Flight Recorder v3 (2026-01-03): report fields verified (dirtyFiles/diffStat, tokei notice, checklist); ran `pnpm report:nuc2` at `2026-01-03_1056`; unauth truth-gate evidence captured; auth+/chat evidence still UNCONFIRMED.
 - NOTE (2026-01-03): Chromium installed on nuc2; unauth truth-gate captured via headless CDP; auth+/chat still requires manual login evidence.
 - Flight Recorder v4 (2026-01-03): Discord guilds 429 (cache/backoff) investigation started; evidence gate pending in `docs/buglog/BUG_2026-01-03_discord_guilds_429_cache_backoff.md`.
+- Flight Recorder v4 (2026-01-03): guilds 429 browser evidence duplicated into `docs/buglog/assets/2026-01-03_discord_guilds_429_cache_backoff_v2/browser/` for protocol naming; buglog updated to reference v2 assets.
+- Flight Recorder v4 (2026-01-03): Discord guilds 429 fixed via shared cache + coalescing + cooldown; verified 200 + cache headers; evidence in v2 assets path.
+- Flight Recorder v4 (2026-01-03): added guilds cache observability + bot-check caching + report regression probe (unauth by default, auth via `REPORT_ADMIN_COOKIE`); browser evidence still UNCONFIRMED.
 
 ### Next
 - Web Settings UI: polish/UX and deep links (keep non-chat scope).
