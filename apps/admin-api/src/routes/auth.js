@@ -12,6 +12,7 @@ const {
   fetchMemberRoles,
   getSlimyBotToken,
   botInstalledInGuild,
+  primeUserGuildsCache,
 } = require("../services/discord-shared-guilds");
 const router = express.Router();
 
@@ -408,6 +409,13 @@ router.get("/callback", async (req, res) => {
     const me = await meRes.json();
     const guilds = await guildsRes.json();
     const discordGuilds = Array.isArray(guilds) ? guilds : [];
+
+    // Prime the shared in-memory cache so immediate post-login navigation doesn't hammer Discord twice.
+    try {
+      primeUserGuildsCache(String(me?.id || ""), discordGuilds);
+    } catch {
+      // ignore
+    }
 
     console.log("[auth/callback] Sync start", {
       userId: me?.id,
