@@ -231,3 +231,6 @@ Written: docs/reports/LATEST_nuc2.json
   - `docs/reports/LATEST_nuc2.json`
 - Unit proof that `/api/guilds` + `/api/discord/guilds` share one cached Discord user-guild fetch:
   - `apps/admin-api/tests/discord-user-guilds-cache.test.js`
+
+## Commit
+- `d0443cc` — `fix(discord): cache guilds + respect 429 backoff to prevent /guilds load failures`
