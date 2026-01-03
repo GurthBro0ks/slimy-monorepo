@@ -39,6 +39,9 @@ router.get("/guilds", requireAuth, async (req, res) => {
       res.set("X-Slimy-Discord-Source", String(discordMeta.source || ""));
       res.set("X-Slimy-Discord-Stale", discordMeta.stale ? "1" : "0");
       if (discordMeta.retryAfterMs != null) res.set("X-Slimy-Discord-RetryAfterMs", String(discordMeta.retryAfterMs));
+      if (discordMeta.cacheAgeMs != null) res.set("X-Slimy-Discord-CacheAgeMs", String(discordMeta.cacheAgeMs));
+      if (discordMeta.cacheExpiresInMs != null) res.set("X-Slimy-Discord-CacheExpiresInMs", String(discordMeta.cacheExpiresInMs));
+      if (discordMeta.cooldownRemainingMs != null) res.set("X-Slimy-Discord-CooldownRemainingMs", String(discordMeta.cooldownRemainingMs));
     }
 
     return res.json({ guilds, meta: discordMeta });

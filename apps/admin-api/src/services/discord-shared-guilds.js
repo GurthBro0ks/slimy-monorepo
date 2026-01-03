@@ -21,6 +21,13 @@ const MIN_429_COOLDOWN_MS = 10_000; // prevent retry storms even with tiny Retry
 // key: userDiscordId -> cache entry
 const userGuildsCache = new Map();
 
+// ----------------------------------------------------------------------------
+// Discord bot-installed checks cache (shared across endpoints)
+// ----------------------------------------------------------------------------
+
+const BOT_INSTALLED_TTL_MS = 120_000; // 2 minutes (conservative)
+const botInstalledCache = new Map(); // key: guildId -> cache entry
+
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -135,6 +142,21 @@ function getCacheEntry(key) {
   return entry;
 }
 
+function getBotInstalledCacheEntry(key) {
+  const existing = botInstalledCache.get(key);
+  if (existing) return existing;
+  const entry = {
+    value: null,
+    fetchedAt: 0,
+    expiresAt: 0,
+    inflight: null,
+    rateLimitedUntil: 0,
+    lastStatus: null,
+  };
+  botInstalledCache.set(key, entry);
+  return entry;
+}
+
 function primeUserGuildsCache(userDiscordId, guilds) {
   const key = String(userDiscordId || "").trim();
   if (!key) return;
@@ -191,37 +213,49 @@ async function fetchUserGuildsCached({ userDiscordId, discordAccessToken, force 
       stale: false,
       discordRateLimited: false,
       retryAfterMs: null,
+      cacheAgeMs: null,
+      cacheExpiresInMs: null,
+      cooldownRemainingMs: 0,
     });
   }
 
   const entry = getCacheEntry(key);
   const now = Date.now();
   const hasCache = Array.isArray(entry.guilds);
+  const cacheAgeMs = entry.fetchedAt ? Math.max(0, now - entry.fetchedAt) : null;
+  const cacheExpiresInMs = entry.expiresAt ? Math.max(0, entry.expiresAt - now) : null;
+  const cooldownRemainingMs = now < entry.rateLimitedUntil ? Math.max(0, entry.rateLimitedUntil - now) : 0;
 
   if (!force) {
     if (hasCache && now < entry.expiresAt) {
       return attachMeta(entry.guilds, {
         source: "cache",
         stale: false,
-        discordRateLimited: now < entry.rateLimitedUntil,
-        retryAfterMs: now < entry.rateLimitedUntil ? entry.rateLimitedUntil - now : null,
+        discordRateLimited: cooldownRemainingMs > 0,
+        retryAfterMs: cooldownRemainingMs > 0 ? cooldownRemainingMs : null,
+        cacheAgeMs,
+        cacheExpiresInMs,
+        cooldownRemainingMs,
       });
     }
 
     if (now < entry.rateLimitedUntil) {
       if (hasCache) {
         return attachMeta(entry.guilds, {
-          source: "cache",
+          source: "stale",
           stale: true,
           discordRateLimited: true,
-          retryAfterMs: entry.rateLimitedUntil - now,
+          retryAfterMs: cooldownRemainingMs,
+          cacheAgeMs,
+          cacheExpiresInMs,
+          cooldownRemainingMs,
         });
       }
 
       const err = new Error("discord_rate_limited");
       err.status = 429;
       err.code = "discord_rate_limited";
-      err.retryAfterMs = entry.rateLimitedUntil - now;
+      err.retryAfterMs = cooldownRemainingMs;
       throw err;
     }
   }
@@ -241,6 +275,9 @@ async function fetchUserGuildsCached({ userDiscordId, discordAccessToken, force 
         stale: false,
         discordRateLimited: false,
         retryAfterMs: null,
+        cacheAgeMs: 0,
+        cacheExpiresInMs: USER_GUILDS_TTL_MS,
+        cooldownRemainingMs: 0,
       });
     } catch (err) {
       const status = Number(err?.status) || 0;
@@ -250,13 +287,17 @@ async function fetchUserGuildsCached({ userDiscordId, discordAccessToken, force 
       if (status === 429) {
         const retryAfterMs = Math.max(MIN_429_COOLDOWN_MS, Number(err?.retryAfterMs) || 1000);
         entry.rateLimitedUntil = Math.max(entry.rateLimitedUntil || 0, now + retryAfterMs);
+        const cooldownRemainingMsUpdated = Math.max(0, entry.rateLimitedUntil - now);
 
         if (hasCache) {
           return attachMeta(entry.guilds, {
-            source: "cache",
+            source: "stale",
             stale: true,
             discordRateLimited: true,
-            retryAfterMs: entry.rateLimitedUntil - now,
+            retryAfterMs: cooldownRemainingMsUpdated,
+            cacheAgeMs,
+            cacheExpiresInMs,
+            cooldownRemainingMs: cooldownRemainingMsUpdated,
           });
         }
       }
@@ -271,17 +312,64 @@ async function fetchUserGuildsCached({ userDiscordId, discordAccessToken, force 
 }
 
 async function botInstalledInGuild(guildId, botToken) {
-  // Do not retry for guild-list calls; keep responses fast and avoid hanging on rate limits.
-  const res = await fetchWith429Retry(
-    `${DISCORD_API_BASE}/guilds/${guildId}`,
-    { headers: { Authorization: `Bot ${botToken}` }, signal: getDiscordTimeoutSignal() },
-    0,
-  );
+  const key = String(guildId || "").trim();
+  if (!key) return false;
 
-  if (res.ok) return true;
-  if (res.status === 404 || res.status === 403) return false;
-  if (res.status === 429) return false;
-  return false;
+  const entry = getBotInstalledCacheEntry(key);
+  const now = Date.now();
+
+  if (entry.value !== null && now < entry.expiresAt) return Boolean(entry.value);
+
+  if (now < entry.rateLimitedUntil) {
+    if (entry.value !== null) return Boolean(entry.value);
+    return false;
+  }
+
+  if (entry.inflight) return entry.inflight;
+
+  entry.inflight = (async () => {
+    try {
+      // Do not retry for guild-list calls; keep responses fast and avoid hanging on rate limits.
+      const res = await fetchWith429Retry(
+        `${DISCORD_API_BASE}/guilds/${key}`,
+        { headers: { Authorization: `Bot ${botToken}` }, signal: getDiscordTimeoutSignal() },
+        0,
+      );
+
+      entry.lastStatus = res.status;
+
+      if (res.ok) {
+        entry.value = true;
+        entry.fetchedAt = now;
+        entry.expiresAt = now + BOT_INSTALLED_TTL_MS;
+        return true;
+      }
+
+      if (res.status === 404 || res.status === 403) {
+        entry.value = false;
+        entry.fetchedAt = now;
+        entry.expiresAt = now + BOT_INSTALLED_TTL_MS;
+        return false;
+      }
+
+      if (res.status === 429) {
+        const retryAfterMs = Math.max(
+          MIN_429_COOLDOWN_MS,
+          getRetryAfterMs({ res, body: null }),
+        );
+        entry.rateLimitedUntil = Math.max(entry.rateLimitedUntil || 0, now + retryAfterMs);
+        if (entry.value !== null) return Boolean(entry.value);
+        return false;
+      }
+
+      if (entry.value !== null) return Boolean(entry.value);
+      return false;
+    } finally {
+      entry.inflight = null;
+    }
+  })();
+
+  return entry.inflight;
 }
 
 async function fetchMemberRoles(guildId, userDiscordId, botToken) {

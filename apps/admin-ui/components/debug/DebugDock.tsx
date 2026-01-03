@@ -4,7 +4,13 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/router";
 import { useSession } from "../../lib/session";
 import { getSocketStatusSnapshot, subscribeSocketStatus } from "../../lib/socket";
-import { isSlimyDebugEnabled, setSlimyDebugEnabled } from "../../lib/slimy-debug";
+import {
+  ensureSlimyDebugErrorCapture,
+  getSlimyDebugErrorsSnapshot,
+  isSlimyDebugEnabled,
+  setSlimyDebugEnabled,
+  subscribeSlimyDebugErrors,
+} from "../../lib/slimy-debug";
 
 type HealthState =
   | { status: "idle" | "loading" }
@@ -72,12 +78,23 @@ export function DebugDock() {
   const [health, setHealth] = useState<HealthState>({ status: "idle" });
   const [diag, setDiag] = useState<DiagState>({ status: "idle" });
   const [guilds, setGuilds] = useState<GuildSummary[] | null>(null);
-  const [meStatus, setMeStatus] = useState<{ status: "idle" | "loading" | "ok" | "unauth" | "error"; code: number | null; ts: string | null }>({
+  const [guildsRequestId, setGuildsRequestId] = useState<string | null>(null);
+  const [guildsRequestStatus, setGuildsRequestStatus] = useState<number | null>(null);
+  const [guildsMeta, setGuildsMeta] = useState<any>(null);
+  const [guildsError, setGuildsError] = useState<string | null>(null);
+  const [meStatus, setMeStatus] = useState<{
+    status: "idle" | "loading" | "ok" | "unauth" | "error";
+    code: number | null;
+    requestId: string | null;
+    ts: string | null;
+  }>({
     status: "idle",
     code: null,
+    requestId: null,
     ts: null,
   });
   const [chatStatus, setChatStatus] = useState<any>(() => getSocketStatusSnapshot());
+  const [recentErrors, setRecentErrors] = useState<any[]>(() => getSlimyDebugErrorsSnapshot());
 
   const activeGuildId = useMemo(() => getActiveGuildId(pathname), [pathname]);
   const sessionActiveGuildId = useMemo(() => {
@@ -125,6 +142,11 @@ export function DebugDock() {
   }, []);
 
   useEffect(() => subscribeSocketStatus(setChatStatus), []);
+
+  useEffect(() => {
+    ensureSlimyDebugErrorCapture();
+    return subscribeSlimyDebugErrors(setRecentErrors);
+  }, []);
 
   useEffect(() => {
     if (envEnabled) return;
@@ -183,11 +205,12 @@ export function DebugDock() {
       }
 
       if (meRes) {
-        if (meRes.status === 401) setMeStatus({ status: "unauth", code: 401, ts: new Date().toISOString() });
-        else if (meRes.ok) setMeStatus({ status: "ok", code: meRes.status, ts: new Date().toISOString() });
-        else setMeStatus({ status: "error", code: meRes.status, ts: new Date().toISOString() });
+        const requestId = meRes.headers.get("x-request-id");
+        if (meRes.status === 401) setMeStatus({ status: "unauth", code: 401, requestId, ts: new Date().toISOString() });
+        else if (meRes.ok) setMeStatus({ status: "ok", code: meRes.status, requestId, ts: new Date().toISOString() });
+        else setMeStatus({ status: "error", code: meRes.status, requestId, ts: new Date().toISOString() });
       } else {
-        setMeStatus({ status: "error", code: null, ts: new Date().toISOString() });
+        setMeStatus({ status: "error", code: null, requestId: null, ts: new Date().toISOString() });
       }
     };
 
@@ -195,7 +218,7 @@ export function DebugDock() {
       if (!canceled) {
         setHealth({ status: "error", requestId: null, code: "UNKNOWN" });
         setDiag({ status: "error", requestId: null, code: "UNKNOWN" });
-        setMeStatus({ status: "error", code: null, ts: new Date().toISOString() });
+        setMeStatus({ status: "error", code: null, requestId: null, ts: new Date().toISOString() });
       }
     });
 
@@ -211,22 +234,38 @@ export function DebugDock() {
     if (!user || sessionLoading) return;
     let canceled = false;
 
-	    const run = async () => {
-	      const res = await fetch("/api/discord/guilds", {
-	        cache: "no-store",
-	        credentials: "include",
-	      });
-      if (!res.ok) return;
-      const data = await safeJson(res);
-      const list = Array.isArray(data?.guilds) ? data.guilds : [];
-      const normalized: GuildSummary[] = list.map((g: any) => ({
-        id: String(g?.id || ""),
-        name: g?.name ? String(g.name) : undefined,
-        roleLabel: g?.roleLabel ? String(g.roleLabel) : undefined,
+		    const run = async () => {
+		      const res = await fetch("/api/discord/guilds", {
+		        cache: "no-store",
+		        credentials: "include",
+		      });
+	      setGuildsRequestStatus(res.status);
+	      setGuildsRequestId(res.headers.get("x-request-id"));
+	      const metaFromHeaders = {
+	        source: res.headers.get("x-slimy-discord-source"),
+	        stale: res.headers.get("x-slimy-discord-stale"),
+	        retryAfterMs: res.headers.get("x-slimy-discord-retryafterms"),
+	        cacheAgeMs: res.headers.get("x-slimy-discord-cacheagems"),
+	        cacheExpiresInMs: res.headers.get("x-slimy-discord-cacheexpiresinms"),
+	        cooldownRemainingMs: res.headers.get("x-slimy-discord-cooldownremainingms"),
+	      };
+	      const data = await safeJson(res);
+	      const meta = data?.meta ?? metaFromHeaders;
+	      setGuildsMeta(meta);
+	      if (!res.ok) {
+	        setGuildsError(data?.error ? String(data.error) : `HTTP_${res.status}`);
+	        return;
+	      }
+	      setGuildsError(null);
+	      const list = Array.isArray(data?.guilds) ? data.guilds : [];
+	      const normalized: GuildSummary[] = list.map((g: any) => ({
+	        id: String(g?.id || ""),
+	        name: g?.name ? String(g.name) : undefined,
+	        roleLabel: g?.roleLabel ? String(g.roleLabel) : undefined,
         roleSource: g?.roleSource ? String(g.roleSource) : undefined,
       }));
       if (!canceled) setGuilds(normalized);
-    };
+	    };
 
     run().catch(() => {});
     return () => {
@@ -234,8 +273,8 @@ export function DebugDock() {
     };
   }, [enabled, user, sessionLoading]);
 
-  const debugBlob = useMemo(() => {
-    return {
+	  const debugBlob = useMemo(() => {
+	    return {
       ts: new Date().toISOString(),
       route: pathname,
       env: { NODE_ENV: process.env.NODE_ENV, buildId, NEXT_PUBLIC_DEBUG_UI: envEnabled ? "1" : "0" },
@@ -270,9 +309,25 @@ export function DebugDock() {
               : null,
       },
       authMe: meStatus,
-      chat: chatStatus,
-    };
-  }, [activeGuild?.name, activeGuild?.roleLabel, activeGuild?.roleSource, activeGuildId, buildId, chatStatus, diag, envEnabled, health, meStatus, pathname, user]);
+	      requestIds: {
+        adminApiHealth:
+          health.status === "ok" || health.status === "error" ? health.requestId : null,
+        adminApiDiag:
+          diag.status === "ok" || diag.status === "error" ? diag.requestId : null,
+	        authMe: meStatus.requestId ?? null,
+	        discordGuilds: guildsRequestId,
+	      },
+	      discord: {
+	        guilds: {
+	          status: guildsRequestStatus,
+	          error: guildsError,
+	          meta: guildsMeta,
+	        },
+	      },
+	      chat: chatStatus,
+	      errors: recentErrors,
+	    };
+	  }, [activeGuild?.name, activeGuild?.roleLabel, activeGuild?.roleSource, activeGuildId, buildId, chatStatus, diag, envEnabled, guildsError, guildsMeta, guildsRequestId, guildsRequestStatus, health, meStatus, pathname, recentErrors, user]);
 
   const copyBlob = async () => {
     const payload = JSON.stringify(debugBlob);
@@ -380,7 +435,7 @@ export function DebugDock() {
                   ? `${(user as any).id ?? "?"} (${(user as any).role ?? "member"})`
                   : "none"}
             </div>
-            <div>auth/me: {meStatus.status}{meStatus.code ? ` (HTTP ${meStatus.code})` : ""}{meStatus.ts ? ` @ ${meStatus.ts}` : ""}</div>
+            <div>auth/me: {meStatus.status}{meStatus.code ? ` (HTTP ${meStatus.code})` : ""}{meStatus.requestId ? ` (req ${meStatus.requestId})` : ""}{meStatus.ts ? ` @ ${meStatus.ts}` : ""}</div>
             <div>activeGuildId (session): {sessionActiveGuildId || "none"}</div>
             <div>
               routeGuildId: {activeGuildId || "none"}{" "}
@@ -392,6 +447,10 @@ export function DebugDock() {
               chat: {chatStatus?.state || "unknown"}
               {chatStatus?.socketId ? ` (id ${chatStatus.socketId})` : ""}
               {chatStatus?.lastError ? ` err=${chatStatus.lastError}` : ""}
+            </div>
+            <div>
+              chat lastEvent: {chatStatus?.lastEventName || "none"}
+              {chatStatus?.lastEventAt ? ` @ ${chatStatus.lastEventAt}` : ""}
             </div>
             <div>
               admin-api health:{" "}
@@ -409,6 +468,15 @@ export function DebugDock() {
                   ? `error:${diag.code}${diag.requestId ? ` (req ${diag.requestId})` : ""}`
                   : diag.status}
             </div>
+            <div>
+              discord/guilds: {guildsRequestStatus != null ? `HTTP ${guildsRequestStatus}` : "unknown"}
+              {guildsMeta?.source ? ` source=${guildsMeta.source}` : ""}
+              {guildsMeta?.stale != null ? ` stale=${guildsMeta.stale}` : ""}
+              {guildsMeta?.cooldownRemainingMs != null ? ` cooldownMs=${guildsMeta.cooldownRemainingMs}` : ""}
+              {guildsError ? ` err=${guildsError}` : ""}
+              {guildsRequestId ? ` (req ${guildsRequestId})` : ""}
+            </div>
+            <div>errors captured: {Array.isArray(recentErrors) ? recentErrors.length : 0}</div>
             {!envEnabled ? (
               <div style={{ marginTop: 8, opacity: 0.7 }}>
                 Tip: enable via `localStorage.setItem('slimyDebug','1')` or Ctrl+Shift+D.
