@@ -99,6 +99,7 @@ router.get("/", async (req, res) => {
       concurrency: 4,
     });
 
+    const discordMeta = rawGuilds?.__slimyMeta || null;
     let guilds = rawGuilds;
 
     // Minimal hardening: if bot membership checks are unreliable (e.g. rotated/invalid bot token),
@@ -125,13 +126,27 @@ router.get("/", async (req, res) => {
               connectable: botInstalled,
             };
           });
+
+          if (discordMeta) {
+            try {
+              Object.defineProperty(guilds, "__slimyMeta", { value: discordMeta, enumerable: false });
+            } catch {
+              guilds.__slimyMeta = discordMeta;
+            }
+          }
         }
       }
     } catch (err) {
       console.warn("[guilds] failed to patch botInstalled from DB:", err?.message || err);
     }
 
-    return res.json({ guilds });
+    if (discordMeta) {
+      res.set("X-Slimy-Discord-Source", String(discordMeta.source || ""));
+      res.set("X-Slimy-Discord-Stale", discordMeta.stale ? "1" : "0");
+      if (discordMeta.retryAfterMs != null) res.set("X-Slimy-Discord-RetryAfterMs", String(discordMeta.retryAfterMs));
+    }
+
+    return res.json({ guilds, meta: discordMeta });
   } catch (err) {
     const status = Number(err?.status) || 0;
     const code = err?.code || err?.message || "server_error";
@@ -140,7 +155,12 @@ router.get("/", async (req, res) => {
       return res.status(401).json({ error: "discord_token_invalid" });
     }
     if (status === 429) {
-      return res.status(429).json({ error: "discord_rate_limited" });
+      const retryAfterMsRaw = Number(err?.retryAfterMs);
+      const retryAfterMs = Number.isFinite(retryAfterMsRaw) ? retryAfterMsRaw : null;
+      if (retryAfterMs != null) res.set("Retry-After", String(Math.max(1, Math.ceil(retryAfterMs / 1000))));
+      const body = { error: "discord_rate_limited" };
+      if (retryAfterMs != null) body.retryAfterMs = retryAfterMs;
+      return res.status(429).json(body);
     }
 
     if (

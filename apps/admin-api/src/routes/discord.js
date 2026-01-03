@@ -34,7 +34,14 @@ router.get("/guilds", requireAuth, async (req, res) => {
       concurrency: 4,
     });
 
-    return res.json({ guilds });
+    const discordMeta = guilds?.__slimyMeta || null;
+    if (discordMeta) {
+      res.set("X-Slimy-Discord-Source", String(discordMeta.source || ""));
+      res.set("X-Slimy-Discord-Stale", discordMeta.stale ? "1" : "0");
+      if (discordMeta.retryAfterMs != null) res.set("X-Slimy-Discord-RetryAfterMs", String(discordMeta.retryAfterMs));
+    }
+
+    return res.json({ guilds, meta: discordMeta });
 
   } catch (err) {
     const code = err?.code || err?.message || "server_error";
@@ -42,6 +49,14 @@ router.get("/guilds", requireAuth, async (req, res) => {
       return res.status(500).json({ error: "MISSING_SLIMYAI_BOT_TOKEN" });
     }
     if (String(code).startsWith("discord_user_guilds_failed:") && err?.status) {
+      if (Number(err.status) === 429) {
+        const retryAfterMsRaw = Number(err?.retryAfterMs);
+        const retryAfterMs = Number.isFinite(retryAfterMsRaw) ? retryAfterMsRaw : null;
+        if (retryAfterMs != null) res.set("Retry-After", String(Math.max(1, Math.ceil(retryAfterMs / 1000))));
+        const body = { error: "discord_rate_limited" };
+        if (retryAfterMs != null) body.retryAfterMs = retryAfterMs;
+        return res.status(429).json(body);
+      }
       return res.status(err.status).json({ error: "discord_fetch_failed" });
     }
     console.error("[discord/guilds] failed to fetch shared guilds", { code });

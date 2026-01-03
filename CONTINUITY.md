@@ -58,6 +58,9 @@
 - Admin panel stabilization (2026-01-02): fix Socket.IO chat connectivity, settings URL/proxy prefixing (`/api/admin-api`), guild availability/botInstalled gating, and `active-guild` 400 retry loop; then small UI typo + minimal anti-cascade guards.
 - Admin panel stabilization (2026-01-02): investigate `active-guild` `503` + `/api/guilds` stuck + chat connect/disconnect loop cascade (buglog: `docs/buglog/BUG_2026-01-02_activeguild_503_guilds_stuck_chat_loop.md`).
 - Investigate `discord-callback-self-redirect-loop`: `/api/auth/callback` 302 loops back to itself after successful Discord authorization (Chrome `ERR_TOO_MANY_REDIRECTS`).
+- Flight Recorder v3 (2026-01-03): report fields verified (dirtyFiles/diffStat, tokei notice, checklist); ran `pnpm report:nuc2` at `2026-01-03_1056`; unauth truth-gate evidence captured; auth+/chat evidence still UNCONFIRMED.
+- NOTE (2026-01-03): Chromium installed on nuc2; unauth truth-gate captured via headless CDP; auth+/chat still requires manual login evidence.
+- Flight Recorder v4 (2026-01-03): Discord guilds 429 (cache/backoff) investigation started; evidence gate pending in `docs/buglog/BUG_2026-01-03_discord_guilds_429_cache_backoff.md`.
 
 ### Next
 - Web Settings UI: polish/UX and deep links (keep non-chat scope).

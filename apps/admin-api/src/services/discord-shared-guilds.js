@@ -10,6 +10,17 @@ const CLUB_ROLE_IDS = new Set(["1178143391884775444"]);
 const ADMIN_PERMISSION = 0x8n;
 const MANAGE_GUILD_PERMISSION = 0x20n;
 
+// ----------------------------------------------------------------------------
+// Discord user guild list cache (shared across endpoints)
+// ----------------------------------------------------------------------------
+
+const USER_GUILDS_TTL_MS = 120_000; // 2 minutes (conservative)
+const MAX_RETRY_AFTER_MS = 10 * 60_000; // cap 10 minutes
+const MIN_429_COOLDOWN_MS = 10_000; // prevent retry storms even with tiny Retry-After
+
+// key: userDiscordId -> cache entry
+const userGuildsCache = new Map();
+
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -63,6 +74,80 @@ function getDiscordTimeoutSignal() {
     : undefined;
 }
 
+function attachMeta(list, meta) {
+  if (!list || typeof list !== "object") return list;
+
+  const existing = Object.getOwnPropertyDescriptor(list, "__slimyMeta");
+  if (existing && existing.writable) {
+    list.__slimyMeta = meta;
+    return list;
+  }
+
+  try {
+    Object.defineProperty(list, "__slimyMeta", {
+      value: meta,
+      enumerable: false,
+      writable: true,
+      configurable: true,
+    });
+    return list;
+  } catch {
+    // JSON.stringify ignores non-index array props; ok if enumerable.
+    try {
+      list.__slimyMeta = meta;
+    } catch {
+      // ignore (frozen/sealed)
+    }
+  }
+  return list;
+}
+
+function getRetryAfterMs({ res, body }) {
+  const headerValue = res?.headers?.get?.("retry-after");
+  const headerSeconds = headerValue ? Number(headerValue) : NaN;
+  const bodySeconds =
+    body && typeof body === "object" && body.retry_after !== undefined ? Number(body.retry_after) : NaN;
+
+  const seconds = Number.isFinite(headerSeconds)
+    ? headerSeconds
+    : Number.isFinite(bodySeconds)
+      ? bodySeconds
+      : 1;
+
+  const baseMs = Math.max(250, Math.min(MAX_RETRY_AFTER_MS, Math.round(seconds * 1000)));
+  const jitterMs = Math.floor(Math.random() * 250);
+  return baseMs + jitterMs;
+}
+
+function getCacheEntry(key) {
+  const existing = userGuildsCache.get(key);
+  if (existing) return existing;
+  const entry = {
+    guilds: null,
+    fetchedAt: 0,
+    expiresAt: 0,
+    rateLimitedUntil: 0,
+    inflight: null,
+    lastError: null,
+    lastStatus: null,
+  };
+  userGuildsCache.set(key, entry);
+  return entry;
+}
+
+function primeUserGuildsCache(userDiscordId, guilds) {
+  const key = String(userDiscordId || "").trim();
+  if (!key) return;
+  const list = Array.isArray(guilds) ? guilds : [];
+  const now = Date.now();
+  const entry = getCacheEntry(key);
+  entry.guilds = list;
+  entry.fetchedAt = now;
+  entry.expiresAt = now + USER_GUILDS_TTL_MS;
+  entry.lastError = null;
+  entry.lastStatus = 200;
+}
+
 async function fetchWith429Retry(url, options, maxRetries = 3) {
   let attempt = 0;
   while (true) {
@@ -77,20 +162,112 @@ async function fetchWith429Retry(url, options, maxRetries = 3) {
   }
 }
 
-async function fetchUserGuilds(discordAccessToken) {
+async function fetchUserGuildsFromDiscord(discordAccessToken) {
   const res = await fetch(`${DISCORD_API_BASE}/users/@me/guilds`, {
     headers: { Authorization: `Bearer ${discordAccessToken}` },
     signal: getDiscordTimeoutSignal(),
   });
 
   if (!res.ok) {
+    const body = await res.json().catch(() => null);
     const err = new Error(`discord_user_guilds_failed:${res.status}`);
     err.status = res.status;
+    err.code = `discord_user_guilds_failed:${res.status}`;
+    if (res.status === 429) {
+      err.retryAfterMs = getRetryAfterMs({ res, body });
+    }
     throw err;
   }
 
   const guilds = await res.json();
   return Array.isArray(guilds) ? guilds : [];
+}
+
+async function fetchUserGuildsCached({ userDiscordId, discordAccessToken, force = false } = {}) {
+  const key = String(userDiscordId || "").trim();
+  if (!key) {
+    return attachMeta(await fetchUserGuildsFromDiscord(discordAccessToken), {
+      source: "discord",
+      stale: false,
+      discordRateLimited: false,
+      retryAfterMs: null,
+    });
+  }
+
+  const entry = getCacheEntry(key);
+  const now = Date.now();
+  const hasCache = Array.isArray(entry.guilds);
+
+  if (!force) {
+    if (hasCache && now < entry.expiresAt) {
+      return attachMeta(entry.guilds, {
+        source: "cache",
+        stale: false,
+        discordRateLimited: now < entry.rateLimitedUntil,
+        retryAfterMs: now < entry.rateLimitedUntil ? entry.rateLimitedUntil - now : null,
+      });
+    }
+
+    if (now < entry.rateLimitedUntil) {
+      if (hasCache) {
+        return attachMeta(entry.guilds, {
+          source: "cache",
+          stale: true,
+          discordRateLimited: true,
+          retryAfterMs: entry.rateLimitedUntil - now,
+        });
+      }
+
+      const err = new Error("discord_rate_limited");
+      err.status = 429;
+      err.code = "discord_rate_limited";
+      err.retryAfterMs = entry.rateLimitedUntil - now;
+      throw err;
+    }
+  }
+
+  if (entry.inflight) return entry.inflight;
+
+  entry.inflight = (async () => {
+    try {
+      const guilds = await fetchUserGuildsFromDiscord(discordAccessToken);
+      entry.guilds = guilds;
+      entry.fetchedAt = now;
+      entry.expiresAt = now + USER_GUILDS_TTL_MS;
+      entry.lastError = null;
+      entry.lastStatus = 200;
+      return attachMeta(guilds, {
+        source: "discord",
+        stale: false,
+        discordRateLimited: false,
+        retryAfterMs: null,
+      });
+    } catch (err) {
+      const status = Number(err?.status) || 0;
+      entry.lastError = err?.code || err?.message || "error";
+      entry.lastStatus = status || null;
+
+      if (status === 429) {
+        const retryAfterMs = Math.max(MIN_429_COOLDOWN_MS, Number(err?.retryAfterMs) || 1000);
+        entry.rateLimitedUntil = Math.max(entry.rateLimitedUntil || 0, now + retryAfterMs);
+
+        if (hasCache) {
+          return attachMeta(entry.guilds, {
+            source: "cache",
+            stale: true,
+            discordRateLimited: true,
+            retryAfterMs: entry.rateLimitedUntil - now,
+          });
+        }
+      }
+
+      throw err;
+    } finally {
+      entry.inflight = null;
+    }
+  })();
+
+  return entry.inflight;
 }
 
 async function botInstalledInGuild(guildId, botToken) {
@@ -168,7 +345,8 @@ async function getSharedGuildsForUser({
     throw err;
   }
 
-  const userGuilds = await fetchUserGuilds(discordAccessToken);
+  const userGuilds = await fetchUserGuildsCached({ userDiscordId, discordAccessToken });
+  const userGuildsMeta = userGuilds?.__slimyMeta || null;
   const limit = createLimiter(Math.max(1, Math.min(8, Number(concurrency) || 4)));
 
   const checks = await Promise.all(
@@ -204,7 +382,7 @@ async function getSharedGuildsForUser({
     );
   }
 
-  return out;
+  return attachMeta(out, userGuildsMeta);
 }
 
 function normalizeGuildEntryWithBotStatus(guild, botInstalled) {
@@ -248,7 +426,8 @@ async function getAllUserGuildsWithBotStatus({
     throw err;
   }
 
-  const userGuilds = await fetchUserGuilds(discordAccessToken);
+  const userGuilds = await fetchUserGuildsCached({ userDiscordId, discordAccessToken });
+  const userGuildsMeta = userGuilds?.__slimyMeta || null;
   const limit = createLimiter(Math.max(1, Math.min(8, Number(concurrency) || 4)));
 
   const results = await Promise.all(
@@ -262,7 +441,7 @@ async function getAllUserGuildsWithBotStatus({
     ),
   );
 
-  return results;
+  return attachMeta(results, userGuildsMeta);
 }
 
 module.exports = {
@@ -275,4 +454,5 @@ module.exports = {
   getAllUserGuildsWithBotStatus,
   computeRoleLabelFromRoles,
   fetchMemberRoles,
+  primeUserGuildsCache,
 };
