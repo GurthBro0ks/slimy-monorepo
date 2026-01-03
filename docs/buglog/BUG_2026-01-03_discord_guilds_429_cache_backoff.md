@@ -212,6 +212,10 @@ cd /opt/slimy/slimy-monorepo
 pnpm -C apps/admin-api test
 pnpm -C apps/admin-ui test
 pnpm report:nuc2
+DOCKER_BUILDKIT=0 docker compose -f infra/docker/docker-compose.slimy-nuc2.yml build admin-api
+docker compose -f infra/docker/docker-compose.slimy-nuc2.yml up -d --no-deps --force-recreate admin-api
+docker inspect -f '{{.State.Health.Status}}' slimy-admin-api
+curl -sS https://admin.slimyai.xyz/api/health | head -c 200; echo
 ```
 
 Output (excerpt):
@@ -222,6 +226,8 @@ pnpm report:nuc2: Tests PASS, Docker OK, Admin Health OK, Socket.IO OK
 Written: docs/reports/REPORT_2026-01-03_1512_nuc2.json
 Written: docs/reports/REPORT_2026-01-03_1512_nuc2.html
 Written: docs/reports/LATEST_nuc2.json
+slimy-admin-api: healthy
+{"status":"ok","uptime":9,"timestamp":"2026-01-03T15:24:26.337Z","version":"1.0.0"}
 ```
 
 ## Verification evidence
