@@ -63,7 +63,7 @@
 - Flight Recorder v4 (2026-01-03): Discord guilds 429 (cache/backoff) investigation started; evidence gate pending in `docs/buglog/BUG_2026-01-03_discord_guilds_429_cache_backoff.md`.
 - Flight Recorder v4 (2026-01-03): guilds 429 browser evidence duplicated into `docs/buglog/assets/2026-01-03_discord_guilds_429_cache_backoff_v2/browser/` for protocol naming; buglog updated to reference v2 assets.
 - Flight Recorder v4 (2026-01-03): Discord guilds 429 fixed via shared cache + coalescing + cooldown; verified 200 + cache headers; evidence in v2 assets path.
-- Flight Recorder v4 (2026-01-03): added guilds cache observability + bot-check caching + report regression probe (unauth by default, auth via `REPORT_ADMIN_COOKIE`); browser evidence still UNCONFIRMED.
+- Flight Recorder v4 (2026-01-03): added guilds cache observability + bot-check caching + report regression probe (unauth by default, auth via `REPORT_ADMIN_COOKIE`); Evidence Gate PASS for auth baseline: `auth_baseline_copydebug.txt` present + readable `auth_baseline_network.png` (X-Slimy-Discord-* summary) + `auth_baseline_console.png` (no `discord_rate_limited` storm); originals preserved as `auth_baseline_*.page.png` in `docs/buglog/assets/2026-01-03_discord_guilds_429_hardening_observability_v2/browser/`.
 
 ### Next
 - Web Settings UI: polish/UX and deep links (keep non-chat scope).

@@ -30,3 +30,7 @@ apps/web/.env.test.local
 
 # Stability gate reports (generated)
 docs/ops/STABILITY_REPORT_*.md
+
+# Repo Health Report outputs (generated)
+docs/reports/
+docs/reports/**
