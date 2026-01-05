@@ -34,3 +34,6 @@ docs/ops/STABILITY_REPORT_*.md
 # Repo Health Report outputs (generated)
 docs/reports/
 docs/reports/**
+
+# Buglog evidence assets (keep local by default; force-add only when explicitly intended)
+docs/buglog/assets/**
