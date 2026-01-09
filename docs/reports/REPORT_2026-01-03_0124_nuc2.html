@@ -1,0 +1,1355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Repo Health Report - nuc2 - 2026-01-03T01:24:53.026Z</title>
+  <!-- Offline-first: try local vendor, fallback to CDN -->
+  <script src="vendor/chart.umd.min.js"></script>
+  <script>
+    if (typeof Chart === 'undefined') {
+      console.warn('Local Chart.js not found, loading from CDN...');
+      document.write('<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"><\/script>');
+    }
+  </script>
+  <style>
+    :root {
+      --bg: #0d1117;
+      --card-bg: #161b22;
+      --text: #c9d1d9;
+      --text-muted: #8b949e;
+      --border: #30363d;
+      --green: #22c55e;
+      --red: #ef4444;
+      --blue: #58a6ff;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      padding: 2rem;
+    }
+    .container { max-width: 1200px; margin: 0 auto; }
+    h1 { font-size: 1.75rem; margin-bottom: 0.5rem; }
+    h2 { font-size: 1.25rem; margin-bottom: 1rem; color: var(--blue); }
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 2rem;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+    .status-badge {
+      padding: 0.5rem 1rem;
+      border-radius: 0.5rem;
+      font-weight: bold;
+      font-size: 0.875rem;
+    }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 1.5rem; }
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 0.5rem;
+      padding: 1.5rem;
+    }
+    .card.full-width { grid-column: 1 / -1; }
+    .summary-table { width: 100%; border-collapse: collapse; }
+    .summary-table td {
+      padding: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .summary-table td:first-child {
+      color: var(--text-muted);
+      width: 40%;
+    }
+    code {
+      background: var(--bg);
+      padding: 0.2rem 0.4rem;
+      border-radius: 0.25rem;
+      font-size: 0.875rem;
+    }
+    .chart-container {
+      position: relative;
+      height: 250px;
+    }
+    details {
+      margin-top: 1rem;
+    }
+    summary {
+      cursor: pointer;
+      color: var(--blue);
+      font-weight: 500;
+    }
+    pre {
+      background: var(--bg);
+      padding: 1rem;
+      border-radius: 0.5rem;
+      overflow-x: auto;
+      font-size: 0.75rem;
+      max-height: 300px;
+      overflow-y: auto;
+      margin-top: 0.5rem;
+    }
+    .ok { color: var(--green); }
+    .fail { color: var(--red); }
+    .meta { color: var(--text-muted); font-size: 0.875rem; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div>
+        <h1>Repo Health Report</h1>
+        <p class="meta">Host: <strong>nuc2</strong> | Generated: <strong>2026-01-03T01:24:53.026Z</strong></p>
+      </div>
+      <div class="status-badge" style="background: #22c55e; color: white;">
+        HEALTHY
+      </div>
+    </div>
+
+    <div class="grid">
+      <!-- Git Info -->
+      <div class="card">
+        <h2>Git Status</h2>
+        <table class="summary-table">
+          <tr><td>Branch</td><td><code>nuc2/verify-role-b33e616</code></td></tr>
+          <tr><td>HEAD</td><td><code>4c80a5b</code></td></tr>
+          <tr><td>Dirty</td><td class="fail">Yes</td></tr>
+        </table>
+        
+          <details>
+            <summary>Dirty files (top 40 of 40)</summary>
+            <pre> M CONTINUITY.md
+ M apps/admin-ui/components/debug/DebugDock.tsx
+ M apps/admin-ui/lib/slimy-debug.js
+ M apps/admin-ui/lib/socket.js
+ M scripts/report/run.mjs
+?? apps/web/app/chat/page.backup-2025-12-28.tsx
+?? apps/web/public/slimechat/
+?? docs/buglog/BUG_2025-12-28_caddy-502-admin-api-migration-loop.md
+?? docs/buglog/BUG_2025-12-28_chat-iframe-wrapper.md
+?? docs/buglog/BUG_2025-12-28_discord-invalid-redirect-uri.md
+?? docs/buglog/BUG_2025-12-28_discord-oauth-redirect-uri.md
+?? docs/buglog/BUG_2025-12-31_admin-guilds-empty_ws-proxy_caddy-2019.md
+?? docs/buglog/BUG_2025-12-31_oauth-callback-self-redirect-prod.md
+?? docs/buglog/BUG_2025-12-31_post-login-wrong-domain.md
+?? docs/buglog/BUG_2026-01-03_practical_recos_v3_report_debug_truthgate.md
+?? docs/buglog/assets/
+?? docs/reports/LATEST_nuc2.json
+?? docs/reports/REPORT_2026-01-02_2138_nuc2.html
+?? docs/reports/REPORT_2026-01-02_2138_nuc2.json
+?? docs/reports/REPORT_2026-01-02_2154_nuc2.html
+?? docs/reports/REPORT_2026-01-02_2154_nuc2.json
+?? docs/reports/REPORT_2026-01-02_2208_nuc2.html
+?? docs/reports/REPORT_2026-01-02_2208_nuc2.json
+?? docs/reports/REPORT_2026-01-02_2228_nuc2.html
+?? docs/reports/REPORT_2026-01-02_2228_nuc2.json
+?? docs/reports/REPORT_2026-01-02_2243_nuc2.html
+?? docs/reports/REPORT_2026-01-02_2243_nuc2.json
+?? docs/reports/REPORT_2026-01-03_0001_nuc2.html
+?? docs/reports/REPORT_2026-01-03_0001_nuc2.json
+?? docs/reports/REPORT_2026-01-03_0007_nuc2.html
+?? docs/reports/REPORT_2026-01-03_0007_nuc2.json
+?? docs/reports/REPORT_2026-01-03_0031_nuc2.html
+?? docs/reports/REPORT_2026-01-03_0031_nuc2.json
+?? docs/reports/REPORT_2026-01-03_0041_nuc2.html
+?? docs/reports/REPORT_2026-01-03_0041_nuc2.json
+?? docs/reports/REPORT_2026-01-03_0043_nuc2.html
+?? docs/reports/REPORT_2026-01-03_0043_nuc2.json
+?? docs/reports/REPORT_2026-01-03_0050_nuc2.html
+?? docs/reports/REPORT_2026-01-03_0050_nuc2.json
+?? docs/reports/vendor/</pre>
+          </details>
+        
+        
+          <details>
+            <summary>Diff stat</summary>
+            <pre>--- unstaged ---
+CONTINUITY.md                                |  1 +
+ apps/admin-ui/components/debug/DebugDock.tsx | 54 ++++++++++++++---
+ apps/admin-ui/lib/slimy-debug.js             | 81 +++++++++++++++++++++++++
+ apps/admin-ui/lib/socket.js                  | 21 ++++++-
+ scripts/report/run.mjs                       | 90 +++++++++++++++++++++++++---
+ 5 files changed, 230 insertions(+), 17 deletions(-)</pre>
+          </details>
+        
+        <details><summary>Working tree changes</summary><pre>M CONTINUITY.md
+ M apps/admin-ui/components/debug/DebugDock.tsx
+ M apps/admin-ui/lib/slimy-debug.js
+ M apps/admin-ui/lib/socket.js
+ M scripts/report/run.mjs
+?? apps/web/app/chat/page.backup-2025-12-28.tsx
+?? apps/web/public/slimechat/
+?? docs/buglog/BUG_2025-12-28_caddy-502-admin-api-migration-loop.md
+?? docs/buglog/BUG_2025-12-28_chat-iframe-wrapper.md
+?? docs/buglog/BUG_2025-12-28_discord-invalid-redirect-uri.md
+?? docs/buglog/BUG_2025-12-28_discord-oauth-redirect-uri.md
+?? docs/buglog/BUG_2025-12-31_admin-guilds-empty_ws-proxy_caddy-2019.md
+?? docs/buglog/BUG_2025-12-31_oauth-callback-self-redirect-prod.md
+?? docs/buglog/BUG_2025-12-31_post-login-wrong-domain.md
+?? docs/buglog/BUG_2026-01-03_practical_recos_v3_report_debug_truthgate.md
+?? docs/buglog/assets/
+?? docs/reports/LATEST_nuc2.json
+?? docs/reports/REPORT_2026-01-02_2138_nuc2.html
+?? docs/reports/REPORT_2026-01-02_2138_nuc2.json
+?? docs/reports/REPORT_2026-01-02_2154_nuc2.html
+?? docs/reports/REPORT_2026-01-02_2154_nuc2.json
+?? docs/reports/REPORT_2026-01-02_2208_nuc2.html
+?? docs/reports/REPORT_2026-01-02_2208_nuc2.json
+?? docs/reports/REPORT_2026-01-02_2228_nuc2.html
+?? docs/reports/REPORT_2026-01-02_2228_nuc2.json
+?? docs/reports/REPORT_2026-01-02_2243_nuc2.html
+?? docs/reports/REPORT_2026-01-02_2243_nuc2.json
+?? docs/reports/REPORT_2026-01-03_0001_nuc2.html
+?? docs/reports/REPORT_2026-01-03_0001_nuc2.json
+?? docs/reports/REPORT_2026-01-03_0007_nuc2.html
+?? docs/reports/REPORT_2026-01-03_0007_nuc2.json
+?? docs/reports/REPORT_2026-01-03_0031_nuc2.html
+?? docs/reports/REPORT_2026-01-03_0031_nuc2.json
+?? docs/reports/REPORT_2026-01-03_0041_nuc2.html
+?? docs/reports/REPORT_2026-01-03_0041_nuc2.json
+?? docs/reports/REPORT_2026-01-03_0043_nuc2.html
+?? docs/reports/REPORT_2026-01-03_0043_nuc2.json
+?? docs/reports/REPORT_2026-01-03_0050_nuc2.html
+?? docs/reports/REPORT_2026-01-03_0050_nuc2.json
+?? docs/reports/vendor/</pre></details>
+      </div>
+
+      <!-- Health Checks -->
+      <div class="card">
+        <h2>Health Checks</h2>
+        <table class="summary-table">
+          <tr><td>Tests</td><td class="ok">✅ Pass</td></tr>
+          <tr><td>Docker</td><td><span class="ok">✅ Running</span></td></tr>
+          <tr><td>Admin API</td><td class="ok">✅ OK</td></tr>
+          <tr><td>Socket.IO (endpoint)</td><td class="ok">✅ OK</td></tr>
+        </table>
+      </div>
+
+      
+      <div class="card">
+        <h2>Delta (vs Previous)</h2>
+        <table class="summary-table">
+          <tr><td>Previous HEAD</td><td><code>4c80a5b</code></td></tr>
+          <tr><td>HEAD Changed</td><td>❌ No</td></tr>
+          <tr><td>Branch Changed</td><td>❌ No</td></tr>
+          <tr><td>Tests Status Changed</td><td>❌ No</td></tr>
+        </table>
+      </div>
+    
+
+      
+    <div class="card">
+      <h2>Environment</h2>
+      <table class="summary-table">
+        <tr><td>Node</td><td><code>v20.19.6</code></td></tr>
+        <tr><td>pnpm</td><td><code>10.21.0</code></td></tr>
+        <tr><td>Docker</td><td><code>Docker version 28.2.2, build 28.2.2-0ubuntu1~24.04.1</code></td></tr>
+        <tr><td>Docker Compose</td><td><code>Docker Compose version v2.27.0</code></td></tr>
+      </table>
+      <details>
+        <summary>System Info</summary>
+        <pre>Linux slimy-nuc2 6.8.0-90-generic #91-Ubuntu SMP PREEMPT_DYNAMIC Tue Nov 18 14:14:30 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux</pre>
+        <pre>Filesystem      Size  Used Avail Use% Mounted on
+/dev/sda2       219G  140G   68G  68% /</pre>
+      </details>
+    </div>
+  
+
+      <!-- Truth Gate Checklist -->
+      <div class="card full-width">
+        <h2>Truth Gate Checklist (Manual)</h2>
+        <p class="meta">Goal: avoid phantom chat “connected” states and avoid socket.io traffic on unauth/non-chat pages.</p>
+        <ul style="margin-left: 1.25rem; margin-top: 0.75rem; color: var(--text);">
+          <li><strong>Unauth</strong>: open <code>/login</code> in an incognito window → DevTools Network should show <strong>zero</strong> <code>/socket.io</code> requests and <strong>zero</strong> WS entries.</li>
+          <li><strong>Auth</strong>: log in (Discord) → on non-chat pages, chat should remain idle and <code>/socket.io</code> should not appear.</li>
+          <li><strong>/chat</strong>: if chat is intended to connect, expect real evidence: Socket.IO polling open packet (<code>0{"sid":...}</code>) and/or WebSocket <code>101</code> upgrade.</li>
+          <li><strong>DebugDock</strong>: enable <code>localStorage.slimyDebug=1</code>, then “Copy Debug” and paste into incident notes alongside Network evidence.</li>
+        </ul>
+      </div>
+
+      <!-- Language Chart -->
+      <div class="card">
+        <h2>Top Languages (by code lines)</h2>
+        
+          <p class="meta"><span class="fail">Language chart unavailable:</span> <code>tokei_unavailable</code></p>
+          <pre>Install tokei (language stats): brew install tokei | sudo apt-get install tokei | cargo install tokei</pre>
+        
+      </div>
+
+      <!-- Folder Chart -->
+      <div class="card">
+        <h2>Largest Folders (by bytes)</h2>
+        <div class="chart-container">
+          <canvas id="folderChart"></canvas>
+        </div>
+      </div>
+
+      <!-- Raw Outputs -->
+      <div class="card full-width">
+        <h2>Raw Outputs</h2>
+        <details>
+          <summary>Test Output</summary>
+          <pre>&gt; slimy-monorepo@ test /opt/slimy/slimy-monorepo
+&gt; pnpm -r run test || echo &quot;TODO: wire tests&quot;
+
+Scope: 11 of 12 workspace projects
+packages/contracts test$ echo &quot;TODO: test contracts&quot;
+packages/shared-auth test$ vitest run
+packages/shared-codes test$ echo &quot;TODO: test shared-codes&quot;
+packages/shared-config test$ echo &quot;TODO: test shared-config&quot;
+packages/contracts test: TODO: test contracts
+packages/shared-codes test: TODO: test shared-codes
+packages/shared-config test: TODO: test shared-config
+packages/shared-config test: Done
+packages/shared-codes test: Done
+packages/contracts test: Done
+packages/shared-db test$ echo &quot;TODO: test shared-db&quot;
+packages/shared-snail test$ echo &quot;TODO: test shared-snail&quot;
+packages/shared-db test: TODO: test shared-db
+packages/shared-snail test: TODO: test shared-snail
+packages/shared-snail test: Done
+packages/shared-db test: Done
+packages/shared-auth test:  RUN  v4.0.15 /opt/slimy/slimy-monorepo/packages/shared-auth
+packages/shared-auth test:  ✓ src/index.test.ts (41 tests) 37ms
+packages/shared-auth test:  Test Files  1 passed (1)
+packages/shared-auth test:       Tests  41 passed (41)
+packages/shared-auth test:    Start at  01:24:13
+packages/shared-auth test:    Duration  582ms (transform 196ms, setup 0ms, import 234ms, tests 37ms, environment 0ms)
+packages/shared-auth test: Done
+apps/admin-api test$ jest
+apps/admin-ui test$ node tests/oauth-origin.test.js &amp;&amp; node tests/oauth-tripwire.test.js &amp;&amp; node tests/auth-callback-proxy.test.js &amp;&amp; node tests/oauth-post-login-redirect-tripwire.test.js
+apps/bot test$ vitest run
+apps/web test$ vitest
+apps/admin-ui test: [PASS] normalizeOrigin tests
+apps/admin-ui test: [PASS] isLocalhostHostname tests
+apps/admin-ui test: [PASS] firstHeader tests
+apps/admin-ui test: [PASS] withForwardedPortIfMissing tests
+apps/admin-ui test: [PASS] isAllowedOrigin tests (dev mode)
+apps/admin-ui test: [PASS] isAllowedOrigin tests (production mode)
+apps/admin-ui test: [oauth-origin] Origin not allowed, falling back: { derived: 'http://localhost:3080', fallback: 'http://localhost:3001' }
+apps/admin-ui test: [oauth-origin] Origin not allowed, falling back: { derived: 'https://evil.com', fallback: 'http://localhost:3001' }
+apps/admin-ui test: [PASS] getPublicOrigin tests
+apps/admin-ui test: === All oauth-origin tests passed ===
+apps/admin-ui test: [PASS] authorize-url canonical redirect_uri
+apps/admin-ui test: [PASS] no legacy auth/proxy references in client bundle
+apps/admin-ui test: === All oauth tripwires passed ===
+apps/admin-ui test: [PASS] auth callback proxy tripwires
+apps/admin-ui test: [PASS] oauth post-login redirect tripwires
+apps/admin-ui test: Done
+apps/bot test:  RUN  v1.6.1 /opt/slimy/slimy-monorepo/apps/bot
+apps/web test:  RUN  v4.0.15 /opt/slimy/slimy-monorepo/apps/web
+apps/bot test:  ✓ tests/errorHandler.test.ts  (9 tests) 37ms
+apps/bot test:  ✓ tests/utils/parsing.test.ts  (13 tests) 73ms
+apps/bot test:  ✓ tests/logger.test.ts  (13 tests) 182ms
+apps/bot test:  ✓ tests/utils/stats.test.ts  (10 tests) 125ms
+apps/bot test:  Test Files  4 passed (4)
+apps/bot test:       Tests  45 passed (45)
+apps/bot test:    Start at  01:24:15
+apps/bot test:    Duration  5.82s (transform 1.20s, setup 0ms, collect 1.57s, tests 417ms, environment 2ms, prepare 4.87s)
+apps/bot test: Done
+apps/admin-api test:   console.log
+apps/admin-api test:     !!! AUTH LOGIC LOADED v304 (ACTIVE GUILD) !!!
+apps/admin-api test:       at Object.log (src/routes/auth.js:21:9)
+apps/admin-api test: PASS tests/auth/active-guild.cookie.test.js
+apps/admin-api test:   POST /api/auth/active-guild cookie
+apps/admin-api test:     ✓ sets slimy_admin_active_guild_id on success (77 ms)
+apps/admin-api test:     ✓ sets cookie even when bot not installed (selection is allowed) (12 ms)
+apps/admin-api test: PASS tests/guilds-connect.test.js
+apps/admin-api test:   POST /api/guilds/connect
+apps/admin-api test:     ✓ should return 200 when connecting with valid frontend payload (281 ms)
+apps/admin-api test:     ✓ should return 200 if guild is ALREADY connected (55 ms)
+apps/admin-api test:     ✓ should return 400 if guild ID is missing (10 ms)
+apps/admin-api test:   guildService.connectGuild
+apps/admin-api test:     ✓ upserts owner by discord id and links guild to the owner (4 ms)
+apps/admin-api test:   console.log
+apps/admin-api test:     !!! AUTH LOGIC LOADED v304 (ACTIVE GUILD) !!!
+apps/admin-api test:       at Object.log (src/routes/auth.js:21:9)
+apps/admin-api test:   console.warn
+apps/admin-api test:     [auth/callback] State mismatch detail {
+apps/admin-api test:       requestOrigin: 'https://admin.slimyai.xyz',
+apps/admin-api test:       hasCode: true,
+apps/admin-api test:       hasState: true,
+apps/admin-api test:       hasSaved: false,
+apps/admin-api test:       statePrefix: 'REDACT',
+apps/admin-api test:       savedPrefix: null
+apps/admin-api test:     }
+apps/admin-api test:       347 |       clearCookie(req, res, &quot;oauth_redirect_uri&quot;);
+apps/admin-api test:       348 |       if (shouldDebugAuth()) {
+apps/admin-api test:     &gt; 349 |         console.warn(&quot;[auth/callback] State mismatch detail&quot;, {
+apps/admin-api test:           |                 ^
+apps/admin-api test:       350 |           requestOrigin: getRequestOrigin(req),
+apps/admin-api test:       351 |           hasCode: Boolean(code),
+apps/admin-api test:       352 |           hasState: Boolean(state),
+apps/admin-api test:       at warn (src/routes/auth.js:349:17)
+apps/admin-api test:       at Layer.handle [as handle_request] (../../node_modules/.pnpm/express@4.22.1/node_modules/express/lib/router/layer.js:95:5)
+apps/admin-api test:       at next (../../node_modules/.pnpm/express@4.22.1/node_modules/express/lib/router/route.js:149:13)
+apps/admin-api test:       at Route.dispatch (../../node_modules/.pnpm/express@4.22.1/node_modules/express/lib/router/route.js:119:3)
+apps/admin-api test:       at Layer.handle [as handle_request] (../../node_modules/.pnpm/express@4.22.1/node_modules/express/lib/router/layer.js:95:5)
+apps/admin-api test:       at ../../node_modules/.pnpm/express@4.22.1/node_modules/express/lib/router/index.js:284:15
+apps/admin-api test:       at Function.process_params (../../node_modules/.pnpm/express@4.22.1/node_modules/express/lib/router/index.js:346:12)
+apps/admin-api test:       at next (../../node_modules/.pnpm/express@4.22.1/node_modules/express/lib/router/index.js:280:10)
+apps/admin-api test:       at Function.handle (../../node_modules/.pnpm/express@4.22.1/node_modules/express/lib/router/index.js:175:3)
+apps/admin-api test:       at router (../../node_modules/.pnpm/express@4.22.1/node_modules/express/lib/router/index.js:47:12)
+apps/admin-api test:       at Layer.handle [as handle_request] (../../node_modules/.pnpm/express@4.22.1/node_modules/express/lib/router/layer.js:95:5)
+apps/admin-api test:       at trim_prefix (../../node_modules/.pnpm/express@4.22.1/node_modules/express/lib/router/index.js:328:13)
+apps/admin-api test:       at ../../node_modules/.pnpm/express@4.22.1/node_modules/express/lib/router/index.js:286:9
+apps/admin-api test:       at Function.process_params (../../node_modules/.pnpm/express@4.22.1/node_modules/express/lib/router/index.js:346:12)
+apps/admin-api test:       at next (../../node_modules/.pnpm/express@4.22.1/node_modules/express/lib/router/index.js:280:10)
+apps/admin-api test:       at cookieParser (../../node_modules/.pnpm/cookie-parser@1.4.7/node_modules/cookie-parser/index.js:57:14)
+apps/admin-api test:       at Layer.handle [as handle_request] (../../node_modules/.pnpm/express@4.22.1/node_modules/express/lib/router/layer.js:95:5)
+apps/admin-api test:       at trim_prefix (../../node_modules/.pnpm/express@4.22.1/node_modules/express/lib/router/index.js:328:13)
+apps/admin-api test:       at ../../node_modules/.pnpm/express@4.22.1/node_modules/express/lib/router/index.js:286:9
+apps/admin-api test:       at Function.process_params (../../node_modules/.pnpm/express@4.22.1/node_modules/express/lib/router/index.js:346:12)
+apps/admin-api test:       at next (../../node_modules/.pnpm/express@4.22.1/node_modules/express/lib/router/index.js:280:10)
+apps/admin-api test:       at expressInit (../../node_modules/.pnpm/express@4.22.1/node_modules/express/lib/middleware/init.js:40:5)
+apps/admin-api test:       at Layer.handle [as handle_request] (../../node_modules/.pnpm/express@4.22.1/node_modules/express/lib/router/layer.js:95:5)
+apps/admin-api test:       at trim_prefix (../../node_modules/.pnpm/express@4.22.1/node_modules/express/lib/router/index.js:328:13)
+apps/admin-api test:       at ../../node_modules/.pnpm/express@4.22.1/node_modules/express/lib/router/index.js:286:9
+apps/admin-api test:       at Function.process_params (../../node_modules/.pnpm/express@4.22.1/node_modules/express/lib/router/index.js:346:12)
+apps/admin-api test:       at next (../../node_modules/.pnpm/express@4.22.1/node_modules/express/lib/router/index.js:280:10)
+apps/admin-api test:       at query (../../node_modules/.pnpm/express@4.22.1/node_modules/express/lib/middleware/query.js:45:5)
+apps/admin-api test:       at Layer.handle [as handle_request] (../../node_modules/.pnpm/express@4.22.1/node_modules/express/lib/router/layer.js:95:5)
+apps/admin-api test:       at trim_prefix (../../node_modules/.pnpm/express@4.22.1/node_modules/express/lib/router/index.js:328:13)
+apps/admin-api test:       at ../../node_modules/.pnpm/express@4.22.1/node_modules/express/lib/router/index.js:286:9
+apps/admin-api test:       at Function.process_params (../../node_modules/.pnpm/express@4.22.1/node_modules/express/lib/router/index.js:346:12)
+apps/admin-api test:       at next (../../node_modules/.pnpm/express@4.22.1/node_modules/express/lib/router/index.js:280:10)
+apps/admin-api test:       at Function.handle (../../node_modules/.pnpm/express@4.22.1/node_modules/express/lib/router/index.js:175:3)
+apps/admin-api test:       at Function.handle (../../node_modules/.pnpm/express@4.22.1/node_modules/express/lib/application.js:181:10)
+apps/admin-api test:       at Server.app (../../node_modules/.pnpm/express@4.22.1/node_modules/express/lib/express.js:39:9)
+apps/admin-api test: PASS src/routes/auth-callback-loop.test.js
+apps/admin-api test:   discord oauth callback (redirect loop guard)
+apps/admin-api test:     ✓ does not 302 back to /api/auth/callback on canonical admin origin (1391 ms)
+apps/admin-api test:     ✓ supports ?debug=1 without redirecting (15 ms)
+apps/admin-api test:     ✓ debug mode loop-guards ADMIN_UI_POST_LOGIN_REDIRECT when it points at the callback (8 ms)
+apps/admin-api test: PASS tests/guilds-list-discord-error-mapping.test.js
+apps/admin-api test:   GET /api/guilds (Discord failure mapping)
+apps/admin-api test:     ✓ maps Discord 401/403 to 401 discord_token_invalid (117 ms)
+apps/admin-api test:     ✓ maps Discord 429 to 429 discord_rate_limited (27 ms)
+apps/admin-api test:   console.log
+apps/admin-api test:     !!! AUTH LOGIC LOADED v304 (ACTIVE GUILD) !!!
+apps/admin-api test:       at Object.log (src/routes/auth.js:21:9)
+apps/admin-api test:   console.warn
+apps/admin-api test:     [auth/active-guild] Bot membership check failed: Discord API error
+apps/admin-api test:       1022 |         botInstalled = await botInstalledInGuild(normalizedGuildId, botToken);
+apps/admin-api test:       1023 |       } catch (err) {
+apps/admin-api test:     &gt; 1024 |         console.warn(&quot;[auth/active-guild] Bot membership check failed:&quot;, err?.message || err);
+apps/admin-api test:            |                 ^
+apps/admin-api test:       1025 |         botInstalled = null;
+apps/admin-api test:       1026 |       }
+apps/admin-api test:       1027 |     }
+apps/admin-api test:       at warn (src/routes/auth.js:1024:17)
+apps/admin-api test: PASS tests/auth/active-guild.test.js
+apps/admin-api test:   POST /api/auth/active-guild
+apps/admin-api test:     ✓ allows selecting manageable guild even when bot not installed (58 ms)
+apps/admin-api test:     ✓ allows selection when bot membership check fails (no retry-spam 400) (15 ms)
+apps/admin-api test:     ✓ allows selection when bot token is missing (11 ms)
+apps/admin-api test:     ✓ succeeds when bot is installed in guild (11 ms)
+apps/admin-api test:     ✓ returns role for primary guild based on policy logic (12 ms)
+apps/admin-api test:     ✓ normalizes guildId to string (10 ms)
+apps/admin-api test:     ✓ rejects selecting a guild not present in the user's Discord guild list (10 ms)
+apps/admin-api test:     ✓ returns 401 when Discord access token is invalid/expired (9 ms)
+apps/admin-api test:     ✓ returns 429 when Discord rate-limits and no DB fallback exists (11 ms)
+apps/admin-api test:     ✓ allows selection when Discord rate-limits but DB fallback exists (11 ms)
+apps/admin-api test: PASS tests/guilds-list-botinstalled-fallback.test.js
+apps/admin-api test:   GET /api/guilds (botInstalled fallback)
+apps/admin-api test:     ✓ patches botInstalled=true for guilds present in DB (233 ms)
+apps/web test: stdout | tests/unit/codes-cache.test.ts &gt; CodesCache &gt; connection management &gt; should connect successfully
+apps/web test: Redis cache connected
+apps/web test: Redis cache connected
+apps/web test: stderr | tests/unit/codes-cache.test.ts &gt; CodesCache &gt; connection management &gt; should handle connection failures
+apps/web test: Failed to connect to Redis: Error: Connection failed
+apps/web test:     at /opt/slimy/slimy-monorepo/apps/web/tests/unit/codes-cache.test.ts:88:26
+apps/web test:     at file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:145:11
+apps/web test:     at file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:915:26
+apps/web test:     at file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:1240:20
+apps/web test:     at new Promise (&lt;anonymous&gt;)
+apps/web test:     at runWithTimeout (file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:1206:10)
+apps/web test:     at file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:1650:37
+apps/web test:     at Traces.$ (file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/vitest@4.0.15_@opentelemetry+api@1.9.0_@types+node@20.19.25_@vitest+ui@4.0.15_jiti@2.6._6f4799287cc307d0b976628207bcb6be/node_modules/vitest/dist/chunks/traces.U4xDYhzZ.js:115:27)
+apps/web test:     at trace (file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/vitest@4.0.15_@opentelemetry+api@1.9.0_@types+node@20.19.25_@vitest+ui@4.0.15_jiti@2.6._6f4799287cc307d0b976628207bcb6be/node_modules/vitest/dist/chunks/test.BT8LKgU9.js:239:21)
+apps/web test:     at runTest (file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:1650:12)
+apps/web test: stderr | tests/unit/codes-cache.test.ts &gt; CodesCache &gt; cache operations &gt; should handle cache set failures
+apps/web test: Cache set attempt 1 failed: Error: Set failed
+apps/web test:     at /opt/slimy/slimy-monorepo/apps/web/tests/unit/codes-cache.test.ts:143:47
+apps/web test:     at file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:145:11
+apps/web test:     at file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:915:26
+apps/web test:     at file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:1240:20
+apps/web test:     at new Promise (&lt;anonymous&gt;)
+apps/web test:     at runWithTimeout (file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:1206:10)
+apps/web test:     at file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:1650:37
+apps/web test:     at Traces.$ (file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/vitest@4.0.15_@opentelemetry+api@1.9.0_@types+node@20.19.25_@vitest+ui@4.0.15_jiti@2.6._6f4799287cc307d0b976628207bcb6be/node_modules/vitest/dist/chunks/traces.U4xDYhzZ.js:115:27)
+apps/web test:     at trace (file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/vitest@4.0.15_@opentelemetry+api@1.9.0_@types+node@20.19.25_@vitest+ui@4.0.15_jiti@2.6._6f4799287cc307d0b976628207bcb6be/node_modules/vitest/dist/chunks/test.BT8LKgU9.js:239:21)
+apps/web test:     at runTest (file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:1650:12)
+apps/admin-api test:   console.log
+apps/admin-api test:     !!! AUTH LOGIC LOADED v304 (ACTIVE GUILD) !!!
+apps/admin-api test:       at Object.log (src/routes/auth.js:21:9)
+apps/admin-api test:   console.log
+apps/admin-api test:     [auth/me] req.user keys: id,username,role,guilds
+apps/admin-api test:       at log (src/routes/auth.js:627:13)
+apps/admin-api test:   console.log
+apps/admin-api test:     [auth/me] rawUser keys: id,username,role,guilds
+apps/admin-api test:       at log (src/routes/auth.js:628:13)
+apps/admin-api test:   console.log
+apps/admin-api test:     [auth/me] Lookup User ID: test-user-id
+apps/admin-api test:       at log (src/routes/auth.js:629:13)
+apps/admin-api test:   console.log
+apps/admin-api test:     [auth/me] DB User Found: true
+apps/admin-api test:       at log (src/routes/auth.js:747:13)
+apps/admin-api test:   console.warn
+apps/admin-api test:     [auth/me] DB guild lookup failed; returning session-only guilds { error: &quot;Cannot read properties of undefined (reading 'findMany')&quot; }
+apps/admin-api test:       768 |         warnings.push(&quot;db_guilds_lookup_failed&quot;);
+apps/admin-api test:       769 |         if (shouldDebugAuth()) {
+apps/admin-api test:     &gt; 770 |           console.warn(&quot;[auth/me] DB guild lookup failed; returning session-only guilds&quot;, {
+apps/admin-api test:           |                   ^
+apps/admin-api test:       771 |             error: err?.message || String(err),
+apps/admin-api test:       772 |           });
+apps/admin-api test:       773 |         }
+apps/admin-api test:       at warn (src/routes/auth.js:770:19)
+apps/admin-api test:   console.log
+apps/admin-api test:     [auth/me] req.user keys: id,username,role,guilds
+apps/admin-api test:       at log (src/routes/auth.js:627:13)
+apps/admin-api test:   console.log
+apps/admin-api test:     [auth/me] rawUser keys: id,username,role,guilds
+apps/admin-api test:       at log (src/routes/auth.js:628:13)
+apps/admin-api test:   console.log
+apps/admin-api test:     [auth/me] Lookup User ID: test-user-id
+apps/admin-api test:       at log (src/routes/auth.js:629:13)
+apps/admin-api test:   console.warn
+apps/admin-api test:     [auth/me] DB user lookup failed; returning session-only response { error: 'DB Error' }
+apps/admin-api test:       739 |       warnings.push(&quot;db_user_lookup_failed&quot;);
+apps/admin-api test:       740 |       if (shouldDebugAuth()) {
+apps/admin-api test:     &gt; 741 |         console.warn(&quot;[auth/me] DB user lookup failed; returning session-only response&quot;, {
+apps/admin-api test:           |                 ^
+apps/admin-api test:       742 |           error: err?.message || String(err),
+apps/admin-api test:       743 |         });
+apps/admin-api test:       744 |       }
+apps/admin-api test:       at warn (src/routes/auth.js:741:17)
+apps/admin-api test:   console.log
+apps/admin-api test:     [auth/me] DB User Found: false
+apps/admin-api test:       at log (src/routes/auth.js:747:13)
+apps/admin-api test:   console.warn
+apps/admin-api test:     [auth/me] Fallback to cookie guilds: 0
+apps/admin-api test:       784 |       // But ensure we at least pass the ID
+apps/admin-api test:       785 |       const cookieGuilds = Array.isArray(rawUser?.guilds) ? rawUser.guilds : [];
+apps/admin-api test:     &gt; 786 |       console.warn(&quot;[auth/me] Fallback to cookie guilds:&quot;, cookieGuilds.length);
+apps/admin-api test:           |               ^
+apps/admin-api test:       787 |       sessionGuilds = cookieGuilds.map((g) =&gt; ({
+apps/admin-api test:       788 |         id: g?.id,
+apps/admin-api test:       789 |         roles: g?.roles,
+apps/admin-api test:       at warn (src/routes/auth.js:786:15)
+apps/admin-api test: PASS tests/auth/me-context.test.js
+apps/admin-api test:   GET /api/auth/me Context Hydration
+apps/admin-api test:     ✓ should include lastActiveGuild from DB (41 ms)
+apps/admin-api test:     ✓ should handle DB errors gracefully (87 ms)
+apps/admin-api test:   console.error
+apps/admin-api test:     [guilds/connect] Missing SLIMYAI_BOT_TOKEN
+apps/admin-api test:       176 |       const SLIMYAI_BOT_TOKEN = getSlimyBotToken();
+apps/admin-api test:       177 |       if (!SLIMYAI_BOT_TOKEN) {
+apps/admin-api test:     &gt; 178 |         console.error(&quot;[guilds/connect] Missing SLIMYAI_BOT_TOKEN&quot;);
+apps/admin-api test:           |                 ^
+apps/admin-api test:       179 |         return res.status(500).json({ error: &quot;MISSING_SLIMYAI_BOT_TOKEN&quot; });
+apps/admin-api test:       180 |       }
+apps/admin-api test:       181 |
+apps/admin-api test:       at error (src/routes/guilds.js:178:17)
+apps/admin-api test:       at Layer.handle [as handle_request] (../../node_modules/.pnpm/express@4.22.1/node_modules/express/lib/router/layer.js:95:5)
+apps/admin-api test:       at next (../../node_modules/.pnpm/express@4.22.1/node_modules/express/lib/router/route.js:149:13)
+apps/admin-api test:       at next (tests/guild-connect.test.js:24:5)
+apps/admin-api test:       at Layer.handle [as handle_request] (../../node_modules/.pnpm/express@4.22.1/node_modules/express/lib/router/layer.js:95:5)
+apps/admin-api test:       at next (../../node_modules/.pnpm/express@4.22.1/node_modules/express/lib/router/route.js:149:13)
+apps/admin-api test:       at next (tests/guild-connect.test.js:11:5)
+apps/admin-api test:       at Layer.handle [as handle_request] (../../node_modules/.pnpm/express@4.22.1/node_modules/express/lib/router/layer.js:95:5)
+apps/admin-api test:       at next (../../node_modules/.pnpm/express@4.22.1/node_modules/express/lib/router/route.js:149:13)
+apps/admin-api test:       at Route.dispatch (../../node_modules/.pnpm/express@4.22.1/node_modules/express/lib/router/route.js:119:3)
+apps/admin-api test:       at Layer.handle [as handle_request] (../../node_modules/.pnpm/express@4.22.1/node_modules/express/lib/router/layer.js:95:5)
+apps/admin-api test:       at ../../node_modules/.pnpm/express@4.22.1/node_modules/express/lib/router/index.js:284:15
+apps/admin-api test:       at Function.process_params (../../node_modules/.pnpm/express@4.22.1/node_modules/express/lib/router/index.js:346:12)
+apps/admin-api test:       at next (../../node_modules/.pnpm/express@4.22.1/node_modules/express/lib/router/index.js:280:10)
+apps/admin-api test:       at next (tests/guild-connect.test.js:11:5)
+apps/admin-api test:       at Layer.handle [as handle_request] (../../node_modules/.pnpm/express@4.22.1/node_modules/express/lib/router/layer.js:95:5)
+apps/admin-api test:       at trim_prefix (../../node_modules/.pnpm/express@4.22.1/node_modules/express/lib/router/index.js:328:13)
+apps/admin-api test:       at ../../node_modules/.pnpm/express@4.22.1/node_modules/express/lib/router/index.js:286:9
+apps/admin-api test:       at Function.process_params (../../node_modules/.pnpm/express@4.22.1/node_modules/express/lib/router/index.js:346:12)
+apps/admin-api test:       at next (../../node_modules/.pnpm/express@4.22.1/node_modules/express/lib/router/index.js:280:10)
+apps/admin-api test:       at Function.handle (../../node_modules/.pnpm/express@4.22.1/node_modules/express/lib/router/index.js:175:3)
+apps/admin-api test:       at router (../../node_modules/.pnpm/express@4.22.1/node_modules/express/lib/router/index.js:47:12)
+apps/admin-api test:       at Layer.handle [as handle_request] (../../node_modules/.pnpm/express@4.22.1/node_modules/express/lib/router/layer.js:95:5)
+apps/admin-api test:       at trim_prefix (../../node_modules/.pnpm/express@4.22.1/node_modules/express/lib/router/index.js:328:13)
+apps/admin-api test:       at ../../node_modules/.pnpm/express@4.22.1/node_modules/express/lib/router/index.js:286:9
+apps/admin-api test:       at Function.process_params (../../node_modules/.pnpm/express@4.22.1/node_modules/express/lib/router/index.js:346:12)
+apps/admin-api test:       at next (../../node_modules/.pnpm/express@4.22.1/node_modules/express/lib/router/index.js:280:10)
+apps/admin-api test:       at ../../node_modules/.pnpm/body-parser@1.20.4/node_modules/body-parser/lib/read.js:137:5
+apps/admin-api test:       at invokeCallback (../../node_modules/.pnpm/raw-body@2.5.3/node_modules/raw-body/index.js:238:16)
+apps/admin-api test:       at done (../../node_modules/.pnpm/raw-body@2.5.3/node_modules/raw-body/index.js:227:7)
+apps/admin-api test:       at IncomingMessage.onEnd (../../node_modules/.pnpm/raw-body@2.5.3/node_modules/raw-body/index.js:287:7)
+apps/admin-api test: PASS tests/settings-memory-v0.test.js
+apps/admin-api test:   settings+memory v0 bridge
+apps/admin-api test:     ✓ GET /api/settings/user/:userId auto-inits canonical settings (68 ms)
+apps/admin-api test:     ✓ internal bot auth can write self user settings (requires internal token + csrf) (61 ms)
+apps/admin-api test:     ✓ GET /api/settings/user/:userId forbids cross-user access (17 ms)
+apps/admin-api test:     ✓ PUT /api/settings/user/:userId validates schema (23 ms)
+apps/admin-api test:     ✓ GET /api/memory/user/:scopeId forbids cross-user access (13 ms)
+apps/admin-api test:     ✓ POST /api/memory/user/:scopeId rejects project_state for non-admins (21 ms)
+apps/admin-api test:     ✓ POST /api/memory/guild/:scopeId rejects profile_summary (user-scope only) (44 ms)
+apps/admin-api test:     ✓ POST /api/memory/:scopeType/:scopeId rejects secret-like keys and oversized payloads (34 ms)
+apps/admin-api test: PASS tests/guild-connect.test.js
+apps/admin-api test:   POST /guilds/connect
+apps/admin-api test:     ✓ should fail if SLIMYAI_BOT_TOKEN is missing (460 ms)
+apps/admin-api test:     ✓ should return 403 USER_NOT_IN_GUILD if user is not in guild (37 ms)
+apps/admin-api test:     ✓ should return 403 BOT_NOT_IN_GUILD if bot is not in guild (Owned Only) (47 ms)
+apps/admin-api test:     ✓ should succeed if guild is shared (32 ms)
+apps/admin-api test:   console.info
+apps/admin-api test:     [admin-api] readAuth: cookie missing { cookieName: 'slimy_admin_token' }
+apps/admin-api test:       at info (src/middleware/auth.js:22:13)
+apps/admin-api test:   console.info
+apps/admin-api test:     [admin-api] readAuth: cookie present { cookieName: 'slimy_admin_token' }
+apps/admin-api test:       at info (src/middleware/auth.js:22:13)
+apps/admin-api test:   console.info
+apps/admin-api test:     [admin-api] readAuth: token verification failed { error: 'jwt malformed' }
+apps/admin-api test:       at info (src/middleware/auth.js:22:13)
+apps/admin-api test:   console.info
+apps/admin-api test:     [admin-api] readAuth: cookie present { cookieName: 'slimy_admin' }
+apps/admin-api test:       at info (src/middleware/auth.js:22:13)
+apps/admin-api test:   console.info
+apps/admin-api test:     [admin-api] readAuth: user hydrated { userId: 'test-user' }
+apps/admin-api test:       at info (src/middleware/auth.js:22:13)
+apps/admin-api test:   console.info
+apps/admin-api test:     [admin-api] readAuth: cookie present { cookieName: 'slimy_admin_token' }
+apps/admin-api test:       at info (src/middleware/auth.js:22:13)
+apps/admin-api test:   console.info
+apps/admin-api test:     [admin-api] readAuth: user hydrated { userId: 'test-user' }
+apps/admin-api test:       at info (src/middleware/auth.js:22:13)
+apps/admin-api test:   console.info
+apps/admin-api test:     [admin-api] readAuth: cookie present { cookieName: 'slimy_admin_token' }
+apps/admin-api test:       at info (src/middleware/auth.js:22:13)
+apps/admin-api test:   console.info
+apps/admin-api test:     [admin-api] readAuth: user hydrated { userId: 'test-user' }
+apps/admin-api test:       at info (src/middleware/auth.js:22:13)
+apps/admin-api test:   console.info
+apps/admin-api test:     [admin-api] readAuth: cookie present { cookieName: 'slimy_admin_token' }
+apps/admin-api test:       at info (src/middleware/auth.js:22:13)
+apps/admin-api test:   console.info
+apps/admin-api test:     [admin-api] readAuth: user hydrated { userId: 'test-user' }
+apps/admin-api test:       at info (src/middleware/auth.js:22:13)
+apps/admin-api test:   console.info
+apps/admin-api test:     [admin-api] readAuth: cookie missing { cookieName: 'slimy_admin_token' }
+apps/admin-api test:       at info (src/middleware/auth.js:22:13)
+apps/admin-api test:   console.info
+apps/admin-api test:     [admin-api] readAuth: cookie present { cookieName: 'slimy_admin_token' }
+apps/admin-api test:       at info (src/middleware/auth.js:22:13)
+apps/admin-api test:   console.info
+apps/admin-api test:     [admin-api] readAuth: user hydrated { userId: 'test-user' }
+apps/admin-api test:       at info (src/middleware/auth.js:22:13)
+apps/web test: stderr | tests/unit/codes-cache.test.ts &gt; CodesCache &gt; cache operations &gt; should handle cache set failures
+apps/web test: Cache set attempt 2 failed: Error: Set failed
+apps/web test:     at /opt/slimy/slimy-monorepo/apps/web/tests/unit/codes-cache.test.ts:143:47
+apps/web test:     at file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:145:11
+apps/web test:     at file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:915:26
+apps/web test:     at file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:1240:20
+apps/web test:     at new Promise (&lt;anonymous&gt;)
+apps/web test:     at runWithTimeout (file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:1206:10)
+apps/web test:     at file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:1650:37
+apps/web test:     at Traces.$ (file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/vitest@4.0.15_@opentelemetry+api@1.9.0_@types+node@20.19.25_@vitest+ui@4.0.15_jiti@2.6._6f4799287cc307d0b976628207bcb6be/node_modules/vitest/dist/chunks/traces.U4xDYhzZ.js:115:27)
+apps/web test:     at trace (file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/vitest@4.0.15_@opentelemetry+api@1.9.0_@types+node@20.19.25_@vitest+ui@4.0.15_jiti@2.6._6f4799287cc307d0b976628207bcb6be/node_modules/vitest/dist/chunks/test.BT8LKgU9.js:239:21)
+apps/web test:     at runTest (file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:1650:12)
+apps/admin-api test:   console.info
+apps/admin-api test:     [admin-api] readAuth: cookie present { cookieName: 'slimy_admin_token' }
+apps/admin-api test:       at info (src/middleware/auth.js:22:13)
+apps/admin-api test:   console.info
+apps/admin-api test:     [admin-api] readAuth: user hydrated { userId: 'test-admin' }
+apps/admin-api test:       at info (src/middleware/auth.js:22:13)
+apps/admin-api test:   console.info
+apps/admin-api test:     [admin-api] readAuth: cookie present { cookieName: 'slimy_admin_token' }
+apps/admin-api test:       at info (src/middleware/auth.js:22:13)
+apps/admin-api test:   console.info
+apps/admin-api test:     [admin-api] readAuth: user hydrated { userId: 'test-member' }
+apps/admin-api test:       at info (src/middleware/auth.js:22:13)
+apps/admin-api test:   console.info
+apps/admin-api test:     [admin-api] readAuth: cookie missing { cookieName: 'slimy_admin_token' }
+apps/admin-api test:       at info (src/middleware/auth.js:22:13)
+apps/admin-api test:   console.info
+apps/admin-api test:     [admin-api] readAuth: cookie present { cookieName: 'slimy_admin_token' }
+apps/admin-api test:       at info (src/middleware/auth.js:22:13)
+apps/admin-api test: PASS tests/routes/stats.test.js
+apps/admin-api test:   Stats Routes
+apps/admin-api test:     ✓ GET /api/stats should return system metrics by default (69 ms)
+apps/admin-api test:     ✓ GET /api/stats?action=system-metrics should return metrics (15 ms)
+apps/admin-api test:     ✓ GET /api/stats/events/stream should set SSE headers (3 ms)
+apps/admin-api test:   console.info
+apps/admin-api test:     [admin-api] readAuth: user hydrated { userId: 'test-admin' }
+apps/admin-api test:       at info (src/middleware/auth.js:22:13)
+apps/admin-api test:   console.info
+apps/admin-api test:     [admin-api] readAuth: cookie present { cookieName: 'slimy_admin_token' }
+apps/admin-api test:       at info (src/middleware/auth.js:22:13)
+apps/admin-api test:   console.info
+apps/admin-api test:     [admin-api] readAuth: user hydrated { userId: 'test-member' }
+apps/admin-api test:       at info (src/middleware/auth.js:22:13)
+apps/admin-api test:   console.info
+apps/admin-api test:     [admin-api] readAuth: cookie present { cookieName: 'slimy_admin_token' }
+apps/admin-api test:       at info (src/middleware/auth.js:22:13)
+apps/admin-api test:   console.info
+apps/admin-api test:     [admin-api] readAuth: user hydrated { userId: 'test-member' }
+apps/admin-api test:       at info (src/middleware/auth.js:22:13)
+apps/admin-api test:   console.warn
+apps/admin-api test:     [admin-api] guild membership check failed {
+apps/admin-api test:       userId: 'test-member',
+apps/admin-api test:       guildId: 'different-guild-456',
+apps/admin-api test:       guildIds: [ 'guild-123' ]
+apps/admin-api test:     }
+apps/admin-api test:       384 |     if (!guild) {
+apps/admin-api test:       385 |       if (shouldDebugAuth()) {
+apps/admin-api test:     &gt; 386 |         console.warn(&quot;[admin-api] guild membership check failed&quot;, {
+apps/admin-api test:           |                 ^
+apps/admin-api test:       387 |           userId: user.id,
+apps/admin-api test:       388 |           guildId: guildIdStr,
+apps/admin-api test:       389 |           guildIds: guilds.map((g) =&gt; String(g?.id)).slice(0, 25),
+apps/admin-api test:       at warn (src/middleware/auth.js:386:17)
+apps/admin-api test:       at Object.&lt;anonymous&gt; (tests/auth/auth-middleware.test.js:183:7)
+apps/admin-api test:   console.info
+apps/admin-api test:     [admin-api] readAuth: cookie present { cookieName: 'slimy_admin_token' }
+apps/admin-api test:       at info (src/middleware/auth.js:22:13)
+apps/admin-api test:   console.info
+apps/admin-api test:     [admin-api] readAuth: user hydrated { userId: 'test-member' }
+apps/admin-api test:       at info (src/middleware/auth.js:22:13)
+apps/admin-api test:   console.info
+apps/admin-api test:     [admin-api] readAuth: cookie missing { cookieName: 'slimy_admin_token' }
+apps/admin-api test:       at info (src/middleware/auth.js:22:13)
+apps/admin-api test:   console.info
+apps/admin-api test:     [admin-api] readAuth: cookie present { cookieName: 'slimy_admin_token' }
+apps/admin-api test:       at info (src/middleware/auth.js:22:13)
+apps/admin-api test:   console.info
+apps/admin-api test:     [admin-api] readAuth: user hydrated { userId: 'test-member' }
+apps/admin-api test:       at info (src/middleware/auth.js:22:13)
+apps/admin-api test: PASS tests/auth/auth-middleware.test.js
+apps/admin-api test:   Auth Middleware
+apps/admin-api test:     resolveUser
+apps/admin-api test:       ✓ should return null when no token in cookies (64 ms)
+apps/admin-api test:       ✓ should return null when token is invalid (38 ms)
+apps/admin-api test:       ✓ should return hydrated user when session exists (45 ms)
+apps/admin-api test:       ✓ should return fallback user when no session exists (19 ms)
+apps/admin-api test:       ✓ should cache user resolution (78 ms)
+apps/admin-api test:     requireAuth
+apps/admin-api test:       ✓ should call next when user is authenticated (29 ms)
+apps/admin-api test:       ✓ should return 401 when user is not authenticated (5 ms)
+apps/admin-api test:     requireRole
+apps/admin-api test:       ✓ should call next when user has required role (member) (10 ms)
+apps/admin-api test:       ✓ should call next when user has higher role than required (13 ms)
+apps/admin-api test:       ✓ should return 403 when user has insufficient role (14 ms)
+apps/admin-api test:       ✓ should return 401 when user is not authenticated (16 ms)
+apps/admin-api test:     requireGuildMember
+apps/admin-api test:       ✓ should call next for admin user regardless of guild membership (22 ms)
+apps/admin-api test:       ✓ should call next when user is member of the guild (25 ms)
+apps/admin-api test:       ✓ should return 403 when user is not member of the guild (34 ms)
+apps/admin-api test:       ✓ should return 400 when guildId parameter is missing (22 ms)
+apps/admin-api test:       ✓ should return 401 when user is not authenticated (15 ms)
+apps/admin-api test:       ✓ should use custom parameter name (26 ms)
+apps/admin-api test: PASS tests/discord-guilds.test.js
+apps/admin-api test:   GET /discord/guilds
+apps/admin-api test:     ✓ should return shared guilds with role labels (38 ms)
+apps/admin-api test:     ✓ should fall back to DISCORD_BOT_TOKEN when SLIMYAI_BOT_TOKEN is missing (7 ms)
+apps/admin-api test: PASS tests/guilds-read.test.js
+apps/admin-api test:   GET /api/guilds/:guildId
+apps/admin-api test:     ✓ should return guild details for authenticated user (10 ms)
+apps/admin-api test:     ✓ should return 404 for non-existent guild (5 ms)
+apps/admin-api test:   console.log
+apps/admin-api test:     [requireGuildAccess] Checking access for user discord-user-id to guild guild-123
+apps/admin-api test:       at log (src/middleware/rbac.js:33:13)
+apps/admin-api test:   console.warn
+apps/admin-api test:     [requireGuildAccess] User discord-user-id not found in DB
+apps/admin-api test:       38 |
+apps/admin-api test:       39 |     if (!user) {
+apps/admin-api test:     &gt; 40 |       console.warn(`[requireGuildAccess] User ${req.user.id} not found in DB`);
+apps/admin-api test:          |               ^
+apps/admin-api test:       41 |       return res.status(403).json({ error: &quot;guild-access-denied&quot; });
+apps/admin-api test:       42 |     }
+apps/admin-api test:       43 |
+apps/admin-api test:       at warn (src/middleware/rbac.js:40:15)
+apps/admin-api test:       at Object.&lt;anonymous&gt; (tests/middleware/rbac.test.js:53:5)
+apps/admin-api test:   console.log
+apps/admin-api test:     [requireGuildAccess] Checking access for user discord-user-id to guild guild-123
+apps/admin-api test:       at log (src/middleware/rbac.js:33:13)
+apps/admin-api test:   console.warn
+apps/admin-api test:     [requireGuildAccess] User db-user-id is not a member of guild guild-123
+apps/admin-api test:       56 |
+apps/admin-api test:       57 |     if (!userGuild) {
+apps/admin-api test:     &gt; 58 |       console.warn(`[requireGuildAccess] User ${user.id} is not a member of guild ${guildId}`);
+apps/admin-api test:          |               ^
+apps/admin-api test:       59 |       return res.status(403).json({ error: &quot;guild-access-denied&quot; });
+apps/admin-api test:       60 |     }
+apps/admin-api test:       61 |
+apps/admin-api test:       at warn (src/middleware/rbac.js:58:15)
+apps/admin-api test:       at Object.&lt;anonymous&gt; (tests/middleware/rbac.test.js:63:5)
+apps/admin-api test:   console.log
+apps/admin-api test:     [requireGuildAccess] Checking access for user discord-user-id to guild guild-123
+apps/admin-api test:       at log (src/middleware/rbac.js:33:13)
+apps/admin-api test: PASS tests/routes/usage.test.js
+apps/admin-api test:   GET /api/usage
+apps/admin-api test:     ✓ should return 200 and correct usage data structure (41 ms)
+apps/admin-api test: PASS tests/middleware/rbac.test.js
+apps/admin-api test:   requireGuildAccess Middleware
+apps/admin-api test:     ✓ should return 400 if guildId is missing (11 ms)
+apps/admin-api test:     ✓ should return 401 if user is not authenticated (2 ms)
+apps/admin-api test:     ✓ should return 403 if user not found in DB (18 ms)
+apps/admin-api test:     ✓ should return 403 if user is not a member of the guild (14 ms)
+apps/admin-api test:     ✓ should call next() and attach guild info if user has access (12 ms)
+apps/web test: stderr | tests/unit/codes-cache.test.ts &gt; CodesCache &gt; cache operations &gt; should handle cache set failures
+apps/web test: Cache set attempt 3 failed: Error: Set failed
+apps/web test:     at /opt/slimy/slimy-monorepo/apps/web/tests/unit/codes-cache.test.ts:143:47
+apps/web test:     at file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:145:11
+apps/web test:     at file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:915:26
+apps/web test:     at file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:1240:20
+apps/web test:     at new Promise (&lt;anonymous&gt;)
+apps/web test:     at runWithTimeout (file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:1206:10)
+apps/web test:     at file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:1650:37
+apps/web test:     at Traces.$ (file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/vitest@4.0.15_@opentelemetry+api@1.9.0_@types+node@20.19.25_@vitest+ui@4.0.15_jiti@2.6._6f4799287cc307d0b976628207bcb6be/node_modules/vitest/dist/chunks/traces.U4xDYhzZ.js:115:27)
+apps/web test:     at trace (file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/vitest@4.0.15_@opentelemetry+api@1.9.0_@types+node@20.19.25_@vitest+ui@4.0.15_jiti@2.6._6f4799287cc307d0b976628207bcb6be/node_modules/vitest/dist/chunks/test.BT8LKgU9.js:239:21)
+apps/web test:     at runTest (file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:1650:12)
+apps/web test: Cache set failed after 3 attempts
+apps/web test: stderr | tests/unit/codes-cache.test.ts &gt; CodesCache &gt; error handling &gt; should handle redis operation failures gracefully
+apps/web test: Cache get attempt 1 failed: Error: Redis error
+apps/web test:     at /opt/slimy/slimy-monorepo/apps/web/tests/unit/codes-cache.test.ts:184:45
+apps/web test:     at file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:145:11
+apps/web test:     at file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:915:26
+apps/web test:     at file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:1240:20
+apps/web test:     at new Promise (&lt;anonymous&gt;)
+apps/web test:     at runWithTimeout (file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:1206:10)
+apps/web test:     at file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:1650:37
+apps/web test:     at Traces.$ (file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/vitest@4.0.15_@opentelemetry+api@1.9.0_@types+node@20.19.25_@vitest+ui@4.0.15_jiti@2.6._6f4799287cc307d0b976628207bcb6be/node_modules/vitest/dist/chunks/traces.U4xDYhzZ.js:115:27)
+apps/web test:     at trace (file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/vitest@4.0.15_@opentelemetry+api@1.9.0_@types+node@20.19.25_@vitest+ui@4.0.15_jiti@2.6._6f4799287cc307d0b976628207bcb6be/node_modules/vitest/dist/chunks/test.BT8LKgU9.js:239:21)
+apps/web test:     at runTest (file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:1650:12)
+apps/admin-api test: PASS tests/settings-auth-500-v0.test.js
+apps/admin-api test:   web-settings-auth-500-v0 regression
+apps/admin-api test:     ✓ GET /api/settings/user/:userId returns settings for authed self (53 ms)
+apps/admin-api test:     ✓ GET /api/settings/user/:userId forbids cross-user reads (23 ms)
+apps/admin-api test:     ✓ GET /api/settings/changes-v0 returns events for authed self (user scope) (38 ms)
+apps/admin-api test:     ✓ GET /api/settings/changes-v0 returns events for platform admin (guild scope) (22 ms)
+apps/admin-api test: PASS tests/numparse.test.js
+apps/admin-api test:   numparse shim
+apps/admin-api test:     ✓ returns numeric values for plain numbers (2 ms)
+apps/admin-api test:     ✓ returns null for non-numeric values or suffixed strings (2 ms)
+apps/admin-api test: PASS tests/central-settings.test.js
+apps/admin-api test:   central settings endpoints
+apps/admin-api test:     ✓ GET /api/me/settings auto-creates defaults (32 ms)
+apps/admin-api test:     ✓ PATCH /api/me/settings merges updates (51 ms)
+apps/admin-api test:     ✓ GET /api/guilds/:guildId/settings requires admin/manager (31 ms)
+apps/admin-api test:     ✓ PUT /api/guilds/:guildId/settings allows admin and persists (61 ms)
+apps/admin-api test: PASS src/lib/auth/post-login-redirect.test.js
+apps/admin-api test:   resolvePostLoginRedirectUrl
+apps/admin-api test:     ✓ prefers oauth_redirect_uri cookie origin + oauth_return_to (1 ms)
+apps/admin-api test:     ✓ falls back to x-forwarded origin when cookie missing
+apps/admin-api test:     ✓ falls back to CLIENT_URL when cookie and forwarded origin missing
+apps/admin-api test: PASS tests/club-store.test.js
+apps/admin-api test:   club-store shim
+apps/admin-api test:     ✓ canonicalize lowercases input (2 ms)
+apps/admin-api test:     ✓ canonicalize handles nullish values (3 ms)
+apps/admin-api test: PASS tests/diag.test.js
+apps/admin-api test:   diagnostics placeholder
+apps/admin-api test:     ✓ skipped in test mode (4 ms)
+apps/web test: stderr | tests/components/usage-page.test.tsx &gt; UsagePage &gt; Error state &gt; should display error message when API fails with 502
+apps/web test: Failed to fetch usage: Error: HTTP 502: Bad Gateway
+apps/web test:     at /opt/slimy/slimy-monorepo/apps/web/tests/components/usage-page.test.tsx:75:9
+apps/web test:     at file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:145:11
+apps/web test:     at file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:915:26
+apps/web test:     at file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:1240:20
+apps/web test:     at new Promise (&lt;anonymous&gt;)
+apps/web test:     at runWithTimeout (file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:1206:10)
+apps/web test:     at file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:1650:37
+apps/web test:     at Traces.$ (file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/vitest@4.0.15_@opentelemetry+api@1.9.0_@types+node@20.19.25_@vitest+ui@4.0.15_jiti@2.6._6f4799287cc307d0b976628207bcb6be/node_modules/vitest/dist/chunks/traces.U4xDYhzZ.js:115:27)
+apps/web test:     at trace (file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/vitest@4.0.15_@opentelemetry+api@1.9.0_@types+node@20.19.25_@vitest+ui@4.0.15_jiti@2.6._6f4799287cc307d0b976628207bcb6be/node_modules/vitest/dist/chunks/test.BT8LKgU9.js:239:21)
+apps/web test:     at runTest (file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:1650:12)
+apps/web test: stderr | tests/components/usage-page.test.tsx &gt; UsagePage &gt; Error state &gt; should display error message when API fails with network error
+apps/web test: Failed to fetch usage: Error: Network error: Unable to connect to usage API
+apps/web test:     at /opt/slimy/slimy-monorepo/apps/web/tests/components/usage-page.test.tsx:91:9
+apps/web test:     at file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:145:11
+apps/web test:     at file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:915:26
+apps/web test:     at file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:1240:20
+apps/web test:     at new Promise (&lt;anonymous&gt;)
+apps/web test:     at runWithTimeout (file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:1206:10)
+apps/web test:     at file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:1650:37
+apps/web test:     at Traces.$ (file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/vitest@4.0.15_@opentelemetry+api@1.9.0_@types+node@20.19.25_@vitest+ui@4.0.15_jiti@2.6._6f4799287cc307d0b976628207bcb6be/node_modules/vitest/dist/chunks/traces.U4xDYhzZ.js:115:27)
+apps/web test:     at trace (file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/vitest@4.0.15_@opentelemetry+api@1.9.0_@types+node@20.19.25_@vitest+ui@4.0.15_jiti@2.6._6f4799287cc307d0b976628207bcb6be/node_modules/vitest/dist/chunks/test.BT8LKgU9.js:239:21)
+apps/web test:     at runTest (file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:1650:12)
+apps/web test: stderr | tests/components/usage-page.test.tsx &gt; UsagePage &gt; Error state &gt; should not crash the page on error
+apps/web test: Failed to fetch usage: Error: Unexpected error
+apps/web test:     at /opt/slimy/slimy-monorepo/apps/web/tests/components/usage-page.test.tsx:103:9
+apps/web test:     at file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:145:11
+apps/web test:     at file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:915:26
+apps/web test:     at file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:1240:20
+apps/web test:     at new Promise (&lt;anonymous&gt;)
+apps/web test:     at runWithTimeout (file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:1206:10)
+apps/web test:     at file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:1650:37
+apps/web test:     at Traces.$ (file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/vitest@4.0.15_@opentelemetry+api@1.9.0_@types+node@20.19.25_@vitest+ui@4.0.15_jiti@2.6._6f4799287cc307d0b976628207bcb6be/node_modules/vitest/dist/chunks/traces.U4xDYhzZ.js:115:27)
+apps/web test:     at trace (file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/vitest@4.0.15_@opentelemetry+api@1.9.0_@types+node@20.19.25_@vitest+ui@4.0.15_jiti@2.6._6f4799287cc307d0b976628207bcb6be/node_modules/vitest/dist/chunks/test.BT8LKgU9.js:239:21)
+apps/web test:     at runTest (file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:1650:12)
+apps/admin-api test:   console.info
+apps/admin-api test:     [admin-api] readAuth: cookie missing { cookieName: 'slimy_admin_token' }
+apps/admin-api test:       at info (src/middleware/auth.js:22:13)
+apps/web test: stderr | tests/components/usage-page.test.tsx &gt; UsagePage &gt; Error state &gt; should handle unknown errors gracefully
+apps/web test: Failed to fetch usage: String error
+apps/admin-api test: PASS tests/settings-sync-events-v02.test.js
+apps/admin-api test:   settings sync events v0.2
+apps/admin-api test:     ✓ PUT /api/settings/user/:userId writes a settings change event (58 ms)
+apps/admin-api test:     ✓ GET /api/settings/changes-v0 returns events for the caller's user scope (39 ms)
+apps/admin-api test:     ✓ GET /api/settings/changes-v0 forbids cross-user reads (11 ms)
+apps/admin-api test:     ✓ PUT /api/settings/guild/:guildId writes a settings change event (internal bot authz) (10 ms)
+apps/admin-api test:     ✓ GET /api/settings/changes-v0 returns guild-scoped events for authorized internal bot context (9 ms)
+apps/admin-api test:     ✓ GET /api/settings/changes-v0 forbids cross-guild reads for internal bot context (19 ms)
+apps/admin-api test:     ✓ GET /api/settings/changes-v0 rejects invalid kind filter (13 ms)
+apps/admin-api test:     ✓ GET /api/settings/changes-v0 requires auth (24 ms)
+apps/admin-api test:     ✓ GET /api/settings/changes-v0 validates cursor/limit inputs (12 ms)
+apps/admin-api test:     ✓ GET /api/settings/changes-v0 uses default limit, returns nextSinceId=sinceId when empty (8 ms)
+apps/admin-api test:     ✓ GET /api/settings/changes-v0 caps limit to 200 and coerces limit=0 to 1 (28 ms)
+apps/admin-api test:     ✓ GET /api/settings/changes-v0 without sinceId returns oldest-first order (11 ms)
+apps/admin-api test:     ✓ GET /api/settings/changes-v0 applies kind filter to the DB query (6 ms)
+apps/web test: stderr | tests/unit/codes-cache.test.ts &gt; CodesCache &gt; error handling &gt; should handle redis operation failures gracefully
+apps/web test: Cache get attempt 2 failed: Error: Redis error
+apps/web test:     at /opt/slimy/slimy-monorepo/apps/web/tests/unit/codes-cache.test.ts:184:45
+apps/web test:     at file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:145:11
+apps/web test:     at file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:915:26
+apps/web test:     at file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:1240:20
+apps/web test:     at new Promise (&lt;anonymous&gt;)
+apps/web test:     at runWithTimeout (file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:1206:10)
+apps/web test:     at file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:1650:37
+apps/web test:     at Traces.$ (file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/vitest@4.0.15_@opentelemetry+api@1.9.0_@types+node@20.19.25_@vitest+ui@4.0.15_jiti@2.6._6f4799287cc307d0b976628207bcb6be/node_modules/vitest/dist/chunks/traces.U4xDYhzZ.js:115:27)
+apps/web test:     at trace (file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/vitest@4.0.15_@opentelemetry+api@1.9.0_@types+node@20.19.25_@vitest+ui@4.0.15_jiti@2.6._6f4799287cc307d0b976628207bcb6be/node_modules/vitest/dist/chunks/test.BT8LKgU9.js:239:21)
+apps/web test:     at runTest (file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:1650:12)
+apps/admin-api test: A worker process has failed to exit gracefully and has been force exited. This is likely caused by tests leaking due to improper teardown. Try running with --detectOpenHandles to find leaks. Active timers can also cause this, ensure that .unref() was called on them.
+apps/admin-api test: Test Suites: 12 skipped, 22 passed, 22 of 34 total
+apps/admin-api test: Tests:       12 skipped, 95 passed, 107 total
+apps/admin-api test: Snapshots:   0 total
+apps/admin-api test: Time:        12.594 s
+apps/admin-api test: Ran all test suites.
+apps/admin-api test: Done
+apps/web test:  ✓ tests/components/button.test.tsx (9 tests) 2081ms
+apps/web test:      ✓ renders with default props  1049ms
+apps/web test:      ✓ renders with different variants  496ms
+apps/web test:  ✓ tests/components/usage-page.test.tsx (22 tests) 2154ms
+apps/web test:        ✓ should display loading skeletons while fetching data  420ms
+apps/web test: stderr | tests/unit/codes-cache.test.ts &gt; CodesCache &gt; error handling &gt; should handle redis operation failures gracefully
+apps/web test: Cache get attempt 3 failed: Error: Redis error
+apps/web test:     at /opt/slimy/slimy-monorepo/apps/web/tests/unit/codes-cache.test.ts:184:45
+apps/web test:     at file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:145:11
+apps/web test:     at file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:915:26
+apps/web test:     at file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:1240:20
+apps/web test:     at new Promise (&lt;anonymous&gt;)
+apps/web test:     at runWithTimeout (file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:1206:10)
+apps/web test:     at file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:1650:37
+apps/web test:     at Traces.$ (file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/vitest@4.0.15_@opentelemetry+api@1.9.0_@types+node@20.19.25_@vitest+ui@4.0.15_jiti@2.6._6f4799287cc307d0b976628207bcb6be/node_modules/vitest/dist/chunks/traces.U4xDYhzZ.js:115:27)
+apps/web test:     at trace (file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/vitest@4.0.15_@opentelemetry+api@1.9.0_@types+node@20.19.25_@vitest+ui@4.0.15_jiti@2.6._6f4799287cc307d0b976628207bcb6be/node_modules/vitest/dist/chunks/test.BT8LKgU9.js:239:21)
+apps/web test:     at runTest (file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:1650:12)
+apps/web test: Cache get failed after 3 attempts
+apps/web test: stderr | tests/unit/codes-cache.test.ts &gt; CodesCache &gt; error handling &gt; should retry operations on failure
+apps/web test: Cache get attempt 1 failed: Error: First failure
+apps/web test:     at /opt/slimy/slimy-monorepo/apps/web/tests/unit/codes-cache.test.ts:201:32
+apps/web test:     at file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:145:11
+apps/web test:     at file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:915:26
+apps/web test:     at file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:1240:20
+apps/web test:     at new Promise (&lt;anonymous&gt;)
+apps/web test:     at runWithTimeout (file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:1206:10)
+apps/web test:     at file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:1650:37
+apps/web test:     at Traces.$ (file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/vitest@4.0.15_@opentelemetry+api@1.9.0_@types+node@20.19.25_@vitest+ui@4.0.15_jiti@2.6._6f4799287cc307d0b976628207bcb6be/node_modules/vitest/dist/chunks/traces.U4xDYhzZ.js:115:27)
+apps/web test:     at trace (file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/vitest@4.0.15_@opentelemetry+api@1.9.0_@types+node@20.19.25_@vitest+ui@4.0.15_jiti@2.6._6f4799287cc307d0b976628207bcb6be/node_modules/vitest/dist/chunks/test.BT8LKgU9.js:239:21)
+apps/web test:     at runTest (file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:1650:12)
+apps/web test:  ✓ tests/unit/codes-cache.test.ts (14 tests) 5134ms
+apps/web test:        ✓ should handle cache set failures  2010ms
+apps/web test:        ✓ should handle redis operation failures gracefully  2009ms
+apps/web test:        ✓ should retry operations on failure  1009ms
+apps/web test:  ✓ tests/components/club/results.test.tsx (12 tests) 725ms
+apps/web test: stderr | tests/components/usage-badge.test.tsx &gt; UsageBadge &gt; Error handling &gt; should not crash on error
+apps/web test: Failed to fetch usage: Error: Network error
+apps/web test:     at /opt/slimy/slimy-monorepo/apps/web/tests/components/usage-badge.test.tsx:56:9
+apps/web test:     at file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:145:11
+apps/web test:     at file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:915:26
+apps/web test:     at file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:1240:20
+apps/web test:     at new Promise (&lt;anonymous&gt;)
+apps/web test:     at runWithTimeout (file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:1206:10)
+apps/web test:     at file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:1650:37
+apps/web test:     at Traces.$ (file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/vitest@4.0.15_@opentelemetry+api@1.9.0_@types+node@20.19.25_@vitest+ui@4.0.15_jiti@2.6._6f4799287cc307d0b976628207bcb6be/node_modules/vitest/dist/chunks/traces.U4xDYhzZ.js:115:27)
+apps/web test:     at trace (file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/vitest@4.0.15_@opentelemetry+api@1.9.0_@types+node@20.19.25_@vitest+ui@4.0.15_jiti@2.6._6f4799287cc307d0b976628207bcb6be/node_modules/vitest/dist/chunks/test.BT8LKgU9.js:239:21)
+apps/web test:     at runTest (file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:1650:12)
+apps/web test:  ✓ tests/components/usage-badge.test.tsx (18 tests) 850ms
+apps/web test: stderr | tests/components/message-bubble.test.tsx &gt; MessageBubble &gt; copies message content to clipboard when copy button is clicked
+apps/web test: An update to MessageBubble inside a test was not wrapped in act(...).
+apps/web test: When testing, code that causes React state updates should be wrapped into act(...):
+apps/web test: act(() =&gt; {
+apps/web test:   /* fire events that update state */
+apps/web test: });
+apps/web test: /* assert on the output */
+apps/web test: This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+apps/web test:  ✓ tests/components/message-bubble.test.tsx (11 tests) 474ms
+apps/web test: stderr | tests/api/club/analyze.test.ts &gt; /api/club/analyze &gt; POST /api/club/analyze &gt; should return 400 when no imageUrls provided
+apps/web test: Error occurred: {
+apps/web test:   name: 'ValidationError',
+apps/web test:   code: 'VALIDATION_ERROR',
+apps/web test:   message: 'At least one image URL is required',
+apps/web test:   statusCode: 400,
+apps/web test:   details: undefined,
+apps/web test:   stack: 'ValidationError: At least one image URL is required\n' +
+apps/web test:     '    at Module.POST (/opt/slimy/slimy-monorepo/apps/web/app/api/club/analyze/route.ts:17:13)\n' +
+apps/web test:     '    at processTicksAndRejections (node:internal/process/task_queues:95:5)\n' +
+apps/web test:     '    at /opt/slimy/slimy-monorepo/apps/web/tests/api/club/analyze.test.ts:144:24\n' +
+apps/web test:     '    at file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:915:20',
+apps/web test:   context: undefined,
+apps/web test:   timestamp: '2026-01-03T01:24:35.134Z'
+apps/web test: }
+apps/web test: stderr | tests/api/club/analyze.test.ts &gt; /api/club/analyze &gt; POST /api/club/analyze &gt; should return 400 when no guildId provided
+apps/web test: Error occurred: {
+apps/web test:   name: 'ValidationError',
+apps/web test:   code: 'VALIDATION_ERROR',
+apps/web test:   message: 'Guild ID is required',
+apps/web test:   statusCode: 400,
+apps/web test:   details: undefined,
+apps/web test:   stack: 'ValidationError: Guild ID is required\n' +
+apps/web test:     '    at Module.POST (/opt/slimy/slimy-monorepo/apps/web/app/api/club/analyze/route.ts:21:13)\n' +
+apps/web test:     '    at processTicksAndRejections (node:internal/process/task_queues:95:5)\n' +
+apps/web test:     '    at /opt/slimy/slimy-monorepo/apps/web/tests/api/club/analyze.test.ts:159:24\n' +
+apps/web test:     '    at file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:915:20',
+apps/web test:   context: undefined,
+apps/web test:   timestamp: '2026-01-03T01:24:35.156Z'
+apps/web test: }
+apps/web test: stderr | tests/api/club/analyze.test.ts &gt; /api/club/analyze &gt; POST /api/club/analyze &gt; should return 400 when no valid image URLs
+apps/web test: Error occurred: {
+apps/web test:   name: 'ValidationError',
+apps/web test:   code: 'VALIDATION_ERROR',
+apps/web test:   message: 'No valid image URLs provided',
+apps/web test:   statusCode: 400,
+apps/web test:   details: undefined,
+apps/web test:   stack: 'ValidationError: No valid image URLs provided\n' +
+apps/web test:     '    at Module.POST (/opt/slimy/slimy-monorepo/apps/web/app/api/club/analyze/route.ts:35:13)\n' +
+apps/web test:     '    at processTicksAndRejections (node:internal/process/task_queues:95:5)\n' +
+apps/web test:     '    at /opt/slimy/slimy-monorepo/apps/web/tests/api/club/analyze.test.ts:177:24\n' +
+apps/web test:     '    at file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:915:20',
+apps/web test:   context: undefined,
+apps/web test:   timestamp: '2026-01-03T01:24:35.160Z'
+apps/web test: }
+apps/web test: stderr | tests/api/club/analyze.test.ts &gt; /api/club/analyze &gt; POST /api/club/analyze &gt; should handle analysis errors gracefully
+apps/web test: Analysis error: Error: API Error
+apps/web test:     at /opt/slimy/slimy-monorepo/apps/web/tests/api/club/analyze.test.ts:267:56
+apps/web test:     at file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:145:11
+apps/web test:     at file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:915:26
+apps/web test:     at file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:1240:20
+apps/web test:     at new Promise (&lt;anonymous&gt;)
+apps/web test:     at runWithTimeout (file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:1206:10)
+apps/web test:     at file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:1650:37
+apps/web test:     at Traces.$ (file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/vitest@4.0.15_@opentelemetry+api@1.9.0_@types+node@20.19.25_@vitest+ui@4.0.15_jiti@2.6._6f4799287cc307d0b976628207bcb6be/node_modules/vitest/dist/chunks/traces.U4xDYhzZ.js:115:27)
+apps/web test:     at trace (file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/vitest@4.0.15_@opentelemetry+api@1.9.0_@types+node@20.19.25_@vitest+ui@4.0.15_jiti@2.6._6f4799287cc307d0b976628207bcb6be/node_modules/vitest/dist/chunks/test.BT8LKgU9.js:239:21)
+apps/web test:     at runTest (file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:1650:12)
+apps/web test: Error occurred: {
+apps/web test:   name: 'AppError',
+apps/web test:   code: 'INTERNAL_ERROR',
+apps/web test:   message: 'API Error',
+apps/web test:   statusCode: 500,
+apps/web test:   details: { originalError: 'Error' },
+apps/web test:   stack: 'AppError: API Error\n' +
+apps/web test:     '    at toAppError (/opt/slimy/slimy-monorepo/apps/web/lib/errors.ts:147:12)\n' +
+apps/web test:     '    at errorResponse (/opt/slimy/slimy-monorepo/apps/web/lib/errors.ts:186:20)\n' +
+apps/web test:     '    at Module.POST (/opt/slimy/slimy-monorepo/apps/web/app/api/club/analyze/route.ts:119:39)\n' +
+apps/web test:     '    at processTicksAndRejections (node:internal/process/task_queues:95:5)\n' +
+apps/web test:     '    at /opt/slimy/slimy-monorepo/apps/web/tests/api/club/analyze.test.ts:276:24\n' +
+apps/web test:     '    at file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:915:20',
+apps/web test:   context: undefined,
+apps/web test:   timestamp: '2026-01-03T01:24:35.242Z'
+apps/web test: }
+apps/web test: stderr | tests/api/club/analyze.test.ts &gt; /api/club/analyze &gt; GET /api/club/analyze &gt; should return 400 when no guildId provided
+apps/web test: Error occurred: {
+apps/web test:   name: 'ValidationError',
+apps/web test:   code: 'VALIDATION_ERROR',
+apps/web test:   message: 'Guild ID is required',
+apps/web test:   statusCode: 400,
+apps/web test:   details: undefined,
+apps/web test:   stack: 'ValidationError: Guild ID is required\n' +
+apps/web test:     '    at Module.GET (/opt/slimy/slimy-monorepo/apps/web/app/api/club/analyze/route.ts:151:13)\n' +
+apps/web test:     '    at /opt/slimy/slimy-monorepo/apps/web/tests/api/club/analyze.test.ts:312:30\n' +
+apps/web test:     '    at file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:145:11\n' +
+apps/web test:     '    at file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:915:26\n' +
+apps/web test:     '    at file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:1240:20\n' +
+apps/web test:     '    at new Promise (&lt;anonymous&gt;)\n' +
+apps/web test:     '    at runWithTimeout (file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:1206:10)\n' +
+apps/web test:     '    at file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:1650:37\n' +
+apps/web test:     '    at Traces.$ (file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/vitest@4.0.15_@opentelemetry+api@1.9.0_@types+node@20.19.25_@vitest+ui@4.0.15_jiti@2.6._6f4799287cc307d0b976628207bcb6be/node_modules/vitest/dist/chunks/traces.U4xDYhzZ.js:115:27)\n' +
+apps/web test:     '    at trace (file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/vitest@4.0.15_@opentelemetry+api@1.9.0_@types+node@20.19.25_@vitest+ui@4.0.15_jiti@2.6._6f4799287cc307d0b976628207bcb6be/node_modules/vitest/dist/chunks/test.BT8LKgU9.js:239:21)',
+apps/web test:   context: undefined,
+apps/web test:   timestamp: '2026-01-03T01:24:35.251Z'
+apps/web test: }
+apps/web test:  ✓ tests/api/club/analyze.test.ts (11 tests) 142ms
+apps/web test:  ✓ tests/unit/lib/env.test.ts (5 tests) 503ms
+apps/web test:        ✓ should validate required client environment variables  328ms
+apps/web test: stderr | tests/api/usage-route.test.ts &gt; GET /api/usage &gt; Error handling &gt; should handle errors from getMockUsageData gracefully
+apps/web test: Usage API error: Error: Mock error
+apps/web test:     at /opt/slimy/slimy-monorepo/apps/web/tests/api/usage-route.test.ts:82:15
+apps/web test:     at Mock (file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+spy@4.0.15/node_modules/@vitest/spy/dist/index.js:285:34)
+apps/web test:     at Module.GET (/opt/slimy/slimy-monorepo/apps/web/app/api/usage/route.ts:19:23)
+apps/web test:     at /opt/slimy/slimy-monorepo/apps/web/tests/api/usage-route.test.ts:85:30
+apps/web test:     at file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:145:11
+apps/web test:     at file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:915:26
+apps/web test:     at file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:1240:20
+apps/web test:     at new Promise (&lt;anonymous&gt;)
+apps/web test:     at runWithTimeout (file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:1206:10)
+apps/web test:     at file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:1650:37
+apps/web test: stderr | tests/api/usage-route.test.ts &gt; GET /api/usage &gt; Error handling &gt; should return error response with correct structure
+apps/web test: Usage API error: Error: Test error
+apps/web test:     at /opt/slimy/slimy-monorepo/apps/web/tests/api/usage-route.test.ts:116:15
+apps/web test:     at Mock (file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+spy@4.0.15/node_modules/@vitest/spy/dist/index.js:285:34)
+apps/web test:     at Module.GET (/opt/slimy/slimy-monorepo/apps/web/app/api/usage/route.ts:19:23)
+apps/web test:     at /opt/slimy/slimy-monorepo/apps/web/tests/api/usage-route.test.ts:119:30
+apps/web test:     at file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:145:11
+apps/web test:     at file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:915:26
+apps/web test:     at file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:1240:20
+apps/web test:     at new Promise (&lt;anonymous&gt;)
+apps/web test:     at runWithTimeout (file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:1206:10)
+apps/web test:     at file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:1650:37
+apps/web test:  ✓ tests/api/usage-route.test.ts (14 tests) 73ms
+apps/web test: stderr | tests/unit/screenshot/analyzer.test.ts &gt; Screenshot Analyzer &gt; analyzeScreenshot &gt; should handle API errors gracefully
+apps/web test: Error analyzing screenshot: Error: API Error
+apps/web test:     at /opt/slimy/slimy-monorepo/apps/web/tests/unit/screenshot/analyzer.test.ts:134:60
+apps/web test:     at file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:145:11
+apps/web test:     at file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:915:26
+apps/web test:     at file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:1240:20
+apps/web test:     at new Promise (&lt;anonymous&gt;)
+apps/web test:     at runWithTimeout (file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:1206:10)
+apps/web test:     at file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:1650:37
+apps/web test:     at Traces.$ (file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/vitest@4.0.15_@opentelemetry+api@1.9.0_@types+node@20.19.25_@vitest+ui@4.0.15_jiti@2.6._6f4799287cc307d0b976628207bcb6be/node_modules/vitest/dist/chunks/traces.U4xDYhzZ.js:115:27)
+apps/web test:     at trace (file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/vitest@4.0.15_@opentelemetry+api@1.9.0_@types+node@20.19.25_@vitest+ui@4.0.15_jiti@2.6._6f4799287cc307d0b976628207bcb6be/node_modules/vitest/dist/chunks/test.BT8LKgU9.js:239:21)
+apps/web test:     at runTest (file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:1650:12)
+apps/web test: stderr | tests/unit/screenshot/analyzer.test.ts &gt; Screenshot Analyzer &gt; analyzeScreenshots &gt; should handle partial failures
+apps/web test: Error analyzing screenshot: Error: API Error
+apps/web test:     at /opt/slimy/slimy-monorepo/apps/web/tests/unit/screenshot/analyzer.test.ts:190:32
+apps/web test:     at file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:145:11
+apps/web test:     at file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:915:26
+apps/web test:     at file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:1240:20
+apps/web test:     at new Promise (&lt;anonymous&gt;)
+apps/web test:     at runWithTimeout (file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:1206:10)
+apps/web test:     at file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:1650:37
+apps/web test:     at Traces.$ (file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/vitest@4.0.15_@opentelemetry+api@1.9.0_@types+node@20.19.25_@vitest+ui@4.0.15_jiti@2.6._6f4799287cc307d0b976628207bcb6be/node_modules/vitest/dist/chunks/traces.U4xDYhzZ.js:115:27)
+apps/web test:     at trace (file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/vitest@4.0.15_@opentelemetry+api@1.9.0_@types+node@20.19.25_@vitest+ui@4.0.15_jiti@2.6._6f4799287cc307d0b976628207bcb6be/node_modules/vitest/dist/chunks/test.BT8LKgU9.js:239:21)
+apps/web test:     at runTest (file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:1650:12)
+apps/web test: stderr | tests/unit/screenshot/analyzer.test.ts &gt; Screenshot Analyzer &gt; analyzeScreenshots &gt; should handle partial failures
+apps/web test: Failed to analyze http://example.com/image2.png: Error: Failed to analyze screenshot: API Error
+apps/web test:     at analyzeScreenshot (/opt/slimy/slimy-monorepo/apps/web/lib/screenshot/analyzer.ts:213:11)
+apps/web test:     at processTicksAndRejections (node:internal/process/task_queues:95:5)
+apps/web test:     at Module.analyzeScreenshots (/opt/slimy/slimy-monorepo/apps/web/lib/screenshot/analyzer.ts:229:22)
+apps/web test:     at /opt/slimy/slimy-monorepo/apps/web/tests/unit/screenshot/analyzer.test.ts:193:23
+apps/web test:     at file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:915:20
+apps/web test:  ✓ tests/unit/screenshot/analyzer.test.ts (13 tests) 68ms
+apps/web test: stderr | tests/api/club/upload.test.ts &gt; /api/club/upload &gt; should return 400 when no screenshots provided
+apps/web test: Error occurred: {
+apps/web test:   name: 'ValidationError',
+apps/web test:   code: 'VALIDATION_ERROR',
+apps/web test:   message: 'No screenshots provided',
+apps/web test:   statusCode: 400,
+apps/web test:   details: undefined,
+apps/web test:   stack: 'ValidationError: No screenshots provided\n' +
+apps/web test:     '    at Module.POST (/opt/slimy/slimy-monorepo/apps/web/app/api/club/upload/route.ts:23:13)\n' +
+apps/web test:     '    at processTicksAndRejections (node:internal/process/task_queues:95:5)\n' +
+apps/web test:     '    at /opt/slimy/slimy-monorepo/apps/web/tests/api/club/upload.test.ts:123:22\n' +
+apps/web test:     '    at file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:915:20',
+apps/web test:   context: undefined,
+apps/web test:   timestamp: '2026-01-03T01:24:39.206Z'
+apps/web test: }
+apps/web test: stderr | tests/api/club/upload.test.ts &gt; /api/club/upload &gt; should return 400 when no guildId provided
+apps/web test: Error occurred: {
+apps/web test:   name: 'ValidationError',
+apps/web test:   code: 'VALIDATION_ERROR',
+apps/web test:   message: 'Guild ID is required',
+apps/web test:   statusCode: 400,
+apps/web test:   details: undefined,
+apps/web test:   stack: 'ValidationError: Guild ID is required\n' +
+apps/web test:     '    at Module.POST (/opt/slimy/slimy-monorepo/apps/web/app/api/club/upload/route.ts:27:13)\n' +
+apps/web test:     '    at processTicksAndRejections (node:internal/process/task_queues:95:5)\n' +
+apps/web test:     '    at /opt/slimy/slimy-monorepo/apps/web/tests/api/club/upload.test.ts:142:22\n' +
+apps/web test:     '    at file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:915:20',
+apps/web test:   context: undefined,
+apps/web test:   timestamp: '2026-01-03T01:24:39.224Z'
+apps/web test: }
+apps/web test: stderr | tests/api/club/upload.test.ts &gt; /api/club/upload &gt; should handle file upload errors gracefully
+apps/web test: Error occurred: {
+apps/web test:   name: 'AppError',
+apps/web test:   code: 'INTERNAL_ERROR',
+apps/web test:   message: 'Disk full',
+apps/web test:   statusCode: 500,
+apps/web test:   details: { originalError: 'Error' },
+apps/web test:   stack: 'AppError: Disk full\n' +
+apps/web test:     '    at toAppError (/opt/slimy/slimy-monorepo/apps/web/lib/errors.ts:147:12)\n' +
+apps/web test:     '    at errorResponse (/opt/slimy/slimy-monorepo/apps/web/lib/errors.ts:186:20)\n' +
+apps/web test:     '    at Module.POST (/opt/slimy/slimy-monorepo/apps/web/app/api/club/upload/route.ts:128:39)\n' +
+apps/web test:     '    at processTicksAndRejections (node:internal/process/task_queues:95:5)\n' +
+apps/web test:     '    at /opt/slimy/slimy-monorepo/apps/web/tests/api/club/upload.test.ts:228:22\n' +
+apps/web test:     '    at file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:915:20',
+apps/web test:   context: undefined,
+apps/web test:   timestamp: '2026-01-03T01:24:39.245Z'
+apps/web test: }
+apps/web test: stderr | tests/api/club/upload.test.ts &gt; /api/club/upload &gt; should continue upload even if analysis fails
+apps/web test: Analysis failed: Error: Analysis failed
+apps/web test:     at /opt/slimy/slimy-monorepo/apps/web/tests/api/club/upload.test.ts:243:55
+apps/web test:     at file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:145:11
+apps/web test:     at file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:915:26
+apps/web test:     at file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:1240:20
+apps/web test:     at new Promise (&lt;anonymous&gt;)
+apps/web test:     at runWithTimeout (file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:1206:10)
+apps/web test:     at file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:1650:37
+apps/web test:     at Traces.$ (file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/vitest@4.0.15_@opentelemetry+api@1.9.0_@types+node@20.19.25_@vitest+ui@4.0.15_jiti@2.6._6f4799287cc307d0b976628207bcb6be/node_modules/vitest/dist/chunks/traces.U4xDYhzZ.js:115:27)
+apps/web test:     at trace (file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/vitest@4.0.15_@opentelemetry+api@1.9.0_@types+node@20.19.25_@vitest+ui@4.0.15_jiti@2.6._6f4799287cc307d0b976628207bcb6be/node_modules/vitest/dist/chunks/test.BT8LKgU9.js:239:21)
+apps/web test:     at runTest (file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:1650:12)
+apps/web test:  ✓ tests/api/club/upload.test.ts (6 tests) 63ms
+apps/web test: stderr | tests/unit/club/vision.test.ts &gt; Club Vision Library &gt; analyzeClubScreenshot &gt; should handle API errors gracefully
+apps/web test: Error analyzing club screenshot: Error: API Error
+apps/web test:     at /opt/slimy/slimy-monorepo/apps/web/tests/unit/club/vision.test.ts:109:60
+apps/web test:     at file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:145:11
+apps/web test:     at file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:915:26
+apps/web test:     at file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:1240:20
+apps/web test:     at new Promise (&lt;anonymous&gt;)
+apps/web test:     at runWithTimeout (file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:1206:10)
+apps/web test:     at file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:1650:37
+apps/web test:     at Traces.$ (file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/vitest@4.0.15_@opentelemetry+api@1.9.0_@types+node@20.19.25_@vitest+ui@4.0.15_jiti@2.6._6f4799287cc307d0b976628207bcb6be/node_modules/vitest/dist/chunks/traces.U4xDYhzZ.js:115:27)
+apps/web test:     at trace (file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/vitest@4.0.15_@opentelemetry+api@1.9.0_@types+node@20.19.25_@vitest+ui@4.0.15_jiti@2.6._6f4799287cc307d0b976628207bcb6be/node_modules/vitest/dist/chunks/test.BT8LKgU9.js:239:21)
+apps/web test:     at runTest (file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:1650:12)
+apps/web test: stderr | tests/unit/club/vision.test.ts &gt; Club Vision Library &gt; analyzeClubScreenshot &gt; should handle invalid JSON response
+apps/web test: Error analyzing club screenshot: SyntaxError: Unexpected token 'I', &quot;Invalid JS&quot;... is not valid JSON
+apps/web test:     at JSON.parse (&lt;anonymous&gt;)
+apps/web test:     at Module.analyzeClubScreenshot (/opt/slimy/slimy-monorepo/apps/web/lib/club/vision.ts:90:33)
+apps/web test:     at processTicksAndRejections (node:internal/process/task_queues:95:5)
+apps/web test: stderr | tests/unit/club/vision.test.ts &gt; Club Vision Library &gt; analyzeClubScreenshot &gt; should handle empty response
+apps/web test: Error analyzing club screenshot: Error: No response content from GPT-4 Vision
+apps/web test:     at Module.analyzeClubScreenshot (/opt/slimy/slimy-monorepo/apps/web/lib/club/vision.ts:87:13)
+apps/web test:     at processTicksAndRejections (node:internal/process/task_queues:95:5)
+apps/web test: stderr | tests/unit/club/vision.test.ts &gt; Club Vision Library &gt; analyzeClubScreenshots &gt; should handle partial failures gracefully
+apps/web test: Error analyzing club screenshot: Error: API Error
+apps/web test:     at /opt/slimy/slimy-monorepo/apps/web/tests/unit/club/vision.test.ts:189:32
+apps/web test:     at file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:145:11
+apps/web test:     at file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:915:26
+apps/web test:     at file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:1240:20
+apps/web test:     at new Promise (&lt;anonymous&gt;)
+apps/web test:     at runWithTimeout (file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:1206:10)
+apps/web test:     at file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:1650:37
+apps/web test:     at Traces.$ (file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/vitest@4.0.15_@opentelemetry+api@1.9.0_@types+node@20.19.25_@vitest+ui@4.0.15_jiti@2.6._6f4799287cc307d0b976628207bcb6be/node_modules/vitest/dist/chunks/traces.U4xDYhzZ.js:115:27)
+apps/web test:     at trace (file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/vitest@4.0.15_@opentelemetry+api@1.9.0_@types+node@20.19.25_@vitest+ui@4.0.15_jiti@2.6._6f4799287cc307d0b976628207bcb6be/node_modules/vitest/dist/chunks/test.BT8LKgU9.js:239:21)
+apps/web test:     at runTest (file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:1650:12)
+apps/web test: stderr | tests/unit/club/vision.test.ts &gt; Club Vision Library &gt; analyzeClubScreenshots &gt; should handle partial failures gracefully
+apps/web test: Failed to analyze http://example.com/image2.png: Error: Failed to analyze screenshot: API Error
+apps/web test:     at analyzeClubScreenshot (/opt/slimy/slimy-monorepo/apps/web/lib/club/vision.ts:107:11)
+apps/web test:     at processTicksAndRejections (node:internal/process/task_queues:95:5)
+apps/web test:     at Module.analyzeClubScreenshots (/opt/slimy/slimy-monorepo/apps/web/lib/club/vision.ts:123:22)
+apps/web test:     at /opt/slimy/slimy-monorepo/apps/web/tests/unit/club/vision.test.ts:192:23
+apps/web test:     at file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:915:20
+apps/web test: stderr | tests/unit/club/vision.test.ts &gt; Club Vision Library &gt; validateImageUrl &gt; should return false when fetch fails
+apps/web test: Error validating image URL: Error: Network error
+apps/web test:     at /opt/slimy/slimy-monorepo/apps/web/tests/unit/club/vision.test.ts:223:49
+apps/web test:     at Mock (file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+spy@4.0.15/node_modules/@vitest/spy/dist/index.js:285:34)
+apps/web test:     at Module.validateImageUrl (/opt/slimy/slimy-monorepo/apps/web/lib/club/vision.ts:140:28)
+apps/web test:     at /opt/slimy/slimy-monorepo/apps/web/tests/unit/club/vision.test.ts:225:28
+apps/web test:     at file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:145:11
+apps/web test:     at file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:915:26
+apps/web test:     at file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:1240:20
+apps/web test:     at new Promise (&lt;anonymous&gt;)
+apps/web test:     at runWithTimeout (file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:1206:10)
+apps/web test:     at file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:1650:37
+apps/web test:  ✓ tests/unit/club/vision.test.ts (13 tests) 72ms
+apps/web test: stdout | tests/unit/codes-aggregator.test.ts &gt; Codes Aggregator &gt; CodesAggregator &gt; should aggregate codes from all sources
+apps/web test: Started auto-refresh for aggregated_codes every 300s
+apps/web test: stdout | tests/unit/codes-aggregator.test.ts &gt; Codes Aggregator &gt; CodesAggregator &gt; should handle source failures gracefully
+apps/web test: Started auto-refresh for aggregated_codes every 300s
+apps/web test: stdout | tests/unit/codes-aggregator.test.ts &gt; Codes Aggregator &gt; CodesAggregator &gt; should get health status
+apps/web test: Started auto-refresh for aggregated_codes every 300s
+apps/web test: stdout | tests/unit/codes-aggregator.test.ts &gt; Codes Aggregator &gt; CodesAggregator &gt; should deduplicate codes
+apps/web test: Started auto-refresh for aggregated_codes every 300s
+apps/web test: stdout | tests/unit/codes-aggregator.test.ts &gt; Codes Aggregator &gt; getAggregator &gt; should return singleton instance
+apps/web test: Started auto-refresh for aggregated_codes every 300s
+apps/web test:  ✓ tests/unit/codes-aggregator.test.ts (14 tests) 88ms
+apps/web test:  ✓ tests/api/screenshot/route.test.ts (11 tests) 36ms
+apps/web test: stderr | tests/api/usage.test.ts &gt; Usage API Client &gt; fetchUsageDataSafe &gt; should return null on error (default fallback)
+apps/web test: Failed to fetch usage data: UsageApiError: Network error
+apps/web test:     at fetchUsageData (/opt/slimy/slimy-monorepo/apps/web/lib/api/usage.ts:108:11)
+apps/web test:     at processTicksAndRejections (node:internal/process/task_queues:95:5)
+apps/web test:     at fetchUsageDataSafe (/opt/slimy/slimy-monorepo/apps/web/lib/api/usage.ts:126:12)
+apps/web test:     at /opt/slimy/slimy-monorepo/apps/web/tests/api/usage.test.ts:345:22
+apps/web test:     at file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:915:20 {
+apps/web test:   code: 'UNKNOWN_ERROR',
+apps/web test:   status: undefined
+apps/web test: }
+apps/web test: stderr | tests/api/usage.test.ts &gt; Usage API Client &gt; fetchUsageDataSafe &gt; should return custom fallback on error
+apps/web test: Failed to fetch usage data: UsageApiError: Network error
+apps/web test:     at fetchUsageData (/opt/slimy/slimy-monorepo/apps/web/lib/api/usage.ts:108:11)
+apps/web test:     at processTicksAndRejections (node:internal/process/task_queues:95:5)
+apps/web test:     at fetchUsageDataSafe (/opt/slimy/slimy-monorepo/apps/web/lib/api/usage.ts:126:12)
+apps/web test:     at /opt/slimy/slimy-monorepo/apps/web/tests/api/usage.test.ts:359:22
+apps/web test:     at file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@4.0.15/node_modules/@vitest/runner/dist/index.js:915:20 {
+apps/web test:   code: 'UNKNOWN_ERROR',
+apps/web test:   status: undefined
+apps/web test: }
+apps/web test:  ✓ tests/api/usage.test.ts (25 tests) 101ms
+apps/web test:  ✓ tests/unit/lib/errors.test.ts (18 tests) 40ms
+apps/web test:  ✓ tests/unit/rate-limiter.test.ts (4 tests) 28ms
+apps/web test:  ✓ tests/unit/codes-deduplication.test.ts (18 tests) 61ms
+apps/web test:  ✓ tests/api/diag.test.ts (2 tests) 39ms
+apps/web test:  ✓ tests/unit/lib/admin-client.test.ts (1 test) 32ms
+apps/web test:  ✓ tests/unit/snelp-source.test.ts (2 tests) 26ms
+apps/web test:  ✓ tests/unit/role-mapping.test.ts (5 tests) 17ms
+apps/web test:  ✓ tests/unit/usage-thresholds.test.ts (6 tests) 10ms
+apps/web test:  ✓ tests/unit/lib/config.test.ts (12 tests) 14ms
+apps/web test:  ✓ tests/unit/stats-scrubber.test.ts (1 test) 10ms
+apps/web test:  Test Files  25 passed (25)
+apps/web test:       Tests  267 passed (267)
+apps/web test:    Start at  01:24:16
+apps/web test:    Duration  35.67s (transform 4.98s, setup 7.90s, import 14.29s, tests 12.84s, environment 53.12s)
+apps/web test: Done</pre>
+        </details>
+        <details>
+          <summary>Docker Compose Status</summary>
+          <pre>NAME                   STATUS                PORTS
+slimy-monorepo-db-1    Up 5 days (healthy)   3306/tcp, 33060/tcp
+slimy-monorepo-web-1   Up 5 days             0.0.0.0:3000-&gt;3000/tcp, :::3000-&gt;3000/tcp</pre>
+        </details>
+        <details>
+          <summary>Admin Health Response</summary>
+          <pre>{&quot;status&quot;:&quot;ok&quot;,&quot;uptime&quot;:12288,&quot;timestamp&quot;:&quot;2026-01-03T01:24:52.429Z&quot;,&quot;version&quot;:&quot;1.0.0&quot;}</pre>
+        </details>
+        <details>
+          <summary>Socket.IO Polling Response (Endpoint Reachability)</summary>
+          <pre>0{&quot;sid&quot;:&quot;hJ6y_OiFRCkqOzRmAAAU&quot;,&quot;upgrades&quot;:[&quot;websocket&quot;],&quot;pingInterval&quot;:25000,&quot;pingTimeout&quot;:20000,&quot;maxPayload&quot;:1000000}</pre>
+        </details>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Language Pie Chart
+    
+
+    // Folder Bar Chart
+    if (typeof Chart !== 'undefined') {
+      new Chart(document.getElementById('folderChart'), {
+        type: 'bar',
+        data: {
+          labels: ["apps","apps/web","apps/admin-api","apps/admin-ui","docs","scripts","apps/bot","packages","packages/contracts","infra"],
+          datasets: [{
+            label: 'Size (MB)',
+            data: ["478.73","227.85","144.34","106.42","4.71","0.31","0.12","0.08","0.04","0.03"],
+            backgroundColor: '#58a6ff'
+          }]
+        },
+        options: {
+          indexAxis: 'y',
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false }
+          },
+          scales: {
+            x: {
+              grid: { color: '#30363d' },
+              ticks: { color: '#8b949e' }
+            },
+            y: {
+              grid: { display: false },
+              ticks: { color: '#c9d1d9', font: { size: 10 } }
+            }
+          }
+        }
+      });
+    }
+  </script>
+</body>
+</html>
