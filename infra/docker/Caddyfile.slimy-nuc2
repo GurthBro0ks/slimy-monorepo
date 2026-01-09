@@ -98,6 +98,25 @@ chat.slimyai.xyz {
   reverse_proxy 127.0.0.1:3000
 }
 
+trader.slimyai.xyz {
+  import slime_common
+
+  @web_routes path /_next/* /api/auth/* /api/me/settings /api/discord/guilds /api/discord/guilds/*
+  reverse_proxy @web_routes 127.0.0.1:3000 {
+    flush_interval -1
+  }
+
+  @admin_api_trader {
+    path /api/*
+    not path /api/auth/* /api/me/settings /api/discord/guilds /api/discord/guilds/*
+  }
+  reverse_proxy @admin_api_trader 127.0.0.1:3080 {
+    flush_interval -1
+  }
+
+  reverse_proxy 127.0.0.1:3000
+}
+
 slime.chat, www.slime.chat {
   import slime_common
   reverse_proxy 127.0.0.1:3000

@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node -e:*)",
+      "Bash(git clone:*)",
+      "Bash(timeout 5 docker logs:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

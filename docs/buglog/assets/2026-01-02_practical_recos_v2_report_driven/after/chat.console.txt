@@ -1,0 +1,3 @@
+[2026-01-02T22:30:35.457Z] error: Failed to load resource: the server responded with a status of 401 ()
+[2026-01-02T22:30:35.457Z] log: [session] Redirecting to /login?returnTo=%2Fchat from /chat
+[2026-01-02T22:30:35.691Z] error: Failed to load resource: the server responded with a status of 401 ()

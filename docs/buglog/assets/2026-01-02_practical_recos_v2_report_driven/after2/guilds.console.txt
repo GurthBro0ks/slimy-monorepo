@@ -1,0 +1,3 @@
+[2026-01-02T22:34:39.458Z] error: Failed to load resource: the server responded with a status of 401 ()
+[2026-01-02T22:34:39.458Z] log: [session] Redirecting to /login?returnTo=%2Fguilds from /guilds
+[2026-01-02T22:34:39.647Z] error: Failed to load resource: the server responded with a status of 401 ()
