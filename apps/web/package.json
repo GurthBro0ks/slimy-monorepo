@@ -16,7 +16,7 @@
     "test:coverage": "vitest --coverage",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
-    "postbuild": "tsx scripts/postbuild-validate.ts && tsx scripts/check-bundle-size.ts",
+    "postbuild": "tsx scripts/postbuild-validate.ts && tsx scripts/check-bundle-size.ts && (test -d .next/standalone && (mkdir -p .next/standalone/apps/web/.next && cp -R .next/static .next/standalone/apps/web/.next/static && cp -R public .next/standalone/apps/web/public) || true)",
     "lighthouse": "lhci autorun",
     "lighthouse:mobile": "lhci autorun --preset=mobile",
     "prisma:generate": "prisma generate",

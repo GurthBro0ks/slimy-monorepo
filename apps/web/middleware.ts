@@ -25,7 +25,12 @@ export default async function middleware(req: NextRequest) {
   }
 
   // Pass pathname to server components via header
-  const response = NextResponse.next();
-  response.headers.set("x-pathname", url.pathname);
-  return response;
+  const requestHeaders = new Headers(req.headers);
+  requestHeaders.set("x-pathname", url.pathname);
+
+  return NextResponse.next({
+    request: {
+      headers: requestHeaders,
+    },
+  });
 }
