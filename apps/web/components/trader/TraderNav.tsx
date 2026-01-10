@@ -62,11 +62,10 @@ export function TraderNav({ username }: TraderNavProps) {
               <li key={link.href}>
                 <Link
                   href={link.href}
-                  className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all font-mono text-sm ${
-                    isActive
+                  className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all font-mono text-sm ${isActive
                       ? "bg-[var(--neon-green)]/10 text-[var(--neon-green)] border border-[var(--neon-green)]/30"
                       : "text-gray-400 hover:text-white hover:bg-gray-800/50"
-                  }`}
+                    }`}
                 >
                   <Icon className={`w-4 h-4 ${isActive ? "animate-pulse" : ""}`} />
                   <span className="uppercase tracking-wider">{link.label}</span>
@@ -93,13 +92,15 @@ export function TraderNav({ username }: TraderNavProps) {
               <span className="text-xs text-gray-500 font-mono">Trader</span>
             </div>
           </div>
-          <Link
-            href="/api/auth/logout"
-            className="p-2 text-gray-500 hover:text-red-400 transition-colors"
-            title="Logout"
-          >
-            <LogOut className="w-4 h-4" />
-          </Link>
+          <form action="/trader/auth/logout" method="POST">
+            <button
+              type="submit"
+              className="p-2 text-gray-500 hover:text-red-400 transition-colors"
+              title="Logout"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
+          </form>
         </div>
       </div>
     </nav>
