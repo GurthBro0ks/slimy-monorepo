@@ -16,7 +16,7 @@ import { db } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
-export async function POST() {
+export async function POST(request: Request) {
   try {
     const cookieStore = await cookies();
     const sessionCookie = cookieStore.get(TRADER_SESSION_COOKIE);
@@ -32,15 +32,19 @@ export async function POST() {
       }
     }
 
-    const response = NextResponse.json({ success: true });
+    const response = NextResponse.redirect(new URL("/trader/login", request.url));
     response.cookies.delete(TRADER_SESSION_COOKIE);
 
     return response;
   } catch (error) {
     console.error("[TraderAuth] Logout error:", error);
     // Still clear cookie even on error
-    const response = NextResponse.json({ success: true });
+    const response = NextResponse.redirect(new URL("/trader/login", request.url));
     response.cookies.delete(TRADER_SESSION_COOKIE);
     return response;
   }
+}
+
+export async function GET(request: Request) {
+  return POST(request);
 }
