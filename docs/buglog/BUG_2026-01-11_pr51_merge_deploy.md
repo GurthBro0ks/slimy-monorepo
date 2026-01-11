@@ -232,3 +232,11 @@ All critical auth behaviors verified:
   ```
 
 - Exit code: `0`
+
+## 9) Deploy notification proof
+
+- Date/host/user: `2026-01-11 / slimy-nuc2 / slimy`
+- HEAD: `08dfb19a4160e72db348b277128f2bd3f02f6ee9`
+- Run: [Deploy Notification #20896829530](https://github.com/GurthBro0ks/slimy-monorepo/actions/runs/20896829530)
+- Conclusion: `success`
+- Note: Discord message observed in channel `1459916467611893944`
