@@ -20,11 +20,13 @@ jobs:
         run: |
           WEBHOOK_URL="${{ secrets.DISCORD_WEBHOOK_URL }}"
           if [ -z "$WEBHOOK_URL" ]; then
+            echo "SAFE_SKIP: missing DISCORD_WEBHOOK_URL"
             echo "No DISCORD_WEBHOOK_URL configured; skipping deploy notification."
             exit 0
           fi
 
           if ! printf '%s' "$WEBHOOK_URL" | grep -Eq '^https://(discord\.com|discordapp\.com)/api/webhooks/'; then
+            echo "SAFE_SKIP: invalid DISCORD_WEBHOOK_URL domain"
             echo "DISCORD_WEBHOOK_URL does not match allowed Discord webhook domains; skipping."
             exit 0
           fi
