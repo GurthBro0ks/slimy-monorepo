@@ -52,5 +52,8 @@ jobs:
       - name: Run Deprecation Checker
         run: pnpm lint:deprecations
 
+      - name: Check for stray artifacts
+        run: bash scripts/smoke/verify-no-stray-artifacts.sh
+
       - name: Run Build
         run: pnpm build
