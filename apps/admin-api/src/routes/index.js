@@ -16,6 +16,7 @@ const snailRoutes = require("./snail");
 const chatRoutes = require("./chat");
 const clubRoutes = require("./club");
 const usageRoutes = require("./usage");
+const userSettingsRoutes = require("./user-settings");
 
 // Track app start time for uptime calculation
 const APP_START_TIME = Date.now();
@@ -80,5 +81,6 @@ router.use("/api/bot", botRoutes);
 router.use("/api/stats", statsRoutes);
 router.use("/api/chat", chatRoutes);
 router.use("/api/usage", usageRoutes);
+router.use("/api", userSettingsRoutes);
 
 module.exports = router;

@@ -1,0 +1,17 @@
+
+DEBUG_BASELINE_COPYDEBUG
+
+Route: /guilds
+Env: production (build slimy-mjynlk1-8c3878b08591)
+User: 427999592986968074 (owner)
+auth/me: ok (HTTP 200) (req [REQUEST_ID]) @ 2026-01-05T19:34:55.882Z
+activeGuildId (session): 117660550691214144
+routeGuildId: none
+Chat: connected (id wAe-T3czgqQPrsv7AAAB)
+Chat lastEvent: none
+Admin-api health: ok (req [REQUEST_ID])
+Admin-api diag: ok auth=true (req [REQUEST_ID])
+discord/guilds: HTTP 200 source=discord stale=false cooldownMs=0 (req [REQUEST_ID])
+Errors captured: 0
+
+This is the debug baseline output captured from the DebugDock panel on the /guilds authenticated route, showing successful API calls with proper headers and no rate limiting errors.
