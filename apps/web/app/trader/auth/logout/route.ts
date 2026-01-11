@@ -16,7 +16,7 @@ import { db } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
-export async function POST(request: Request) {
+export async function POST() {
   try {
     const cookieStore = await cookies();
     const sessionCookie = cookieStore.get(TRADER_SESSION_COOKIE);
@@ -32,19 +32,44 @@ export async function POST(request: Request) {
       }
     }
 
-    const response = NextResponse.redirect(new URL("/trader/login", request.url));
-    response.cookies.delete(TRADER_SESSION_COOKIE);
+    // Create response with relative Location (303 See Other)
+    const response = new NextResponse(null, {
+      status: 303,
+      headers: { Location: "/trader/login" },
+    });
+
+    // Securely clear the cookie
+    response.cookies.set({
+      name: TRADER_SESSION_COOKIE,
+      value: "",
+      path: "/",
+      expires: new Date(0),
+      httpOnly: true,
+      secure: true,
+      sameSite: "lax",
+    });
 
     return response;
   } catch (error) {
     console.error("[TraderAuth] Logout error:", error);
-    // Still clear cookie even on error
-    const response = NextResponse.redirect(new URL("/trader/login", request.url));
-    response.cookies.delete(TRADER_SESSION_COOKIE);
+    // Still clear cookie and redirect even on error
+    const response = new NextResponse(null, {
+      status: 303,
+      headers: { Location: "/trader/login" },
+    });
+    response.cookies.set({
+      name: TRADER_SESSION_COOKIE,
+      value: "",
+      path: "/",
+      expires: new Date(0),
+      httpOnly: true,
+      secure: true,
+      sameSite: "lax",
+    });
     return response;
   }
 }
 
-export async function GET(request: Request) {
-  return POST(request);
+export async function GET() {
+  return POST();
 }
