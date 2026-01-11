@@ -4,19 +4,32 @@ on:
   push:
     branches:
       - main
+    paths-ignore:
+      - 'docs/**'
+      - '**/*.md'
+  workflow_dispatch:
 
 jobs:
   notify:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
     steps:
       - name: Notify Discord
         run: |
           WEBHOOK_URL="${{ secrets.DISCORD_WEBHOOK_URL }}"
           if [ -z "$WEBHOOK_URL" ]; then
-            echo "No DISCORD_WEBHOOK_URL configured; skipping notification."
+            echo "No DISCORD_WEBHOOK_URL configured; skipping deploy notification."
             exit 0
           fi
 
+          if ! printf '%s' "$WEBHOOK_URL" | grep -Eq '^https://(discord\.com|discordapp\.com)/api/webhooks/'; then
+            echo "DISCORD_WEBHOOK_URL does not match allowed Discord webhook domains; skipping."
+            exit 0
+          fi
+
+          COMMIT_MESSAGE="${{ github.event.head_commit.message || github.sha }}"
           curl -fsS -X POST "$WEBHOOK_URL" \
             -H "Content-Type: application/json" \
-            --data '{"content":"🚀 Pushed to main - NUCs will auto-deploy soon\n\nCommit: '"${{ github.event.head_commit.message }}"'\nAuthor: '"${{ github.actor }}"'"}'
+            --data '{"content":"🚀 Pushed to main - NUCs will auto-deploy soon\n\nCommit: '"${COMMIT_MESSAGE}"'\nAuthor: '"${{ github.actor }}"'","allowed_mentions":{"parse":[]}}'
