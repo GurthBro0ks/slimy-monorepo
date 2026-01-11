@@ -1,6 +1,7 @@
 {
   "name": "slimy-monorepo",
   "private": true,
+  "packageManager": "pnpm@10.22.0",
   "workspaces": [
     "apps/*",
     "packages/*"
