@@ -18,3 +18,14 @@
 ## Fix #2 - ESLint missing dependency
 - **Issue:** `@eslint/eslintrc` is imported in `apps/web/eslint.config.mjs` but not in `package.json`.
 - **Fix:** Adding `@eslint/eslintrc` as a dev dependency to `apps/web`.
+- **Result:** ✅ Dependency installed. ❌ Still 2 linter errors.
+
+## Fix #3 - React Hooks naming violation
+- **Issue:** Function `useInviteCode` is named like a React Hook but it's not, causing ESLint react-hooks/rules-of-hooks errors.
+- **Fix:** Renamed `useInviteCode` to `markInviteAsUsed` across 3 files.
+- **Files:** `lib/trader/auth/invite.ts`, `lib/trader/auth/index.ts`, `app/trader/auth/register/route.ts`
+- **Result:** ✅ Linter passes with 0 errors (only warnings remain).
+
+## Fix #4 - Prisma client not generated in test.yml
+- **Issue:** Build fails in test workflow: "@prisma/client did not initialize yet"
+- **Fix:** Add `pnpm prisma:generate` step to `.github/workflows/test.yml` before lint/build steps (matching ci.yml).
