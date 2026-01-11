@@ -1,0 +1,38 @@
+{
+  "name": "chat",
+  "url": "https://admin.slimyai.xyz/chat",
+  "startedAt": "2026-01-02T22:39:41.932Z",
+  "goto": {
+    "ok": true,
+    "status": 200,
+    "finalUrl": "https://admin.slimyai.xyz/chat"
+  },
+  "interesting": {
+    "requests": [],
+    "responses": [],
+    "websockets": []
+  },
+  "console": [
+    {
+      "at": "2026-01-02T22:39:42.695Z",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 401 ()"
+    },
+    {
+      "at": "2026-01-02T22:39:42.695Z",
+      "type": "log",
+      "text": "[session] Redirecting to /login?returnTo=%2Fchat from /chat"
+    },
+    {
+      "at": "2026-01-02T22:39:42.890Z",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 401 ()"
+    },
+    {
+      "at": "2026-01-02T22:39:43.052Z",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 401 ()"
+    }
+  ],
+  "pageErrors": []
+}

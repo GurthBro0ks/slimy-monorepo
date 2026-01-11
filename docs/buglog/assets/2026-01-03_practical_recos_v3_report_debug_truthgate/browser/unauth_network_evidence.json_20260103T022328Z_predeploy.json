@@ -1,0 +1,21 @@
+{
+  "ts": "2026-01-03T02:04:05Z",
+  "url": "https://admin.slimyai.xyz/login?returnTo=%2Fchat",
+  "interestingRequests": [],
+  "interestingWebSockets": [],
+  "totals": {
+    "requests": 52,
+    "responses": 52,
+    "wsCreated": 0
+  },
+  "debugDock": {
+    "dockPresent": {
+      "hasDebugBtn": true,
+      "hasCopyBtn": true
+    },
+    "clickRes": {
+      "ok": true
+    },
+    "clipboardErr": null
+  }
+}
