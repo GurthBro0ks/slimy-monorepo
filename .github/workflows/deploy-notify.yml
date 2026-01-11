@@ -11,6 +11,12 @@ jobs:
     steps:
       - name: Notify Discord
         run: |
-          curl -X POST -H "Content-Type: application/json" \
-            -d '{"content":"🚀 Pushed to main - NUCs will auto-deploy soon\n\nCommit: ${{ github.event.head_commit.message }}\nAuthor: ${{ github.actor }}"}' \
-            "${{ secrets.DISCORD_WEBHOOK_URL }}"
+          WEBHOOK_URL="${{ secrets.DISCORD_WEBHOOK_URL }}"
+          if [ -z "$WEBHOOK_URL" ]; then
+            echo "No DISCORD_WEBHOOK_URL configured; skipping notification."
+            exit 0
+          fi
+
+          curl -fsS -X POST "$WEBHOOK_URL" \
+            -H "Content-Type: application/json" \
+            --data '{"content":"🚀 Pushed to main - NUCs will auto-deploy soon\n\nCommit: '"${{ github.event.head_commit.message }}"'\nAuthor: '"${{ github.actor }}"'"}'
