@@ -8,7 +8,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { hashPassword } from "@/lib/trader/auth/crypto";
-import { validateInviteCode, useInviteCode } from "@/lib/trader/auth/invite";
+import { validateInviteCode, markInviteAsUsed } from "@/lib/trader/auth/invite";
 import {
   createTraderSession,
   getSessionCookieOptions,
@@ -87,7 +87,7 @@ export async function POST(request: NextRequest) {
     });
 
     // Mark invite as used
-    await useInviteCode(inviteResult.inviteId!, user.id);
+    await markInviteAsUsed(inviteResult.inviteId!, user.id);
 
     // Create session
     const ipAddress = getClientIP(request);

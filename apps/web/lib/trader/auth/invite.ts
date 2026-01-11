@@ -79,7 +79,7 @@ export async function validateInviteCode(
 /**
  * Mark an invite as used (called after successful registration)
  */
-export async function useInviteCode(
+export async function markInviteAsUsed(
   inviteId: string,
   userId: string
 ): Promise<void> {

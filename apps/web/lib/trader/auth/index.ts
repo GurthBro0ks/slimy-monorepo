@@ -38,7 +38,7 @@ export {
 export {
   createInviteCode,
   validateInviteCode,
-  useInviteCode,
+  markInviteAsUsed,
   getInviteStats,
   type ValidateInviteResult,
   type CreateInviteOptions,
