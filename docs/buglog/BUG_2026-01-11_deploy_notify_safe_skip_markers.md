@@ -38,3 +38,21 @@ Add exact markers:
 
 ### Secret scan
 - Result: PASS (no hits)
+
+## Branch manual-dispatch proof (includes SAFE_SKIP markers)
+- Ref: chore/deploy-notify-safe-skip-markers
+- RUN_ID: 20897830096
+
+### SAFE_SKIP hits
+```
+31:notify	Notify Discord	2026-01-11T15:51:47.2634040Z [36;1m  echo "SAFE_SKIP: missing DISCORD_WEBHOOK_URL"[0m
+37:notify	Notify Discord	2026-01-11T15:51:47.2639114Z [36;1m  echo "SAFE_SKIP: invalid DISCORD_WEBHOOK_URL domain"[0m
+```
+
+### Run meta
+```
+{"conclusion":"success","createdAt":"2026-01-11T15:51:42Z","displayTitle":"Deploy Notification","status":"completed","updatedAt":"2026-01-11T15:51:49Z"}
+```
+
+### Secret scan
+- Result: PASS (no hits)
