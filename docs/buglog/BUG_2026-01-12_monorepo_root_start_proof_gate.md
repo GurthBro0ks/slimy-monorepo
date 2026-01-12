@@ -27,7 +27,7 @@ Previously, root `pnpm -w start` was missing/unreliable, forcing operators to us
 
 ## Proof
 **PROOF_DIR:** `/tmp/proof_monorepo_root_start_gate_20260112T040922Z`  
-**Commit:** `735dc4f71accb1e056153df06ef6b70c5de96e48`  
+**Commit:** `5300d970b8f8b6df2326ffe8de0904f8c7074741`  
 **PR:** `https://github.com/GurthBro0ks/slimy-monorepo/pull/56`
 
 ### 1) Build gate
@@ -35,17 +35,31 @@ Command:
 ```bash
 pnpm -w build
 ```
-Result: **Success** (delegates to `@slimy/web` build phase)
+Expected: succeeds; `@slimy/web` build runs (no fallback commands required).
 
 ### 2) Start gate
 Command:
 ```bash
 pnpm -w start
 ```
-Result: **Success** (starts production server on port 3000)
+Expected: starts `@slimy/web` production server on port 3000 (or configured port).
 
-### 3) Fail-closed Verification
-Curl probes confirm unauthenticated access is denied and static assets are not leaked.
-- `GET /trader/artifacts` -> **307 Redirect** (Pass)
-- `GET /api/trader/artifacts/summary` -> **401 Unauthorized** (Pass)
-- `HEAD /artifacts/shadow/latest_summary.json` -> **404 Not Found** (Pass)
+### 3) Fail-closed verification (unauth)
+Commands:
+```bash
+curl -i http://localhost:3000/trader/artifacts | head -n 20
+curl -i http://localhost:3000/api/trader/artifacts/summary | head -n 20
+curl -I http://localhost:3000/artifacts/shadow/latest_summary.json | head -n 20
+```
+
+Expected:
+- `/trader/artifacts` -> 30x redirect to login (e.g., 302/307)
+- `/api/trader/artifacts/summary` -> 401/403 (fail-closed)
+- `/artifacts/shadow/latest_summary.json` -> 404 (static artifacts not exposed)
+
+## Implementation Detail
+**WEB_FILTER:** `@slimy/web`  
+All root delegation commands rely on this workspace package name.
+
+## Conclusion
+Root `pnpm -w start` is now the single source of truth for starting the production web app, aligned with the Phase 6 proof gate. Operators no longer need filter-based fallback start commands.
