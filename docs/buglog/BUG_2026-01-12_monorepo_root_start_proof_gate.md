@@ -68,3 +68,5 @@ Observed:
 
 ## Conclusion
 Root `pnpm -w start` is now the single source of truth for starting the production web app, aligned with the Phase 6 proof gate. Operators no longer need filter-based fallback start commands.
+
+Note: PR head will advance with docs-only edits; see the docs-only update commit line for the last reporting update.
