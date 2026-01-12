@@ -27,8 +27,9 @@ Previously, root `pnpm -w start` was missing/unreliable, forcing operators to us
 
 ## Proof
 **PROOF_DIR:** `/tmp/proof_monorepo_root_start_gate_20260112T040922Z`  
-**Commit:** `5300d970b8f8b6df2326ffe8de0904f8c7074741`  
+**Commit:** `735dc4f71accb1e056153df06ef6b70c5de96e48`  
 **PR:** `https://github.com/GurthBro0ks/slimy-monorepo/pull/56`
+- **WEB_FILTER:** `@slimy/web`
 
 ### 1) Build gate
 Command:
@@ -53,13 +54,12 @@ curl -I http://localhost:3000/artifacts/shadow/latest_summary.json | head -n 20
 ```
 
 Expected:
-- `/trader/artifacts` -> 30x redirect to login (e.g., 302/307)
-- `/api/trader/artifacts/summary` -> 401/403 (fail-closed)
-- `/artifacts/shadow/latest_summary.json` -> 404 (static artifacts not exposed)
 
-## Implementation Detail
-**WEB_FILTER:** `@slimy/web`  
-All root delegation commands rely on this workspace package name.
+/trader/artifacts -> 302/307 redirect to login
+
+/api/trader/artifacts/summary -> 401/403
+
+/artifacts/shadow/latest_summary.json -> 404 (static artifacts not exposed)
 
 ## Conclusion
 Root `pnpm -w start` is now the single source of truth for starting the production web app, aligned with the Phase 6 proof gate. Operators no longer need filter-based fallback start commands.
