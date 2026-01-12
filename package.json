@@ -26,6 +26,9 @@
     "test": "pnpm -r run test || echo \"TODO: wire tests\"",
     "test:core": "pnpm --filter admin-api --filter web --filter admin-ui run test || echo \"TODO: wire tests\"",
     "prisma:generate": "pnpm --filter admin-api --filter web run prisma:generate",
+    "start": "pnpm -s start:web",
+    "start:web": "pnpm --filter @slimy/web start",
+    "build:web": "pnpm --filter @slimy/web build",
     "prepare": "husky"
   },
   "devDependencies": {
