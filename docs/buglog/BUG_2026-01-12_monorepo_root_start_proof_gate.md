@@ -27,7 +27,8 @@ Previously, root `pnpm -w start` was missing/unreliable, forcing operators to us
 
 ## Proof
 **PROOF_DIR:** `/tmp/proof_monorepo_root_start_gate_20260112T040922Z`  
-**Commit:** `4c15c16a3162abd8eabd1a0ac751c1860bd5ad1f`  
+**Commit (functional change):** `4c15c16a3162abd8eabd1a0ac751c1860bd5ad1f`  
+**Commit (docs-only buglog update):** 8f25ca7955de360711ee6def8851335c28eecb8b
 **PR:** `https://github.com/GurthBro0ks/slimy-monorepo/pull/56`
 - **WEB_FILTER:** `@slimy/web`
 
