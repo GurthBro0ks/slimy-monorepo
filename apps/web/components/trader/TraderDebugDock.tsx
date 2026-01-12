@@ -1,9 +1,16 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useTrader } from "@/lib/trader/context";
 
 const LS_KEY = "slimy_trader_debug_open";
+const ARTIFACTS_DIR = "/var/lib/trader-artifacts/shadow";
+
+interface ArtifactInfo {
+  last_pull_utc: string | null;
+  artifact_age_sec: number | null;
+  pull_status: "ok" | "stale" | "error" | "unknown";
+}
 
 function readLocalStorageFlag(key: string): boolean {
   if (typeof window === "undefined") return false;
@@ -27,8 +34,48 @@ export function TraderDebugDock() {
   const { mode, adapterType, apiBase, lastFetch, latencyMs, errorCount, lastError } =
     useTrader();
   const [open, setOpen] = useState(false);
+  const [artifactInfo, setArtifactInfo] = useState<ArtifactInfo | null>(null);
 
   const buildVersion = process.env.NEXT_PUBLIC_BUILD_VERSION || "dev";
+
+  // Fetch artifact status on mount and periodically
+  const fetchArtifactStatus = useCallback(async () => {
+    try {
+      const res = await fetch("/api/trader/artifacts/health");
+      if (res.ok) {
+        const data = await res.json();
+        setArtifactInfo({
+          last_pull_utc: data.last_pull_utc,
+          artifact_age_sec: data.artifact_age_sec,
+          pull_status:
+            data.status === "OK"
+              ? "ok"
+              : data.status === "STALE"
+              ? "stale"
+              : "error",
+        });
+      } else if (res.status === 401 || res.status === 403) {
+        // Not authorized for artifacts - that's okay
+        setArtifactInfo({
+          last_pull_utc: null,
+          artifact_age_sec: null,
+          pull_status: "unknown",
+        });
+      }
+    } catch {
+      setArtifactInfo({
+        last_pull_utc: null,
+        artifact_age_sec: null,
+        pull_status: "unknown",
+      });
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchArtifactStatus();
+    const interval = setInterval(fetchArtifactStatus, 60000); // Refresh every 60s
+    return () => clearInterval(interval);
+  }, [fetchArtifactStatus]);
 
   useEffect(() => {
     setOpen(readLocalStorageFlag(LS_KEY));
@@ -61,8 +108,12 @@ export function TraderDebugDock() {
       errorCount,
       lastError,
       buildVersion,
+      artifacts_dir: ARTIFACTS_DIR,
+      last_pull_utc: artifactInfo?.last_pull_utc,
+      artifact_age_sec: artifactInfo?.artifact_age_sec,
+      pull_status: artifactInfo?.pull_status,
     }),
-    [mode, adapterType, apiBase, lastFetch, latencyMs, errorCount, lastError, buildVersion]
+    [mode, adapterType, apiBase, lastFetch, latencyMs, errorCount, lastError, buildVersion, artifactInfo]
   );
 
   const copyBlob = async () => {
@@ -167,6 +218,57 @@ export function TraderDebugDock() {
               <span className="text-gray-500">build:</span>
               <span className="text-gray-400">{buildVersion}</span>
             </div>
+
+            {/* Artifact Status Section */}
+            {artifactInfo && (
+              <>
+                <div className="flex justify-between pt-2 border-t border-gray-800 mt-2">
+                  <span className="text-gray-500">artifacts:</span>
+                  <span className="text-gray-400 truncate max-w-[140px]">
+                    {ARTIFACTS_DIR}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">last_pull:</span>
+                  <span className="text-gray-300">
+                    {artifactInfo.last_pull_utc
+                      ? new Date(artifactInfo.last_pull_utc).toLocaleTimeString()
+                      : "never"}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">artifact_age:</span>
+                  <span
+                    className={
+                      artifactInfo.artifact_age_sec !== null &&
+                      artifactInfo.artifact_age_sec > 120
+                        ? "text-amber-400"
+                        : "text-green-400"
+                    }
+                  >
+                    {artifactInfo.artifact_age_sec !== null
+                      ? `${artifactInfo.artifact_age_sec}s`
+                      : "n/a"}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">pull_status:</span>
+                  <span
+                    className={
+                      artifactInfo.pull_status === "ok"
+                        ? "text-green-400"
+                        : artifactInfo.pull_status === "stale"
+                        ? "text-amber-400"
+                        : artifactInfo.pull_status === "error"
+                        ? "text-red-400"
+                        : "text-gray-500"
+                    }
+                  >
+                    {artifactInfo.pull_status}
+                  </span>
+                </div>
+              </>
+            )}
           </div>
 
           <div className="mt-3 pt-2 border-t border-gray-800 text-gray-600">
