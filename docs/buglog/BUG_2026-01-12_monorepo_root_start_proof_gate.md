@@ -27,7 +27,7 @@ Previously, root `pnpm -w start` was missing/unreliable, forcing operators to us
 
 ## Proof
 **PROOF_DIR:** `/tmp/proof_monorepo_root_start_gate_20260112T040922Z`  
-**Commit:** `735dc4f71accb1e056153df06ef6b70c5de96e48`  
+**Commit:** `4c15c16a3162abd8eabd1a0ac751c1860bd5ad1f`  
 **PR:** `https://github.com/GurthBro0ks/slimy-monorepo/pull/56`
 - **WEB_FILTER:** `@slimy/web`
 
@@ -60,6 +60,10 @@ Expected:
 /api/trader/artifacts/summary -> 401/403
 
 /artifacts/shadow/latest_summary.json -> 404 (static artifacts not exposed)
+
+Observed:
+- `GET /api/trader/artifacts/summary` -> `HTTP/1.1 401 Unauthorized` with JSON `{"ok":false,"error":"Authentication required"}`
+- `HEAD /artifacts/shadow/latest_summary.json` -> `HTTP/1.1 404 Not Found`
 
 ## Conclusion
 Root `pnpm -w start` is now the single source of truth for starting the production web app, aligned with the Phase 6 proof gate. Operators no longer need filter-based fallback start commands.
