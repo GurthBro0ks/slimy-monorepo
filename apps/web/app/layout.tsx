@@ -1,3 +1,4 @@
+import "./globals.css";
 import { RetroShell } from "@/components/layout/retro-shell";
 import { AppShell } from "@/components/layout/app-shell";
 // import { AuthProvider } from "@/lib/auth/auth-context"; // Original path was wrong
