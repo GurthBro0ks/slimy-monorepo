@@ -1,13 +1,12 @@
 'use client';
 import React, { useEffect, useRef } from 'react';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
 import { ChatWidget } from '../chat/chat-widget';
 
 export function RetroShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const router = useRouter();
   const slimeContainerRef = useRef<HTMLDivElement>(null);
 
   const isLoginPage = pathname === '/';
@@ -23,6 +22,7 @@ export function RetroShell({ children }: { children: React.ReactNode }) {
   else if (pathname === '/dashboard') marqueeText = "Dashboard Loaded. Metrics: Nominal.";
   else if (pathname === '/club') marqueeText = "Club Analytics Active. Upload baseline data.";
   else if (pathname === '/chat') marqueeText = "Secure Channel Established.";
+  else if (pathname.startsWith('/owner')) marqueeText = "Owner Control Panel Activated. Administrator Access Granted.";
 
   useEffect(() => {
     if (!slimeContainerRef.current) return;
@@ -42,7 +42,9 @@ export function RetroShell({ children }: { children: React.ReactNode }) {
   }, [pathname]);
 
   const handleLogout = async () => {
-     try { await fetch('/api/auth/logout', { method: 'POST' }); } catch (e) {}
+     try { await fetch('/api/auth/logout', { method: 'POST' }); } catch {
+       // Ignore logout errors
+     }
      window.location.href = "/?logged_out=true";
   };
 
@@ -121,7 +123,7 @@ export function RetroShell({ children }: { children: React.ReactNode }) {
 
       <header className="web-header">
         <Link href="/" className="web-logo"><div style={{ width: 32, height: 32, position: "relative" }}><Image src="/brand/snail-glitch.png" alt="Snail" width={32} height={32} style={{ objectFit: "contain" }} /></div>slimyai.xyz</Link>
-        {showNav && <nav className="web-nav"><Link href="/dashboard" className="nav-btn">Dashboard</Link><Link href="/chat" className="nav-btn">Chat</Link><Link href="/club" className="nav-btn">Club</Link><button onClick={handleLogout} className="nav-btn">Log Out</button></nav>}
+        {showNav && <nav className="web-nav"><Link href="/dashboard" className="nav-btn">Dashboard</Link><Link href="/chat" className="nav-btn">Chat</Link><Link href="/club" className="nav-btn">Club</Link><Link href="/owner" className="nav-btn">Owner</Link><button onClick={handleLogout} className="nav-btn">Log Out</button></nav>}
       </header>
 
       <div className="marquee-container">
