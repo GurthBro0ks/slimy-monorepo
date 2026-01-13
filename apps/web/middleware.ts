@@ -8,19 +8,32 @@ export const config = {
 
 export default async function middleware(req: NextRequest) {
   const url = req.nextUrl;
-  const hostname = req.headers.get("host") || "";
+  let hostname = req.headers.get("host") || "";
+  // Remove port if present
+  hostname = hostname.split(":")[0];
+  console.log("Middleware: Original Host:", req.headers.get("host"), "Parsed Host:", hostname);
 
   if (url.pathname.startsWith("/api")) {
     return NextResponse.next();
   }
 
-  const currentHost =
-    process.env.NODE_ENV === "production"
-      ? hostname.replace(".slimyai.xyz", "")
-      : hostname.replace(".localhost:3000", "");
+  // Robust hostname check
+  let currentHost = hostname
+    .replace(".slimyai.xyz", "")
+    .replace(".localhost:3000", ""); // Handle both cases simply
+
+  // Explicit check for trader subdomain
+  if (hostname === "trader.slimyai.xyz" || currentHost === "trader") {
+    currentHost = "trader";
+  }
 
   if (currentHost === "chat") {
     url.pathname = `/chat${url.pathname}`;
+    return NextResponse.rewrite(url);
+  }
+
+  if (currentHost === "trader" && !url.pathname.startsWith("/trader")) {
+    url.pathname = `/trader${url.pathname}`;
     return NextResponse.rewrite(url);
   }
 
