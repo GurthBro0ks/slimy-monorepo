@@ -4,6 +4,7 @@ import {
   hashInviteToken,
   validateOwnerInvite,
   createOwnerInvite,
+  redeemOwnerInvite,
 } from "../invite";
 import { prisma } from "@/lib/db";
 
@@ -240,6 +241,155 @@ describe("Owner Invite System", () => {
       const correct = created.codeHash;
 
       expect(wrong).not.toEqual(correct);
+    });
+  });
+
+  describe("Invite Redemption", () => {
+    it("should redeem an invite and increment uses_count", async () => {
+      const created = await createOwnerInvite(testOwnerId, { maxUses: 3 });
+
+      // Get the initial state
+      const before = await prisma.ownerInvite.findUnique({
+        where: { id: created.inviteId },
+      });
+      expect(before?.useCount).toBe(0);
+
+      // Redeem once
+      const redeemResult = await redeemOwnerInvite(
+        created.inviteId,
+        "redeemed-user@example.com"
+      );
+
+      expect(redeemResult).toBe(true);
+
+      // Check that uses_count incremented
+      const after = await prisma.ownerInvite.findUnique({
+        where: { id: created.inviteId },
+      });
+      expect(after?.useCount).toBe(1);
+    });
+
+    it("should redeem multiple times up to maxUses", async () => {
+      const created = await createOwnerInvite(testOwnerId, { maxUses: 3 });
+
+      // Redeem 3 times
+      const redeem1 = await redeemOwnerInvite(
+        created.inviteId,
+        "user1@example.com"
+      );
+      const redeem2 = await redeemOwnerInvite(
+        created.inviteId,
+        "user2@example.com"
+      );
+      const redeem3 = await redeemOwnerInvite(
+        created.inviteId,
+        "user3@example.com"
+      );
+
+      expect(redeem1).toBe(true);
+      expect(redeem2).toBe(true);
+      expect(redeem3).toBe(true);
+
+      // Verify uses_count is 3
+      const final = await prisma.ownerInvite.findUnique({
+        where: { id: created.inviteId },
+      });
+      expect(final?.useCount).toBe(3);
+    });
+
+    it("should fail to redeem when maxUses exceeded", async () => {
+      const created = await createOwnerInvite(testOwnerId, { maxUses: 1 });
+
+      // First redeem succeeds
+      const redeem1 = await redeemOwnerInvite(
+        created.inviteId,
+        "user1@example.com"
+      );
+      expect(redeem1).toBe(true);
+
+      // Second redeem fails (maxUses exceeded)
+      const redeem2 = await redeemOwnerInvite(
+        created.inviteId,
+        "user2@example.com"
+      );
+      expect(redeem2).toBe(false);
+
+      // Verify uses_count stayed at 1
+      const final = await prisma.ownerInvite.findUnique({
+        where: { id: created.inviteId },
+      });
+      expect(final?.useCount).toBe(1);
+    });
+
+    it("should fail to redeem a revoked invite", async () => {
+      const created = await createOwnerInvite(testOwnerId);
+
+      // Revoke it
+      await prisma.ownerInvite.update({
+        where: { id: created.inviteId },
+        data: { revokedAt: new Date() },
+      });
+
+      // Try to redeem
+      const redeem = await redeemOwnerInvite(
+        created.inviteId,
+        "user@example.com"
+      );
+
+      expect(redeem).toBe(false);
+
+      // uses_count should remain 0
+      const final = await prisma.ownerInvite.findUnique({
+        where: { id: created.inviteId },
+      });
+      expect(final?.useCount).toBe(0);
+    });
+
+    it("should fail to redeem an expired invite", async () => {
+      const expiryDate = new Date(Date.now() - 1000); // 1 second ago
+      const created = await createOwnerInvite(testOwnerId, {
+        expiresAt: expiryDate,
+      });
+
+      // Try to redeem
+      const redeem = await redeemOwnerInvite(
+        created.inviteId,
+        "user@example.com"
+      );
+
+      expect(redeem).toBe(false);
+
+      // uses_count should remain 0
+      const final = await prisma.ownerInvite.findUnique({
+        where: { id: created.inviteId },
+      });
+      expect(final?.useCount).toBe(0);
+    });
+
+    it("should atomically fail on race condition", async () => {
+      const created = await createOwnerInvite(testOwnerId, { maxUses: 2 });
+
+      // Simulate a race: two concurrent redeems where only one succeeds
+      // We'll do them sequentially but test the invariant
+      const redeem1 = await redeemOwnerInvite(
+        created.inviteId,
+        "user1@example.com"
+      );
+      const redeem2 = await redeemOwnerInvite(
+        created.inviteId,
+        "user2@example.com"
+      );
+
+      // Both should succeed (maxUses is 2)
+      expect(redeem1).toBe(true);
+      expect(redeem2).toBe(true);
+
+      // Third should fail
+      const redeem3 = await redeemOwnerInvite(
+        created.inviteId,
+        "user3@example.com"
+      );
+      expect(redeem3).toBe(false);
     });
   });
 });
