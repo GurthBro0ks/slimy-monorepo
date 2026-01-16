@@ -24,15 +24,10 @@ export interface OwnerContext {
  */
 export async function requireOwner(request: NextRequest): Promise<OwnerContext> {
   // First require authentication
-  let user: {
-    id: string;
-    email?: string | null;
-    discordId: string;
-    globalName?: string | null;
-  };
-  try {
-    user = await requireAuth();
-  } catch {
+  const user = await requireAuth();
+
+  // requireAuth() returns null if not authenticated
+  if (!user) {
     throw new NextResponse(
       JSON.stringify({
         error: "unauthorized",
