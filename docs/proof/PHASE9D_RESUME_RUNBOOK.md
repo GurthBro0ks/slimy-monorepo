@@ -62,16 +62,16 @@ The script will:
 - Print `SKIP PHASE N (already complete)` for finished phases
 - Resume execution from the first incomplete phase
 
-### With Dev Server
+### ⚠️ Infrastructure Guardrails
 
-Start the dev server automatically for Phase 4 testing:
+**DO NOT:**
+- Start dev servers for manual verification
+- Modify `/etc/caddy/Caddyfile` or proxy production domains to dev ports
+- Open firewall ports (ufw/iptables) for dev servers
 
-```bash
-cd /opt/slimy/slimy-monorepo
-START_DEV_SERVER=1 ./scripts/run_phase9d_manual_resumable.sh
-```
-
-**Note**: The script will start `pnpm dev` in the background and stop it on exit.
+**ALWAYS:**
+- Use real production website URLs (e.g., https://slimyai.xyz) for manual testing
+- Verify production deployment is running and accessible
 
 ### Custom Owner Email
 
@@ -93,7 +93,7 @@ cd /opt/slimy/slimy-monorepo
 BASE_URL="https://trader.slimyai.xyz" ./scripts/run_phase9d_manual_resumable.sh
 ```
 
-Default: `http://127.0.0.1:3001`
+Default: `https://slimyai.xyz` (production URL required)
 
 ## Manual Phase Instructions
 
@@ -117,13 +117,11 @@ Waiting for confirmation...
 
 **Manual Steps:**
 
-1. Ensure web app is running on http://127.0.0.1:3001
-   - If not: `cd apps/web && pnpm dev`
-2. Open browser to http://127.0.0.1:3001
-3. Verify app loads successfully
-4. Check DevTools > Application > Cookies
-5. Confirm session cookies exist (slimy_session, connect.sid, etc.)
-6. Optionally login via Discord and verify session persists
+1. Open browser to production website (e.g., https://slimyai.xyz)
+2. Verify app loads successfully
+3. Check DevTools > Application > Cookies
+4. Confirm session cookies exist (slimy_session, connect.sid, etc.)
+5. Verify authentication system is functional
 
 **Confirm completion:**
 
@@ -138,7 +136,7 @@ When the script pauses at Phase 6, it will display similar instructions.
 **Manual Steps:**
 
 1. **Owner Dashboard Access** (as crypto@slimyai.xyz)
-   - Login to http://127.0.0.1:3001
+   - Login to https://slimyai.xyz
    - Navigate to /owner (owner panel)
    - Confirm page loads (no 403 Forbidden)
    - Verify owner controls visible
@@ -155,7 +153,7 @@ When the script pauses at Phase 6, it will display similar instructions.
    - Verify login succeeds
 
 4. **Non-Owner Access Control** (as gurth@slimyai.xyz)
-   - Visit http://127.0.0.1:3001/owner
+   - Visit https://slimyai.xyz/owner
    - Confirm 403 Forbidden page displayed
 
 5. **Invite Reuse Prevention** (optional)
@@ -384,7 +382,7 @@ Includes: actor, action, resource type, changes (JSON), IP, user agent
 |----------|---------|-------------|
 | `ROOT_PROOF` | (auto-generated) | Existing proof directory for resume mode |
 | `OWNER_EMAIL` | crypto@slimyai.xyz | Owner email for bootstrap |
-| `BASE_URL` | http://127.0.0.1:3001 | Base URL for curl API checks |
+| `BASE_URL` | https://slimyai.xyz | Base URL for curl API checks |
 | `START_DEV_SERVER` | 0 | Set to 1 to auto-start dev server |
 | `DATABASE_URL` | (from .env.local) | MySQL connection string |
 
