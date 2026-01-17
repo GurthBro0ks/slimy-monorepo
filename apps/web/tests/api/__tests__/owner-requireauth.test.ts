@@ -1,41 +1,23 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, afterEach, vi } from "vitest";
 import { NextRequest, NextResponse } from "next/server";
 import { requireOwner } from "@/lib/auth/owner";
-import { db as prisma } from "@/lib/db";
+import * as serverAuth from "@/lib/auth/server";
 
 /**
  * Test the requireOwner middleware for proper 401/403 handling
- * Note: In a real end-to-end test, the API route would be called via HTTP.
- * This tests the underlying logic and error handling.
+ * These are unit tests that mock dependencies and don't require database access
  */
-describe("requireOwner API Authorization", () => {
-  let testOwnerId: string;
-  let testOwnerEmail: string;
-
-  beforeEach(async () => {
-    testOwnerEmail = `test-owner-${Date.now()}@example.com`;
-    const owner = await prisma.ownerAllowlist.create({
-      data: {
-        email: testOwnerEmail,
-        createdBy: "test",
-      },
-    });
-    testOwnerId = owner.id;
-  });
-
-  afterEach(async () => {
-    // Clean up
-    try {
-      await prisma.ownerAllowlist.delete({
-        where: { id: testOwnerId },
-      });
-    } catch {
-      // Ignore if not found
-    }
+describe("requireOwner Unit Tests (No Database)", () => {
+  afterEach(() => {
+    // Restore all mocks after each test
+    vi.restoreAllMocks();
   });
 
   describe("401 Unauthenticated", () => {
-    it("should return 401 when no session found", async () => {
+    it("should return 401 (not 500) when requireAuth returns null", async () => {
+      // Mock requireAuth to return null (no session)
+      vi.spyOn(serverAuth, "requireAuth").mockResolvedValue(null);
+
       // Mock a request with no auth
       const mockRequest = new NextRequest(
         new URL("http://localhost:3000/api/owner/me"),
@@ -47,42 +29,44 @@ describe("requireOwner API Authorization", () => {
         }
       );
 
-      // Note: Mocking server-side requireAuth is complex
-      // This test focuses on the requireOwner error handling contract
-
+      // When requireAuth returns null, requireOwner should throw NextResponse with 401
       try {
-        // When requireAuth returns null, requireOwner should throw 401
-        // Since we can't easily mock the server-side requireAuth,
-        // we test the error handling contract instead
-        const result = requireOwner(mockRequest);
-
-        // Should throw a NextResponse with 401
-        await expect(result).rejects.toThrow();
+        await requireOwner(mockRequest);
+        // If we get here, the test failed (should have thrown)
+        expect.fail("requireOwner should have thrown NextResponse");
       } catch (error) {
-        if (error instanceof NextResponse) {
-          expect(error.status).toBe(401);
-        }
+        // Verify it's a NextResponse with 401 (not 500)
+        expect(error).toBeInstanceOf(NextResponse);
+        const response = error as NextResponse;
+        expect(response.status).toBe(401);
+
+        // Verify the error message structure
+        const body = await response.json();
+        expect(body).toHaveProperty("error", "unauthorized");
+        expect(body).toHaveProperty("message", "Authentication required");
       }
     });
-  });
 
-  describe("403 Forbidden (non-owner)", () => {
-    it("should return 403 when user is not in ownerAllowlist", async () => {
-      // This test simulates an authenticated user who is not an owner
-      // In practice, this would need requireAuth to return a valid user
-      // but one not in the allowlist
+    it("should NOT return 500 when unauthenticated (regression test)", async () => {
+      // This is a regression test for the Phase 9D bug fix
+      // Previously, requireOwner would throw 500 when requireAuth returned null
+      vi.spyOn(serverAuth, "requireAuth").mockResolvedValue(null);
 
-      // The actual validation is tested implicitly in the integration tests
-      // by checking that the API returns 403 for non-owner requests
-      expect(true).toBe(true); // Placeholder - tested via HTTP in proof script
-    });
-  });
+      const mockRequest = new NextRequest(
+        new URL("http://localhost:3000/api/owner/me"),
+        { method: "GET" }
+      );
 
-  describe("200 Success (owner)", () => {
-    it("should succeed when user is in ownerAllowlist", async () => {
-      // The actual success case is tested implicitly in the integration tests
-      // by checking that the API returns 200 for owner requests
-      expect(true).toBe(true); // Placeholder - tested via HTTP in proof script
+      try {
+        await requireOwner(mockRequest);
+        expect.fail("requireOwner should have thrown");
+      } catch (error) {
+        expect(error).toBeInstanceOf(NextResponse);
+        const response = error as NextResponse;
+        // The bug was returning 500, we must return 401
+        expect(response.status).not.toBe(500);
+        expect(response.status).toBe(401);
+      }
     });
   });
 });

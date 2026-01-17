@@ -21,3 +21,4 @@ bun.lockb
 !.env.test.example
 !apps/web/.env.test.example
 apps/web/.env.test.local
+__pycache__/
