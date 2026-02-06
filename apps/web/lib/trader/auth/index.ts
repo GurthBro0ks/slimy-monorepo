@@ -43,3 +43,18 @@ export {
   type ValidateInviteResult,
   type CreateInviteOptions,
 } from "./invite";
+
+// TOTP / 2FA
+export {
+  generateTotpSecret,
+  buildTotpUri,
+  verifyTotp,
+} from "./totp";
+
+// Password reset
+export {
+  createPasswordResetToken,
+  validateResetToken,
+  executePasswordReset,
+  cleanupExpiredResets,
+} from "./password-reset";
