@@ -16,7 +16,7 @@ export default function TutorialPage() {
       
       <section>
         <h2>2. Proof Viewer</h2>
-        <p>/trader/proofs → Filter edges > fees. View /tmp/proof_* packs (gates/PnL).</p>
+        <p>/trader/proofs → Filter edges &gt; fees. View /tmp/proof_* packs (gates/PnL).</p>
       </section>
       
       <section>
