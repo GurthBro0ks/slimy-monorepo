@@ -45,6 +45,14 @@ export function Nav() {
         <Link className="ghost-button" href="#cta">
           Early access
         </Link>
+        <a
+          className="ghost-button"
+          href="http://localhost:3001"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Chat Login
+        </a>
         <button
           className="primary-button"
           onClick={handleLogin}
