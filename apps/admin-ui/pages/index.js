@@ -27,6 +27,10 @@ export default function Home() {
         <a className="hero__cta" href="/api/admin-api/api/auth/login?returnTo=%2Fdashboard">
           Login with Discord
         </a>
+
+        <a className="hero__cta hero__cta--secondary" href="http://localhost:3001" target="_blank" rel="noopener noreferrer">
+          Chat Login
+        </a>
       </div>
 
       <footer className="hero__footer">
