@@ -51,6 +51,11 @@ export default function HomeClient() {
         <div className="hero-title">slimy.ai</div>
         <div className="hero-slogan">fueled by <span style={{ color: "#ff00ff" }}>adhd</span> &mdash; driven by <span style={{ color: "#00ffff" }}>feet</span> &mdash; motivated by <span style={{ color: "#ffff00" }}>ducks</span></div>
         <button className="discord-btn" onClick={handleDiscordLogin}><i className="fa-brands fa-discord"></i> Discord Login</button>
+        <a href="http://localhost:3001" target="_blank" rel="noopener noreferrer" style={{ marginTop: '15px', textDecoration: 'none' }}>
+          <button className="discord-btn" style={{ background: '#0a4a0a', borderColor: '#00ff00 #002200 #002200 #00ff00' }}>
+            <i className="fa-solid fa-comments"></i> Chat Login
+          </button>
+        </a>
         <div className="feature-grid">
           <button className="feature-square"><div className="feature-content"><i className="fa-solid fa-toolbox"></i><div className="feature-title">Snail Tools</div></div><div className="feature-desc">Analyze screenshots & calculate stats.</div></button>
           <button className="feature-square"><div className="feature-content"><i className="fa-solid fa-chart-line"></i><div className="feature-title">Analytics</div></div><div className="feature-desc">Track club performance.</div></button>
