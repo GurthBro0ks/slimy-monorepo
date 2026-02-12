@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "dev:socket": "tsx server.ts",
-    "start:socket": "node server.js",
+    "start:socket": "NODE_ENV=production node .next/standalone/apps/web/server.js",
     "build": "next build",
     "build:analyze": "ANALYZE=true next build",
     "build:check": "next build && tsx scripts/check-bundle-size.ts",
