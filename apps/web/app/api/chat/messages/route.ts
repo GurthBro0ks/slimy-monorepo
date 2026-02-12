@@ -1,74 +1,62 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { apiClient } from '@/lib/api-client';
+// API Route for Creating Messages
+import { NextRequest, NextResponse } from 'next/server'
+import { db } from '@/lib/db'
+import { z } from 'zod'
+import { verifyChatAuth, verifyChannelAccess, unauthorizedResponse, forbiddenResponse } from '@/lib/chat/auth'
 
-interface ChatHistoryResponse {
-  messages: unknown[];
-}
+const createMessageSchema = z.object({
+  channelId: z.string(),
+  text: z.string().min(1).max(4000),
+})
 
-export async function GET(request: NextRequest) {
-  try {
-    const { searchParams } = new URL(request.url);
-    const guildId = searchParams.get('guildId');
-    const limit = parseInt(searchParams.get('limit') || '50');
-
-    if (!guildId) {
-      return NextResponse.json(
-        { error: 'Guild ID is required' },
-        { status: 400 }
-      );
-    }
-
-    // Proxy to admin API chat history
-    const response = await apiClient.get<ChatHistoryResponse>(`/api/chat/${guildId}/history?limit=${limit}`);
-
-    if (!response.ok) {
-      return NextResponse.json(
-        { error: response.message || 'Failed to fetch messages' },
-        { status: response.status || 500 }
-      );
-    }
-
-    return NextResponse.json({ messages: response.data.messages });
-  } catch (error) {
-    console.error('Error fetching messages:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch messages' },
-      { status: 500 }
-    );
-  }
-}
-
+// Create a message
 export async function POST(request: NextRequest) {
+  const auth = await verifyChatAuth(request)
+  if (!auth.valid) {
+    return unauthorizedResponse(auth.error)
+  }
+
   try {
-    const body = await request.json();
-    const { conversationId, message } = body;
+    const body = await request.json()
+    const { channelId, text } = createMessageSchema.parse(body)
 
-    if (!conversationId || !message) {
-      return NextResponse.json(
-        { error: 'Missing required fields' },
-        { status: 400 }
-      );
+    // Verify user has access to this channel
+    const hasAccess = await verifyChannelAccess(auth.userId!, channelId)
+    if (!hasAccess) {
+      return forbiddenResponse('You do not have access to this channel')
     }
 
-    // Proxy to admin API chat messages
-    const response = await apiClient.post('/api/chat/messages', {
-      conversationId,
-      message,
-    });
+    // Create message
+    const message = await db.chatRoomMessage.create({
+      data: {
+        text,
+        userId: auth.userId!,
+        channelId,
+      },
+      include: {
+        user: {
+          select: { id: true, username: true },
+        },
+        reactions: {
+          include: {
+            user: { select: { id: true, username: true } },
+          },
+        },
+      },
+    })
 
-    if (!response.ok) {
-      return NextResponse.json(
-        { error: response.message || 'Failed to send message' },
-        { status: response.status || 500 }
-      );
-    }
-
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({ message }, { status: 201 })
   } catch (error) {
-    console.error('Error sending message:', error);
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        { error: { code: 'VALIDATION_ERROR', message: error.errors[0].message } },
+        { status: 400 }
+      )
+    }
+    console.error('[Messages] Create error:', error)
     return NextResponse.json(
-      { error: 'Failed to send message' },
+      { error: { code: 'INTERNAL_ERROR', message: 'Failed to create message' } },
       { status: 500 }
-    );
+    )
   }
 }

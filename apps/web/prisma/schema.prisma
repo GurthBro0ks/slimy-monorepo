@@ -522,6 +522,14 @@ model TraderUser {
 
   sessions     TraderSession[]
   inviteUsed   TraderInvite?   @relation("InviteUsedBy")
+  // Chat integration relations
+  guildMemberships ChatGuildMembership[]
+  messages     ChatRoomMessage[]
+  reactions    ChatRoomMessageReaction[]
+  dmsSent      ChatDirectMessage[] @relation("DMFromUser")
+  dmsReceived  ChatDirectMessage[] @relation("DMToUser")
+  presence     ChatPresence?
+  notifications ChatNotificationSettings[]
 
   @@index([username])
   @@map("trader_users")
@@ -666,3 +674,197 @@ model OwnerAuditLog {
   @@index([createdAt])
   @@map("owner_audit_logs")
 }
+
+// ============================================
+// CHAT APP INTEGRATION (Chat Rooms)
+// Adapted from standalone chat-app
+// Uses TraderUser/TraderSession for auth
+// ============================================
+
+// Chat Guilds - renamed from chat-app Guild to avoid conflict
+model ChatGuild {
+  id        String   @id @default(cuid())
+  name      String
+  iconUrl   String?  @map("icon_url")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  channels   ChatChannel[]
+  memberships ChatGuildMembership[]
+  invites    ChatInvite[]
+
+  @@map("chat_guilds")
+}
+
+// Chat Channels - renamed from chat-app Channel
+model ChatChannel {
+  id        String   @id @default(cuid())
+  name      String
+  topic     String?
+  guildId   String   @map("guild_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  guild   ChatGuild         @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  messages ChatRoomMessage[]
+  pinned   ChatPinnedMessage[]
+
+  @@index([guildId])
+  @@map("chat_channels")
+}
+
+// Guild Memberships - tracks which TraderUsers belong to which ChatGuilds
+model ChatGuildMembership {
+  id      String   @id @default(cuid())
+  userId  String   @map("user_id")
+  guildId String   @map("guild_id")
+  roles   Json     @default("[\"member\"]") // ["admin", "moderator", "member"]
+  joinedAt DateTime @default(now()) @map("joined_at")
+
+  user  TraderUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+  guild ChatGuild @relation(fields: [guildId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, guildId])
+  @@index([guildId])
+  @@map("chat_guild_memberships")
+}
+
+// Chat Room Messages - renamed from chat-app ChatMessage
+model ChatRoomMessage {
+  id        String    @id @default(cuid())
+  text      String    @db.VarChar(4000)
+  userId    String    @map("user_id")
+  channelId String    @map("channel_id")
+  editedAt  DateTime? @map("edited_at")
+  deletedAt DateTime? @map("deleted_at") // soft delete
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  // Relations
+  user     TraderUser              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  channel  ChatChannel           @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  reactions ChatRoomMessageReaction[]
+  files    ChatFileMetadata[]
+  pinnedIn ChatPinnedMessage?
+
+  @@index([channelId, createdAt])
+  @@index([userId])
+  @@map("chat_room_messages")
+}
+
+// Direct Messages
+model ChatDirectMessage {
+  id         String    @id @default(cuid())
+  text       String    @db.VarChar(4000)
+  fromUserId String    @map("from_user_id")
+  toUserId   String    @map("to_user_id")
+  editedAt   DateTime? @map("edited_at")
+  deletedAt  DateTime? @map("deleted_at") // soft delete
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  // Relations
+  fromUser TraderUser @relation("DMFromUser", fields: [fromUserId], references: [id], onDelete: Cascade)
+  toUser   TraderUser @relation("DMToUser", fields: [toUserId], references: [id], onDelete: Cascade)
+  files    ChatFileMetadata[]
+
+  @@index([fromUserId, toUserId, createdAt])
+  @@index([toUserId, fromUserId, createdAt])
+  @@map("chat_direct_messages")
+}
+
+// Message Reactions - renamed for ChatRoomMessage
+model ChatRoomMessageReaction {
+  id        String @id @default(cuid())
+  emoji     String // unicode emoji or custom shortcode
+  userId    String @map("user_id")
+  messageId String @map("message_id")
+
+  user    TraderUser        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  message ChatRoomMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, messageId, emoji])
+  @@index([messageId])
+  @@map("chat_room_message_reactions")
+}
+
+// Pinned Messages
+model ChatPinnedMessage {
+  id        String   @id @default(cuid())
+  messageId String   @unique @map("message_id")
+  channelId String   @map("channel_id")
+  pinnedBy  String   @map("pinned_by")
+  pinnedAt  DateTime @default(now()) @map("pinned_at")
+
+  message ChatRoomMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  channel ChatChannel     @relation(fields: [channelId], references: [id], onDelete: Cascade)
+
+  @@index([channelId])
+  @@map("chat_pinned_messages")
+}
+
+// File Metadata for uploads
+model ChatFileMetadata {
+  id           String   @id @default(cuid())
+  filename     String
+  mimeType     String   @map("mime_type")
+  sizeBytes    Int      @map("size_bytes")
+  storagePath  String   @map("storage_path")
+  messageId    String?  // null if attached to DM
+  dmId         String?  // null if attached to channel message
+  uploadedAt   DateTime @default(now()) @map("uploaded_at")
+  expiresAt    DateTime @map("expires_at") // default 30 days from upload
+
+  message ChatRoomMessage?  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  dm      ChatDirectMessage? @relation(fields: [dmId], references: [id], onDelete: Cascade)
+
+  @@index([messageId])
+  @@index([dmId])
+  @@index([expiresAt])
+  @@map("chat_file_metadata")
+}
+
+// Chat Invites
+model ChatInvite {
+  id        String    @id @default(cuid())
+  code      String    @unique
+  guildId   String    @map("guild_id")
+  createdBy String    @map("created_by")
+  expiresAt DateTime? @map("expires_at")
+  maxUses   Int?      @map("max_uses")
+  uses      Int       @default(0)
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  guild ChatGuild @relation(fields: [guildId], references: [id], onDelete: Cascade)
+
+  @@index([code])
+  @@map("chat_invites")
+}
+
+// Chat Presence - online/offline status
+model ChatPresence {
+  id       String   @id @default(cuid())
+  userId   String   @unique @map("user_id")
+  status   String   @default("offline") // online, idle, offline
+  lastSeen DateTime @default(now()) @map("last_seen")
+
+  user TraderUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("chat_presences")
+}
+
+// Chat Notification Settings
+model ChatNotificationSettings {
+  id        String  @id @default(cuid())
+  userId    String  @map("user_id")
+  channelId String? @map("channel_id") // null for DM settings
+  dmUserId  String? @map("dm_user_id") // null for channel settings
+  level     String  @default("all") // all, mentions, none
+
+  user TraderUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("chat_notification_settings")
+}
+
+// Chat tables added - relations are now on the main TraderUser model above
