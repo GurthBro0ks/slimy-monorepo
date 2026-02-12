@@ -6,7 +6,6 @@ import { parse } from 'url'
 import next from 'next'
 import { Server as SocketIOServer } from 'socket.io'
 import { db } from './lib/db'
-import crypto from 'crypto'
 
 const dev = process.env.NODE_ENV !== 'production'
 const hostname = dev ? 'localhost' : '0.0.0.0'
@@ -49,7 +48,7 @@ app.prepare().then(() => {
     pingInterval: 25000,
   })
 
-  // Auth middleware for Socket.io - uses TraderSession
+  // Auth middleware for Socket.io - uses ChatSession (ISOLATED from other auth)
   io.use(async (socket, next) => {
     const token = socket.handshake.auth.token as string | undefined
 
@@ -58,35 +57,25 @@ app.prepare().then(() => {
     }
 
     try {
-      // Hash the token for lookup
-      const tokenHash = crypto.createHash('sha256').update(token).digest('hex')
-
-      // Verify session exists in TraderSession table
-      const session = await db.traderSession.findFirst({
+      // Verify session exists in ChatSession table
+      const session = await db.chatSession.findFirst({
         where: {
-          tokenHash,
+          token,
           expiresAt: { gt: new Date() },
-          revokedAt: null,
         },
         include: { user: true },
       })
 
       if (!session) {
-        return next(new Error('Invalid or expired session'))
+        return next(new Error('Invalid or expired chat session'))
       }
-
-      // Update last seen
-      await db.traderSession.update({
-        where: { id: session.id },
-        data: { lastSeenAt: new Date() },
-      })
 
       socket.data.userId = session.userId
       socket.data.username = session.user.username
       next()
     } catch (err) {
-      console.error('[Socket] Auth error:', err)
-      next(new Error('Authentication failed'))
+      console.error('[Socket] Chat Auth error:', err)
+      next(new Error('Chat Authentication failed'))
     }
   })
 
@@ -95,7 +84,7 @@ app.prepare().then(() => {
     const userId = socket.data.userId as string
     const username = socket.data.username as string
 
-    console.log(`[Socket] User connected: ${username} (${socket.id})`)
+    console.log(`[Socket] Chat User connected: ${username} (${socket.id})`)
 
     // Track connected user
     connectedUsers.set(socket.id, { userId, username, socketId: socket.id })
@@ -366,7 +355,7 @@ app.prepare().then(() => {
 
     // Disconnect
     socket.on('disconnect', async () => {
-      console.log(`[Socket] User disconnected: ${username} (${socket.id})`)
+      console.log(`[Socket] Chat User disconnected: ${username} (${socket.id})`)
 
       // Remove from connected users
       connectedUsers.delete(socket.id)

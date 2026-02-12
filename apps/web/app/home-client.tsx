@@ -46,7 +46,7 @@ export default function HomeClient() {
         <div className="hero-snail"><Image src="/brand/snail-glitch.png" alt="Snail" width={120} height={120} style={{ objectFit: "contain" }} /></div>
         <div className="hero-title">slimy.ai</div>
         <div className="hero-slogan">fueled by <span style={{ color: "#ff00ff" }}>adhd</span> &mdash; driven by <span style={{ color: "#00ffff" }}>feet</span> &mdash; motivated by <span style={{ color: "#ffff00" }}>ducks</span></div>
-        <a href="http://localhost:3001" target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>
+        <a href="/chat" style={{ textDecoration: 'none' }}>
           <button className="discord-btn" style={{ background: '#0a4a0a', borderColor: '#00ff00 #002200 #002200 #00ff00' }}>
             <i className="fa-solid fa-comments"></i> Chat Login
           </button>

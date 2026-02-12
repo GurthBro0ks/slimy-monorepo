@@ -522,14 +522,6 @@ model TraderUser {
 
   sessions     TraderSession[]
   inviteUsed   TraderInvite?   @relation("InviteUsedBy")
-  // Chat integration relations
-  guildMemberships ChatGuildMembership[]
-  messages     ChatRoomMessage[]
-  reactions    ChatRoomMessageReaction[]
-  dmsSent      ChatDirectMessage[] @relation("DMFromUser")
-  dmsReceived  ChatDirectMessage[] @relation("DMToUser")
-  presence     ChatPresence?
-  notifications ChatNotificationSettings[]
 
   @@index([username])
   @@map("trader_users")
@@ -678,8 +670,63 @@ model OwnerAuditLog {
 // ============================================
 // CHAT APP INTEGRATION (Chat Rooms)
 // Adapted from standalone chat-app
-// Uses TraderUser/TraderSession for auth
+// COMPLETELY ISOLATED from Trader/Discord auth
 // ============================================
+
+// Chat User - independent from other user types
+model ChatUser {
+  id           String   @id @default(cuid())
+  username     String   @unique
+  email        String?  @unique
+  passwordHash String   @map("password_hash")
+  avatarUrl    String?  @map("avatar_url")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  sessions      ChatSession[]
+  guildMemberships ChatGuildMembership[]
+  messages      ChatRoomMessage[]
+  reactions     ChatRoomMessageReaction[]
+  dmsSent       ChatDirectMessage[] @relation("DMFromUser")
+  dmsReceived   ChatDirectMessage[] @relation("DMToUser")
+  presence      ChatPresence?
+  notifications ChatNotificationSettings[]
+
+  @@index([username])
+  @@map("chat_users")
+}
+
+// Chat Session - isolated from other sessions
+model ChatSession {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  token     String   @unique
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user ChatUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
+  @@index([expiresAt])
+  @@map("chat_sessions")
+}
+
+// Chat Registration Code - for independent chat registration
+model ChatRegistrationCode {
+  id        String    @id @default(cuid())
+  code      String    @unique
+  usedBy    String?   @map("used_by")
+  usedAt    DateTime? @map("used_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  expiresAt DateTime? @map("expires_at")
+  maxUses   Int       @default(1)
+  uses      Int       @default(0)
+
+  @@index([code])
+  @@map("chat_registration_codes")
+}
 
 // Chat Guilds - renamed from chat-app Guild to avoid conflict
 model ChatGuild {
@@ -715,7 +762,7 @@ model ChatChannel {
   @@map("chat_channels")
 }
 
-// Guild Memberships - tracks which TraderUsers belong to which ChatGuilds
+// Guild Memberships - tracks which ChatUsers belong to which ChatGuilds
 model ChatGuildMembership {
   id      String   @id @default(cuid())
   userId  String   @map("user_id")
@@ -723,7 +770,7 @@ model ChatGuildMembership {
   roles   Json     @default("[\"member\"]") // ["admin", "moderator", "member"]
   joinedAt DateTime @default(now()) @map("joined_at")
 
-  user  TraderUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user  ChatUser @relation(fields: [userId], references: [id], onDelete: Cascade)
   guild ChatGuild @relation(fields: [guildId], references: [id], onDelete: Cascade)
 
   @@unique([userId, guildId])
@@ -742,7 +789,7 @@ model ChatRoomMessage {
   createdAt DateTime  @default(now()) @map("created_at")
 
   // Relations
-  user     TraderUser              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user     ChatUser              @relation(fields: [userId], references: [id], onDelete: Cascade)
   channel  ChatChannel           @relation(fields: [channelId], references: [id], onDelete: Cascade)
   reactions ChatRoomMessageReaction[]
   files    ChatFileMetadata[]
@@ -764,8 +811,8 @@ model ChatDirectMessage {
   createdAt  DateTime  @default(now()) @map("created_at")
 
   // Relations
-  fromUser TraderUser @relation("DMFromUser", fields: [fromUserId], references: [id], onDelete: Cascade)
-  toUser   TraderUser @relation("DMToUser", fields: [toUserId], references: [id], onDelete: Cascade)
+  fromUser ChatUser @relation("DMFromUser", fields: [fromUserId], references: [id], onDelete: Cascade)
+  toUser   ChatUser @relation("DMToUser", fields: [toUserId], references: [id], onDelete: Cascade)
   files    ChatFileMetadata[]
 
   @@index([fromUserId, toUserId, createdAt])
@@ -780,7 +827,7 @@ model ChatRoomMessageReaction {
   userId    String @map("user_id")
   messageId String @map("message_id")
 
-  user    TraderUser        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user    ChatUser        @relation(fields: [userId], references: [id], onDelete: Cascade)
   message ChatRoomMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
 
   @@unique([userId, messageId, emoji])
@@ -848,7 +895,7 @@ model ChatPresence {
   status   String   @default("offline") // online, idle, offline
   lastSeen DateTime @default(now()) @map("last_seen")
 
-  user TraderUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user ChatUser @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("chat_presences")
 }
@@ -861,7 +908,7 @@ model ChatNotificationSettings {
   dmUserId  String? @map("dm_user_id") // null for channel settings
   level     String  @default("all") // all, mentions, none
 
-  user TraderUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user ChatUser @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@map("chat_notification_settings")

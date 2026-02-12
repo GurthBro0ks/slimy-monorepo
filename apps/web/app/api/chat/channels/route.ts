@@ -70,7 +70,7 @@ export async function POST(request: NextRequest) {
     where: { userId: auth.userId! },
   })
 
-  if (!userGuild || !hasPermission(userGuild.roles as string[], 'create_channel')) {
+  if (!userGuild || !(await hasPermission(auth.userId!, userGuild.guildId, 'create_channel'))) {
     return forbiddenResponse('You do not have permission to create channels')
   }
 

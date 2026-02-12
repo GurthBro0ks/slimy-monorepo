@@ -1,7 +1,6 @@
-// Chat authentication utilities - adapted to use TraderSession
+// Chat authentication utilities - ISOLATED from Trader/Discord auth
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import crypto from 'crypto'
 
 export interface ChatAuthResult {
   valid: boolean
@@ -12,7 +11,7 @@ export interface ChatAuthResult {
 
 /**
  * Verify chat authentication from request
- * Supports both Bearer token header and cookie-based auth
+ * Uses ChatSession and ChatUser tables
  */
 export async function verifyChatAuth(request: NextRequest): Promise<ChatAuthResult> {
   // Try to get token from Authorization header
@@ -24,24 +23,20 @@ export async function verifyChatAuth(request: NextRequest): Promise<ChatAuthResu
     const cookieHeader = request.headers.get('cookie')
     if (cookieHeader) {
       const cookies = parseCookies(cookieHeader)
-      token = cookies['slimy_chat_token'] || cookies['slimy_admin'] || cookies['slimy_session']
+      token = cookies['slimy_chat_token']
     }
   }
 
   if (!token) {
-    return { valid: false, error: 'No authentication token provided' }
+    return { valid: false, error: 'No chat authentication token provided' }
   }
 
   try {
-    // Hash the token for lookup (tokens are stored hashed)
-    const tokenHash = crypto.createHash('sha256').update(token).digest('hex')
-
-    // Verify session exists in TraderSession table
-    const session = await db.traderSession.findFirst({
+    // Verify session exists in ChatSession table
+    const session = await db.chatSession.findFirst({
       where: {
-        tokenHash,
+        token,
         expiresAt: { gt: new Date() },
-        revokedAt: null,
       },
       include: {
         user: true,
@@ -49,14 +44,8 @@ export async function verifyChatAuth(request: NextRequest): Promise<ChatAuthResu
     })
 
     if (!session) {
-      return { valid: false, error: 'Invalid or expired session' }
+      return { valid: false, error: 'Invalid or expired chat session' }
     }
-
-    // Update last seen
-    await db.traderSession.update({
-      where: { id: session.id },
-      data: { lastSeenAt: new Date() },
-    })
 
     return {
       valid: true,
@@ -86,7 +75,7 @@ function parseCookies(cookieHeader: string): Record<string, string> {
 /**
  * Check if user has required roles for an action
  */
-export function hasPermission(roles: string[], action: string): boolean {
+export async function hasPermission(userId: string, guildId: string, action: string): Promise<boolean> {
   const permissions: Record<string, string[]> = {
     create_channel: ['admin', 'moderator'],
     delete_channel: ['admin'],
@@ -99,18 +88,13 @@ export function hasPermission(roles: string[], action: string): boolean {
     change_guild_settings: ['admin'],
   }
 
-  const requiredRoles = permissions[action] || []
-  return roles.some(role => requiredRoles.includes(role))
-}
-
-/**
- * Get user's guild roles
- */
-export async function getUserGuildRoles(userId: string, guildId: string): Promise<string[]> {
   const membership = await db.chatGuildMembership.findUnique({
     where: { userId_guildId: { userId, guildId } },
   })
-  return (membership?.roles as string[]) || []
+  
+  const roles = (membership?.roles as string[]) || []
+  const requiredRoles = permissions[action] || []
+  return roles.some(role => requiredRoles.includes(role))
 }
 
 /**
