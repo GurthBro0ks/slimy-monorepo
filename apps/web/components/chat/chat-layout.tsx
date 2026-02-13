@@ -45,6 +45,7 @@ export function ChatLayout() {
   const [loading, setLoading] = useState(true)
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const [touchStart, setTouchStart] = useState<{ x: number; y: number } | null>(null)
+  const [channelMembers, setChannelMembers] = useState<{ id: string; username: string; role?: string }[]>([])
 
   // Load current user
   useEffect(() => {
@@ -61,10 +62,11 @@ export function ChatLayout() {
     }
   }, [router])
 
-  // Fetch messages when channel changes
+  // Fetch messages and members when channel changes
   useEffect(() => {
     if (activeChannel) {
       fetchMessages(activeChannel.id)
+      fetchChannelMembers(activeChannel.id)
       joinChannel(activeChannel.id)
     }
 
@@ -166,6 +168,22 @@ export function ChatLayout() {
     }
   }, [router])
 
+  const fetchChannelMembers = useCallback(async (channelId: string) => {
+    try {
+      const token = localStorage.getItem('slimy_chat_token')
+      const res = await fetch(`/api/chat/channels/${channelId}/members`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+
+      if (!res.ok) return
+
+      const data = await res.json()
+      setChannelMembers(data.members || [])
+    } catch (err) {
+      console.error('Failed to fetch channel members:', err)
+    }
+  }, [])
+
   const handleSendMessage = useCallback((text: string) => {
     if (!activeChannel) return
 
@@ -254,6 +272,32 @@ export function ChatLayout() {
             activeChannelId={activeChannel?.id || null}
             onSelectChannel={handleSelectChannel}
           />
+        </div>
+
+        {/* Online Members */}
+        <div className="p-2 border-t border-emerald-500/20">
+          <div className="px-2 py-1 text-xs font-bold text-emerald-500/50 uppercase tracking-wider mb-2">
+            Online — {channelMembers.length}
+          </div>
+          <div className="space-y-1 max-h-40 overflow-y-auto">
+            {channelMembers.map(member => (
+              <div key={member.id} className="flex items-center gap-2 px-2 py-1 rounded hover:bg-emerald-500/10">
+                <div className="w-6 h-6 bg-gradient-to-br from-emerald-500/30 to-emerald-700/30 rounded-full flex items-center justify-center text-emerald-300 text-xs font-bold">
+                  {member.username[0].toUpperCase()}
+                </div>
+                <span className="text-emerald-400 text-sm font-mono truncate flex-1">
+                  {member.username}
+                </span>
+                {member.role === 'owner' && <span className="text-purple-400 text-xs">👑</span>}
+                {member.role === 'admin' && <span className="text-blue-400 text-xs">⚙</span>}
+              </div>
+            ))}
+            {channelMembers.length === 0 && (
+              <div className="px-2 py-1 text-emerald-500/40 text-xs font-mono">
+                No members online
+              </div>
+            )}
+          </div>
         </div>
 
         {/* User Panel */}
