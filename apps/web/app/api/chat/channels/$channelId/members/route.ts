@@ -57,9 +57,9 @@ export async function GET(
 
     return NextResponse.json({ members });
   } catch (error) {
-    console.error("Failed to fetch channel members:", error);
+    console.error("Failed to fetch channel members error detail:", error);
     return NextResponse.json(
-      { error: "Failed to fetch members" },
+      { error: "Failed to fetch members", details: error instanceof Error ? error.message : String(error) },
       { status: 500 }
     );
   }

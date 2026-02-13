@@ -11,6 +11,10 @@ const nextConfig = {
   async rewrites() {
     return {
       beforeFiles: [
+        {
+          source: '/api/auth/:path*',
+          destination: 'http://127.0.0.1:3080/api/auth/:path*',
+        },
         // Internal APIs that MUST stay in the web app (port 3000) - process FIRST
         {
           source: '/api/admin/:path*',
@@ -25,14 +29,14 @@ const nextConfig = {
           destination: '/api/chat/:path*',
         },
       ],
-      afterFiles: [
-        // All other /api/* goes to admin-api:3080 (fallback)
+      afterFiles: [],
+      fallback: [
+        // All other /api/* goes to admin-api:3080
         {
           source: '/api/:path*',
-          destination: 'http://admin-api:3080/api/:path*',
+          destination: 'http://127.0.0.1:3080/api/:path*',
         },
       ],
-      fallback: [],
     };
   },
   typescript: { ignoreBuildErrors: true },
