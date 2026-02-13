@@ -56,7 +56,7 @@ export default function ChatSettingsPage() {
 
         // Load stats in background
         try {
-          const adminRes = await fetch("/api/admin/invites/count");
+          const adminRes = await fetch("/api/admin/invites");
           if (adminRes.ok) {
             const data = await adminRes.json();
             setStats((prev) => ({
