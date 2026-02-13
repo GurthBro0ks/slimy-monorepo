@@ -17,6 +17,7 @@ interface Channel {
 interface User {
   id: string
   username: string
+  role?: string
 }
 
 interface Reaction {
@@ -262,11 +263,16 @@ export function ChatLayout() {
               {currentUser?.username?.[0]?.toUpperCase() || '?'}
             </div>
             <div className="flex-1 min-w-0">
-              <div className="text-emerald-300 text-sm font-medium font-mono truncate">
-                {currentUser?.username || 'Unknown'}
+              <div className="flex items-center gap-2">
+                <span className="text-emerald-300 text-sm font-medium font-mono truncate">
+                  {currentUser?.username || 'Unknown'}
+                </span>
+                {currentUser?.role === 'owner' && <span className="text-purple-400 text-xs">👑</span>}
+                {currentUser?.role === 'admin' && <span className="text-blue-400 text-xs">⚙</span>}
               </div>
-              <div className="text-emerald-500/40 text-xs font-mono">
-                Online
+              <div className="flex items-center gap-2 text-emerald-500/40 text-xs font-mono">
+                <span className={`w-2 h-2 rounded-full ${isConnected ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`} />
+                <span>{isConnected ? 'Online' : 'Offline'}</span>
               </div>
             </div>
             <button

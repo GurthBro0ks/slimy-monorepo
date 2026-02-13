@@ -6,6 +6,7 @@ import { createContext, useContext, useEffect, useState, useCallback, ReactNode 
 export interface ChatUser {
   id: string
   username: string
+  role?: string
   avatarUrl?: string | null
 }
 
