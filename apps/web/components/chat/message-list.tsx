@@ -83,6 +83,7 @@ export function MessageList({ messages, currentUserId, onReactionAdd, onReaction
                 <MessageItem
                   key={msg.id}
                   message={msg}
+                  currentUserId={currentUserId}
                   isOwn={msg.user.id === currentUserId}
                   formatTime={formatTime}
                   onReactionAdd={onReactionAdd}
@@ -100,13 +101,14 @@ export function MessageList({ messages, currentUserId, onReactionAdd, onReaction
 
 interface MessageItemProps {
   message: Message
+  currentUserId?: string
   isOwn: boolean
   formatTime: (dateStr: string) => string
   onReactionAdd?: (messageId: string, emoji: string) => void
   onReactionRemove?: (messageId: string, emoji: string) => void
 }
 
-function MessageItem({ message, isOwn, formatTime, onReactionAdd, onReactionRemove }: MessageItemProps) {
+function MessageItem({ message, currentUserId, isOwn, formatTime, onReactionAdd, onReactionRemove }: MessageItemProps) {
   // Group reactions by emoji
   const reactionGroups = message.reactions?.reduce((groups, reaction) => {
     if (!groups[reaction.emoji]) {
@@ -141,23 +143,29 @@ function MessageItem({ message, isOwn, formatTime, onReactionAdd, onReactionRemo
         {/* Reactions */}
         {reactionGroups && Object.keys(reactionGroups).length > 0 && (
           <div className="flex flex-wrap gap-1.5 mt-2">
-            {Object.entries(reactionGroups).map(([emoji, reactions]) => (
-              <button
-                key={emoji}
-                onClick={() => {
-                  const hasReacted = reactions.some(r => r.user.id === 'current') // Simplified check
-                  if (hasReacted && onReactionRemove) {
-                    onReactionRemove(message.id, emoji)
-                  } else if (onReactionAdd) {
-                    onReactionAdd(message.id, emoji)
-                  }
-                }}
-                className="flex items-center gap-1 px-2 py-0.5 bg-emerald-500/10 hover:bg-emerald-500/20 rounded text-xs transition-colors"
-              >
-                <span>{emoji}</span>
-                <span className="text-emerald-400/70">{reactions.length}</span>
-              </button>
-            ))}
+            {Object.entries(reactionGroups).map(([emoji, reactions]) => {
+              const hasReacted = reactions.some(r => r.user.id === currentUserId)
+              return (
+                <button
+                  key={emoji}
+                  onClick={() => {
+                    if (hasReacted && onReactionRemove) {
+                      onReactionRemove(message.id, emoji)
+                    } else if (onReactionAdd) {
+                      onReactionAdd(message.id, emoji)
+                    }
+                  }}
+                  className={`flex items-center gap-1 px-2 py-0.5 rounded text-xs transition-colors ${
+                    hasReacted
+                      ? 'bg-emerald-500/30 text-emerald-300'
+                      : 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400/70'
+                  }`}
+                >
+                  <span>{emoji}</span>
+                  <span>{reactions.length}</span>
+                </button>
+              )
+            })}
           </div>
         )}
       </div>
