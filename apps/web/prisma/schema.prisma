@@ -680,20 +680,23 @@ model ChatUser {
   email        String?  @unique
   passwordHash String   @map("password_hash")
   avatarUrl    String?  @map("avatar_url")
+  role         String   @default("user") // user, admin, owner
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
   // Relations
-  sessions      ChatSession[]
+  sessions        ChatSession[]
   guildMemberships ChatGuildMembership[]
-  messages      ChatRoomMessage[]
-  reactions     ChatRoomMessageReaction[]
-  dmsSent       ChatDirectMessage[] @relation("DMFromUser")
-  dmsReceived   ChatDirectMessage[] @relation("DMToUser")
-  presence      ChatPresence?
-  notifications ChatNotificationSettings[]
+  messages        ChatRoomMessage[]
+  reactions       ChatRoomMessageReaction[]
+  dmsSent         ChatDirectMessage[] @relation("DMFromUser")
+  dmsReceived     ChatDirectMessage[] @relation("DMToUser")
+  presence        ChatPresence?
+  notifications   ChatNotificationSettings[]
+  createdAdminInvites AdminInvite[] @relation("AdminInviteCreator")
 
   @@index([username])
+  @@index([role])
   @@map("chat_users")
 }
 
@@ -726,6 +729,22 @@ model ChatRegistrationCode {
 
   @@index([code])
   @@map("chat_registration_codes")
+}
+
+// Admin Invite Code - grants admin role when redeemed
+model AdminInvite {
+  id        String    @id @default(cuid())
+  code      String    @unique
+  usedBy    String?   @map("used_by")
+  usedAt    DateTime? @map("used_at")
+  createdById String   @map("created_by_id")
+  createdAt DateTime  @default(now()) @map("created_at")
+  expiresAt DateTime? @map("expires_at")
+
+  createdBy ChatUser @relation("AdminInviteCreator", fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@index([code])
+  @@map("admin_invites")
 }
 
 // Chat Guilds - renamed from chat-app Guild to avoid conflict

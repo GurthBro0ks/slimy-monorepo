@@ -42,6 +42,8 @@ export function ChatLayout() {
   const [messages, setMessages] = useState<Message[]>([])
   const [currentUser, setCurrentUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false)
+  const [touchStart, setTouchStart] = useState<{ x: number; y: number } | null>(null)
 
   // Load current user
   useEffect(() => {
@@ -78,9 +80,11 @@ export function ChatLayout() {
 
     const handleMessageCreated = (message: Message) => {
       setMessages(prev => {
-        // Avoid duplicates
-        if (prev.some(m => m.id === message.id)) return prev
-        return [...prev, message]
+        // Remove any temp messages for this text/user combo, then add the real one
+        const filtered = prev.filter(m => !m.id.startsWith('temp-') || m.text !== message.text)
+        // Also avoid exact duplicate
+        if (filtered.some(m => m.id === message.id)) return filtered
+        return [...filtered, message]
       })
     }
 
@@ -181,6 +185,7 @@ export function ChatLayout() {
   const handleSelectChannel = useCallback((channel: Channel) => {
     setActiveChannel(channel)
     setMessages([]) // Clear messages when switching channels
+    setIsSidebarOpen(false) // Close sidebar on mobile after selection
   }, [])
 
   const handleLogout = () => {
@@ -190,11 +195,49 @@ export function ChatLayout() {
   }
 
   return (
-    <div className="h-screen flex bg-[#0a0a0f]">
+    <div className="h-screen flex bg-[#0a0a0f]" data-swipe-enabled="true">
+      {/* Mobile Backdrop Overlay */}
+      {isSidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-40 lg:hidden touch-none"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
+
       {/* Sidebar */}
-      <div className="w-64 bg-[#111118] border-r border-emerald-500/20 flex flex-col">
+      <div
+        className={`
+          fixed inset-y-0 left-0 z-50 w-64 bg-[#111118] border-r border-emerald-500/20 flex-col transform transition-transform duration-300 ease-in-out
+          lg:relative lg:translate-x-0 lg:flex
+          ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+        `}
+        onTouchStart={(e) => {
+          const touch = e.touches[0]
+          setTouchStart({ x: touch.clientX, y: touch.clientY })
+        }}
+        onTouchMove={(e) => {
+          if (!touchStart.x) return
+          const touch = e.touches[0]
+          const diff = touchStart.x - touch.clientX
+          if (diff > 100) setIsSidebarOpen(false)
+        }}
+        onTouchEnd={() => setTouchStart(null)}
+      >
+        {/* Mobile Sidebar Header */}
+        <div className="lg:hidden p-4 pt-6 border-b border-emerald-500/20 flex items-center justify-between">
+          <h2 className="text-emerald-400 font-bold text-lg font-mono">Channels</h2>
+          <button
+            onClick={() => setIsSidebarOpen(false)}
+            className="p-2 text-emerald-500/50 hover:text-emerald-300 transition-colors rounded"
+          >
+            {/* Icon #1 - Chevron left */}
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="m15 18-6-6 6-6" />
+            </svg>
+          </button>
+        </div>
         {/* Guild Header */}
-        <div className="p-4 border-b border-emerald-500/20">
+        <div className="p-4 border-b border-emerald-500/20 pt-4">
           <h2 className="text-emerald-400 font-bold text-lg font-mono">The Lounge</h2>
           <div className="flex items-center gap-2 mt-2">
             <span className={`w-2 h-2 rounded-full ${isConnected ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`} />
@@ -242,15 +285,30 @@ export function ChatLayout() {
       </div>
 
       {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 lg:ml-0">
         {/* Channel Header */}
-        <div className="h-14 border-b border-emerald-500/20 bg-[#111118] px-4 flex items-center">
-          <div>
-            <span className="text-emerald-400 font-bold font-mono">
+        <div className="h-16 border-b border-emerald-500/20 bg-[#111118] px-4 flex items-center gap-3">
+          {/* Channel Toggle Button */}
+          <button
+            onClick={() => setIsSidebarOpen(true)}
+            className="lg:hidden p-2 text-emerald-500/50 hover:text-emerald-300 transition-colors rounded hover:bg-emerald-500/10"
+          >
+            {/* Icon #1 - List */}
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="8" y1="6" x2="21" y2="6" />
+              <line x1="8" y1="12" x2="21" y2="12" />
+              <line x1="8" y1="18" x2="21" y2="18" />
+              <line x1="3" y1="6" x2="3.01" y2="6" />
+              <line x1="3" y1="12" x2="3.01" y2="12" />
+              <line x1="3" y1="18" x2="3.01" y2="18" />
+            </svg>
+          </button>
+          <div className="flex-1 min-w-0">
+            <span className="text-emerald-400 font-bold font-mono block">
               # {activeChannel?.name || 'Select a channel'}
             </span>
             {activeChannel?.topic && (
-              <span className="text-emerald-500/50 text-sm ml-4 font-mono">
+              <span className="text-emerald-500/50 text-xs font-mono block truncate">
                 {activeChannel.topic}
               </span>
             )}

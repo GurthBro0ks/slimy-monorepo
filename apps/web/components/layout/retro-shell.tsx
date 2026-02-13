@@ -22,7 +22,7 @@ export function RetroShell({ children }: { children: React.ReactNode }) {
   else if (pathname === '/dashboard') marqueeText = "Dashboard Loaded. Metrics: Nominal.";
   else if (pathname === '/club') marqueeText = "Club Analytics Active. Upload baseline data.";
   else if (pathname === '/chat') marqueeText = "Secure Channel Established.";
-  else if (pathname.startsWith('/owner')) marqueeText = "Owner Control Panel Activated. Administrator Access Granted.";
+  else if (pathname.startsWith('/admin')) marqueeText = "Admin Control Panel Activated. System Administration Mode.";
 
   useEffect(() => {
     if (!slimeContainerRef.current) return;
@@ -83,12 +83,11 @@ export function RetroShell({ children }: { children: React.ReactNode }) {
         .nav-btn:hover { background-color: #3c096c; color: #fff; text-shadow: 0 0 5px #fff; border-color: #00ff00; }
         
         .marquee-container { 
-            position: fixed; top: 100px; left: 0; width: 100%; 
-            height: 40px; 
+            position: fixed; top: 110px; left: 0; width: 100%; 
+            height: 44px; 
             background: #240046; color: #00ff00; 
             border-bottom: 1px solid #5a189a; 
             z-index: 900;
-            /* SIMPLE FLEX CENTERING */
             display: flex; align-items: center; 
             overflow: hidden;
         }
@@ -96,21 +95,22 @@ export function RetroShell({ children }: { children: React.ReactNode }) {
             width: 100%;
             white-space: nowrap;
             overflow: hidden;
-            /* Align child vertically */
             display: flex;
             align-items: center;
             height: 100%;
         }
-        .marquee-text { 
+        .marquee-text {
             display: inline-block;
-            padding-left: 100%;
+            white-space: nowrap;
             animation: marquee 20s linear infinite;
             font-size: 24px;
-            line-height: normal;
-            align-self: center;
-            padding-top: 4px;
+            line-height: 1.2;
+            padding-top: 0;
         }
-        @keyframes marquee { 0% { transform: translateX(0); } 100% { transform: translateX(-100%); } }
+        @keyframes marquee {
+            0% { transform: translateX(100%); }
+            100% { transform: translateX(-100%); }
+        }
 
         #slime-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100vh; pointer-events: none; z-index: 1; overflow: hidden; }
         .slime-drip { position: absolute; top: -100%; background: linear-gradient(180deg, transparent, #00ff00); opacity: 0.3; border-radius: 0 0 10px 10px; animation: slime-fall infinite linear; }
@@ -123,7 +123,7 @@ export function RetroShell({ children }: { children: React.ReactNode }) {
 
       <header className="web-header">
         <Link href="/" className="web-logo"><div style={{ width: 32, height: 32, position: "relative" }}><Image src="/brand/snail-glitch.png" alt="Snail" width={32} height={32} style={{ objectFit: "contain" }} /></div>slimyai.xyz</Link>
-        {showNav && <nav className="web-nav"><Link href="/dashboard" className="nav-btn">Dashboard</Link><Link href="/chat" className="nav-btn">Chat</Link><Link href="/club" className="nav-btn">Club</Link><Link href="/owner" className="nav-btn">Owner</Link><button onClick={handleLogout} className="nav-btn">Log Out</button></nav>}
+        {showNav && <nav className="web-nav"><Link href="/dashboard" className="nav-btn">Dashboard</Link><Link href="/chat" className="nav-btn">Chat</Link><Link href="/club" className="nav-btn">Club</Link><Link href="/chat/settings" className="nav-btn">Settings</Link><button onClick={handleLogout} className="nav-btn">Log Out</button></nav>}
       </header>
 
       <div className="marquee-container">

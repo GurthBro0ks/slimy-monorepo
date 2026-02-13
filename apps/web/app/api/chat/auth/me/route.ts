@@ -14,6 +14,7 @@ export async function GET(request: NextRequest) {
     select: {
       id: true,
       username: true,
+      role: true,
       avatarUrl: true,
       createdAt: true,
     },
@@ -23,5 +24,5 @@ export async function GET(request: NextRequest) {
     return unauthorizedResponse('User not found')
   }
 
-  return NextResponse.json({ user })
+  return NextResponse.json({ user: { id: user.id, username: user.username, role: user.role } })
 }

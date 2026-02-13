@@ -19,6 +19,15 @@ export interface OwnerContext {
 }
 
 /**
+ * Enforces admin authorization for API routes
+ * For now, admin = owner. Can be extended later for separate admin role.
+ * Returns 401 if not authenticated, 403 if authenticated but not admin
+ */
+export async function requireOwnerOrAdmin(request: NextRequest): Promise<OwnerContext> {
+  return requireOwner(request);
+}
+
+/**
  * Enforces owner authorization for API routes
  * Returns 401 if not authenticated, 403 if authenticated but not owner
  */

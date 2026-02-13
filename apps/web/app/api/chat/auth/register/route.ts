@@ -15,16 +15,42 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { username, password, inviteCode } = registerSchema.parse(body)
 
-    // Validate invite code
-    const code = await db.chatRegistrationCode.findUnique({
+    let role = 'user' // Default role
+
+    // Check if it's an admin invite code first
+    const adminInvite = await db.adminInvite.findUnique({
       where: { code: inviteCode },
     })
 
-    if (!code || (code.expiresAt && code.expiresAt < new Date()) || code.uses >= code.maxUses) {
-      return NextResponse.json(
-        { error: { code: 'INVALID_INVITE', message: 'Invalid or expired invite code' } },
-        { status: 400 }
-      )
+    if (adminInvite) {
+      // Validate admin invite
+      if (adminInvite.expiresAt && adminInvite.expiresAt < new Date()) {
+        return NextResponse.json(
+          { error: { code: 'INVALID_INVITE', message: 'Admin invite has expired' } },
+          { status: 400 }
+        )
+      }
+
+      if (adminInvite.usedAt) {
+        return NextResponse.json(
+          { error: { code: 'INVALID_INVITE', message: 'Admin invite has already been used' } },
+          { status: 400 }
+        )
+      }
+
+      role = 'admin'
+    } else {
+      // Check if it's a regular user invite code
+      const code = await db.chatRegistrationCode.findUnique({
+        where: { code: inviteCode },
+      })
+
+      if (!code || (code.expiresAt && code.expiresAt < new Date()) || code.uses >= code.maxUses) {
+        return NextResponse.json(
+          { error: { code: 'INVALID_INVITE', message: 'Invalid or expired invite code' } },
+          { status: 400 }
+        )
+      }
     }
 
     // Check if username taken
@@ -42,23 +68,43 @@ export async function POST(request: NextRequest) {
     // Hash password
     const passwordHash = await argon2.hash(password)
 
-    // Create user and update code in a transaction
+    // Create user and update invite in a transaction
     const user = await db.$transaction(async (tx) => {
       const newUser = await tx.chatUser.create({
         data: {
           username,
           passwordHash,
+          role,
         },
       })
 
-      await tx.chatRegistrationCode.update({
-        where: { id: code.id },
-        data: {
-          uses: { increment: 1 },
-          usedBy: newUser.id,
-          usedAt: new Date(),
-        },
-      })
+      // Mark admin invite as used
+      if (role === 'admin' && adminInvite) {
+        await tx.adminInvite.update({
+          where: { id: adminInvite.id },
+          data: {
+            usedBy: newUser.id,
+            usedAt: new Date(),
+          },
+        })
+      }
+
+      // Mark regular invite as used
+      if (role === 'user') {
+        const code = await tx.chatRegistrationCode.findUnique({
+          where: { code: inviteCode },
+        })
+        if (code) {
+          await tx.chatRegistrationCode.update({
+            where: { id: code.id },
+            data: {
+              uses: { increment: 1 },
+              usedBy: newUser.id,
+              usedAt: new Date(),
+            },
+          })
+        }
+      }
 
       return newUser
     })
@@ -80,6 +126,7 @@ export async function POST(request: NextRequest) {
       user: {
         id: user.id,
         username: user.username,
+        role: user.role,
       },
       token,
     })
