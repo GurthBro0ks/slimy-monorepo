@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
     }
 
     const session = await db.chatSession.findUnique({
-      where: { sessionToken },
+      where: { token: sessionToken },
       include: { user: true },
     });
 
@@ -73,7 +73,7 @@ export async function GET(request: NextRequest) {
     }
 
     const session = await db.chatSession.findUnique({
-      where: { sessionToken },
+      where: { token: sessionToken },
       include: { user: true },
     });
 

@@ -16,7 +16,7 @@ async function verifyChatSession(request: NextRequest) {
   }
 
   const session = await db.chatSession.findUnique({
-    where: { sessionToken },
+    where: { token: sessionToken },
     include: { user: true },
   });
 
