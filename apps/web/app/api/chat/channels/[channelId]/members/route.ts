@@ -7,10 +7,11 @@ export async function GET(
 ) {
   try {
     const { channelId } = await params;
-    const token = request.headers.get("Authorization")?.replace("Bearer ", "");
-
+    const authHeader = request.headers.get("authorization");
+    const token = authHeader?.replace("Bearer ", "");
+    
     if (!token) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json({ error: "Unauthorized", debug: { authHeaderPresent: !!authHeader } }, { status: 401 });
     }
 
     const session = await db.chatSession.findUnique({
