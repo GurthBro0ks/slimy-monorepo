@@ -9,30 +9,31 @@ const nextConfig = {
     ],
   },
   async rewrites() {
-    return [
-      {
-        source: '/api/auth/:path*',
-        destination: 'http://admin-api:3080/api/auth/:path*',
-      },
-      // Internal APIs that MUST stay in the web app (port 3000)
-      {
-        source: '/api/admin/:path*',
-        destination: '/api/admin/:path*',
-      },
-      {
-        source: '/api/owner/:path*',
-        destination: '/api/owner/:path*',
-      },
-      {
-        source: '/api/chat/:path*',
-        destination: '/api/chat/:path*',
-      },
-      // All other /api/* goes to admin-api:3080
-      {
-        source: '/api/:path*',
-        destination: 'http://admin-api:3080/api/:path*',
-      },
-    ];
+    return {
+      beforeFiles: [
+        // Internal APIs that MUST stay in the web app (port 3000) - process FIRST
+        {
+          source: '/api/admin/:path*',
+          destination: '/api/admin/:path*',
+        },
+        {
+          source: '/api/owner/:path*',
+          destination: '/api/owner/:path*',
+        },
+        {
+          source: '/api/chat/:path*',
+          destination: '/api/chat/:path*',
+        },
+      ],
+      afterFiles: [
+        // All other /api/* goes to admin-api:3080 (fallback)
+        {
+          source: '/api/:path*',
+          destination: 'http://admin-api:3080/api/:path*',
+        },
+      ],
+      fallback: [],
+    };
   },
   typescript: { ignoreBuildErrors: true },
 };

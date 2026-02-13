@@ -14,7 +14,7 @@ export async function GET(
     }
 
     const session = await db.chatSession.findUnique({
-      where: { sessionToken: token },
+      where: { token: token },
       include: { user: true },
     });
 
