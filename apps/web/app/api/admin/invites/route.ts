@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 
+const COOKIE_NAME = "slimy_chat_token";
+
 // POST /api/admin/invites - Create admin invite code
 export async function POST(request: NextRequest) {
   try {
     // Verify owner role
-    const cookieName = process.env.CHAT_COOKIE_NAME || "chat_session";
-    const sessionToken = request.cookies.get(cookieName)?.value;
+    const sessionToken = request.cookies.get(COOKIE_NAME)?.value;
 
     if (!sessionToken) {
       return NextResponse.json(
@@ -62,8 +63,7 @@ export async function POST(request: NextRequest) {
 // GET /api/admin/invites/count - Get count of active admin invites
 export async function GET(request: NextRequest) {
   try {
-    const cookieName = process.env.CHAT_COOKIE_NAME || "chat_session";
-    const sessionToken = request.cookies.get(cookieName)?.value;
+    const sessionToken = request.cookies.get(COOKIE_NAME)?.value;
 
     if (!sessionToken) {
       return NextResponse.json(

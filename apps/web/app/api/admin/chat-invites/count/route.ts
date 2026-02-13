@@ -1,14 +1,45 @@
 // Chat Invites Count API
 import { NextRequest, NextResponse } from "next/server";
-import { requireOwnerOrAdmin } from "@/lib/auth/owner";
 import { db } from "@/lib/db";
 
-export const dynamic = "force-dynamic";
+const COOKIE_NAME = "slimy_chat_token";
 
-// GET /api/admin/chat-invites/count - Count active chat invite codes
+async function verifyChatSession(request: NextRequest) {
+  const sessionToken = request.cookies.get(COOKIE_NAME)?.value;
+
+  if (!sessionToken) {
+    throw new NextResponse(
+      JSON.stringify({ error: "Not authenticated" }),
+      { status: 401, headers: { "Content-Type": "application/json" } }
+    );
+  }
+
+  const session = await db.chatSession.findUnique({
+    where: { sessionToken },
+    include: { user: true },
+  });
+
+  if (!session || session.expiresAt < new Date()) {
+    throw new NextResponse(
+      JSON.stringify({ error: "Session expired" }),
+      { status: 401, headers: { "Content-Type": "application/json" } }
+    );
+  }
+
+  return session;
+}
+
+// GET /api/admin/chat-invites/count - Count active chat invite codes (admin+)
 export async function GET(request: NextRequest) {
   try {
-    await requireOwnerOrAdmin(request);
+    const session = await verifyChatSession(request);
+
+    if (!["admin", "owner"].includes(session.user.role)) {
+      throw new NextResponse(
+        JSON.stringify({ error: "Admin access required" }),
+        { status: 403, headers: { "Content-Type": "application/json" } }
+      );
+    }
 
     const count = await db.chatRegistrationCode.count({
       where: {
@@ -25,9 +56,7 @@ export async function GET(request: NextRequest) {
       count,
     });
   } catch (error) {
-    if (error instanceof NextResponse) {
-      return error;
-    }
+    if (error instanceof NextResponse) return error;
     console.error("[/api/admin/chat-invites/count] Error:", error);
     return NextResponse.json(
       { error: "internal_server_error" },

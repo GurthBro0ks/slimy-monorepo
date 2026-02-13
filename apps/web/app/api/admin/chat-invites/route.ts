@@ -1,15 +1,46 @@
-// Chat Invite Codes API - for admin/owner to create chat registration codes
 import { NextRequest, NextResponse } from "next/server";
-import { requireOwnerOrAdmin } from "@/lib/auth/owner";
 import { db } from "@/lib/db";
 import crypto from "crypto";
 
-export const dynamic = "force-dynamic";
+const COOKIE_NAME = "slimy_chat_token";
 
-// GET /api/admin/chat-invites - List chat invite codes
+// Helper to verify chat session and get user role
+async function verifyChatSession(request: NextRequest) {
+  const sessionToken = request.cookies.get(COOKIE_NAME)?.value;
+
+  if (!sessionToken) {
+    throw new NextResponse(
+      JSON.stringify({ error: "Not authenticated" }),
+      { status: 401, headers: { "Content-Type": "application/json" } }
+    );
+  }
+
+  const session = await db.chatSession.findUnique({
+    where: { sessionToken },
+    include: { user: true },
+  });
+
+  if (!session || session.expiresAt < new Date()) {
+    throw new NextResponse(
+      JSON.stringify({ error: "Session expired" }),
+      { status: 401, headers: { "Content-Type": "application/json" } }
+    );
+  }
+
+  return session;
+}
+
+// GET /api/admin/chat-invites - List chat invite codes (admin+)
 export async function GET(request: NextRequest) {
   try {
-    await requireOwnerOrAdmin(request);
+    const session = await verifyChatSession(request);
+
+    if (!["admin", "owner"].includes(session.user.role)) {
+      throw new NextResponse(
+        JSON.stringify({ error: "Admin access required" }),
+        { status: 403, headers: { "Content-Type": "application/json" } }
+      );
+    }
 
     const invites = await db.chatRegistrationCode.findMany({
       orderBy: { createdAt: "desc" },
@@ -28,9 +59,7 @@ export async function GET(request: NextRequest) {
       invites,
     });
   } catch (error) {
-    if (error instanceof NextResponse) {
-      return error;
-    }
+    if (error instanceof NextResponse) return error;
     console.error("[/api/admin/chat-invites GET] Error:", error);
     return NextResponse.json(
       { error: "internal_server_error" },
@@ -39,10 +68,17 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST /api/admin/chat-invites - Create a new chat invite code
+// POST /api/admin/chat-invites - Create a new chat invite code (admin+)
 export async function POST(request: NextRequest) {
   try {
-    await requireOwnerOrAdmin(request);
+    const session = await verifyChatSession(request);
+
+    if (!["admin", "owner"].includes(session.user.role)) {
+      throw new NextResponse(
+        JSON.stringify({ error: "Admin access required" }),
+        { status: 403, headers: { "Content-Type": "application/json" } }
+      );
+    }
 
     // Generate a simple 8-character code
     const code = crypto.randomBytes(4).toString("hex").toUpperCase();
@@ -63,9 +99,7 @@ export async function POST(request: NextRequest) {
       message: "Chat invite code created successfully",
     });
   } catch (error) {
-    if (error instanceof NextResponse) {
-      return error;
-    }
+    if (error instanceof NextResponse) return error;
     console.error("[/api/admin/chat-invites POST] Error:", error);
     return NextResponse.json(
       { error: "internal_server_error" },
@@ -74,10 +108,17 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// DELETE /api/admin/chat-invites - Revoke all chat invite codes
+// DELETE /api/admin/chat-invites - Revoke all chat invite codes (owner only)
 export async function DELETE(request: NextRequest) {
   try {
-    await requireOwnerOrAdmin(request);
+    const session = await verifyChatSession(request);
+
+    if (session.user.role !== "owner") {
+      throw new NextResponse(
+        JSON.stringify({ error: "Owner access required" }),
+        { status: 403, headers: { "Content-Type": "application/json" } }
+      );
+    }
 
     // Delete all unused chat invite codes
     await db.chatRegistrationCode.deleteMany({
@@ -91,9 +132,7 @@ export async function DELETE(request: NextRequest) {
       message: "All unused chat invite codes have been revoked",
     });
   } catch (error) {
-    if (error instanceof NextResponse) {
-      return error;
-    }
+    if (error instanceof NextResponse) return error;
     console.error("[/api/admin/chat-invites DELETE] Error:", error);
     return NextResponse.json(
       { error: "internal_server_error" },
