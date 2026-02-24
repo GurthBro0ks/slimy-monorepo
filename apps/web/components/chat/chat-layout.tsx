@@ -57,7 +57,7 @@ export function ChatLayout() {
         // Invalid user data
         localStorage.removeItem('slimy_chat_token')
         localStorage.removeItem('slimy_chat_user')
-        router.push('/trader/login?redirect=/chat')
+        router.push('/login?redirect=/chat')
       }
     }
   }, [router])
@@ -153,7 +153,7 @@ export function ChatLayout() {
         if (res.status === 401) {
           localStorage.removeItem('slimy_chat_token')
           localStorage.removeItem('slimy_chat_user')
-          router.push('/trader/login?redirect=/chat')
+          router.push('/login?redirect=/chat')
           return
         }
         throw new Error('Failed to fetch messages')
@@ -210,7 +210,7 @@ export function ChatLayout() {
   const handleLogout = () => {
     localStorage.removeItem('slimy_chat_token')
     localStorage.removeItem('slimy_chat_user')
-    router.push('/trader/login')
+    router.push('/login')
   }
 
   return (

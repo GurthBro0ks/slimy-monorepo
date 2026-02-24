@@ -35,7 +35,7 @@ export function ChannelList({ activeChannelId, onSelectChannel }: ChannelListPro
           // Token invalid, clear it
           localStorage.removeItem('slimy_chat_token')
           localStorage.removeItem('slimy_chat_user')
-          window.location.href = '/trader/login?redirect=/chat'
+          window.location.href = '/login?redirect=/chat'
           return
         }
         throw new Error('Failed to fetch channels')

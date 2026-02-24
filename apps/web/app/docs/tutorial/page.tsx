@@ -11,12 +11,12 @@ export default function TutorialPage() {
       
       <section>
         <h2>1. Quick Auth</h2>
-        <p>Sign in → Access trader/proofs/dashboard. Proof-gated: All actions logged/verifiable.</p>
+        <p>Sign in → Access dashboard and chat. Discord OAuth for authentication.</p>
       </section>
       
       <section>
-        <h2>2. Proof Viewer</h2>
-        <p>/trader/proofs → Filter edges &gt; fees. View /tmp/proof_* packs (gates/PnL).</p>
+        <h2>2. Chat</h2>
+        <p>Real-time messaging with channels and direct messages.</p>
       </section>
       
       <section>
