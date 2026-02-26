@@ -11,7 +11,6 @@ export async function GET(request: NextRequest) {
       ok: true,
       user: {
         id: ctx.user.id,
-        discordId: ctx.user.discordId,
         email: ctx.user.email,
         globalName: ctx.user.globalName,
       },

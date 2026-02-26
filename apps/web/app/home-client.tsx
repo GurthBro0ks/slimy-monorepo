@@ -14,7 +14,7 @@ export default function HomeClient() {
     if (searchParams.get('logged_out')) return;
     if (!isLoading && user) {
       setIsRedirecting(true);
-      router.push("/dashboard");
+      router.push("/login-landing");
     }
   }, [user, isLoading, router, searchParams]);
 
@@ -29,9 +29,9 @@ export default function HomeClient() {
         .hero-snail { width: 120px; height: 120px; margin-bottom: 20px; }
         .hero-title { font-family: 'Press Start 2P', cursive; font-size: 48px; color: #d400ff; text-shadow: 4px 4px 0 #00ff00, 0 0 20px #d400ff; margin-bottom: 10px; }
         .hero-slogan { font-family: 'VT323', monospace; font-size: 28px; color: #e0aaff; text-shadow: 1px 1px 0 #000; margin-bottom: 30px; max-width: 600px; }
-        .discord-btn { display: flex; align-items: center; gap: 10px; background: #3c096c; border: 3px solid #9d4edd; border-right-color: #10002b; border-bottom-color: #10002b; color: #00ff00; font-family: 'Press Start 2P', cursive; font-size: 18px; padding: 12px 24px; cursor: pointer; transition: all 0.1s; box-shadow: 0 0 10px rgba(157, 78, 221, 0.5); }
-        .discord-btn:hover { background: #5a189a; color: #fff; box-shadow: 0 0 20px rgba(157, 78, 221, 0.8); }
-        .discord-btn:active { transform: translate(2px, 2px); }
+        .slime-btn { display: flex; align-items: center; gap: 10px; background: #3c096c; border: 3px solid #9d4edd; border-right-color: #10002b; border-bottom-color: #10002b; color: #00ff00; font-family: 'Press Start 2P', cursive; font-size: 18px; padding: 12px 24px; cursor: pointer; transition: all 0.1s; box-shadow: 0 0 10px rgba(157, 78, 221, 0.5); }
+        .slime-btn:hover { background: #5a189a; color: #fff; box-shadow: 0 0 20px rgba(157, 78, 221, 0.8); }
+        .slime-btn:active { transform: translate(2px, 2px); }
         .feature-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 30px; width: 100%; max-width: 400px; }
         .feature-square { background: #240046; border: 2px solid #9d4edd; aspect-ratio: 1 / 1; position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 10px; cursor: pointer; overflow: hidden; transition: all 0.2s; box-shadow: 0 0 10px rgba(157, 78, 221, 0.3); text-align: center; }
         .feature-square:hover { border-color: #00ff00; box-shadow: 0 0 15px rgba(0, 255, 0, 0.5); transform: translateY(-2px); }
@@ -46,8 +46,8 @@ export default function HomeClient() {
         <div className="hero-snail"><Image src="/brand/snail-glitch.png" alt="Snail" width={120} height={120} style={{ objectFit: "contain" }} /></div>
         <div className="hero-title">slimy.ai</div>
         <div className="hero-slogan">fueled by <span style={{ color: "#ff00ff" }}>adhd</span> &mdash; driven by <span style={{ color: "#00ffff" }}>feet</span> &mdash; motivated by <span style={{ color: "#ffff00" }}>ducks</span></div>
-        <a href="/chat" style={{ textDecoration: 'none' }}>
-          <button className="discord-btn" style={{ background: '#0a4a0a', borderColor: '#00ff00 #002200 #002200 #00ff00' }}>
+        <a href="/login" style={{ textDecoration: 'none' }}>
+          <button className="slime-btn" style={{ background: '#0a4a0a', borderColor: '#00ff00 #002200 #002200 #00ff00' }}>
             <i className="fa-solid fa-comments"></i> Chat Login
           </button>
         </a>

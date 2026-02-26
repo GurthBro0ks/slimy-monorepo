@@ -4,7 +4,7 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import MatrixBackground from '@/components/MatrixBackground';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/lib/auth/context';
 import { SlimeLoginModal } from '@/app/_components/SlimeLoginModal';
 
 export function Hero() {
@@ -15,7 +15,7 @@ export function Hero() {
   const handleLogin = () => {
     if (isAuthenticated) {
       // User is already authenticated, redirect to appropriate dashboard
-      if (role === 'admin') {
+      if (role === 'owner') {
         router.push('/guilds');
       } else if (role === 'club') {
         router.push('/club');

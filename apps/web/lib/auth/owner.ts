@@ -6,7 +6,6 @@ export interface OwnerContext {
   user: {
     id: string;
     email?: string | null;
-    discordId: string;
     globalName?: string | null;
   };
   owner: {
@@ -52,7 +51,7 @@ export async function requireOwner(request: NextRequest): Promise<OwnerContext> 
       OR: [
         // By email if available
         user.email ? { email: user.email } : undefined,
-        // By Discord ID if available
+        // By User ID
         { userId: user.id },
       ].filter(Boolean),
       revokedAt: null, // Only active owners

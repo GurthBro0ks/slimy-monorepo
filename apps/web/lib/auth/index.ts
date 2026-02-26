@@ -1,6 +1,6 @@
 // Authentication utilities and types
 export * from "./types";
-export * from "./context";
+export { AuthProvider, useAuth } from "./context";
 
 // Utility functions
 export const authUtils = {

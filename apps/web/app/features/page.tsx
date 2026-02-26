@@ -44,7 +44,7 @@ export default function FeaturesPage() {
       icon: MessageSquare,
       title: "Slime Chat & Image Generation",
       description: "AI-powered conversational assistant and image creation",
-      link: "/chat",
+      link: "/login-landing",
       items: [
         "4 personality modes (mentor, partner, mirror, operator)",
         "Context-aware responses with memory system",

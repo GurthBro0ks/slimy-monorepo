@@ -21,7 +21,7 @@ export default function OwnerForbiddenPage() {
 
         <div className="pt-4 flex flex-col gap-3">
           <Link
-            href="/dashboard"
+            href="/login-landing"
             className="inline-block px-6 py-2 border border-[var(--neon-green)] text-[var(--neon-green)] hover:bg-[var(--neon-green)] hover:text-black transition-all font-mono text-sm"
           >
             Return to Dashboard

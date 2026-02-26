@@ -38,6 +38,7 @@
     "argon2": "^0.44.0",
     "date-fns": "^4.1.0",
     "gray-matter": "^4.0.3",
+    "mongodb": "^7.1.0",
     "next": "16.0.1",
     "next-mdx-remote": "^5.0.0",
     "openai": "^6.7.0",

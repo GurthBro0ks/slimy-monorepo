@@ -49,7 +49,7 @@ export default async function OwnerLayout({ children }: OwnerLayoutProps) {
                 Audit
               </Link>
               <Link
-                href="/dashboard"
+                href="/login-landing"
                 className="px-3 py-2 text-xs font-['VT323'] text-gray-400 border border-gray-500/30 rounded hover:bg-gray-500/10 hover:border-gray-400 transition-all"
               >
                 Exit

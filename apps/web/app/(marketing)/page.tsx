@@ -12,8 +12,6 @@ import ChatWidget from '@/components/ChatWidget';
 export default function MarketingPage() {
   const pathname = usePathname();
 
-  // Don't show chat widget on the /chat page
-  const showChatWidget = pathname !== '/chat';
 
   return (
     <>
@@ -25,7 +23,6 @@ export default function MarketingPage() {
         <CTA />
       </main>
       <div className="crt-overlay" aria-hidden="true" />
-      {showChatWidget && <ChatWidget />}
     </>
   );
 }

@@ -3,7 +3,7 @@ import React, { useEffect, useRef } from 'react';
 import { usePathname } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
-import { ChatWidget } from '../chat/chat-widget';
+
 
 export function RetroShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -11,17 +11,19 @@ export function RetroShell({ children }: { children: React.ReactNode }) {
 
   const isLoginPage = pathname === '/';
   const isAuthCallback = pathname.startsWith('/api/auth');
-  const isChatPage = pathname === '/chat';
+  // chat removed
   
+  const isMissionControl = pathname.startsWith("/mission-control");
+  if (isMissionControl) return <>{children}</>;
   const showHeader = !isAuthCallback;
   const showNav = !isLoginPage && !isAuthCallback;
-  const showWidget = !isLoginPage && !isChatPage && !isAuthCallback;
+  const showWidget = false; // chat removed
 
   let marqueeText = "slimyai.xyz System Operational.";
   if (isLoginPage) marqueeText = "Welcome to slimyai.xyz! Connect to the Grid...";
-  else if (pathname === '/dashboard') marqueeText = "Dashboard Loaded. Metrics: Nominal.";
+  else if (pathname === '/login-landing') marqueeText = "Dashboard Loaded. Metrics: Nominal.";
   else if (pathname === '/club') marqueeText = "Club Analytics Active. Upload baseline data.";
-  else if (pathname === '/chat') marqueeText = "Secure Channel Established.";
+  
   else if (pathname.startsWith('/admin')) marqueeText = "Admin Control Panel Activated. System Administration Mode.";
 
   useEffect(() => {
@@ -123,7 +125,7 @@ export function RetroShell({ children }: { children: React.ReactNode }) {
 
       <header className="web-header">
         <Link href="/" className="web-logo"><div style={{ width: 32, height: 32, position: "relative" }}><Image src="/brand/snail-glitch.png" alt="Snail" width={32} height={32} style={{ objectFit: "contain" }} /></div>slimyai.xyz</Link>
-        {showNav && <nav className="web-nav"><Link href="/dashboard" className="nav-btn">Dashboard</Link><Link href="/chat" className="nav-btn">Chat</Link><Link href="/club" className="nav-btn">Club</Link><Link href="/chat/settings" className="nav-btn">Settings</Link><button onClick={handleLogout} className="nav-btn">Log Out</button></nav>}
+        {showNav && <nav className="web-nav"><Link href="/login-landing" className="nav-btn">Dashboard</Link><Link href="/mission-control" className="nav-btn">Mission Control</Link><button onClick={handleLogout} className="nav-btn">Log Out</button></nav>}
       </header>
 
       <div className="marquee-container">
@@ -134,7 +136,7 @@ export function RetroShell({ children }: { children: React.ReactNode }) {
 
       <div id="slime-overlay" ref={slimeContainerRef}></div>
       <div style={{ position: 'relative', zIndex: 10, minHeight: '50vh', display: 'flex', flexDirection: 'column' }}><div style={{ flex: 1 }}>{children}</div><footer className="web-footer"><div className="footer-text">Enter the Slime Matrix</div><div className="footer-copy">&copy; 2025 slimyai.xyz</div></footer></div>
-      {showWidget && <div style={{ position: 'fixed', bottom: '20px', right: '20px', zIndex: 2147483647 }}><ChatWidget /></div>}
+      {/* ChatWidget removed */}
     </>
   );
 }

@@ -51,7 +51,7 @@ export function Footer() {
                   </Link>
                 </li>
                 <li>
-                  <Link href="/chat" className="text-muted-foreground hover:text-neon-green whitespace-nowrap" prefetch>
+                  <Link href="/login-landing" className="text-muted-foreground hover:text-neon-green whitespace-nowrap" prefetch>
                     Slime Chat
                   </Link>
                 </li>
@@ -64,7 +64,7 @@ export function Footer() {
               <ul className="space-y-2 text-sm">
                 <li>
                   <a
-                    href="https://discord.gg/supersnail"
+                    href="https://chat.slimyai.xyz"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-muted-foreground hover:text-neon-green whitespace-nowrap"
@@ -129,7 +129,7 @@ export function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="/chat" className="text-muted-foreground hover:text-neon-green" prefetch>
+                <Link href="/login-landing" className="text-muted-foreground hover:text-neon-green" prefetch>
                   Slime Chat
                 </Link>
               </li>
@@ -140,7 +140,7 @@ export function Footer() {
             <ul className="space-y-2 text-sm">
               <li>
                 <a
-                  href="https://discord.gg/supersnail"
+                  href="https://chat.slimyai.xyz"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-muted-foreground hover:text-neon-green"

@@ -2,7 +2,6 @@ import "./globals.css";
 import { RetroShell } from "@/components/layout/retro-shell";
 import { AppShell } from "@/components/layout/app-shell";
 import { AuthProvider } from "@/lib/auth/context";
-import { ChatProvider } from "@/components/retro-chat/chat-context";
 
 export default async function RootLayout({
   children,
@@ -17,11 +16,9 @@ export default async function RootLayout({
       </head>
       <body className="antialiased">
         <AuthProvider>
-          <ChatProvider>
-            <RetroShell>
-              <AppShell>{children}</AppShell>
-            </RetroShell>
-          </ChatProvider>
+          <RetroShell>
+            <AppShell>{children}</AppShell>
+          </RetroShell>
         </AuthProvider>
       </body>
     </html>

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState, ReactNode, useCallback } from "react";
-import { AuthContextType, AuthState } from "./types";
+import { AuthUser, AuthContextType } from "./types";
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -10,132 +10,87 @@ interface AuthProviderProps {
 }
 
 export function AuthProvider({ children }: AuthProviderProps) {
-  const [state, setState] = useState<AuthState>({
-    user: null,
-    isLoading: true,
-    error: null,
-    lastRefresh: 0,
-  });
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  const refresh = useCallback(async () => {
+  const checkSession = useCallback(async () => {
     try {
-      setState(prev => ({ ...prev, isLoading: true }));
-      const res = await fetch("/api/auth/me", { credentials: "include" });
-
+      setIsLoading(true);
+      const res = await fetch("/api/session/me", { cache: "no-store" });
       if (res.ok) {
-        const data = await res.json();
-        const resolvedUser = (data as any)?.user || data;
-        setState({
-          user: resolvedUser,
-          isLoading: false,
-          error: null,
-          lastRefresh: Date.now(),
-        });
+        const userData = await res.json();
+        setUser(userData);
       } else {
-        setState({
-          user: null,
-          isLoading: false,
-          error: null,
-          lastRefresh: 0,
-        });
+        setUser(null);
       }
     } catch (err) {
-      console.error("[Auth] Refresh failed:", err);
-      setState({
-        user: null,
-        isLoading: false,
-        error: err instanceof Error ? err.message : "Auth check failed",
-        lastRefresh: 0,
-      });
+      console.error("[Auth] Session check failed:", err);
+      setUser(null);
+    } finally {
+      setIsLoading(false);
     }
   }, []);
 
-  const login = () => {
-    const adminApiBase = process.env.NEXT_PUBLIC_ADMIN_API_BASE || "";
-    if (adminApiBase) {
-      window.location.href = `${adminApiBase}/api/auth/login`;
-    } else {
-      console.error("NEXT_PUBLIC_ADMIN_API_BASE not configured");
+  const refresh = checkSession; // Alias for backward compatibility
+
+  const login = async (email: string, password: string) => {
+    try {
+      setIsLoading(true);
+      const res = await fetch("/api/session/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+      
+      const data = await res.json();
+      
+      if (res.ok && data.success) {
+        await checkSession();
+        return { success: true };
+      } else {
+        setIsLoading(false);
+        return { success: false, error: data.error || "Login failed" };
+      }
+    } catch (err) {
+      setIsLoading(false);
+      return { success: false, error: err instanceof Error ? err.message : "An unexpected error occurred" };
     }
   };
 
   const logout = async () => {
     try {
-      // Call logout endpoint to clear cookies
-      await fetch("/api/auth/logout", { method: "POST" });
+      setIsLoading(true);
+      await fetch("/api/session/logout", { method: "POST" });
     } catch (err) {
       console.error("Logout failed", err);
     } finally {
-      // Clear local state
-      setState({
-        user: null,
-        isLoading: false,
-        error: null,
-        lastRefresh: 0,
-      });
-      // Redirect to landing page
-      // Force a hard refresh to clear client state
+      setUser(null);
+      setIsLoading(false);
       window.location.href = "/";
     }
   };
 
-  // Automatic token refresh logic
-  useEffect(() => {
-    if (!state.user || state.lastRefresh === 0) return;
-
-    // Refresh token every 25 minutes if user is logged in
-    // This assumes sessions last around 30 minutes on the admin API
-    const REFRESH_INTERVAL = 25 * 60 * 1000; // 25 minutes
-    const timeSinceLastRefresh = Date.now() - state.lastRefresh;
-
-    const triggerRefresh = () =>
-      refresh().catch(error => {
-        console.error("[Auth] Auto-refresh failed:", error);
-      });
-
-    let immediateTimer: ReturnType<typeof setTimeout> | undefined;
-
-    if (timeSinceLastRefresh >= REFRESH_INTERVAL) {
-      console.log("[Auth] Auto-refreshing session...");
-      immediateTimer = setTimeout(triggerRefresh, 0);
-    }
-
-    // Set up next refresh check
-    const nextCheck = REFRESH_INTERVAL - timeSinceLastRefresh;
-    const timeoutId = setTimeout(() => {
-      if (state.user) {
-        console.log("[Auth] Checking if session needs refresh...");
-        triggerRefresh();
-      }
-    }, Math.max(nextCheck, 60000)); // Minimum 1 minute between checks
-
-    return () => {
-      if (immediateTimer) clearTimeout(immediateTimer);
-      clearTimeout(timeoutId);
-    };
-  }, [refresh, state.lastRefresh, state.user]);
-
-  // Initial auth check on mount
   useEffect(() => {
     let mounted = true;
-
     const initAuth = async () => {
       if (mounted) {
-        await refresh();
+        await checkSession();
       }
     };
-
     initAuth();
-
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [checkSession]);
 
   const value: AuthContextType = {
-    ...state,
+    user,
+    isLoading,
+    isAuthenticated: !!user,
+    role: user?.role || null,
     login,
     logout,
+    checkSession,
     refresh,
   };
 

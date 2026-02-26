@@ -2,7 +2,7 @@
 
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/lib/auth/context';
 
 export function CTA() {
   const router = useRouter();
@@ -11,7 +11,7 @@ export function CTA() {
   const handleLogin = () => {
     if (isAuthenticated) {
       // User is already authenticated, redirect to appropriate dashboard
-      if (role === 'admin') {
+      if (role === 'owner') {
         router.push('/admin');
       } else if (role === 'club') {
         router.push('/club');
@@ -22,7 +22,7 @@ export function CTA() {
       }
     } else {
       // Not authenticated, proceed to login
-      window.location.href = '/api/auth/discord/login';
+      router.push('/login');
     }
   };
 

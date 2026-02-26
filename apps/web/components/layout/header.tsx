@@ -22,7 +22,7 @@ const navItems = [
 ];
 
 // Critical paths to prefetch on mount (for authenticated users)
-const criticalPaths = ["/snail", "/club", "/chat"];
+const criticalPaths = ["/snail", "/club", "/login-landing"];
 
 export function Header() {
   const pathname = usePathname();
