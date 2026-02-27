@@ -150,7 +150,7 @@ export default function Layout({ guildId, children, title, hideSidebar = false }
           </div>
         </div>
         <div className="nav-actions">
-          <FloorSwitcher currentFloor="floor-2" />
+          <FloorSwitcher currentFloor="floor-1" />
           {user && (
             <span className="badge">
               {user.username} · {effectiveRole.toUpperCase()}
