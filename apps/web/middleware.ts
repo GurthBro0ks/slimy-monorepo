@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 export const config = {
   matcher: [
-    "/((?!_next/|_static/|[\\w-]+\\.\w+).*)",
+    "/((?!_next/|_static/|[\w-]+\.\w+).*)",
     "/api/mission-control/:path*",
     "/api/owner/:path*",
     "/api/guilds/:path*",
@@ -34,7 +34,7 @@ export default async function middleware(req: NextRequest) {
   
   const isExactPublic = publicRoutes.includes(pathname);
   const isPublicPrefix = publicPrefixes.some(p => pathname.startsWith(p));
-  const isPublicApi = pathname === "/api/codes" || pathname.startsWith("/api/session/");
+  const isPublicApi = pathname === "/api/codes" || pathname.startsWith("/api/session/") || pathname.startsWith("/api/local-auth/");
 
   if (isExactPublic || isPublicPrefix || isPublicApi) {
     return NextResponse.next();
@@ -53,8 +53,8 @@ export default async function middleware(req: NextRequest) {
   // 4. Owner-only Routes Check
   if (pathname.startsWith("/owner")) {
     try {
-      // Internal call to /api/auth/me to verify role
-      const meRes = await fetch(new URL("/api/auth/me", req.url), {
+      // Internal call to /api/session/me to verify role
+      const meRes = await fetch(new URL("/api/session/me", req.url), {
         headers: { Cookie: "slimy_session=" + sessionToken },
       });
       

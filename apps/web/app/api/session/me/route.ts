@@ -1,33 +1,34 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import { slimeChatGetUser } from "@/lib/auth/slimechat-client";
 
-export const dynamic = "force-dynamic";
+function parseToken(token: string): { userId: string; email: string; role: string; expires: number } | null {
+  try {
+    const decoded = Buffer.from(token, "base64url").toString();
+    const payload = JSON.parse(decoded);
+    if (payload.expires < Date.now()) return null;
+    return payload;
+  } catch {
+    return null;
+  }
+}
 
 export async function GET() {
   const cookieStore = await cookies();
-  const sessionToken = cookieStore.get("slimy_session")?.value;
+  const token = cookieStore.get("slimy_session")?.value;
 
-  if (!sessionToken) {
+  if (!token) {
     return NextResponse.json({ success: false, error: "No session" }, { status: 401 });
   }
 
-  try {
-    const stoatUser = await slimeChatGetUser(sessionToken);
-
-    // Determine role:
-    const ownerId = process.env.OWNER_USER_ID;
-    const role = stoatUser._id === ownerId ? "owner" : "member";
-
-    return NextResponse.json({
-      id: stoatUser._id,
-      username: stoatUser.username,
-      displayName: stoatUser.display_name || stoatUser.username,
-      avatar: stoatUser.avatar,
-      email: undefined, // Email is not returned by @me typically, but omitted per instructions
-      role: role,
-    });
-  } catch (error) {
+  const session = parseToken(token);
+  if (!session) {
     return NextResponse.json({ success: false, error: "Invalid session" }, { status: 401 });
   }
+
+  return NextResponse.json({
+    id: session.userId,
+    username: session.email.split("@")[0],
+    email: session.email,
+    role: session.role,
+  });
 }

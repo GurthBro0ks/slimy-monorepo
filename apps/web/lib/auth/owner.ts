@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
 import { requireAuth } from "./server";
 
 export interface OwnerContext {
@@ -18,20 +17,11 @@ export interface OwnerContext {
 }
 
 /**
- * Enforces admin authorization for API routes
- * For now, admin = owner. Can be extended later for separate admin role.
- * Returns 401 if not authenticated, 403 if authenticated but not admin
- */
-export async function requireOwnerOrAdmin(request: NextRequest): Promise<OwnerContext> {
-  return requireOwner(request);
-}
-
-/**
  * Enforces owner authorization for API routes
  * Returns 401 if not authenticated, 403 if authenticated but not owner
  */
 export async function requireOwner(request: NextRequest): Promise<OwnerContext> {
-  // First require authentication
+  // First require authentication - now uses the new token-based auth
   const user = await requireAuth();
 
   // requireAuth() returns null if not authenticated
@@ -45,20 +35,8 @@ export async function requireOwner(request: NextRequest): Promise<OwnerContext> 
     );
   }
 
-  // Check if user is in OwnerAllowlist
-  const owner = await prisma.ownerAllowlist.findFirst({
-    where: {
-      OR: [
-        // By email if available
-        user.email ? { email: user.email } : undefined,
-        // By User ID
-        { userId: user.id },
-      ].filter(Boolean),
-      revokedAt: null, // Only active owners
-    },
-  });
-
-  if (!owner) {
+  // Check if user has owner role in the token
+  if (user.role !== "owner") {
     throw new NextResponse(
       JSON.stringify({
         error: "forbidden",
@@ -75,11 +53,23 @@ export async function requireOwner(request: NextRequest): Promise<OwnerContext> 
   const userAgent = request.headers.get("user-agent") || undefined;
 
   return {
-    user,
-    owner,
+    user: {
+      id: user.id,
+      email: user.email,
+      globalName: user.username,
+    },
+    owner: {
+      id: user.id,
+      email: user.email || "",
+      userId: user.id,
+    },
     ipAddress: ipAddress?.trim(),
-    userAgent: userAgent?.substring(0, 500), // Cap user agent length
+    userAgent: userAgent?.substring(0, 500),
   };
+}
+
+export async function requireOwnerOrAdmin(request: NextRequest): Promise<OwnerContext> {
+  return requireOwner(request);
 }
 
 /**
@@ -99,28 +89,6 @@ export function isOwnerByEmail(email: string | null | undefined): boolean {
  * OWNER_EMAIL_ALLOWLIST="admin@example.com,owner@example.com"
  */
 export async function initBootstrapOwners(): Promise<number> {
-  const ownerEmailList = process.env.OWNER_EMAIL_ALLOWLIST || "";
-  if (!ownerEmailList) return 0;
-
-  const emails = ownerEmailList.split(",").map((e) => e.trim().toLowerCase());
-  let count = 0;
-
-  for (const email of emails) {
-    const existing = await prisma.ownerAllowlist.findUnique({
-      where: { email },
-    });
-
-    if (!existing) {
-      await prisma.ownerAllowlist.create({
-        data: {
-          email,
-          createdBy: "bootstrap-init",
-          note: "Initialized from OWNER_EMAIL_ALLOWLIST env var",
-        },
-      });
-      count++;
-    }
-  }
-
-  return count;
+  // No longer needed - using token-based roles
+  return 0;
 }

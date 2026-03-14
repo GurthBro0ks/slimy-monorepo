@@ -16,7 +16,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const checkSession = useCallback(async () => {
     try {
       setIsLoading(true);
-      const res = await fetch("/api/session/me", { cache: "no-store" });
+      const res = await fetch("/api/session/me", { cache: "no-store", credentials: "include" });
       if (res.ok) {
         const userData = await res.json();
         setUser(userData);
@@ -40,6 +40,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
+        credentials: "include",
       });
       
       const data = await res.json();
