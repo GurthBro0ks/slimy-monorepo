@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { requireAuth } from "@/lib/auth/server";
 import { db as prisma } from "@/lib/db";
 import { DebugDock } from "@/components/owner/debug-dock";
+import { NotificationBell } from "@/components/owner/notification-drawer";
 
 export const metadata = {
   title: "Owner Panel | Slimy AI",
@@ -43,6 +44,9 @@ export default async function OwnerLayout({ children }: OwnerLayoutProps) {
             </Link>
 
             <div className="flex items-center gap-4 flex-wrap justify-end">
+              {/* Notifications Bell */}
+              <NotificationBell />
+
               <Link
                 href="/owner"
                 className="px-3 py-2 text-xs font-['VT323'] text-purple-300 border border-purple-500/50 rounded hover:bg-purple-500/20 hover:border-purple-400 transition-all"
