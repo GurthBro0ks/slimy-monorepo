@@ -3,28 +3,37 @@ import { useAuth } from "@/lib/auth/context";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
 
 export default function DashboardPage() {
-  const { user, isLoading } = useAuth();
+  const { user, isLoading, refresh } = useAuth();
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
+  const [syncing, setSyncing] = useState(false);
 
   useEffect(() => { setMounted(true); }, []);
   useEffect(() => { if (!isLoading && !user) router.push("/"); }, [user, isLoading, router]);
+
+  const handleSync = async () => {
+    setSyncing(true);
+    try {
+      await refresh();
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   if (!mounted || isLoading) return <div className="p-10 text-[#00ff00] font-mono">LOADING...</div>;
   if (!user) return null;
 
   // ADAPTER: Handle Nested Data
-  // @ts-ignore
+  // @ts-expect-error - user may be nested
   const realUser = user.user || user; 
   const username = realUser.username || realUser.name || "Unknown";
   const userId = realUser.id || realUser.discordId;
   const role = realUser.role || "member";
 
   // GUILD PROCESSING
-  // @ts-ignore
+  // @ts-expect-error - sessionGuilds may not exist on type
   const rawGuilds = user.sessionGuilds || user.guilds || realUser.guilds || [];
   
   // FILTER: Only show guilds that have a valid Name AND ID (Hides the "?" ghosts)
@@ -47,10 +56,15 @@ export default function DashboardPage() {
                 <div className="flex justify-between border-b border-[#5a189a] pb-1 border-dashed"><span>STATUS:</span> <span className="text-[#00ff00] animate-pulse">ONLINE</span></div>
                 <div className="flex justify-between"><span>ROLE:</span> <span className="text-[#d400ff]">{role.toUpperCase()}</span></div>
              </div>
-             {/* SYNC BUTTON */}
-             <a href="/api/auth/login" className="absolute top-4 right-4 bg-[#00ff00] text-black text-xs px-2 py-1 font-bold hover:bg-white cursor-pointer">
-                <i className="fa-solid fa-rotate mr-1"></i> RE-SYNC
-             </a>
+             {/* SYNC BUTTON - uses cookie auth refresh */}
+             <button
+               onClick={handleSync}
+               disabled={syncing}
+               className="absolute top-4 right-4 bg-[#00ff00] text-black text-xs px-2 py-1 font-bold hover:bg-white cursor-pointer disabled:opacity-50"
+             >
+                <i className={`fa-solid fa-rotate mr-1 ${syncing ? 'animate-spin' : ''}`}></i>
+                {syncing ? 'SYNCING...' : 'RE-SYNC'}
+             </button>
           </div>
 
           {/* Server List */}
