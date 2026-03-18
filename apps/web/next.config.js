@@ -1,6 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: 'standalone',
+  // output: 'standalone', // Disabled - not creating properly
   eslint: { ignoreDuringBuilds: true },
   images: {
     remotePatterns: [

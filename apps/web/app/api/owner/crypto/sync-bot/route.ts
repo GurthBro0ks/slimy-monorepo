@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireOwner } from "@/lib/auth/owner";
 import { db as prisma } from "@/lib/db";
+import { createNotification } from "@/lib/notifications";
 
 const BOT_API = process.env.BOT_API_URL || "http://100.106.127.22:8510";
 
@@ -31,6 +32,13 @@ export async function POST(request: NextRequest) {
       botActions = Array.isArray(data) ? data :
                    data.actions || data.log || data.entries || [];
     } catch (err: any) {
+      // Create notification for sync failure
+      await createNotification({
+        type: "sync_fail",
+        severity: "error",
+        title: "Bot Sync Failed",
+        message: `Could not reach bot API: ${err.message}`,
+      });
       return NextResponse.json({ error: `Bot API unreachable: ${err.message}` }, { status: 502 });
     }
 

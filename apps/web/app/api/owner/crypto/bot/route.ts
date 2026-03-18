@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireOwner } from "@/lib/auth/owner";
+import { createNotification } from "@/lib/notifications";
 
 const BOT_API = process.env.BOT_API_URL || "http://100.106.127.22:8510";
 const BOT_TIMEOUT = 8000; // 8 second timeout
@@ -39,6 +40,31 @@ export async function GET(request: NextRequest) {
       fetchBot("/api/trading/signals"),
     ]);
 
+    // Check health and create notification if unhealthy
+    const isUnhealthy = health.error || health.degraded;
+    if (isUnhealthy) {
+      const healthError = health.error || health.degraded || "Unknown health issue";
+      await createNotification({
+        type: "bot_error",
+        severity: "warn",
+        title: "Trading Bot Health Issue",
+        message: `Bot health check failed: ${healthError}`,
+      });
+    }
+
+    // Also check if bot API is completely unreachable (all endpoints have errors)
+    const totalErrors = [status, health, farming, farmingLog, signals].filter(
+      (ep) => ep.error
+    ).length;
+    if (totalErrors >= 4) {
+      await createNotification({
+        type: "bot_error",
+        severity: "error",
+        title: "Trading Bot Unreachable",
+        message: `Bot API is not responding. ${totalErrors}/5 endpoints failed.`,
+      });
+    }
+
     return NextResponse.json({
       trading: {
         bankroll: status.bankroll || null,
@@ -50,7 +76,7 @@ export async function GET(request: NextRequest) {
         error: status.error || null,
       },
       health: {
-        ok: !health.error && !health.degraded,
+        ok: !isUnhealthy,
         details: health,
         error: health.error || null,
       },

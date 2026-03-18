@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "dev:socket": "tsx server.ts",
-    "start:socket": "NODE_ENV=production node .next/standalone/apps/web/server.js",
+    "start:socket": "NODE_ENV=production tsx server.ts",
     "build": "next build",
     "build:analyze": "ANALYZE=true next build",
     "build:check": "next build && tsx scripts/check-bundle-size.ts",
@@ -19,7 +19,7 @@
     "test:coverage": "vitest --coverage",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
-    "postbuild": "tsx scripts/postbuild-validate.ts && tsx scripts/check-bundle-size.ts && (test -d .next/standalone && (mkdir -p .next/standalone/apps/web/.next && cp -R .next/static .next/standalone/apps/web/.next/static && cp -R public .next/standalone/apps/web/public) || true)",
+    "postbuild": "tsx scripts/postbuild-validate.ts && tsx scripts/check-bundle-size.ts && (test -d .next/standalone && (mkdir -p .next/standalone/apps/web/.next && cp -R .next/static .next/standalone/apps/web/.next/static && cp -R public .next/standalone/apps/web/public && cp -R .next/server .next/standalone/apps/web/.next/server) || true)",
     "lighthouse": "lhci autorun",
     "lighthouse:mobile": "lhci autorun --preset=mobile",
     "prisma:generate": "prisma generate",
@@ -55,6 +55,7 @@
     "socket.io-client": "^4.8.1",
     "viem": "^2.47.4",
     "web-vitals": "^5.1.0",
+    "ws": "^8.19.0",
     "zod": "^4.1.12"
   },
   "devDependencies": {
