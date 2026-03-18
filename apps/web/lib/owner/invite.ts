@@ -1,5 +1,10 @@
+/**
+ * Owner Invite Management — Rewired to use SlimyInvite
+ * This module provides the same API as before but uses the SlimyInvite model.
+ */
+
 import { createHash, randomBytes } from "crypto";
-import { prisma } from "@/lib/db";
+import { db } from "@/lib/db";
 
 /**
  * Generate a random invite token
@@ -22,19 +27,22 @@ export interface CreateOwnerInviteOptions {
   expiresAt?: Date;
   maxUses?: number;
   note?: string;
+  role?: string;
 }
 
 export interface OwnerInviteCreated {
   inviteId: string;
   tokenPlaintext: string; // One-time display only
   codeHash: string;
+  code: string; // plaintext code for retrieval
   expiresAt?: Date;
   maxUses: number;
   note?: string;
+  role: string;
 }
 
 /**
- * Create a new owner invite code
+ * Create a new owner invite code using SlimyInvite model
  * Returns both the plaintext token (to show user once) and the stored hash
  */
 export async function createOwnerInvite(
@@ -48,15 +56,20 @@ export async function createOwnerInvite(
   // Validate constraints
   const maxUses = Math.max(1, Math.min(options.maxUses || 1, 100)); // Bounded 1-100
 
-  // Store only the hash in database
-  const invite = await prisma.ownerInvite.create({
+  // Validate role - "owner", "leader", or "member" allowed, default to "member"
+  const validRoles = ["owner", "leader", "member"];
+  const role = validRoles.includes(options.role || "") ? options.role! : "member";
+
+  // Store the hash AND plaintext code in database using SlimyInvite model
+  const invite = await db.slimyInvite.create({
     data: {
       codeHash: tokenHash,
-      createdById,
-      expiresAt: options.expiresAt,
+      code: token, // Store plaintext for owner to retrieve later
+      createdBy: createdById,
+      role,
+      expiresAt: options.expiresAt || null,
       maxUses,
-      useCount: 0,
-      note: options.note,
+      note: options.note || null,
     },
   });
 
@@ -64,9 +77,11 @@ export async function createOwnerInvite(
     inviteId: invite.id,
     tokenPlaintext: token, // Return ONCE to user
     codeHash: tokenHash,
+    code: token, // Return for retrieval
     expiresAt: invite.expiresAt || undefined,
     maxUses: invite.maxUses,
     note: options.note,
+    role: invite.role,
   };
 }
 
@@ -83,7 +98,7 @@ export interface ValidateOwnerInviteResult {
 }
 
 /**
- * Validate an owner invite token
+ * Validate an owner invite token using SlimyInvite model
  * Returns detailed validation result
  */
 export async function validateOwnerInvite(
@@ -92,8 +107,8 @@ export async function validateOwnerInvite(
   // Hash the provided token
   const tokenHash = hashInviteToken(token);
 
-  // Find invite by hash
-  const invite = await prisma.ownerInvite.findUnique({
+  // Find invite by hash in SlimyInvite table
+  const invite = await db.slimyInvite.findUnique({
     where: { codeHash: tokenHash },
   });
 
@@ -142,81 +157,86 @@ export async function validateOwnerInvite(
 }
 
 /**
- * Redeem an owner invite (incrementally)
- * MUST be called in a transaction to avoid race conditions
+ * Redeem an owner invite (incrementally) using SlimyInvite model
  */
 export async function redeemOwnerInvite(
   inviteId: string,
-  email: string,
-  bootstrapCreatedBy?: string
+  _email?: string,
+  _bootstrapCreatedBy?: string
 ): Promise<boolean> {
   // Try to increment use count atomically
-  // If this fails (someone already redeemed it), we'll get 0 updates
-  const updated = await prisma.ownerInvite.updateMany({
-    where: {
-      id: inviteId,
-      useCount: { lt: prisma.ownerInvite.fields.maxUses }, // Use count < max_uses
-      revokedAt: null,
-      expiresAt: {
-        // expires_at is null OR in the future
-        or: [{ equals: null }, { gt: new Date() }],
+  try {
+    await db.slimyInvite.update({
+      where: {
+        id: inviteId,
+        useCount: { lt: db.slimyInvite.fields.maxUses },
+        revokedAt: null,
       },
-    },
-    data: {
-      useCount: { increment: 1 },
-      usedAt: new Date(),
-    },
-  });
-
-  if (updated.count === 0) {
-    return false; // Could not redeem (race condition or validation failed)
+      data: {
+        useCount: { increment: 1 },
+      },
+    });
+    return true;
+  } catch {
+    return false;
   }
-
-  // Add email to allowlist
-  await prisma.ownerAllowlist.create({
-    data: {
-      email,
-      createdBy: bootstrapCreatedBy || "invite-redemption",
-      note: `Created via invite redemption: ${inviteId}`,
-    },
-  });
-
-  return true;
 }
 
 /**
- * Revoke an owner invite
+ * Revoke an owner invite using SlimyInvite model
  */
 export async function revokeOwnerInvite(inviteId: string): Promise<boolean> {
-  const updated = await prisma.ownerInvite.updateMany({
-    where: { id: inviteId },
-    data: { revokedAt: new Date() },
-  });
-  return updated.count > 0;
+  try {
+    await db.slimyInvite.update({
+      where: { id: inviteId },
+      data: { revokedAt: new Date() },
+    });
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /**
- * List owner invites (admin view)
- * Does NOT return plaintext tokens (obviously)
+ * List owner invites (admin view) using SlimyInvite model
+ * Returns invites with creator info looked up from SlimyUser
  */
 export async function listOwnerInvites() {
-  return prisma.ownerInvite.findMany({
-    select: {
-      id: true,
-      codeHash: true,
-      createdAt: true,
-      expiresAt: true,
-      maxUses: true,
-      useCount: true,
-      revokedAt: true,
-      note: true,
-      createdBy: {
-        select: {
-          id: true,
-          email: true,
-        },
-      },
-    },
+  const invites = await db.slimyInvite.findMany({
     orderBy: { createdAt: "desc" },
   });
+
+  // Get unique creator IDs
+  const creatorIds = [...new Set(invites.map((i) => i.createdBy).filter(Boolean))] as string[];
+
+  // Look up creator info from SlimyUser
+  const creators = await db.slimyUser.findMany({
+    where: { id: { in: creatorIds } },
+    select: { id: true, email: true },
+  });
+
+  const creatorMap = new Map(creators.map((c) => [c.id, c]));
+
+  // Map to expected format
+  return invites.map((inv) => ({
+    id: inv.id,
+    codeHash: inv.codeHash,
+    code: inv.code, // plaintext code for owner to view
+    createdAt: inv.createdAt,
+    expiresAt: inv.expiresAt,
+    maxUses: inv.maxUses,
+    useCount: inv.useCount,
+    revokedAt: inv.revokedAt,
+    note: inv.note,
+    role: inv.role,
+    createdBy: inv.createdBy
+      ? {
+          id: inv.createdBy,
+          email: creatorMap.get(inv.createdBy)?.email || "unknown",
+        }
+      : {
+          id: "system",
+          email: "system",
+        },
+  }));
 }

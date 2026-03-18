@@ -37,7 +37,7 @@ export default function StatusPage() {
     } else {
       try {
         const start = Date.now();
-        const res = await fetch("/api/diag");
+        const res = await fetch("/api/diag", { credentials: "include" });
         const responseTime = Date.now() - start;
         
         if (res.ok) {
@@ -66,7 +66,7 @@ export default function StatusPage() {
     // Check Codes API (aggregates Snelp + Reddit)
     try {
       const start = Date.now();
-      const res = await fetch("/api/codes?scope=active");
+      const res = await fetch("/api/codes?scope=active", { credentials: "include" });
       const responseTime = Date.now() - start;
       
       if (res.ok) {

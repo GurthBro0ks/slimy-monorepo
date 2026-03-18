@@ -1,53 +1,37 @@
-import { cookies } from "next/headers";
+/**
+ * Server-side auth — requireAuth()
+ * Validates the slimy_session cookie via DB lookup (lib/slimy-auth).
+ */
+
+import { validateSession } from "@/lib/slimy-auth/session";
 
 export interface ServerAuthUser {
   id: string;
   username: string;
-  role: 'admin' | 'club' | 'user' | 'member' | 'owner';
+  email: string;
+  role: string;
   guilds: any[];
-  email?: string; 
 }
 
-function parseSessionToken(token: string): { userId: string; email: string; role: string; expires: number } | null {
+/**
+ * Require authentication. Returns user or null.
+ * Used by API routes: const user = await requireAuth(); if (!user) return 401;
+ */
+export async function requireAuth(
+  cookieStoreOverride?: any
+): Promise<ServerAuthUser | null> {
   try {
-    const decoded = Buffer.from(token, "base64url").toString("utf-8");
-    const payload = JSON.parse(decoded);
-    if (!payload.userId || !payload.expires) return null;
-    if (payload.expires < Date.now()) return null;
-    return payload;
-  } catch {
-    return null;
-  }
-}
+    const result = await validateSession(cookieStoreOverride);
 
-export async function requireAuth(cookieStoreOverride?: any): Promise<ServerAuthUser | null> {
-  try {
-    const cookieStore = cookieStoreOverride ? await Promise.resolve(cookieStoreOverride) : await cookies();
-
-    // Check all possible cookie names (in priority order)
-    const sessionCookie = 
-      cookieStore.get("slimy_session") || 
-      cookieStore.get("slimy_admin") || 
-      cookieStore.get("slimy_admin_token") || 
-      cookieStore.get("connect.sid");
-
-    if (!sessionCookie?.value) {
-      console.log("[Auth] FAILED: No valid session cookie found.");
+    if (!result.authenticated) {
       return null;
     }
 
-    const session = parseSessionToken(sessionCookie.value);
-    if (!session) {
-      console.log("[Auth] FAILED: Invalid or expired session token.");
-      return null;
-    }
-
-    console.log(`[Auth] SUCCESS: Authenticated as ${session.email} (${session.userId})`);
     return {
-      id: session.userId,
-      username: session.email?.split("@")[0] || "unknown",
-      email: session.email,
-      role: session.role || "member",
+      id: result.user.id,
+      username: result.user.username,
+      email: result.user.email,
+      role: result.user.role,
       guilds: [],
     };
   } catch (error) {

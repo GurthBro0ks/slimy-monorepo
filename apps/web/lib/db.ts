@@ -26,9 +26,7 @@ function createPrismaClient(): PrismaClient {
 
 // Use global variable in development to prevent multiple instances during hot reload
 // In production, create a single instance
-export const db =
-  global.prisma ||
-  createPrismaClient();
+export const db = (global.prisma ?? createPrismaClient());
 
 if (process.env.NODE_ENV !== 'production') {
   global.prisma = db;

@@ -44,7 +44,7 @@ export default function LiveCodesPage() {
     setIsLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/codes?scope=active&metadata=true");
+      const res = await fetch("/api/codes?scope=active&metadata=true", { credentials: "include" });
       if (!res.ok) throw new Error(`HTTP_ERROR: ${res.status}`);
       const data: CodesApiResponse = await res.json();
       setCodes(data.codes || []);

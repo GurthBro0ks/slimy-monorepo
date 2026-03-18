@@ -69,6 +69,7 @@ export function CodesTerminalBlock() {
         const response = await fetch("/api/codes?scope=active", {
           cache: "no-store",
           signal: controller.signal,
+          credentials: "include",
         });
 
         if (!response.ok) {

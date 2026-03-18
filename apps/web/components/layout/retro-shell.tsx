@@ -21,7 +21,7 @@ export function RetroShell({ children }: { children: React.ReactNode }) {
 
   let marqueeText = "slimyai.xyz System Operational.";
   if (isLoginPage) marqueeText = "Welcome to slimyai.xyz! Connect to the Grid...";
-  else if (pathname === '/login-landing') marqueeText = "Dashboard Loaded. Metrics: Nominal.";
+  else if (pathname === '/dashboard') marqueeText = "Dashboard Loaded. Metrics: Nominal.";
   else if (pathname === '/club') marqueeText = "Club Analytics Active. Upload baseline data.";
   
   else if (pathname.startsWith('/admin')) marqueeText = "Admin Control Panel Activated. System Administration Mode.";
@@ -44,7 +44,7 @@ export function RetroShell({ children }: { children: React.ReactNode }) {
   }, [pathname]);
 
   const handleLogout = async () => {
-     try { await fetch('/api/auth/logout', { method: 'POST' }); } catch {
+     try { await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' }); } catch {
        // Ignore logout errors
      }
      window.location.href = "/?logged_out=true";
@@ -125,7 +125,7 @@ export function RetroShell({ children }: { children: React.ReactNode }) {
 
       <header className="web-header">
         <Link href="/" className="web-logo"><div style={{ width: 32, height: 32, position: "relative" }}><Image src="/brand/snail-glitch.png" alt="Snail" width={32} height={32} style={{ objectFit: "contain" }} /></div>slimyai.xyz</Link>
-        {showNav && <nav className="web-nav"><Link href="/login-landing" className="nav-btn">Dashboard</Link><Link href="/mission-control" className="nav-btn">Mission Control</Link><button onClick={handleLogout} className="nav-btn">Log Out</button></nav>}
+        {showNav && <nav className="web-nav"><Link href="/dashboard" className="nav-btn">Dashboard</Link><Link href="/mission-control" className="nav-btn">Mission Control</Link><button onClick={handleLogout} className="nav-btn">Log Out</button></nav>}
       </header>
 
       <div className="marquee-container">

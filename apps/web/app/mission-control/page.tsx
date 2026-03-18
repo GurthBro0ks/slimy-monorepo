@@ -27,7 +27,7 @@ export default function MissionControlPage() {
         return;
       }
       if (role !== "owner") {
-        router.push("/login-landing");
+        router.push("/dashboard");
         return;
       }
     }
@@ -35,7 +35,7 @@ export default function MissionControlPage() {
 
   useEffect(() => {
     if (isAuthenticated && role === "owner") {
-      fetch("/api/mission-control/tasks")
+      fetch("/api/mission-control/tasks", { credentials: "include" })
         .then(res => res.json())
         .then(data => {
           setTasks(data.tasks || []);

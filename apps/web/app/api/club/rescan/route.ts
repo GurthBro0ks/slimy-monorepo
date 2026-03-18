@@ -3,7 +3,7 @@ import { adminApiClient } from '@/lib/api/admin-client';
 import { requireAuth } from '@/lib/auth/server';
 import { validateGuildAccess } from '@/lib/auth/permissions';
 
-export const runtime = 'edge';
+export const runtime = 'nodejs';
 
 /**
  * POST /api/club/rescan

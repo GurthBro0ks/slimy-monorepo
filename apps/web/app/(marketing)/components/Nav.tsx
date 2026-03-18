@@ -13,7 +13,7 @@ export function Nav() {
     if (isAuthenticated) {
       // User is already authenticated, redirect to appropriate dashboard
       if (role === 'owner') {
-        router.push('/admin');
+        router.push('/owner');
       } else if (role === 'club') {
         router.push('/club');
       } else if (role === 'member') {

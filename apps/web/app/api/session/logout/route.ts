@@ -1,17 +1,56 @@
+/**
+ * POST /api/session/logout
+ * Revokes the current session in DB and clears the cookie.
+ */
+
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import { slimeChatLogout } from "@/lib/auth/slimechat-client";
+import { hashToken } from "@/lib/slimy-auth/crypto";
+import { revokeSession, SESSION_COOKIE } from "@/lib/slimy-auth/session";
+import { db } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
 export async function POST() {
-  const cookieStore = await cookies();
-  const sessionToken = cookieStore.get("slimy_session")?.value;
+  try {
+    const cookieStore = await cookies();
+    const sessionCookie = cookieStore.get(SESSION_COOKIE);
 
-  if (sessionToken) {
-    await slimeChatLogout(sessionToken);
-    cookieStore.delete("slimy_session");
+    if (sessionCookie?.value) {
+      const tokenHash = hashToken(sessionCookie.value);
+      const session = await db.slimySession.findUnique({
+        where: { tokenHash },
+      });
+      if (session) {
+        await revokeSession(session.id);
+      }
+    }
+
+    const response = NextResponse.json({ success: true });
+    response.cookies.set({
+      name: SESSION_COOKIE,
+      value: "",
+      path: "/",
+      expires: new Date(0),
+      httpOnly: true,
+      secure: true,
+      sameSite: "lax",
+    });
+
+    return response;
+  } catch (error) {
+    console.error("[SlimyAuth] Logout error:", error);
+    const response = NextResponse.json({ success: true });
+    response.cookies.set({
+      name: SESSION_COOKIE,
+      value: "",
+      path: "/",
+      expires: new Date(0),
+    });
+    return response;
   }
+}
 
-  return NextResponse.json({ success: true });
+export async function GET() {
+  return POST();
 }

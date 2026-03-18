@@ -1,4 +1,8 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
+import { requireAuth } from "@/lib/auth/server";
+import { db as prisma } from "@/lib/db";
+import { DebugDock } from "@/components/owner/debug-dock";
 
 export const metadata = {
   title: "Owner Panel | Slimy AI",
@@ -10,6 +14,21 @@ interface OwnerLayoutProps {
 }
 
 export default async function OwnerLayout({ children }: OwnerLayoutProps) {
+  const user = await requireAuth();
+
+  if (!user || user.role !== "owner") {
+    redirect("/owner/forbidden");
+  }
+
+  // Fetch debug dock setting
+  let debugDockEnabled = false;
+  try {
+    const settings = await prisma.appSettings.findFirst();
+    debugDockEnabled = settings?.debugDockEnabled ?? false;
+  } catch (err) {
+    console.error("[OwnerLayout] Failed to fetch settings:", err);
+  }
+
   return (
     <div className="min-h-screen bg-[var(--bg-deep)]">
       {/* Owner Panel Navigation */}
@@ -49,7 +68,7 @@ export default async function OwnerLayout({ children }: OwnerLayoutProps) {
                 Audit
               </Link>
               <Link
-                href="/login-landing"
+                href="/dashboard"
                 className="px-3 py-2 text-xs font-['VT323'] text-gray-400 border border-gray-500/30 rounded hover:bg-gray-500/10 hover:border-gray-400 transition-all"
               >
                 Exit
@@ -63,6 +82,14 @@ export default async function OwnerLayout({ children }: OwnerLayoutProps) {
       <main className="max-w-7xl mx-auto px-6 py-8">
         {children}
       </main>
+
+      {/* Debug Dock - only render if enabled */}
+      {debugDockEnabled && (
+        <DebugDock
+          isOwner={true}
+          userEmail={user.email}
+        />
+      )}
     </div>
   );
 }

@@ -47,6 +47,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       
       if (res.ok && data.success) {
         await checkSession();
+        setIsLoading(false);
         return { success: true };
       } else {
         setIsLoading(false);
@@ -61,7 +62,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const logout = async () => {
     try {
       setIsLoading(true);
-      await fetch("/api/session/logout", { method: "POST" });
+      await fetch("/api/session/logout", { method: "POST", credentials: "include" });
     } catch (err) {
       console.error("Logout failed", err);
     } finally {

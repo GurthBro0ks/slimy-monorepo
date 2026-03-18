@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/db";
+import { db as prisma } from "@/lib/db";
 
 export type OwnerAuditAction =
   | "INVITE_CREATE"
@@ -98,12 +98,6 @@ export async function getOwnerAuditLogs(
     select: {
       id: true,
       actorId: true,
-      actor: {
-        select: {
-          id: true,
-          email: true,
-        },
-      },
       action: true,
       resourceType: true,
       resourceId: true,

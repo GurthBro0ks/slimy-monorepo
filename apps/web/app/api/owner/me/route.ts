@@ -10,9 +10,9 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       ok: true,
       user: {
-        id: ctx.user.id,
-        email: ctx.user.email,
-        globalName: ctx.user.globalName,
+        id: ctx.owner.id,
+        email: ctx.owner.email,
+        globalName: ctx.owner.globalName,
       },
       owner: {
         id: ctx.owner.id,

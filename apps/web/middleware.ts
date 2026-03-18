@@ -30,11 +30,13 @@ export default async function middleware(req: NextRequest) {
     "/docs",
     "/public-stats",
     "/_next",
+    "/auth",
+    "/brand",
   ];
   
   const isExactPublic = publicRoutes.includes(pathname);
   const isPublicPrefix = publicPrefixes.some(p => pathname.startsWith(p));
-  const isPublicApi = pathname === "/api/codes" || pathname.startsWith("/api/session/") || pathname.startsWith("/api/local-auth/");
+  const isPublicApi = pathname === "/api/codes" || pathname.startsWith("/api/session/") || pathname.startsWith("/api/local-auth/") || pathname.startsWith("/api/owner/invites") || pathname.startsWith("/api/webhook/");
 
   if (isExactPublic || isPublicPrefix || isPublicApi) {
     return NextResponse.next();
@@ -48,29 +50,6 @@ export default async function middleware(req: NextRequest) {
     const returnTo = pathname + (searchParams.toString() ? "?" + searchParams.toString() : "");
     loginUrl.searchParams.set("returnTo", returnTo);
     return NextResponse.redirect(loginUrl);
-  }
-
-  // 4. Owner-only Routes Check
-  if (pathname.startsWith("/owner")) {
-    try {
-      // Internal call to /api/session/me to verify role
-      const meRes = await fetch(new URL("/api/session/me", req.url), {
-        headers: { Cookie: "slimy_session=" + sessionToken },
-      });
-      
-      if (!meRes.ok) {
-        const loginUrl = new URL("/login", req.url);
-        return NextResponse.redirect(loginUrl);
-      }
-
-      const user = await meRes.json();
-      if (user.role !== "owner") {
-        return NextResponse.rewrite(new URL("/owner/forbidden", req.url));
-      }
-    } catch (error) {
-      console.error("[Middleware] Owner check failed:", error);
-      return NextResponse.rewrite(new URL("/owner/forbidden", req.url));
-    }
   }
 
   // Pass pathname to server components via header

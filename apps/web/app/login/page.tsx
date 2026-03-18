@@ -10,16 +10,16 @@ function LoginForm() {
     const [password, setPassword] = useState("");
     const [isAuthenticating, setIsAuthenticating] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const { login, isAuthenticated, isLoading } = useAuth();
-    const router = useRouter();
+    const { isAuthenticated, isLoading } = useAuth();
     const searchParams = useSearchParams();
 
+    // Redirect if already authenticated (rare case - shouldn't happen on login page)
     useEffect(() => {
         if (!isLoading && isAuthenticated) {
-            const returnTo = searchParams.get("returnTo") || "/login-landing";
-            router.replace(returnTo);
+            const returnTo = searchParams.get("returnTo") || "/dashboard";
+            window.location.href = returnTo;
         }
-    }, [isAuthenticated, isLoading, router, searchParams]);
+    }, [isAuthenticated, isLoading, searchParams]);
 
     const handleSlimeOn = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -29,12 +29,22 @@ function LoginForm() {
         setIsAuthenticating(true);
 
         try {
-            const result = await login(email, password);
-            if (result.success) {
-                const returnTo = searchParams.get("returnTo") || "/login-landing";
-                router.push(returnTo);
+            // Direct fetch - no need to wait for checkSession
+            const res = await fetch("/api/session/login", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ email, password }),
+                credentials: "include",
+            });
+            const data = await res.json();
+
+            if (data.success) {
+                // Hard redirect - forces fresh page load WITH the new cookie
+                const returnTo = searchParams.get("returnTo") || "/dashboard";
+                window.location.href = returnTo;
+                return;
             } else {
-                setError(result.error || "LOGIN FAILED");
+                setError(data.error || "LOGIN FAILED");
             }
         } catch (err) {
             setError("SYSTEM ERROR");
@@ -43,10 +53,21 @@ function LoginForm() {
         }
     };
 
-    if (isLoading || isAuthenticated) {
+    // Only show loading spinner when actually checking session
+    // When authenticated, the useEffect will redirect
+    if (isLoading) {
         return (
             <div className="min-h-screen bg-black flex items-center justify-center">
                 <div className="text-[#39ff14] text-4xl animate-pulse font-mono">LOADING...</div>
+            </div>
+        );
+    }
+
+    // Already authenticated - show brief redirect message (rare case)
+    if (isAuthenticated) {
+        return (
+            <div className="min-h-screen bg-black flex items-center justify-center">
+                <div className="text-[#39ff14] text-2xl animate-pulse font-mono">Redirecting...</div>
             </div>
         );
     }
@@ -126,7 +147,7 @@ function LoginForm() {
                         <div className="flex flex-col gap-2">
                             <div className="flex justify-between items-end">
                                 <label className="text-[#d6b4fc] text-2xl drop-shadow-[0_0_2px_rgba(214,180,252,0.5)]">Password</label>
-                                <a href="https://chat.slimyai.xyz" target="_blank" rel="noopener noreferrer" className="text-[#8a4baf] text-lg hover:text-[#d6b4fc] transition-colors">Forgot?</a>
+                                <a href="/auth/forgot-password" className="text-[#8a4baf] text-lg hover:text-[#d6b4fc] transition-colors">Forgot?</a>
                             </div>
                             <input
                                 type="password"
@@ -158,7 +179,7 @@ function LoginForm() {
 
                         <div className="text-center pt-2">
                             <p className="text-[#d6b4fc] text-xl">
-                                New here? <a href="https://chat.slimyai.xyz" target="_blank" rel="noopener noreferrer" className="text-[#39ff14] hover:underline">Register at slime.chat</a>
+                                New here? <a href="/auth/register" className="text-[#39ff14] hover:underline">Register at slime.chat</a>
                             </p>
                         </div>
                     </form>

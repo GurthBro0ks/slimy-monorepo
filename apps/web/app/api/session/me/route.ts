@@ -1,34 +1,28 @@
-import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
+/**
+ * GET /api/session/me
+ * Returns current authenticated user info from DB-backed session.
+ */
 
-function parseToken(token: string): { userId: string; email: string; role: string; expires: number } | null {
-  try {
-    const decoded = Buffer.from(token, "base64url").toString();
-    const payload = JSON.parse(decoded);
-    if (payload.expires < Date.now()) return null;
-    return payload;
-  } catch {
-    return null;
-  }
-}
+import { NextResponse } from "next/server";
+import { validateSession } from "@/lib/slimy-auth/session";
+
+export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get("slimy_session")?.value;
+  const result = await validateSession();
 
-  if (!token) {
-    return NextResponse.json({ success: false, error: "No session" }, { status: 401 });
-  }
-
-  const session = parseToken(token);
-  if (!session) {
-    return NextResponse.json({ success: false, error: "Invalid session" }, { status: 401 });
+  if (!result.authenticated) {
+    return NextResponse.json(
+      { authenticated: false, error: result.error },
+      { status: 401 }
+    );
   }
 
   return NextResponse.json({
-    id: session.userId,
-    username: session.email.split("@")[0],
-    email: session.email,
-    role: session.role,
+    authenticated: true,
+    id: result.user.id,
+    username: result.user.username,
+    email: result.user.email,
+    role: result.user.role,
   });
 }

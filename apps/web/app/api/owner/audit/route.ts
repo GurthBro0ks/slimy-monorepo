@@ -5,6 +5,7 @@ import {
   parseAuditChanges,
   OwnerAuditAction,
 } from "@/lib/owner/audit";
+import { db as prisma } from "@/lib/db";
 import { z } from "zod";
 
 export const dynamic = "force-dynamic";
@@ -19,8 +20,8 @@ export async function GET(request: NextRequest) {
     await requireOwner(request);
 
     const query = {
-      limit: request.nextUrl.searchParams.get("limit"),
-      action: request.nextUrl.searchParams.get("action"),
+      limit: request.nextUrl.searchParams.get("limit") || undefined,
+      action: request.nextUrl.searchParams.get("action") || undefined,
     };
 
     const parsed = QuerySchema.safeParse(query);
@@ -42,23 +43,37 @@ export async function GET(request: NextRequest) {
       action as OwnerAuditAction | undefined
     );
 
+    // Enrich logs with actor email
+    const logsWithEmail = await Promise.all(
+      logs.map(async (log) => {
+        let actorEmail = "unknown";
+        try {
+          const user = await prisma.slimyUser.findUnique({
+            where: { id: log.actorId },
+            select: { email: true },
+          });
+          if (user) actorEmail = user.email;
+        } catch {
+          // User may have been deleted
+        }
+        return {
+          id: log.id,
+          actorId: log.actorId,
+          actorEmail,
+          action: log.action,
+          resourceType: log.resourceType,
+          resourceId: log.resourceId,
+          changes: parseAuditChanges(log.changes || null),
+          ipAddress: log.ipAddress,
+          userAgent: log.userAgent,
+          createdAt: log.createdAt,
+        };
+      })
+    );
+
     return NextResponse.json({
       ok: true,
-      logs: logs.map((log) => ({
-        id: log.id,
-        actorId: log.actorId,
-        actor: {
-          id: log.actor.id,
-          email: log.actor.email,
-        },
-        action: log.action,
-        resourceType: log.resourceType,
-        resourceId: log.resourceId,
-        changes: parseAuditChanges(log.changes || null),
-        ipAddress: log.ipAddress,
-        userAgent: log.userAgent,
-        createdAt: log.createdAt,
-      })),
+      logs: logsWithEmail,
       count: logs.length,
     });
   } catch (error) {

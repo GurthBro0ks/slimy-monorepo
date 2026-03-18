@@ -13,7 +13,7 @@ export default function GuildsPage() {
   useEffect(() => {
     async function fetchGuilds() {
       try {
-        const res = await fetch("/api/guilds");
+        const res = await fetch("/api/guilds", { credentials: "include" });
         if (!res.ok) throw new Error("Failed to fetch guilds");
         const data = await res.json();
         setGuilds(data.guilds || []);

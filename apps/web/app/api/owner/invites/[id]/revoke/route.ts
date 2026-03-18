@@ -2,20 +2,20 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireOwner } from "@/lib/auth/owner";
 import { revokeOwnerInvite } from "@/lib/owner/invite";
 import { logOwnerAction } from "@/lib/owner/audit";
-import { prisma } from "@/lib/db";
+import { db as prisma } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const ctx = await requireOwner(request);
-    const inviteId = params.id;
+    const { id: inviteId } = await params;
 
     // Verify invite exists
-    const invite = await prisma.ownerInvite.findUnique({
+    const invite = await prisma.slimyInvite.findUnique({
       where: { id: inviteId },
     });
 
@@ -43,18 +43,22 @@ export async function POST(
       );
     }
 
-    // Log action
-    await logOwnerAction({
-      actorId: ctx.owner.id,
-      action: "INVITE_REVOKE",
-      resourceType: "invite",
-      resourceId: inviteId,
-      changes: {
-        revokedAt: new Date().toISOString(),
-      },
-      ipAddress: ctx.ipAddress,
-      userAgent: ctx.userAgent,
-    });
+    // Log action (non-blocking)
+    try {
+      await logOwnerAction({
+        actorId: ctx.owner.id,
+        action: "INVITE_REVOKE",
+        resourceType: "invite",
+        resourceId: inviteId,
+        changes: {
+          revokedAt: new Date().toISOString(),
+        },
+        ipAddress: ctx.ipAddress,
+        userAgent: ctx.userAgent,
+      });
+    } catch (auditErr) {
+      console.error("[Revoke] Audit log failed (non-fatal):", auditErr);
+    }
 
     return NextResponse.json({
       ok: true,

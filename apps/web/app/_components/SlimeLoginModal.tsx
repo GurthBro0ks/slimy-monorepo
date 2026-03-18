@@ -46,7 +46,7 @@ export function SlimeLoginModal({ isOpen, onClose }: SlimeLoginModalProps) {
             const result = await login(email, password);
             if (result.success) {
                 onClose();
-                router.push("/login-landing");
+                router.push("/dashboard");
             } else {
                 setError(result.error || "LOGIN FAILED");
             }

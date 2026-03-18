@@ -36,7 +36,7 @@ export default function ClubDashboardPage() {
     setIsLoading(true);
     setError(null);
     try {
-      const guildRes = await fetch(`/api/guilds/${guildId}`);
+      const guildRes = await fetch(`/api/guilds/${guildId}`, { credentials: "include" });
       if (!guildRes.ok) {
         if (guildRes.status === 403) throw new Error("ACCESS_DENIED: User not in guild.");
         throw new Error("Failed to fetch guild details");
@@ -44,7 +44,7 @@ export default function ClubDashboardPage() {
       const gJson = await guildRes.json();
       setGuildData(gJson);
 
-      const statsRes = await fetch(`/api/club/latest?guildId=${guildId}`);
+      const statsRes = await fetch(`/api/club/latest?guildId=${guildId}`, { credentials: "include" });
       if (statsRes.ok) {
         const sJson = await statsRes.json();
         setClubStats(sJson);
@@ -63,7 +63,7 @@ export default function ClubDashboardPage() {
   const handleRescan = async () => {
     setIsRefreshing(true);
     try {
-      const res = await fetch(`/api/club/rescan?guildId=${guildId}`, { method: "POST" });
+      const res = await fetch(`/api/club/rescan?guildId=${guildId}`, { method: "POST", credentials: "include" });
       if (res.ok) {
         await fetchAllData();
       } else {

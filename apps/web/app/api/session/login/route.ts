@@ -1,67 +1,125 @@
-import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
+/**
+ * POST /api/session/login
+ * Authenticates with email (or username) + password against SlimyUser table.
+ */
 
-// Simple base64 encoded token (not secure, but works for testing)
-function createToken(payload: object): string {
-  const encoded = Buffer.from(JSON.stringify(payload)).toString("base64url");
-  return encoded;
+import { NextRequest, NextResponse } from "next/server";
+import { db } from "@/lib/db";
+import { verifyPassword } from "@/lib/slimy-auth/crypto";
+import { createSession, getSessionCookieOptions } from "@/lib/slimy-auth/session";
+import { checkLoginRateLimit, recordLoginAttempt } from "@/lib/slimy-auth/rate-limit";
+
+export const dynamic = "force-dynamic";
+
+function getClientIP(request: NextRequest): string {
+  const xff = request.headers.get("x-forwarded-for");
+  if (xff) return xff.split(",")[0].trim();
+  return request.headers.get("x-real-ip") || "unknown";
 }
 
-// Known users
-const users = new Map<string, { id: string; email: string; username: string; role: string }>();
-users.set("gurth@slimyai.xyz", { 
-  id: "cmlku40d90000shkt4f97jt0v", 
-  email: "gurth@slimyai.xyz", 
-  username: "GurthBr0oks", 
-  role: "owner" 
-});
-
-export async function POST(req: Request) {
+export async function POST(request: NextRequest) {
   try {
-    const body = await req.json();
-    const { email } = body;
+    const body = await request.json();
+    const { email, password } = body;
 
-    if (!email) {
-      return NextResponse.json({ success: false, error: "Email required" }, { status: 400 });
+    if (!email || !password) {
+      return NextResponse.json(
+        { error: "Email and password are required" },
+        { status: 400 }
+      );
     }
 
-    // Find or create user
-    let user = users.get(email.toLowerCase());
-    
+    const ipAddress = getClientIP(request);
+    const userAgent = request.headers.get("user-agent") || undefined;
+
+    // Rate limit check
+    const rateLimit = await checkLoginRateLimit(email, ipAddress);
+    if (!rateLimit.allowed) {
+      await recordLoginAttempt(email, ipAddress, false);
+      return NextResponse.json(
+        {
+          error: "Too many login attempts. Please try again later.",
+          lockoutUntil: rateLimit.lockoutUntil?.toISOString(),
+        },
+        { status: 429 }
+      );
+    }
+
+    // Find user by email (case-insensitive) OR username
+    const user = await db.slimyUser.findFirst({
+      where: {
+        OR: [
+          { email: email.toLowerCase().trim() },
+          { username: email },
+        ],
+      },
+    });
+
     if (!user) {
-      user = {
-        id: "user_" + Date.now(),
-        email: email.toLowerCase(),
-        username: email.split("@")[0],
-        role: "member"
-      };
-      users.set(email.toLowerCase(), user);
+      await recordLoginAttempt(email, ipAddress, false);
+      return NextResponse.json(
+        { error: "Invalid email or password" },
+        { status: 401 }
+      );
     }
 
-    // Create token with user info
-    const token = createToken({
-      userId: user.id,
-      email: user.email,
-      role: user.role,
-      expires: Date.now() + 30 * 24 * 60 * 60 * 1000,
-    });
+    if (user.disabled) {
+      await recordLoginAttempt(email, ipAddress, false);
+      return NextResponse.json(
+        { error: "Account is disabled" },
+        { status: 403 }
+      );
+    }
 
-    // Set cookie
-    const cookieStore = await cookies();
-    cookieStore.set("slimy_session", token, {
-      httpOnly: true,
-      secure: true,
-      sameSite: "lax",
-      path: "/",
-      maxAge: 30 * 24 * 60 * 60,
-    });
+    if (!user.emailVerified) {
+      await recordLoginAttempt(email, ipAddress, false);
+      return NextResponse.json(
+        { error: "Please verify your email address first" },
+        { status: 403 }
+      );
+    }
 
-    return NextResponse.json({
+    // Verify password
+    const valid = await verifyPassword(password, user.passwordHash);
+    if (!valid) {
+      await recordLoginAttempt(email, ipAddress, false);
+      return NextResponse.json(
+        { error: "Invalid email or password" },
+        { status: 401 }
+      );
+    }
+
+    // Success
+    await recordLoginAttempt(email, ipAddress, true, user.id);
+    const session = await createSession(user.id, ipAddress, userAgent);
+
+    const isSecure = request.headers.get("x-forwarded-proto") === "https";
+    const cookieOpts = getSessionCookieOptions(isSecure);
+
+    const response = NextResponse.json({
       success: true,
-      user: { id: user.id, username: user.username, email: user.email },
+      user: {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        role: user.role,
+      },
     });
+
+    response.cookies.set(cookieOpts.name, session.token, {
+      httpOnly: cookieOpts.httpOnly,
+      secure: cookieOpts.secure,
+      sameSite: cookieOpts.sameSite,
+      path: cookieOpts.path,
+      maxAge: cookieOpts.maxAge,
+    });
+
+    return response;
   } catch (error) {
-    console.error("[session/login] Error:", error);
-    return NextResponse.json({ success: false, error: "Login failed" }, { status: 500 });
+    console.error("[SlimyAuth] Login error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
   }
 }

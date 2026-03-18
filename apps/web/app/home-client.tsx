@@ -14,7 +14,7 @@ export default function HomeClient() {
     if (searchParams.get('logged_out')) return;
     if (!isLoading && user) {
       setIsRedirecting(true);
-      router.push("/login-landing");
+      router.push("/dashboard");
     }
   }, [user, isLoading, router, searchParams]);
 

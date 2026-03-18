@@ -1,0 +1,21 @@
+ ⚠ `eslint` configuration in next.config.js is no longer supported. See more info here: https://nextjs.org/docs/app/api-reference/cli/next#next-lint-options
+ ⚠ Invalid next.config.js options detected: 
+ ⚠     Unrecognized key(s) in object: 'eslint'
+ ⚠ See more info here: https://nextjs.org/docs/messages/invalid-next-config
+[baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+ ⚠ The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+> Ready on http://localhost:3000
+> Socket.io listening at /socket.io
+ ○ Compiling /login ...
+ GET /login?returnTo=%2Flogin-landing 200 in 4.3s (compile: 3.9s, proxy.ts: 95ms, render: 284ms)
+ ⚠ Cross origin request detected from slimyai.xyz to /_next/* resource. In a future major version of Next.js, you will need to explicitly configure "allowedDevOrigins" in next.config to allow this.
+Read more: https://nextjs.org/docs/app/api-reference/config/next-config-js/allowedDevOrigins
+ ⨯ The requested resource isn't a valid image for /brand/snail-glitch.png received null
+ GET /api/session/me 200 in 1083ms (compile: 808ms, proxy.ts: 14ms, render: 260ms)
+ GET /login-landing 200 in 694ms (compile: 614ms, proxy.ts: 17ms, render: 63ms)
+ GET / 200 in 614ms (compile: 485ms, proxy.ts: 9ms, render: 120ms)
+ GET /login?a=MTExMTEK 200 in 60ms (compile: 9ms, proxy.ts: 14ms, render: 37ms)
+ POST / 303 in 244ms (compile: 3ms, proxy.ts: 9ms, render: 231ms)
+ GET /login?a=c2g6IDE6IFN5bnRheCBlcnJvcjogIn0iIHVuZXhwZWN0ZWQK 200 in 40ms (compile: 4ms, proxy.ts: 5ms, render: 31ms)
+ POST / 303 in 81ms (compile: 3ms, proxy.ts: 6ms, render: 72ms)
+ GET /login?returnTo=%2Frobots.txt 200 in 66ms (compile: 7ms, proxy.ts: 4ms, render: 55ms)

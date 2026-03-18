@@ -51,7 +51,7 @@ export function Footer() {
                   </Link>
                 </li>
                 <li>
-                  <Link href="/login-landing" className="text-muted-foreground hover:text-neon-green whitespace-nowrap" prefetch>
+                  <Link href="/dashboard" className="text-muted-foreground hover:text-neon-green whitespace-nowrap" prefetch>
                     Slime Chat
                   </Link>
                 </li>
@@ -129,7 +129,7 @@ export function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="/login-landing" className="text-muted-foreground hover:text-neon-green" prefetch>
+                <Link href="/dashboard" className="text-muted-foreground hover:text-neon-green" prefetch>
                   Slime Chat
                 </Link>
               </li>

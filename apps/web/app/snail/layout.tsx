@@ -30,7 +30,7 @@ export default function SnailLayout({ children }: { children: React.ReactNode })
       <nav className="border-b-2 border-[#8a4baf] bg-[#0a0412] sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 flex items-center justify-between h-16">
           <div className="flex items-center gap-8">
-            <Link href="/login-landing" className="text-[#39ff14] text-2xl font-bold tracking-tighter flex items-center gap-2 hover:scale-105 transition-transform">
+            <Link href="/dashboard" className="text-[#39ff14] text-2xl font-bold tracking-tighter flex items-center gap-2 hover:scale-105 transition-transform">
               <span className="text-3xl">🌀</span> SLIMY
             </Link>
             
