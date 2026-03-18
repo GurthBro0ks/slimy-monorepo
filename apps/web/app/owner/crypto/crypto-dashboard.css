@@ -1,0 +1,78 @@
+/* =============================================
+   SlimyAI Crypto Dashboard — Mobile Overrides
+   ============================================= */
+
+/* --- Tab Bar: horizontal scroll on mobile --- */
+.crypto-tab-bar {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none; /* Firefox */
+}
+.crypto-tab-bar::-webkit-scrollbar {
+  display: none; /* Chrome/Safari */
+}
+
+/* --- Table/grid overflow wrapper --- */
+.crypto-table-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin: 0 -8px;
+  padding: 0 8px;
+}
+
+@media (max-width: 768px) {
+  /* --- Reduce outer padding --- */
+  .crypto-dashboard-root {
+    padding: 12px !important;
+  }
+
+  /* --- Tab buttons: don't shrink, allow scroll --- */
+  .crypto-tab-bar {
+    gap: 4px !important;
+  }
+  .crypto-tab-bar button {
+    white-space: nowrap;
+    flex-shrink: 0;
+    font-size: 12px !important;
+    padding: 6px 10px !important;
+  }
+
+  /* --- Stat grids: 2 columns instead of 3-4 --- */
+  .crypto-stat-grid {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 8px !important;
+  }
+
+  /* --- Airdrops table: let it scroll --- */
+  .crypto-airdrop-grid {
+    min-width: 700px;
+  }
+
+  /* --- Section headers: smaller font --- */
+  .crypto-section-title {
+    font-size: 14px !important;
+  }
+
+  /* --- Cards: reduce padding --- */
+  .crypto-card {
+    padding: 10px !important;
+  }
+
+  /* --- Modals: full-width on mobile --- */
+  .crypto-modal {
+    width: 95vw !important;
+    max-width: 95vw !important;
+    margin: 10px auto !important;
+  }
+}
+
+@media (max-width: 480px) {
+  /* --- Extra small: single column stats --- */
+  .crypto-stat-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .crypto-dashboard-root {
+    padding: 8px !important;
+  }
+}
