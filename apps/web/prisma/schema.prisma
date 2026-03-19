@@ -600,6 +600,9 @@ model DashboardSettings {
   mainWalletAddress   String   @default("") @map("main_wallet_address")
   trackedWallets     String   @default("[]") @map("tracked_wallets") // JSON string
 
+  // Discord notifications
+  discordWebhookUrl  String?  @map("discord_webhook_url")
+
   createdAt           DateTime @default(now()) @map("created_at")
   updatedAt           DateTime @updatedAt @map("updated_at")
 
@@ -777,5 +780,10 @@ model AirdropCompletion {
   txLink      String?                         // basescan.org, etherscan.io URL
   source      String    @default("manual")    // "manual" or "bot"
   notes       String?
+  txVerified      Boolean?   @default(false)
+  txVerifiedAt    DateTime?
+  txStatus        String?    // "confirmed", "pending", "failed", "not_found"
+  txBlockNumber   Int?
+  txChain         String?    // "ethereum", "base"
   createdAt   DateTime  @default(now())
 }

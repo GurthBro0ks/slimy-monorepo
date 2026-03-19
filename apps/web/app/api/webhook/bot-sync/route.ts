@@ -1,7 +1,75 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db as prisma } from "@/lib/db";
+import { createNotification } from "@/lib/notifications";
+import { verifyTx, detectChain } from "@/lib/tx-verify";
 
 const BOT_API = process.env.BOT_API_URL || "http://100.106.127.22:8510";
+
+/**
+ * Fire a notification only if no identical one exists within the given time window.
+ */
+async function notifyIfNew(opts: {
+  type: string;
+  severity: string;
+  title: string;
+  message: string;
+  windowMs?: number;
+}) {
+  const { type, severity, title, message, windowMs = 5 * 60 * 1000 } = opts;
+  const recent = await prisma.slimyNotification.findFirst({
+    where: { type },
+    orderBy: { createdAt: "desc" },
+  });
+  const cutoff = new Date(Date.now() - windowMs);
+  if (!recent || recent.createdAt < cutoff) {
+    await createNotification({ type: type as any, severity: severity as any, title, message });
+  }
+}
+
+/**
+ * Check for broken streaks on automated tasks (those with botActionKey set).
+ * A streak is considered broken if the last completion was more than 36 hours ago.
+ * Dedup: one notification per task per 12 hours.
+ */
+async function checkStreakBreaks() {
+  const TWELVE_HRS = 12 * 60 * 60 * 1000;
+  const twelveHrsAgo = new Date(Date.now() - TWELVE_HRS);
+
+  const tasks = await prisma.airdropTask.findMany({
+    where: { botActionKey: { not: null } },
+    select: { id: true, name: true, botActionKey: true },
+  });
+
+  for (const task of tasks) {
+    const lastCompletion = await prisma.airdropCompletion.findFirst({
+      where: { taskId: task.id },
+      orderBy: { completedAt: "desc" },
+      select: { completedAt: true },
+    });
+
+    const lastTime = lastCompletion?.completedAt?.getTime() ?? 0;
+    const hoursAgo = (Date.now() - lastTime) / (1000 * 60 * 60);
+
+    if (lastTime > 0 && hoursAgo > 36) {
+      const recentStreakNotif = await prisma.slimyNotification.findFirst({
+        where: {
+          type: "streak_break",
+          createdAt: { gte: twelveHrsAgo },
+          message: { contains: task.name },
+        },
+      });
+
+      if (!recentStreakNotif) {
+        await createNotification({
+          type: "streak_break",
+          severity: "warn",
+          title: "Airdrop Streak Break",
+          message: `Task "${task.name}" — last completed ${Math.round(hoursAgo)}h ago`,
+        });
+      }
+    }
+  }
+}
 
 // POST /api/webhook/bot-sync
 // Receives bot farming log from NUC1 and creates AirdropCompletion records
@@ -33,7 +101,6 @@ export async function POST(request: NextRequest) {
       }
 
       const data = await res.json();
-      // Handle different response shapes
       botActions = Array.isArray(data) ? data :
                    data.actions || data.log || data.entries || [];
     } catch (err: any) {
@@ -41,24 +108,29 @@ export async function POST(request: NextRequest) {
     }
 
     if (botActions.length === 0) {
+      await notifyIfNew({
+        type: "farming_quality",
+        severity: "warn",
+        title: "Empty Sync Payload",
+        message: "Bot sync webhook received but no farming actions were included.",
+        windowMs: 5 * 60 * 1000,
+      });
       return NextResponse.json({ synced: 0, skipped: 0, unmatched: 0, message: "No bot actions found" });
     }
 
     // 2. Get all tasks with botActionKey
     const tasks = await prisma.airdropTask.findMany({
       where: { botActionKey: { not: null } },
-      select: { id: true, botActionKey: true, airdropId: true, name: true },
+      select: { id: true, botActionKey: true, airdropId: true, name: true, airdrop: { select: { name: true, token: true } } },
     });
 
-    // Build a lookup: botActionKey → taskId
-    // Also need to handle protocol-based matching for swaps
-    const keyToTasks: Record<string, { id: string; airdropId: string; name: string }[]> = {};
+    const keyToTasks: Record<string, { id: string; airdropId: string; name: string; airdrop: { name: string; token: string } }[]> = {};
     for (const t of tasks) {
       if (t.botActionKey) {
         if (!keyToTasks[t.botActionKey]) {
           keyToTasks[t.botActionKey] = [];
         }
-        keyToTasks[t.botActionKey].push({ id: t.id, airdropId: t.airdropId, name: t.name });
+        keyToTasks[t.botActionKey].push({ id: t.id, airdropId: t.airdropId, name: t.name, airdrop: t.airdrop });
       }
     }
 
@@ -67,13 +139,17 @@ export async function POST(request: NextRequest) {
     let skipped = 0;
     let unmatched = 0;
     const details: any[] = [];
+    const failedActions: string[] = [];
 
     for (const action of botActions) {
-      // Extract action key and timestamp from the bot log entry
-      // Bot log uses: type (e.g., "swap", "nft_mint", "aave_deposit"), protocol (e.g., "aerodrome", "uniswap_v3")
       const actionType = action.type || action.action || action.name || null;
       const protocol = action.protocol || action.chain || null;
       const actionTime = action.timestamp || action.date || action.created_at || action.time || null;
+      const actionStatus = action.status || action.error || null;
+
+      if (actionStatus === "failed" || actionStatus === "error") {
+        failedActions.push(`${actionType}${protocol ? ` (${protocol})` : ""}`);
+      }
 
       if (!actionType) {
         unmatched++;
@@ -81,7 +157,6 @@ export async function POST(request: NextRequest) {
         continue;
       }
 
-      // Determine the action key with protocol-aware matching for "swap" type
       let actionKey: string | null = null;
       if (actionType === "swap") {
         if (protocol === "aerodrome") {
@@ -89,13 +164,12 @@ export async function POST(request: NextRequest) {
         } else if (protocol === "uniswap_v3") {
           actionKey = "swap_uniswap";
         } else {
-          actionKey = "swap"; // generic swap fallback
+          actionKey = "swap";
         }
       } else {
         actionKey = actionType;
       }
 
-      // Find matching task(s)
       const matchingTasks = keyToTasks[actionKey] || [];
       if (matchingTasks.length === 0) {
         unmatched++;
@@ -103,22 +177,18 @@ export async function POST(request: NextRequest) {
         continue;
       }
 
-      // Parse timestamp
       let completedAt: Date;
       if (actionTime) {
         completedAt = new Date(actionTime);
         if (isNaN(completedAt.getTime())) {
-          completedAt = new Date(); // Fallback to now
+          completedAt = new Date();
         }
       } else {
         completedAt = new Date();
       }
 
-      // 4. Dedup: check if a bot completion already exists for this task at this time
-      // Use a window of +/- 5 minutes to handle slight timestamp differences
       const windowMs = 5 * 60 * 1000;
 
-      // For each matching task, check and create completion if not exists
       for (const task of matchingTasks) {
         const existing = await prisma.airdropCompletion.findFirst({
           where: {
@@ -137,30 +207,63 @@ export async function POST(request: NextRequest) {
           continue;
         }
 
-        // 5. Create completion
         const txHash = action.tx_hash || action.hash || null;
-        await prisma.airdropCompletion.create({
+        const txLink = txHash ? `https://basescan.org/tx/${txHash}` :
+                action.tx_link || action.txLink || null;
+        const completion = await prisma.airdropCompletion.create({
           data: {
             taskId: task.id,
             completedAt,
             source: "bot",
             notes: `Bot: ${actionType}${protocol ? ` (${protocol})` : ""}${txHash ? ` tx:${txHash.slice(0, 8)}...` : ""}`,
-            txLink: txHash ? `https://basescan.org/tx/${txHash}` :
-                    action.tx_link || action.txLink || null,
+            txLink,
           },
         });
+
+        // Fire-and-forget TX verification
+        if (txHash) {
+          const chain = detectChain(task.airdrop.name, task.airdrop.token);
+          verifyTx(txHash, chain)
+            .then((result) => {
+              prisma.airdropCompletion.update({
+                where: { id: completion.id },
+                data: {
+                  txVerified: result.verified,
+                  txStatus: result.status,
+                  txBlockNumber: result.blockNumber ?? null,
+                  txChain: chain,
+                  txVerifiedAt: new Date(),
+                },
+              }).catch(() => {});
+            })
+            .catch(() => {});
+        }
 
         synced++;
         details.push({ action: actionType, task: task.name, status: "synced", time: completedAt.toISOString() });
       }
     }
 
+    // 4. Notify on failed actions
+    if (failedActions.length > 0) {
+      await notifyIfNew({
+        type: "farming_quality",
+        severity: "warn",
+        title: "Farming Action Failed",
+        message: `Actions failed during webhook sync: ${failedActions.join(", ")}`,
+        windowMs: 5 * 60 * 1000,
+      });
+    }
+
+    // 5. Check for broken streaks
+    await checkStreakBreaks();
+
     return NextResponse.json({
       synced,
       skipped,
       unmatched,
       total: botActions.length,
-      details: details.slice(0, 50), // Limit detail output
+      details: details.slice(0, 50),
     });
   } catch (error) {
     if (error instanceof NextResponse) {

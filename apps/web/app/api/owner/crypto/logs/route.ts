@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 // Returns recent activity logs from airdrop completions
 export async function GET(request: NextRequest) {
   try {
-    const ctx = await requireOwner(request);
+    await requireOwner(request);
 
     const { searchParams } = new URL(request.url);
     const category = searchParams.get("category") || "all";
@@ -46,6 +46,9 @@ export async function GET(request: NextRequest) {
             txLink: c.txLink,
             source: c.source,
             notes: c.notes,
+            txVerified: c.txVerified,
+            txStatus: c.txStatus,
+            txChain: c.txChain,
           },
         });
       }
