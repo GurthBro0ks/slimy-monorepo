@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect, useRef, useCallback } from "react";
 import "./crypto-dashboard.css";
+import TradingTab from "./TradingTab";
 
 const MOCK = {
   // Most data now from real APIs:
@@ -700,7 +701,7 @@ export default function Dashboard() {
   const evH = act.reduce((s, a) => s + a.est_high * (a.probability / 100), 0);
   const scan = (p) => { setScanSt(s => ({ ...s, [p]: "scanning" })); setTimeout(() => setScanSt(s => ({ ...s, [p]: Math.random() > .3 ? "eligible" : "unknown" })), 1400); };
   const scanAll = () => act.forEach((a, i) => setTimeout(() => scan(a.protocol), i * 700));
-  const tabs = [{ id: "overview", l: "Overview", i: "◈" }, { id: "airdrops", l: "Airdrops", i: "◎" }, { id: "risk", l: "Risk", i: "△" }, { id: "logs", l: "Logs", i: "▤" }, { id: "howto", l: "How-To", i: "📖" }, { id: "settings", l: "Settings", i: "⚙" }];
+  const tabs = [{ id: "overview", l: "Overview", i: "◈" }, { id: "airdrops", l: "Airdrops", i: "◎" }, { id: "risk", l: "Risk", i: "△" }, { id: "logs", l: "Logs", i: "▤" }, { id: "howto", l: "How-To", i: "📖" }, { id: "trading", l: "Trading", i: "📈" }, { id: "settings", l: "Settings", i: "⚙" }];
   const chainColors = { Base: C.cyan, ETH: C.green, Linea: C.pink, Monad: C.orange, Optimism: C.red };
 
   return (
@@ -1256,6 +1257,9 @@ export default function Dashboard() {
           )}
           <Card s={{ marginTop: 14 }}><Head>Diagnostics</Head><div style={{ padding: "16px 20px", display: "flex", gap: 10, flexWrap: "wrap" }}>{[{ l: "🔧 Diagnostic", c: C.yellow }, { l: "▶ Bot Cycle", c: C.green }, { l: "⚡ Reset Breaker", c: C.red }, { l: "🔍 Scan Wallets", c: C.cyan }].map(b => <button key={b.l} onClick={() => alert(b.l)} style={{ padding: "12px 20px", fontSize: 14, fontWeight: 600, background: `${b.c}0c`, color: b.c, border: `1px solid ${b.c}33`, borderRadius: 6 }}>{b.l}</button>)}</div></Card>
         </div>}
+
+        {/* TRADING */}
+        {tab === "trading" && <TradingTab isActive={tab === "trading"} />}
       </main>
 
       {/* Completion Modal */}
