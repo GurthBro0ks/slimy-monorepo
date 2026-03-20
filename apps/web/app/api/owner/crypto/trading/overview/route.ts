@@ -11,9 +11,9 @@ const PROOF_DIR = join(DATA_DIR, "proofs");
 
 function queryDb(db: string, sql: string): any[] {
   try {
-    const out = execSync(`sqlite3 -json "${db}" "${sql}"`, { encoding: "utf8" });
+    const out = execSync(`sqlite3 -json "${db}"`, { input: sql, encoding: "utf8" });
     if (!out.trim()) return [];
-    return out.trim().split("\n").map(line => JSON.parse(line));
+    return JSON.parse(out.trim());
   } catch {
     return [];
   }

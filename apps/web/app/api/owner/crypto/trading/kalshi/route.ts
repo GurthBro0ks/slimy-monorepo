@@ -7,9 +7,9 @@ const PNL_DB = `${DATA_DIR}/paper_trading/pnl.db`;
 
 function queryDb(sql: string): any[] {
   try {
-    const out = execSync(`sqlite3 -json "${PNL_DB}" "${sql}"`, { encoding: "utf8" });
+    const out = execSync(`sqlite3 -json "${PNL_DB}"`, { input: sql, encoding: "utf8" });
     if (!out.trim()) return [];
-    return out.trim().split("\n").map(line => JSON.parse(line));
+    return JSON.parse(out.trim());
   } catch {
     return [];
   }
