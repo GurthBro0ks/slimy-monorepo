@@ -84,14 +84,15 @@ export function RetroShell({ children }: { children: React.ReactNode }) {
         }
         .nav-btn:hover { background-color: #3c096c; color: #fff; text-shadow: 0 0 5px #fff; border-color: #00ff00; }
         
-        .marquee-container { 
-            position: fixed; top: 110px; left: 0; width: 100%; 
-            height: 44px; 
-            background: #240046; color: #00ff00; 
-            border-bottom: 1px solid #5a189a; 
-            z-index: 900;
-            display: flex; align-items: center; 
+        .marquee-container {
+            position: fixed; top: 110px; left: 0; width: 100%;
+            height: 44px;
+            background: #240046; color: #00ff00;
+            border-bottom: 1px solid #5a189a;
+            z-index: 10;
+            display: flex; align-items: center;
             overflow: hidden;
+            pointer-events: none;
         }
         .marquee-text-wrapper {
             width: 100%;
@@ -135,7 +136,7 @@ export function RetroShell({ children }: { children: React.ReactNode }) {
       </div>
 
       <div id="slime-overlay" ref={slimeContainerRef}></div>
-      <div style={{ position: 'relative', zIndex: 10, minHeight: '50vh', display: 'flex', flexDirection: 'column' }}><div style={{ flex: 1 }}>{children}</div><footer className="web-footer"><div className="footer-text">Enter the Slime Matrix</div><div className="footer-copy">&copy; 2025 slimyai.xyz</div></footer></div>
+      <div style={{ position: 'relative', zIndex: 10, minHeight: '50vh', display: 'flex', flexDirection: 'column' }}><div style={{ flex: 1 }}>{children}</div><footer className="web-footer"><div className="footer-text">Enter the Slime Matrix</div><div className="footer-copy">&copy; {new Date().getFullYear()} slimyai.xyz</div></footer></div>
       {/* ChatWidget removed */}
     </>
   );

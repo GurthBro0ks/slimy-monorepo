@@ -7,8 +7,20 @@ import { mainnet, base } from "viem/chains";
 export const dynamic = "force-dynamic";
 
 // Free public RPCs as fallbacks
-const DEFAULT_ETH_RPC = "https://eth.llamarpc.com";
+const DEFAULT_ETH_RPC = "https://cloudflare-eth.com";
 const DEFAULT_BASE_RPC = "https://base.llamarpc.com";
+
+// Helper to extract a short user-friendly error message from RPC errors
+function shortError(err: unknown): string {
+  // Try to extract from viem/wagmi error shapes
+  const e = err as any;
+  if (e?.error?.message) return e.error.message.slice(0, 80);
+  if (e?.reason) return e.reason.slice(0, 80);
+  if (e?.message) return e.message.slice(0, 80);
+  // Fallback for raw JSON-RPC errors
+  if (e?.code && e?.message) return e.message.slice(0, 80);
+  return "RPC unavailable";
+}
 
 // GET /api/owner/crypto/wallets
 // Returns wallet balances from blockchain
@@ -95,7 +107,7 @@ export async function GET(request: NextRequest) {
           chain: "ethereum",
           symbol: "ETH",
           balance: "0",
-          error: err.message?.slice(0, 100),
+          error: shortError(err),
         });
       }
 
@@ -113,7 +125,7 @@ export async function GET(request: NextRequest) {
           chain: "base",
           symbol: "ETH",
           balance: "0",
-          error: err.message?.slice(0, 100),
+          error: shortError(err),
         });
       }
 

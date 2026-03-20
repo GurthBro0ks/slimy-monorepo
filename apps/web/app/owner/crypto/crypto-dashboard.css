@@ -66,6 +66,22 @@
   }
 }
 
+@media (max-width: 768px) {
+  /* --- Owner nav: prevent SLIMY logo from clipping at left edge --- */
+  .owner-nav-inner {
+    padding-left: 4px !important;
+  }
+
+  /* --- Crypto header: reduce padding so PAPER badge fits --- */
+  .crypto-header-inner {
+    padding: 0 12px !important;
+  }
+  .crypto-header-inner .crypto-paper-badge {
+    font-size: 9px !important;
+    padding: 4px 8px !important;
+  }
+}
+
 @media (max-width: 480px) {
   /* --- Extra small: single column stats --- */
   .crypto-stat-grid {
@@ -74,5 +90,143 @@
 
   .crypto-dashboard-root {
     padding: 8px !important;
+    padding-bottom: env(safe-area-inset-bottom) !important;
+  }
+
+  /* --- Tab bar: add left padding so first tab isn't clipped --- */
+  .crypto-tab-bar {
+    padding-left: 8px;
+  }
+
+  /* --- Owner nav: reduce padding further --- */
+  .owner-nav-inner {
+    padding-left: 0 !important;
+  }
+
+  /* --- Crypto header: further reduce padding --- */
+  .crypto-header-inner {
+    padding: 0 8px !important;
+    gap: 6px !important;
+  }
+  .crypto-header-inner .crypto-paper-badge {
+    font-size: 8px !important;
+    padding: 3px 6px !important;
+  }
+  .crypto-header-inner .crypto-paper-badge span {
+    display: none;
+  }
+
+  /* --- Airdrop status column: allow wrap, reduce font --- */
+  .crypto-airdrop-grid .airdrop-status {
+    font-size: 10px !important;
+    white-space: normal !important;
+    word-break: break-word;
+  }
+
+  /* --- Stat labels: shrink for narrow screens --- */
+  .crypto-stat-grid [class*="stat-label"] {
+    font-size: 9px !important;
+  }
+
+  /* ────────── OVERVIEW TAB ────────── */
+  /* Stack the top stats row (Total Wallets | Bot Bankroll) */
+  .crypto-overview-top {
+    flex-direction: column !important;
+    gap: 12px !important;
+    padding: 14px 16px !important;
+  }
+  /* Cap large dollar fonts */
+  .crypto-overview-top .dollar-value,
+  .crypto-overview-top [style*="font-size: 36"] {
+    font-size: 22px !important;
+  }
+  .crypto-overview-top [style*="font-size: 24"] {
+    font-size: 20px !important;
+  }
+
+  /* ────────── AIRDROPS TAB ────────── */
+  /* Allow airdrop action buttons to wrap on narrow screens */
+  .crypto-airdrop-actions {
+    flex-wrap: wrap !important;
+    gap: 6px !important;
+  }
+  .crypto-airdrop-actions button {
+    min-height: 36px !important;
+    font-size: 12px !important;
+    padding: 6px 12px !important;
+  }
+
+  /* ────────── RISK TAB ────────── */
+  /* Bot Status 4-col → 2-col on phone */
+  .crypto-risk-bot-status {
+    grid-template-columns: 1fr 1fr !important;
+  }
+  /* Risk 3-col → 1-col on phone */
+  .crypto-risk-cards {
+    grid-template-columns: 1fr !important;
+  }
+  /* Kelly Pipeline: allow wrap, shrink pipeline boxes */
+  .crypto-kelly-pipeline {
+    overflow-x: auto !important;
+  }
+  .crypto-kelly-pipeline > div > div:first-child > div {
+    flex-wrap: wrap !important;
+    gap: 4px !important;
+  }
+
+  /* ────────── LOGS TAB ────────── */
+  /* Filter buttons: shrink and wrap */
+  .crypto-logs-filter {
+    flex-wrap: wrap !important;
+    gap: 4px !important;
+  }
+  .crypto-logs-filter button {
+    min-height: 36px !important;
+    padding: 6px 10px !important;
+    font-size: 11px !important;
+  }
+  /* Log entries: stack timestamp below, shorten date format */
+  .crypto-log-entry {
+    flex-wrap: wrap !important;
+    gap: 6px !important;
+  }
+  .crypto-log-entry .log-time {
+    font-size: 10px !important;
+    color: #666 !important;
+    padding-left: 0 !important;
+    width: 100% !important;
+  }
+
+  /* ────────── HOW-TO TAB ────────── */
+  /* Reduce padding on how-to content */
+  .crypto-howto-body {
+    padding: 12px 14px !important;
+  }
+
+  /* ────────── SETTINGS TAB ────────── */
+  /* Stack 2-col settings grid to 1 column */
+  .crypto-settings-grid {
+    grid-template-columns: 1fr !important;
+  }
+  /* Diagnostics buttons: wrap to 2x2 or 1-col */
+  .crypto-settings-grid + .crypto-card button {
+    min-height: 44px !important;
+  }
+  /* Discord webhook input: full width on mobile */
+  .crypto-settings-grid input[type="url"],
+  .crypto-settings-grid input[type="text"] {
+    width: 100% !important;
+  }
+
+  /* ────────── TOUCH TARGETS ────────── */
+  /* All interactive elements: min 44px height on mobile */
+  button {
+    min-height: 36px !important;
+  }
+  a[href] {
+    min-height: 36px !important;
+  }
+  input, select {
+    min-height: 36px !important;
   }
 }

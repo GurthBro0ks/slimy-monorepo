@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireOwner } from "@/lib/auth/owner";
+import { db as prisma } from "@/lib/db";
 import { createNotification } from "@/lib/notifications";
 
 const BOT_API = process.env.BOT_API_URL || "http://100.106.127.22:8510";
@@ -24,6 +25,28 @@ async function fetchBot(path: string): Promise<any> {
   }
 }
 
+/**
+ * Fire a notification only if no identical one exists within the given time window.
+ * This prevents spamming the same notification every time the endpoint is polled.
+ */
+async function notifyIfNew(opts: {
+  type: string;
+  severity: string;
+  title: string;
+  message: string;
+  windowMs?: number;
+}) {
+  const { type, severity, title, message, windowMs = 5 * 60 * 1000 } = opts;
+  const recent = await prisma.slimyNotification.findFirst({
+    where: { type },
+    orderBy: { createdAt: "desc" },
+  });
+  const cutoff = new Date(Date.now() - windowMs);
+  if (!recent || recent.createdAt < cutoff) {
+    await createNotification({ type: type as any, severity: severity as any, title, message });
+  }
+}
+
 // GET /api/owner/crypto/bot
 // Proxies requests to the bot API on NUC1 via Tailscale
 export async function GET(request: NextRequest) {
@@ -44,11 +67,12 @@ export async function GET(request: NextRequest) {
     const isUnhealthy = health.error || health.degraded;
     if (isUnhealthy) {
       const healthError = health.error || health.degraded || "Unknown health issue";
-      await createNotification({
+      await notifyIfNew({
         type: "bot_error",
         severity: "warn",
         title: "Trading Bot Health Issue",
         message: `Bot health check failed: ${healthError}`,
+        windowMs: 5 * 60 * 1000,
       });
     }
 
@@ -57,11 +81,12 @@ export async function GET(request: NextRequest) {
       (ep) => ep.error
     ).length;
     if (totalErrors >= 4) {
-      await createNotification({
+      await notifyIfNew({
         type: "bot_error",
         severity: "error",
         title: "Trading Bot Unreachable",
         message: `Bot API is not responding. ${totalErrors}/5 endpoints failed.`,
+        windowMs: 5 * 60 * 1000,
       });
     }
 

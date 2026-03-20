@@ -13,6 +13,10 @@ export async function GET(request: NextRequest) {
   try {
     await requireOwner(request);
 
+    const today = new Date();
+    today.setUTCHours(0, 0, 0, 0);
+    const thirtyDaysAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
+
     const airdrops = await prisma.airdrop.findMany({
       orderBy: [{ tier: 'asc' }, { protocol: 'asc' }],
       include: {
@@ -21,7 +25,7 @@ export async function GET(request: NextRequest) {
             _count: { select: { completions: true } },
             completions: {
               orderBy: { completedAt: 'desc' },
-              take: 1,
+              take: 30,
               select: { completedAt: true },
             },
           },
@@ -29,7 +33,70 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    return NextResponse.json({ airdrops });
+    // Compute progress and per-task stats
+    const enriched = airdrops.map((airdrop) => {
+      const totalTasks = airdrop.tasks.length;
+      let completedToday = 0;
+      let totalCompletions = 0;
+
+      const tasksWithStats = airdrop.tasks.map((task) => {
+        const lastCompletion = task.completions[0]?.completedAt ?? null;
+        totalCompletions += task._count.completions;
+
+        // Check if completed today (UTC)
+        const isCompletedToday = task.completions.some((c) => {
+          const d = new Date(c.completedAt);
+          d.setUTCHours(0, 0, 0, 0);
+          return d.getTime() === today.getTime();
+        });
+        if (isCompletedToday) completedToday++;
+
+        // Calculate streak: consecutive days backwards from today
+        const completionDates = [...new Set(
+          task.completions.map((c) => {
+            const d = new Date(c.completedAt);
+            d.setUTCHours(0, 0, 0, 0);
+            return d.getTime();
+          })
+        )].sort((a, b) => b - a); // newest first
+
+        let streakDays = 0;
+        let checkDate = today.getTime();
+        for (const dateMs of completionDates) {
+          if (dateMs === checkDate) {
+            streakDays++;
+            checkDate -= 24 * 60 * 60 * 1000;
+          } else if (dateMs < checkDate) {
+            break; // gap in streak
+          }
+        }
+
+        return {
+          id: task.id,
+          name: task.name,
+          frequency: task.frequency,
+          botActionKey: task.botActionKey,
+          completionCount: task._count.completions,
+          completedToday: isCompletedToday,
+          lastCompleted: lastCompletion ? lastCompletion.toISOString() : null,
+          streakDays,
+        };
+      });
+
+      const completionRate = totalTasks > 0 ? Math.round((completedToday / totalTasks) * 100) : 0;
+
+      return {
+        ...airdrop,
+        tasks: tasksWithStats,
+        progress: {
+          totalTasks,
+          completedToday,
+          completionRate,
+        },
+      };
+    });
+
+    return NextResponse.json({ airdrops: enriched });
   } catch (error) {
     if (error instanceof NextResponse) {
       return error;

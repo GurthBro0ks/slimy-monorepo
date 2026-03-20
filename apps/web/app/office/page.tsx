@@ -109,16 +109,6 @@ export default function OfficeDashboard() {
         )}
       </main>
 
-      {/* Footer */}
-      <footer className="border-t border-gray-800 p-4 text-xs text-gray-600 bg-gray-950">
-        <div className="flex justify-between items-center">
-          <div>Gateway: {presence ? 'Online' : 'Offline'}</div>
-          <div className="flex items-center gap-2">
-             <span className="w-2 h-2 rounded-full bg-green-500"></span>
-             <span>System Operational</span>
-          </div>
-        </div>
-      </footer>
     </div>
   );
 }

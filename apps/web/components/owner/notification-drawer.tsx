@@ -13,6 +13,17 @@ interface Notification {
   createdAt: string;
 }
 
+function timeAgo(date: string | Date): string {
+  const seconds = Math.floor((Date.now() - new Date(date).getTime()) / 1000);
+  if (seconds < 60) return "just now";
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
+}
+
 export function NotificationBell() {
   const [isOpen, setIsOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -20,7 +31,22 @@ export function NotificationBell() {
   const [loading, setLoading] = useState(false);
   const drawerRef = useRef<HTMLDivElement>(null);
 
-  // Fetch notifications
+  // Fetch unread count (lightweight, runs on mount + every 30s always)
+  const fetchUnreadCount = async () => {
+    try {
+      const res = await fetch("/api/owner/notifications?unread=true&limit=1", {
+        credentials: "include",
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setUnreadCount(data.unreadCount ?? 0);
+      }
+    } catch (err) {
+      // Non-fatal
+    }
+  };
+
+  // Fetch full notification list (when drawer opens)
   const fetchNotifications = async () => {
     setLoading(true);
     try {
@@ -75,12 +101,14 @@ export function NotificationBell() {
     }
   };
 
-  // Dismiss notification
+  // Dismiss notification (soft-delete via PATCH)
   const dismiss = async (id: string) => {
     try {
       const res = await fetch(`/api/owner/notifications/${id}`, {
-        method: "DELETE",
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
         credentials: "include",
+        body: JSON.stringify({ dismissed: true }),
       });
       if (res.ok) {
         const wasUnread = notifications.find((n) => n.id === id && !n.read);
@@ -92,33 +120,39 @@ export function NotificationBell() {
     }
   };
 
-  // Open drawer - fetch on open
+  // On mount: fetch unread count immediately + start 30s poll
   useEffect(() => {
-    if (isOpen && notifications.length === 0) {
+    fetchUnreadCount();
+    const interval = setInterval(fetchUnreadCount, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // When drawer opens, fetch full list
+  useEffect(() => {
+    if (isOpen) {
       fetchNotifications();
+      // Refresh list every 30s while open
+      const interval = setInterval(fetchNotifications, 30000);
+      return () => clearInterval(interval);
     }
   }, [isOpen]);
 
   // Close on click outside
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (drawerRef.current && !drawerRef.current.contains(e.target as Node)) {
-        const bellBtn = document.getElementById("notification-bell");
-        if (bellBtn && !bellBtn.contains(e.target as Node)) {
-          setIsOpen(false);
-        }
+      const bellBtn = document.getElementById("notification-bell");
+      if (
+        drawerRef.current &&
+        !drawerRef.current.contains(e.target as Node) &&
+        bellBtn &&
+        !bellBtn.contains(e.target as Node)
+      ) {
+        setIsOpen(false);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
-
-  // Poll for new notifications every 30s when drawer is open
-  useEffect(() => {
-    if (!isOpen) return;
-    const interval = setInterval(fetchNotifications, 30000);
-    return () => clearInterval(interval);
-  }, [isOpen]);
 
   const severityColors = {
     info: "border-blue-500/50 text-blue-300",
@@ -166,7 +200,7 @@ export function NotificationBell() {
       {isOpen && (
         <div
           ref={drawerRef}
-          className="absolute right-0 top-12 w-80 max-h-96 bg-[#0a0a0f] border border-purple-500/30 rounded-lg shadow-xl overflow-hidden z-50"
+          className="absolute right-0 top-12 w-80 max-h-96 bg-[#0a0a0f] border border-purple-500/30 rounded-lg shadow-xl overflow-hidden z-[910]"
         >
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-purple-500/20 bg-black/50">
@@ -184,9 +218,9 @@ export function NotificationBell() {
           {/* Notification List */}
           <div className="overflow-y-auto max-h-72">
             {loading && notifications.length === 0 ? (
-              <div className="p-4 text-center text-gray-500 text-sm">Loading...</div>
+              <div className="p-4 text-center text-gray-500 text-sm font-['VT323']">Loading...</div>
             ) : notifications.length === 0 ? (
-              <div className="p-4 text-center text-gray-500 text-sm">
+              <div className="p-4 text-center text-gray-500 text-sm font-['VT323']">
                 No notifications
               </div>
             ) : (
@@ -207,26 +241,26 @@ export function NotificationBell() {
                           <span className="w-2 h-2 bg-purple-500 rounded-full" />
                         )}
                       </div>
-                      <p className="text-sm font-medium truncate">{notification.title}</p>
-                      <p className="text-xs text-gray-400 line-clamp-2 mt-1">
+                      <p className="text-sm font-medium font-['VT323'] truncate">{notification.title}</p>
+                      <p className="text-xs text-gray-400 line-clamp-2 mt-1 font-['VT323']">
                         {notification.message}
                       </p>
-                      <p className="text-xs text-gray-500 mt-1">
-                        {new Date(notification.createdAt).toLocaleString()}
+                      <p className="text-xs text-gray-500 mt-1 font-['VT323']">
+                        {timeAgo(notification.createdAt)}
                       </p>
                     </div>
                     <div className="flex flex-col gap-1">
                       {!notification.read && (
                         <button
                           onClick={() => markAsRead(notification.id)}
-                          className="text-xs text-purple-400 hover:text-purple-300"
+                          className="text-xs text-purple-400 hover:text-purple-300 font-['VT323']"
                         >
                           Read
                         </button>
                       )}
                       <button
                         onClick={() => dismiss(notification.id)}
-                        className="text-xs text-gray-500 hover:text-red-400"
+                        className="text-xs text-gray-500 hover:text-red-400 font-['VT323']"
                       >
                         Dismiss
                       </button>

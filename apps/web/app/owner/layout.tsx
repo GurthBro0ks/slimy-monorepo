@@ -34,7 +34,7 @@ export default async function OwnerLayout({ children }: OwnerLayoutProps) {
     <div className="min-h-screen bg-[var(--bg-deep)]">
       {/* Owner Panel Navigation */}
       <nav className="border-b border-purple-500/30 bg-black/50 backdrop-blur">
-        <div className="max-w-7xl mx-auto px-6 py-4">
+        <div className="max-w-7xl mx-auto px-6 py-4 owner-nav-inner">
           <div className="flex items-center justify-between gap-6">
             <Link
               href="/"

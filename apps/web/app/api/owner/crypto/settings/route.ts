@@ -53,6 +53,7 @@ export async function PATCH(request: NextRequest) {
       "baseRpc",
       "mainWalletAddress",
       "trackedWallets",
+      "discordWebhookUrl",
     ];
 
     const data: Record<string, any> = {};
