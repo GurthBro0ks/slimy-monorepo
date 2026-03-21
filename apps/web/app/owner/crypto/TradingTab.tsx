@@ -354,8 +354,8 @@ export default function TradingTab({ isActive }: { isActive: boolean }) {
                         <td style={{ padding: "5px 8px", color: C.sub, fontSize: 11 }}><ClientTimestamp dateStr={r.timestamp} /></td>
                         <td style={{ padding: "5px 8px", color: C.text, maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.marketId}</td>
                         <td style={{ padding: "5px 8px", color: r.side === "BUY" ? C.green : C.red }}>{r.side}</td>
-                        <td style={{ padding: "5px 8px", textAlign: "right", color: C.text }}>{r.entryPrice.toFixed(2)}</td>
-                        <td style={{ padding: "5px 8px", textAlign: "right", color: r.pnlUsd >= 0 ? C.green : C.red, fontWeight: 600 }}>{r.pnlUsd >= 0 ? "+" : ""}{r.pnlUsd.toFixed(2)}</td>
+                        <td style={{ padding: "5px 8px", textAlign: "right", color: C.text }}>{(r.entryPrice ?? 0).toFixed(2)}</td>
+                        <td style={{ padding: "5px 8px", textAlign: "right", color: (r.pnlUsd ?? 0) >= 0 ? C.green : C.red, fontWeight: 600 }}>{(r.pnlUsd ?? 0) >= 0 ? "+" : ""}{(r.pnlUsd ?? 0).toFixed(2)}</td>
                         <td style={{ padding: "5px 8px" }}><Badge text={r.source} color={r.source === "live" ? C.green : C.cyan} /></td>
                       </tr>
                     ))}
@@ -410,16 +410,16 @@ export default function TradingTab({ isActive }: { isActive: boolean }) {
                       <tr key={b.id} style={{ borderBottom: `1px solid ${C.dim}11` }}>
                         <td style={{ padding: "6px 8px", color: C.text, fontWeight: 600 }}>{b.name}</td>
                         <td style={{ padding: "6px 8px", color: C.sub, fontSize: 11 }}>{b.bonusType}</td>
-                        <td style={{ padding: "6px 8px", textAlign: "right", color: C.green }}>${b.amount.toFixed(0)}</td>
+                        <td style={{ padding: "6px 8px", textAlign: "right", color: C.green }}>${(b.amount ?? 0).toFixed(0)}</td>
                         <td style={{ padding: "6px 8px", textAlign: "right", color: C.sub }}>{b.rollover}x</td>
                         <td style={{ padding: "6px 8px" }}>
                           <Badge text={b.status} color={statusColors[b.status] || C.dim} />
                         </td>
                         <td style={{ padding: "6px 8px", textAlign: "right", color: C.yellow }}>
-                          ${b.status === "available" ? (b.amount * 0.70).toFixed(0) : "—"}
+                          ${b.status === "available" ? ((b.amount ?? 0) * 0.70).toFixed(0) : "—"}
                         </td>
-                        <td style={{ padding: "6px 8px", textAlign: "right", color: rolloverEV >= 0 ? C.green : C.red, fontWeight: 600 }}>
-                          ${rolloverEV.toFixed(0)}
+                        <td style={{ padding: "6px 8px", textAlign: "right", color: (rolloverEV ?? 0) >= 0 ? C.green : C.red, fontWeight: 600 }}>
+                          ${(rolloverEV ?? 0).toFixed(0)}
                         </td>
                       </tr>
                     );
@@ -499,10 +499,10 @@ export default function TradingTab({ isActive }: { isActive: boolean }) {
                     Trades: <span style={{ color: C.text }}>{bootstrap.latest.trades}</span>
                   </div>
                   <div style={{ color: C.dim, fontFamily: C.mono, fontSize: 11 }}>
-                    Observed win rate: <span style={{ color: C.green }}>{(bootstrap.latest.observedWinRate * 100).toFixed(1)}%</span>
+                    Observed win rate: <span style={{ color: C.green }}>{((bootstrap.latest.observedWinRate ?? 0) * 100).toFixed(1)}%</span>
                   </div>
                   <div style={{ color: C.dim, fontFamily: C.mono, fontSize: 11 }}>
-                    Breakeven: <span style={{ color: C.yellow }}>{(bootstrap.latest.observedWinRate > (bootstrap.latest.pValue || 0) ? "✓" : "✗")} {(bootstrap.latest.pValue * 100).toFixed(1)}%</span>
+                    Breakeven: <span style={{ color: C.yellow }}>{(bootstrap.latest.observedWinRate > (bootstrap.latest.pValue || 0) ? "✓" : "✗")} {((bootstrap.latest.pValue ?? 0) * 100).toFixed(1)}%</span>
                   </div>
                 </div>
               </div>
@@ -510,7 +510,7 @@ export default function TradingTab({ isActive }: { isActive: boolean }) {
               {/* Metrics row */}
               <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14, marginBottom: 20 }}>
                 <Stat label="Trades Analyzed" value={bootstrap.latest.trades} color={C.cyan} />
-                <Stat label="Observed Win Rate" value={`${(bootstrap.latest.observedWinRate * 100).toFixed(1)}%`}
+                <Stat label="Observed Win Rate" value={`${((bootstrap.latest.observedWinRate ?? 0) * 100).toFixed(1)}%`}
                   color={C.green} />
                 <Stat label="Payoff Ratio"
                   value={`${bootstrap.latest.ci95MeanPnl ? "" : "—"}`}
@@ -529,7 +529,7 @@ export default function TradingTab({ isActive }: { isActive: boolean }) {
                   <div key={item.label} style={{ marginBottom: 14 }}>
                     <div style={{ display: "flex", justifyContent: "space-between", fontFamily: C.mono, fontSize: 12, marginBottom: 4 }}>
                       <span style={{ color: C.sub }}>{item.label}</span>
-                      <span style={{ color: C.green }}>{item.ci[0].toFixed(4)} – {item.ci[1].toFixed(4)}</span>
+                      <span style={{ color: C.green }}>{((item.ci?.[0]) ?? 0).toFixed(4)} – {((item.ci?.[1]) ?? 0).toFixed(4)}</span>
                     </div>
                     <div style={{ position: "relative", height: 10, background: "rgba(255,255,255,0.05)", borderRadius: 5 }}>
                       <div style={{

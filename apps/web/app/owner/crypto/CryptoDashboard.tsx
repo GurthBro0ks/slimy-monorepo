@@ -204,7 +204,7 @@ const AirdropCalendar = ({ airdrops }) => {
 
 // ─── UI PRIMITIVES ───────────────────────────────────────────
 const Card = ({ children, s = {} }) => <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 12, overflow: "hidden", ...s }}>{children}</div>;
-const Head = ({ children, right }) => <div style={{ padding: "14px 20px", borderBottom: `1px solid ${C.border}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}><span style={{ fontSize: 14, fontWeight: 700, color: C.cyan, letterSpacing: 2.5, textTransform: "uppercase", fontFamily: C.mono }}>{children}</span>{right && <span style={{ fontSize: 12, color: C.green, fontFamily: C.mono }}>{right}</span>}</div>;
+const Head = ({ children, right }) => <div style={{ padding: "14px 20px", borderBottom: `1px solid ${C.border}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}><span style={{ fontSize: 14, fontWeight: 700, color: C.cyan, letterSpacing: 2.5, textTransform: "uppercase", fontFamily: C.mono }}>{children}</span>{right && <span suppressHydrationWarning style={{ fontSize: 12, color: C.green, fontFamily: C.mono }}>{right}</span>}</div>;
 const Stat = ({ label, value, sub, color = C.green, desc }) => (
   <div style={{ background: C.card, border: `1px solid ${color}22`, borderRadius: 12, padding: "16px 20px" }}>
     <div style={{ fontSize: 13, color: C.green, letterSpacing: 1.5, textTransform: "uppercase", fontFamily: C.mono, marginBottom: 4, fontWeight: 600 }}>{desc ? <Tip term={label} text={desc}>{label}</Tip> : label}</div>
@@ -716,7 +716,7 @@ export default function Dashboard() {
             <a href="https://slimyai.xyz" style={{ fontSize: 11, color: C.cyan, fontFamily: C.mono, padding: "5px 12px", border: `1px solid ${C.cyan}33`, borderRadius: 5 }}>🏠 Menu</a>
             <a href="https://slimyai.xyz/chat" style={{ fontSize: 11, color: C.green, fontFamily: C.mono, padding: "5px 12px", border: `1px solid ${C.green}33`, borderRadius: 5 }}>💬 Chat</a>
             <div style={{ display: "flex", alignItems: "center", gap: 5, padding: "5px 12px", background: `${botData?.trading?.mode === "live" ? C.green : C.yellow}0c`, borderRadius: 5, border: `1px solid ${botData?.trading?.mode === "live" ? C.green : C.yellow}22` }}><div style={{ width: 7, height: 7, borderRadius: "50%", background: botData?.health?.ok ? C.green : C.red, animation: "pulse 2s infinite" }} /><span style={{ fontSize: 11, color: botData?.trading?.mode === "live" ? C.green : C.yellow, fontWeight: 700, fontFamily: C.mono }}>{botData?.trading?.mode?.toUpperCase() || "OFFLINE"}</span></div>
-            <span style={{ fontSize: 11, color: C.muted, fontFamily: C.mono }}>{now.toLocaleTimeString()}</span>
+            <span style={{ fontSize: 11, color: C.muted, fontFamily: C.mono }} suppressHydrationWarning>{now.toLocaleTimeString()}</span>
           </div>
         </div>
       </header>
@@ -735,7 +735,7 @@ export default function Dashboard() {
                 <div style={{ fontSize: 36, fontWeight: 700, color: C.sub, fontFamily: C.mono }}>Loading...</div>
               ) : walletData?.wallets?.length > 0 ? (
                 <div style={{ fontSize: 36, fontWeight: 700, color: C.green, fontFamily: C.mono }}>
-                  ${walletData.wallets.reduce((sum: number, w: any) => sum + w.chains.reduce((s: number, c: any) => s + (parseFloat(c.balance) || 0), 0), 0).toFixed(2)}
+                  ${(walletData?.wallets ?? []).reduce((sum: number, w: any) => sum + (w.chains ?? []).reduce((s: number, c: any) => s + (parseFloat(c.balance) || 0), 0), 0).toFixed(2)}
                 </div>
               ) : (
                 <div style={{ fontSize: 36, fontWeight: 700, color: C.sub, fontFamily: C.mono }}>$0.00</div>
@@ -880,7 +880,7 @@ export default function Dashboard() {
                                 <div style={{ flex: 1, height: 4, background: "rgba(255,255,255,0.04)", borderRadius: 2, overflow: "hidden" }}>
                                   <div style={{ height: "100%", width: `${Math.min(parseFloat(c.balance) * 10, 100)}%`, background: `linear-gradient(90deg,${C.cyan},${C.green})`, borderRadius: 2 }} />
                                 </div>
-                                <span style={{ fontSize: 12, color: C.text, minWidth: 70, textAlign: "right", fontFamily: C.mono }}>{parseFloat(c.balance).toFixed(4)} ETH</span>
+                                <span style={{ fontSize: 12, color: C.text, minWidth: 70, textAlign: "right", fontFamily: C.mono }}>{(parseFloat(c.balance) || 0).toFixed(4)} ETH</span>
                               </>
                             )}
                           </div>
@@ -924,7 +924,7 @@ export default function Dashboard() {
                     {farmingStats.recentCompletions.map((c: any) => (
                       <div key={c.id} style={{ display: "flex", justifyContent: "space-between", padding: "4px 0", fontSize: 12, borderBottom: `1px solid ${C.border}22` }}>
                         <span><span style={{ color: C.green }}>{c.protocol}</span>: {c.taskName}</span>
-                        <span style={{ color: C.dim }}>{new Date(c.completedAt).toLocaleDateString()}</span>
+                        <span suppressHydrationWarning style={{ color: C.dim }}>{new Date(c.completedAt).toLocaleDateString()}</span>
                       </div>
                     ))}
                   </div>
@@ -976,15 +976,15 @@ export default function Dashboard() {
                     <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 8, fontSize: 11 }}>
                       <div>
                         <span style={{ color: C.dim }}>Weekly:</span>{" "}
-                        <span style={{ color: C.text }}>${botData.farming.stats.weekly_spend_usd?.toFixed(2) || "0"}</span>
+                        <span style={{ color: C.text }}>${botData?.farming?.stats?.weekly_spend_usd?.toFixed(2) || "0"}</span>
                       </div>
                       <div>
                         <span style={{ color: C.dim }}>Actions:</span>{" "}
-                        <span style={{ color: C.text }}>{botData.farming.stats.total_actions || 0}</span>
+                        <span style={{ color: C.text }}>{botData?.farming?.stats?.total_actions || 0}</span>
                       </div>
                       <div>
                         <span style={{ color: C.dim }}>Protocols:</span>{" "}
-                        <span style={{ color: C.text }}>{botData.farming.stats.unique_protocols_30d || 0}</span>
+                        <span style={{ color: C.text }}>{botData?.farming?.stats?.unique_protocols_30d || 0}</span>
                       </div>
                     </div>
                   </div>
@@ -1221,7 +1221,7 @@ export default function Dashboard() {
                         TX ↗
                       </a>
                     )}
-                    <span style={{ fontSize: 11, color: C.dim, whitespace: "nowrap" }}>
+                    <span suppressHydrationWarning style={{ fontSize: 11, color: C.dim, whitespace: "nowrap" }}>
                       {new Date(log.timestamp).toLocaleString()}
                     </span>
                   </div>
@@ -1240,7 +1240,7 @@ export default function Dashboard() {
 
         {/* HOW-TO */}
         {tab === "howto" && <div style={{ animation: "fadeUp 0.3s" }}>
-          <Card s={{ marginBottom: 16 }}><Head>Quick Start Guide</Head><div style={{ padding: "18px 22px", fontSize: 14, color: C.text, lineHeight: 1.9 }}><div style={{ color: C.pink, fontWeight: 700, fontFamily: C.mono, marginBottom: 8, fontSize: 14 }}>YOUR BOT IN 30 SECONDS:</div>{["Bot runs every 10 min on cron.", `Scans ${d.scanner.kalshi_series.toLocaleString()} Kalshi + ${d.scanner.crypto_pairs} crypto pairs.`, "5-gate Kelly pipeline on every trade.", "No edge ≥5%? Does nothing. Correct.", "Farms airdrops alongside trading.", `${d.bot.proofs.toLocaleString()} JSON proofs generated.`].map((s, i) => <div key={i}><span style={{ color: C.green, fontWeight: 700 }}>{i + 1}.</span> {s}</div>)}<div style={{ marginTop: 12, color: C.yellow, fontWeight: 600 }}>SHADOW MODE — paper trading only.</div></div></Card>
+          <Card s={{ marginBottom: 16 }}><Head>Quick Start Guide</Head><div style={{ padding: "18px 22px", fontSize: 14, color: C.text, lineHeight: 1.9 }}><div style={{ color: C.pink, fontWeight: 700, fontFamily: C.mono, marginBottom: 8, fontSize: 14 }}>YOUR BOT IN 30 SECONDS:</div>{["Bot runs every 10 min on cron.", `Scans ${(d.scanner?.kalshi_series ?? 0).toLocaleString()} Kalshi + ${d.scanner?.crypto_pairs ?? '—'} crypto pairs.`, "5-gate Kelly pipeline on every trade.", "No edge ≥5%? Does nothing. Correct.", "Farms airdrops alongside trading.", `${(d.bot?.proofs ?? 0).toLocaleString()} JSON proofs generated.`].map((s, i) => <div key={i}><span style={{ color: C.green, fontWeight: 700 }}>{i + 1}.</span> {s}</div>)}<div style={{ marginTop: 12, color: C.yellow, fontWeight: 600 }}>SHADOW MODE — paper trading only.</div></div></Card>
           <Card s={{ marginBottom: 16 }}><Head>Key Instructions</Head><div style={{ padding: "18px 22px", fontSize: 14, color: C.text, lineHeight: 1.9 }}>{[{ t: "Trigger farming", s: ["/farm in Discord", "Default: dry run", "/farm --live for real", "/farm-status"] }, { t: "Go LIVE", s: ["Settings → Farm Mode → live", "≥0.05 ETH on Base", "Watch Logs → Airdrops", "Capped $5/wk"] }, { t: "Add wallet", s: ["Overview → All Wallets", "Paste 0x + label", "+Add"] }, { t: "Circuit Breaker trips", s: ["Don't panic", "Settings → Reset", "Check Logs → Trading", "Reset if normal"] }, { t: "Read Risk tab", s: ["Green = OK", "Yellow = watch", "Red = tripped", "(?) for details"] }].map((sec, i) => <div key={i} style={{ marginBottom: 18 }}><div style={{ color: C.pink, fontWeight: 700, fontFamily: C.mono, fontSize: 13, marginBottom: 6 }}>{sec.t.toUpperCase()}</div>{sec.s.map((s, j) => <div key={j} style={{ paddingLeft: 18 }}><span style={{ color: C.cyan, fontWeight: 700 }}>{j + 1}.</span> {s}</div>)}</div>)}</div></Card>
           <Card><Head right={`${GLOSSARY.length} terms`}>Glossary</Head><div style={{ padding: "14px 20px" }}><input value={gFilter} onChange={e => setGFilter(e.target.value)} placeholder="Search..." style={{ width: "100%", marginBottom: 14 }} />{GLOSSARY.filter(g => !gFilter || g.term.toLowerCase().includes(gFilter.toLowerCase()) || g.def.toLowerCase().includes(gFilter.toLowerCase())).map((g, i) => <div key={i} onMouseEnter={() => setGHover(g.term)} onMouseLeave={() => setGHover(null)} onClick={() => setGHover(gHover === g.term ? null : g.term)} style={{ padding: gHover === g.term ? "14px 16px" : "10px 0", borderBottom: `1px solid ${C.border}`, transition: "all 0.2s", background: gHover === g.term ? `${C.cyan}0c` : "transparent", borderRadius: gHover === g.term ? 8 : 0, margin: gHover === g.term ? "4px 0" : 0, cursor: "pointer", transform: gHover === g.term ? "scale(1.015)" : "" }}><div style={{ fontSize: gHover === g.term ? 17 : 14, fontWeight: 700, color: gHover === g.term ? C.green : C.cyan, fontFamily: C.mono, transition: "all 0.2s" }}>{g.term}</div><div style={{ fontSize: gHover === g.term ? 14 : 13, color: C.text, lineHeight: 1.6, marginTop: 3 }}>{g.def}</div></div>)}</div></Card>
         </div>}
@@ -1496,7 +1496,7 @@ export default function Dashboard() {
         </div>
       )}
 
-      <footer style={{ padding: "10px 0", borderTop: `1px solid ${C.pink}22` }}><div style={{ maxWidth: 1200, margin: "0 auto", padding: "0 24px", display: "flex", justifyContent: "space-between", fontSize: 11, fontFamily: C.mono, letterSpacing: 2 }}><span style={{ color: C.pink }}>SLIMY_CRYPTO_V1.0</span><span style={{ color: C.cyan }}>{botData?.farming?.stats?.total_actions || 0} bot actions • {botData?.trading?.mode?.toUpperCase() || "OFFLINE"}</span><span style={{ color: C.green }}>{botData?.fetchedAt ? new Date(botData.fetchedAt).toLocaleTimeString() : "—"}</span></div></footer>
+      <footer style={{ padding: "10px 0", borderTop: `1px solid ${C.pink}22` }}><div style={{ maxWidth: 1200, margin: "0 auto", padding: "0 24px", display: "flex", justifyContent: "space-between", fontSize: 11, fontFamily: C.mono, letterSpacing: 2 }}><span style={{ color: C.pink }}>SLIMY_CRYPTO_V1.0</span><span style={{ color: C.cyan }}>{botData?.farming?.stats?.total_actions || 0} bot actions • {botData?.trading?.mode?.toUpperCase() || "OFFLINE"}</span><span suppressHydrationWarning style={{ color: C.green }}>{botData?.fetchedAt ? new Date(botData.fetchedAt).toLocaleTimeString() : "—"}</span></div></footer>
     </div>
   );
 }
