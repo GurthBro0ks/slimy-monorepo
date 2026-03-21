@@ -64,3 +64,14 @@ export async function verifyTx(
 }
 
 
+
+export function detectChain(name: string, token?: string): string {
+  const lower = (name + " " + (token || "")).toLowerCase();
+  if (lower.includes("base")) return "base";
+  if (lower.includes("arb") || lower.includes("arbitrum")) return "arbitrum";
+  if (lower.includes("op") || lower.includes("optimism")) return "optimism";
+  if (lower.includes("polygon") || lower.includes("matic")) return "polygon";
+  if (lower.includes("linea")) return "linea";
+  if (lower.includes("zksync")) return "zksync";
+  return "ethereum";
+}

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireOwner } from "@/lib/auth/owner";
 import { db as prisma } from "@/lib/db";
-import { verifyTx, detectChain } from "@/lib/tx-verify";
+import { verifyTx } from "@/lib/tx-verify";
 
 const MAX_VERIFY_PER_REQUEST = 10;
 
