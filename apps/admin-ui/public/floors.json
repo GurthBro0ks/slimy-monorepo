@@ -1,0 +1,22 @@
+{
+  "floors": [
+    {
+      "id": "floor-1",
+      "name": "Floor 1 (Ned's MC)",
+      "host": "68.179.170.248",
+      "port": 4421,
+      "url": "https://ned.slimyai.xyz",
+      "description": "Ned's Mission Control - Production edge"
+    },
+    {
+      "id": "floor-2",
+      "name": "Floor 2 (Chriss's MC)",
+      "host": "192.168.68.64",
+      "port": 22,
+      "url": "https://chriss.slimyai.xyz",
+      "description": "Chriss's Mission Control - Staging/Dev"
+    }
+  ],
+  "defaultFloor": "floor-2",
+  "updatedAt": "2026-02-27T00:35:00Z"
+}

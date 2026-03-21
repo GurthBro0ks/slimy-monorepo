@@ -599,6 +599,15 @@ code, pre, .mono {
   box-shadow: 0 2px 0 rgba(0, 0, 0, 0.55), 0 0 18px rgba(255, 92, 207, 0.18);
 }
 
+.hero__cta--secondary {
+  background: linear-gradient(180deg, rgba(61, 255, 140, 0.9), rgba(61, 255, 140, 0.65));
+  margin-left: 12px;
+}
+
+.hero__cta--secondary:hover {
+  box-shadow: 0 6px 0 rgba(0, 0, 0, 0.55), 0 0 28px rgba(61, 255, 140, 0.28), 0 0 26px rgba(184, 117, 255, 0.22);
+}
+
 .hero__footer {
   margin-top: 40px;
   text-align: center;

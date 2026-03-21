@@ -9,18 +9,19 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { DebugDock } from "@/components/owner/debug-dock";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 interface OwnerInvite {
   id: string;
   codeHash: string;
+  code?: string; // plaintext code for viewing
   createdAt: string;
   expiresAt: string | null;
   maxUses: number;
   useCount: number;
   revokedAt: string | null;
   note?: string;
+  role: string;
   createdBy: {
     id: string;
     email: string;
@@ -31,10 +32,12 @@ interface CreateInviteResponse {
   ok: boolean;
   inviteId: string;
   tokenPlaintext: string;
+  code: string;
   codeHash: string;
   expiresAt: string | null;
   maxUses: number;
   note?: string;
+  role: string;
   message: string;
 }
 
@@ -42,6 +45,7 @@ interface CreateInviteRequest {
   expiresIn?: number;
   maxUses?: number;
   note?: string;
+  role?: string;
 }
 
 export default function OwnerInvitesPage() {
@@ -54,10 +58,19 @@ export default function OwnerInvitesPage() {
   const [maxUses, setMaxUses] = useState(1);
   const [expiresInDays, setExpiresInDays] = useState(7);
   const [note, setNote] = useState("");
+  const [role, setRole] = useState("member");
+
+  // Delete state
+  const [deleting, setDeleting] = useState<string | null>(null);
+  const [clearing, setClearing] = useState(false);
 
   // Show plaintext token once
   const [revealedToken, setRevealedToken] = useState<string | null>(null);
   const [revealedTokenId, setRevealedTokenId] = useState<string | null>(null);
+
+  // View code state (press-to-reveal)
+  const [viewingCode, setViewingCode] = useState<string | null>(null);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -73,6 +86,7 @@ export default function OwnerInvitesPage() {
       const response = await fetch("/api/owner/invites", {
         method: "GET",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
       });
 
       if (!response.ok) {
@@ -107,6 +121,7 @@ export default function OwnerInvitesPage() {
       const payload: CreateInviteRequest = {
         maxUses: maxUses,
         note: note || undefined,
+        role: role,
       };
 
       // Only send expiresIn if > 0 days
@@ -118,6 +133,7 @@ export default function OwnerInvitesPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
+        credentials: "include",
       });
 
       if (!response.ok) {
@@ -135,6 +151,7 @@ export default function OwnerInvitesPage() {
       setNote("");
       setMaxUses(1);
       setExpiresInDays(7);
+      setRole("member");
 
       setSuccess("Invite created successfully! Copy the token below - it will not be shown again.");
 
@@ -164,6 +181,7 @@ export default function OwnerInvitesPage() {
       const response = await fetch(`/api/owner/invites/${inviteId}/revoke`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
       });
 
       if (!response.ok) {
@@ -176,6 +194,63 @@ export default function OwnerInvitesPage() {
     } catch (err) {
       setError(String(err));
       setRevoking(null);
+    }
+  }
+
+  async function handleDeleteInvite(inviteId: string) {
+    const confirmed = window.confirm(
+      "Are you sure you want to delete this invite? This cannot be undone."
+    );
+    if (!confirmed) return;
+
+    try {
+      setDeleting(inviteId);
+      const response = await fetch(`/api/owner/invites/${inviteId}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Failed to delete invite");
+      }
+
+      setSuccess("Invite deleted successfully");
+      await loadInvites();
+      setDeleting(null);
+    } catch (err) {
+      setError(String(err));
+      setDeleting(null);
+    }
+  }
+
+  async function handleClearRevoked() {
+    const confirmed = window.confirm(
+      "Are you sure you want to delete all revoked invites? This cannot be undone."
+    );
+    if (!confirmed) return;
+
+    try {
+      setClearing(true);
+      const response = await fetch("/api/owner/invites", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Failed to clear revoked invites");
+      }
+
+      const data = await response.json();
+      setSuccess(`Deleted ${data.deleted} revoked invite(s)`);
+      await loadInvites();
+      setClearing(false);
+    } catch (err) {
+      setError(String(err));
+      setClearing(false);
     }
   }
 
@@ -316,6 +391,26 @@ export default function OwnerInvitesPage() {
               />
             </div>
 
+            {/* Role */}
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-purple-300">
+                Role
+              </label>
+              <select
+                value={role}
+                onChange={(e) => setRole(e.target.value)}
+                disabled={creating}
+                className="w-full px-3 py-2 bg-black/50 border border-purple-500/30 rounded text-white font-mono text-sm focus:border-purple-400 focus:outline-none"
+              >
+                <option value="member">Member</option>
+                <option value="leader">Leader</option>
+                <option value="owner">Owner</option>
+              </select>
+              <div className="text-xs text-gray-500">
+                Owner = full system access (use sparingly). Leader = elevated permissions. Member = standard access.
+              </div>
+            </div>
+
             <Button
               type="submit"
               disabled={creating}
@@ -337,6 +432,22 @@ export default function OwnerInvitesPage() {
             {loading ? "Loading..." : `${invites.length} invite${invites.length !== 1 ? "s" : ""}`}
           </CardDescription>
         </CardHeader>
+        {(() => {
+          const revokedCount = invites.filter(i => i.revokedAt).length;
+          return revokedCount > 0 ? (
+            <div className="px-6 pt-0 pb-2">
+              <Button
+                onClick={handleClearRevoked}
+                disabled={clearing}
+                variant="outline"
+                size="sm"
+                className="border-red-500/30 text-red-400 hover:bg-red-500/10 text-xs"
+              >
+                {clearing ? "Clearing..." : `Clear All Revoked (${revokedCount})`}
+              </Button>
+            </div>
+          ) : null;
+        })()}
         <CardContent>
           {loading ? (
             <div className="text-center py-8 text-gray-500">
@@ -353,6 +464,9 @@ export default function OwnerInvitesPage() {
                   <tr>
                     <th className="text-left py-2 px-2 text-blue-300">
                       Created
+                    </th>
+                    <th className="text-left py-2 px-2 text-blue-300">
+                      Role
                     </th>
                     <th className="text-left py-2 px-2 text-blue-300">
                       Expires
@@ -395,6 +509,15 @@ export default function OwnerInvitesPage() {
                             }
                           )}
                         </td>
+                        <td className="py-2 px-2">
+                          {invite.role === "owner" ? (
+                            <span className="text-red-400 font-bold">OWNER</span>
+                          ) : invite.role === "leader" ? (
+                            <span className="text-yellow-400 font-bold">LEADER</span>
+                          ) : (
+                            <span className="text-green-400">MEMBER</span>
+                          )}
+                        </td>
                         <td className="py-2 px-2 text-blue-200">
                           {invite.expiresAt
                             ? new Date(invite.expiresAt).toLocaleDateString(
@@ -423,7 +546,39 @@ export default function OwnerInvitesPage() {
                         <td className="py-2 px-2 text-gray-400 max-w-xs truncate">
                           {invite.note || "-"}
                         </td>
-                        <td className="py-2 px-2 text-right">
+                        <td className="py-2 px-2 text-right space-x-2">
+                          {/* View button - press-to-reveal */}
+                          {invite.code && (
+                            viewingCode === invite.id ? (
+                              <span
+                                className="inline-flex items-center gap-1 text-green-400 font-mono text-xs cursor-pointer"
+                                onMouseUp={() => setViewingCode(null)}
+                                onMouseLeave={() => setViewingCode(null)}
+                                onTouchEnd={() => setViewingCode(null)}
+                                onClick={async () => {
+                                  await navigator.clipboard.writeText(invite.code!);
+                                  setCopiedId(invite.id);
+                                  setTimeout(() => setCopiedId(null), 1500);
+                                }}
+                                title="Click to copy"
+                              >
+                                {copiedId === invite.id ? (
+                                  <span className="text-green-300">Copied!</span>
+                                ) : (
+                                  <span className="select-all">{invite.code}</span>
+                                )}
+                              </span>
+                            ) : (
+                              <Button
+                                onMouseDown={() => setViewingCode(invite.id)}
+                                onTouchStart={() => setViewingCode(invite.id)}
+                                size="sm"
+                                className="bg-purple-700 hover:bg-purple-600 text-white text-xs"
+                              >
+                                View
+                              </Button>
+                            )
+                          )}
                           {!isRevoked && (
                             <Button
                               onClick={() => handleRevokeInvite(invite.id)}
@@ -432,6 +587,17 @@ export default function OwnerInvitesPage() {
                               className="bg-red-600 hover:bg-red-700 text-white text-xs"
                             >
                               {revoking === invite.id ? "..." : "Revoke"}
+                            </Button>
+                          )}
+                          {isRevoked && (
+                            <Button
+                              onClick={() => handleDeleteInvite(invite.id)}
+                              disabled={deleting === invite.id}
+                              size="sm"
+                              variant="outline"
+                              className="border-red-500/30 text-red-400 hover:bg-red-500/10 text-xs"
+                            >
+                              {deleting === invite.id ? "..." : "Delete"}
                             </Button>
                           )}
                         </td>
@@ -445,13 +611,6 @@ export default function OwnerInvitesPage() {
         </CardContent>
       </Card>
 
-      {/* Debug Dock */}
-      <DebugDock
-        additionalInfo={{
-          invitesCount: invites.length,
-          route: "/owner/invites",
-        }}
-      />
     </div>
   );
 }

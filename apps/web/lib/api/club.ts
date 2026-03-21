@@ -1,12 +1,11 @@
 /**
  * Club Analytics API Client
  *
- * Provides access to club metrics endpoints from the admin-api.
- * Supports both live mode (via admin-api) and sandbox mode (mock data).
+ * Discord OAuth has been removed. This file provides mock data only.
+ * The admin-api (port 3080) has been decommissioned.
  */
 
-import { adminApiClient } from './admin-client';
-import type { ApiResponse } from './admin-client';
+// Discord OAuth removed - only mock data available now
 
 // ============================================================================
 // Types
@@ -118,10 +117,11 @@ function getMockClubData(guildId?: string): ClubLatestResponse {
 // ============================================================================
 
 /**
- * Check if we're in sandbox mode (no admin API configured)
+ * Club API - Discord OAuth removed
+ * Always returns mock/sandbox data
  */
 function isSandboxMode(): boolean {
-  return !adminApiClient.isConfigured();
+  return true; // Always sandbox since admin-api is gone
 }
 
 // ============================================================================

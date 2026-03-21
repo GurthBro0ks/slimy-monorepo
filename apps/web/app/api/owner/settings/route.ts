@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireOwner } from "@/lib/auth/owner";
 import { logOwnerAction } from "@/lib/owner/audit";
-import { prisma } from "@/lib/db";
+import { db as prisma } from "@/lib/db";
 import { z } from "zod";
 
 export const dynamic = "force-dynamic";
@@ -88,7 +88,7 @@ export async function PUT(request: NextRequest) {
           refreshRateCapMs: 5000,
           debugDockEnabled: false,
           artifactSourceDisplay: "icon",
-          updatedById: ctx.owner.id,
+          // Skip updatedById - FK expects OwnerAllowlist.id not SlimyUser.id
         },
       });
     }
@@ -114,24 +114,27 @@ export async function PUT(request: NextRequest) {
       };
     }
 
-    // Update
+    // Update (skip updatedById - FK expects OwnerAllowlist.id not SlimyUser.id)
     await prisma.appSettings.updateMany({
       data: {
         ...data,
-        updatedById: ctx.owner.id,
       },
     });
 
-    // Log action
-    await logOwnerAction({
-      actorId: ctx.owner.id,
-      action: "SETTINGS_UPDATE",
-      resourceType: "settings",
-      resourceId: settings.id,
-      changes,
-      ipAddress: ctx.ipAddress,
-      userAgent: ctx.userAgent,
-    });
+    // Log action (non-blocking)
+    try {
+      await logOwnerAction({
+        actorId: ctx.owner.id,
+        action: "SETTINGS_UPDATE",
+        resourceType: "settings",
+        resourceId: settings.id,
+        changes,
+        ipAddress: ctx.ipAddress,
+        userAgent: ctx.userAgent,
+      });
+    } catch (auditErr) {
+      console.error("[Settings] Audit log failed (non-fatal):", auditErr);
+    }
 
     // Fetch updated
     const latest = await prisma.appSettings.findFirst();

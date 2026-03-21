@@ -14,8 +14,8 @@ interface LoginButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement>
  * Simple Discord login trigger that redirects to the backend auth flow.
  */
 export function LoginButton({
-  label = "Login with Discord",
-  href = "/api/auth/discord/login",
+  label = "Login to SlimeChat",
+  href = "/login",
   className,
   disabled,
   ...props

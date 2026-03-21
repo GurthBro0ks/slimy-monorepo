@@ -9,16 +9,12 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { DebugDock } from "@/components/owner/debug-dock";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 interface AuditLog {
   id: string;
   actorId: string;
-  actor: {
-    id: string;
-    email: string;
-  };
+  actorEmail: string;
   action: string;
   resourceType: string;
   resourceId: string;
@@ -75,6 +71,7 @@ export default function OwnerAuditPage() {
         {
           method: "GET",
           headers: { "Content-Type": "application/json" },
+          credentials: "include",
         }
       );
 
@@ -220,7 +217,7 @@ export default function OwnerAuditPage() {
                         </span>
                       </div>
                       <div className="text-xs text-gray-500">
-                        by {log.actor.email}
+                        by {log.actorEmail}
                         {log.ipAddress && ` · IP: ${log.ipAddress}`}
                         {log.userAgent && ` · ${formatUserAgent(log.userAgent)}`}
                       </div>
@@ -301,13 +298,6 @@ export default function OwnerAuditPage() {
         </CardContent>
       </Card>
 
-      {/* Debug Dock */}
-      <DebugDock
-        additionalInfo={{
-          logsCount: logs.length,
-          route: "/owner/audit",
-        }}
-      />
     </div>
   );
 }

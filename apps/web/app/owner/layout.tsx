@@ -1,4 +1,9 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
+import { requireAuth } from "@/lib/auth/server";
+import { db as prisma } from "@/lib/db";
+import { DebugDock } from "@/components/owner/debug-dock";
+import { NotificationBell } from "@/components/owner/notification-drawer";
 
 export const metadata = {
   title: "Owner Panel | Slimy AI",
@@ -10,11 +15,26 @@ interface OwnerLayoutProps {
 }
 
 export default async function OwnerLayout({ children }: OwnerLayoutProps) {
+  const user = await requireAuth();
+
+  if (!user || user.role !== "owner") {
+    redirect("/owner/forbidden");
+  }
+
+  // Fetch debug dock setting
+  let debugDockEnabled = false;
+  try {
+    const settings = await prisma.appSettings.findFirst();
+    debugDockEnabled = settings?.debugDockEnabled ?? false;
+  } catch (err) {
+    console.error("[OwnerLayout] Failed to fetch settings:", err);
+  }
+
   return (
     <div className="min-h-screen bg-[var(--bg-deep)]">
       {/* Owner Panel Navigation */}
       <nav className="border-b border-purple-500/30 bg-black/50 backdrop-blur">
-        <div className="max-w-7xl mx-auto px-6 py-4">
+        <div className="max-w-7xl mx-auto px-6 py-4 owner-nav-inner">
           <div className="flex items-center justify-between gap-6">
             <Link
               href="/"
@@ -24,6 +44,9 @@ export default async function OwnerLayout({ children }: OwnerLayoutProps) {
             </Link>
 
             <div className="flex items-center gap-4 flex-wrap justify-end">
+              {/* Notifications Bell */}
+              <NotificationBell />
+
               <Link
                 href="/owner"
                 className="px-3 py-2 text-xs font-['VT323'] text-purple-300 border border-purple-500/50 rounded hover:bg-purple-500/20 hover:border-purple-400 transition-all"
@@ -63,6 +86,14 @@ export default async function OwnerLayout({ children }: OwnerLayoutProps) {
       <main className="max-w-7xl mx-auto px-6 py-8">
         {children}
       </main>
+
+      {/* Debug Dock - only render if enabled */}
+      {debugDockEnabled && (
+        <DebugDock
+          isOwner={true}
+          userEmail={user.email}
+        />
+      )}
     </div>
   );
 }

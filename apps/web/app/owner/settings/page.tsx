@@ -9,7 +9,6 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { DebugDock } from "@/components/owner/debug-dock";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 interface AppSettings {
@@ -68,6 +67,7 @@ export default function OwnerSettingsPage() {
       const response = await fetch("/api/owner/settings", {
         method: "GET",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
       });
 
       if (!response.ok) {
@@ -113,6 +113,7 @@ export default function OwnerSettingsPage() {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
+        credentials: "include",
       });
 
       if (!response.ok) {
@@ -320,14 +321,6 @@ export default function OwnerSettingsPage() {
         </div>
       )}
 
-      {/* Debug Dock */}
-      <DebugDock
-        additionalInfo={{
-          route: "/owner/settings",
-          debugDockEnabled,
-          refreshRateCapMs,
-        }}
-      />
     </div>
   );
 }

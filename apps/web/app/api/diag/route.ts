@@ -1,17 +1,13 @@
 import { NextResponse } from "next/server";
-import { apiClient } from "@/lib/api-client";
 
-export const revalidate = 60; // Cache for 60 seconds
+export const revalidate = 60;
 
 export async function GET() {
-  const result = await apiClient.get("/api/diag", {
-    useCache: true, // Enable caching for diagnostics
-    cacheTtl: 60000, // 1 minute TTL
+  // Discord OAuth removed - admin-api is no longer running
+  // Return local diagnostic info only
+  return NextResponse.json({
+    status: "ok",
+    message: "Web app is running. Admin-API (Discord OAuth) has been decommissioned.",
+    timestamp: new Date().toISOString(),
   });
-
-  if (!result.ok) {
-    return NextResponse.json(result, { status: result.status || 503 });
-  }
-
-  return NextResponse.json(result.data);
 }

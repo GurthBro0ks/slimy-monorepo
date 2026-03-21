@@ -34,7 +34,17 @@ function getDisplayName(user: BasicUser) {
 
 function getAvatarUrl(user: BasicUser) {
   if (!user.avatar) return null;
-  return `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png`;
+  
+  if (typeof user.avatar === 'object' && user.avatar && '_id' in user.avatar && 'filename' in user.avatar) {
+     const avatar = user.avatar as any;
+     return `https://chat.slimyai.xyz/api/attachments/avatars/${avatar._id}/${avatar.filename}`;
+  }
+  
+  if (typeof user.avatar === 'string' && user.avatar.startsWith('http')) {
+    return user.avatar;
+  }
+  
+  return null;
 }
 
 export function UserNav({ user, onLogout, loading = false }: UserNavProps) {

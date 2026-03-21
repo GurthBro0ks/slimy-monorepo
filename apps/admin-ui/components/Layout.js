@@ -9,6 +9,7 @@ import { useApi } from "../lib/api";
 import DiagWidget from "./DiagWidget";
 import SlimeChatBar from "./SlimeChatBar";
 import SlimeChatWidget from "./SlimeChatWidget";
+import FloorSwitcher from "./FloorSwitcher";
 
 const NAV_SECTIONS = [
   { href: (id) => `/guilds/${id}`, label: "Dashboard" },
@@ -149,6 +150,7 @@ export default function Layout({ guildId, children, title, hideSidebar = false }
           </div>
         </div>
         <div className="nav-actions">
+          <FloorSwitcher currentFloor="floor-1" />
           {user && (
             <span className="badge">
               {user.username} · {effectiveRole.toUpperCase()}

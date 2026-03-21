@@ -1,39 +1,43 @@
-import type { Role } from "@/slimy.config";
-
-export interface User {
-  id: string;
-  name: string;
-}
-
-export interface Guild {
-  id: string;
-  name: string;
-  icon: string | null;
-  installed: boolean;
-  roles: string[];
-}
-
-export interface AuthUser extends User {
-  username: string;
-  role: Role;
-  guilds?: Guild[];
-  sessionGuilds?: Guild[];
-  lastActiveGuild?: {
-    id: string;
-    name: string;
-    icon: string | null;
+export type AuthUserAvatar = {
+  _id: string;
+  tag: string;
+  filename: string;
+  metadata: {
+    type: string;
+    width: number;
+    height: number;
   };
-}
+  content_type: string;
+  size: number;
+  deleted: boolean;
+  reported: boolean;
+  message_id?: string;
+  server_id?: string;
+  object_id?: string;
+} | null;
 
-export interface AuthState {
+export type AuthUser = {
+  id: string;
+  username: string;
+  displayName: string;
+  avatar: AuthUserAvatar;
+  email?: string;
+  role: string;
+  // Backward compatibility fields that other parts of the app might still use temporarily
+  name?: string;
+  guilds?: any[];
+  sessionGuilds?: any[];
+  lastActiveGuild?: any;
+};
+
+export interface AuthContextType {
   user: AuthUser | null;
   isLoading: boolean;
-  error: string | null;
-  lastRefresh: number;
-}
-
-export interface AuthContextType extends AuthState {
-  login: () => void;
-  logout: () => void;
-  refresh: () => Promise<void>;
+  isAuthenticated: boolean;
+  role: string | null;
+  error?: string | null;
+  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  logout: () => Promise<void>;
+  checkSession: () => Promise<void>;
+  refresh?: () => Promise<void>; // Backward compatibility
 }

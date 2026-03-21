@@ -2,44 +2,59 @@ import { NextRequest, NextResponse } from "next/server";
 
 export const config = {
   matcher: [
-    "/((?!api/|_next/|_static/|[\\w-]+\\.\\w+).*)",
+    "/((?!_next/|_static/|[\w-]+\.\w+).*)",
+    "/api/mission-control/:path*",
+    "/api/owner/:path*",
+    "/api/guilds/:path*",
+    "/api/session/:path*",
   ],
 };
 
 export default async function middleware(req: NextRequest) {
   const url = req.nextUrl;
-  let hostname = req.headers.get("host") || "";
-  // Remove port if present
-  hostname = hostname.split(":")[0];
-  console.log("Middleware: Original Host:", req.headers.get("host"), "Parsed Host:", hostname);
-
-  if (url.pathname.startsWith("/api")) {
+  const { pathname, searchParams } = url;
+  
+  // 1. Hands-off routes (Separate auth system)
+  if (pathname.startsWith("/trader")) {
     return NextResponse.next();
   }
 
-  // Robust hostname check
-  let currentHost = hostname
-    .replace(".slimyai.xyz", "")
-    .replace(".localhost:3000", ""); // Handle both cases simply
+  // 2. Public Routes (Always allow)
+  const publicRoutes = [
+    "/",
+    "/login",
+    "/status",
+    "/features",
+  ];
+  const publicPrefixes = [
+    "/docs",
+    "/public-stats",
+    "/_next",
+    "/auth",
+    "/brand",
+  ];
+  
+  const isExactPublic = publicRoutes.includes(pathname);
+  const isPublicPrefix = publicPrefixes.some(p => pathname.startsWith(p));
+  const isPublicApi = pathname === "/api/codes" || pathname.startsWith("/api/session/") || pathname.startsWith("/api/local-auth/") || pathname.startsWith("/api/owner/invites") || pathname.startsWith("/api/webhook/") || pathname.startsWith("/api/owner/notifications/discord-push");
 
-  // Explicit check for trader subdomain
-  if (hostname === "trader.slimyai.xyz" || currentHost === "trader") {
-    currentHost = "trader";
+  if (isExactPublic || isPublicPrefix || isPublicApi) {
+    return NextResponse.next();
   }
 
-  if (currentHost === "chat") {
-    url.pathname = `/chat${url.pathname}`;
-    return NextResponse.rewrite(url);
-  }
+  // 3. Protected Routes Check
+  const sessionToken = req.cookies.get("slimy_session")?.value;
 
-  if (currentHost === "trader" && !url.pathname.startsWith("/trader")) {
-    url.pathname = `/trader${url.pathname}`;
-    return NextResponse.rewrite(url);
+  if (!sessionToken) {
+    const loginUrl = new URL("/login", req.url);
+    const returnTo = pathname + (searchParams.toString() ? "?" + searchParams.toString() : "");
+    loginUrl.searchParams.set("returnTo", returnTo);
+    return NextResponse.redirect(loginUrl);
   }
 
   // Pass pathname to server components via header
   const requestHeaders = new Headers(req.headers);
-  requestHeaders.set("x-pathname", url.pathname);
+  requestHeaders.set("x-pathname", pathname);
 
   return NextResponse.next({
     request: {
