@@ -1,5 +1,9 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+import {
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  BarChart, Bar, Legend, ReferenceLine,
+} from "recharts";
 
 const C = {
   bg: "#0a0612",
@@ -41,42 +45,152 @@ const verdictColor = (v: string) => {
   return C.dim;
 };
 
-function MiniBarChart({ data }: { data: { bucket: string; count: number }[] }) {
-  const max = Math.max(...data.map(d => d.count), 1);
+function useClientTime(format: (d: Date) => string, dateStr: string | null | undefined, fallback: string) {
+  const [display, setDisplay] = useState<string>(fallback);
+  useEffect(() => {
+    if (!dateStr) { setDisplay(fallback); return; }
+    try { setDisplay(format(new Date(dateStr))); } catch { setDisplay(fallback); }
+  }, [dateStr, format, fallback]);
+  return display;
+}
+
+function ClientTimestamp({ dateStr, format = "string", fallback = "—" }: { dateStr?: string | null; format?: "string" | "date" | "time"; fallback?: string }) {
+  const fmt = useCallback((d: Date) => {
+    if (format === "date") return d.toLocaleDateString();
+    if (format === "time") return d.toLocaleTimeString();
+    return d.toLocaleString();
+  }, [format]);
+  return <span suppressHydrationWarning>{useClientTime(fmt, dateStr, fallback)}</span>;
+}
+
+function CumulativePnLChart({ data }: { data: { timestamp: string; pnl: number; cumPnl: number }[] }) {
+  if (!data || data.length === 0) {
+    return <div style={{ color: C.dim, fontFamily: C.mono, fontSize: 12 }}>No data</div>;
+  }
+  const chartData = data.map(d => ({
+    ...d,
+    date: d.timestamp ? new Date(d.timestamp).toLocaleDateString() : "",
+  }));
+  const min = Math.min(...chartData.map(d => d.cumPnl));
+  const max = Math.max(...chartData.map(d => d.cumPnl));
+
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-      {data.map(d => (
-        <div key={d.bucket} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <div style={{ width: 80, fontSize: 11, color: C.sub, fontFamily: C.mono, textAlign: "right" }}>{d.bucket}</div>
-          <div style={{ flex: 1, height: 14, background: "rgba(255,255,255,0.04)", borderRadius: 3 }}>
-            <div style={{ height: "100%", width: `${(d.count / max) * 100}%`, background: C.green, borderRadius: 3, transition: "width 0.5s" }} />
-          </div>
-          <div style={{ width: 28, fontSize: 11, color: C.text, fontFamily: C.mono }}>{d.count}</div>
-        </div>
-      ))}
-    </div>
+    <ResponsiveContainer width="100%" height={160}>
+      <LineChart data={chartData} margin={{ top: 8, right: 16, left: -20, bottom: 0 }}>
+        <CartesianGrid strokeDasharray="3 3" stroke={`${C.dim}22`} />
+        <XAxis
+          dataKey="date"
+          tick={{ fill: C.muted, fontSize: 10, fontFamily: C.mono }}
+          tickLine={false}
+          axisLine={{ stroke: `${C.dim}33` }}
+        />
+        <YAxis
+          tick={{ fill: C.muted, fontSize: 10, fontFamily: C.mono }}
+          tickLine={false}
+          axisLine={false}
+          tickFormatter={(v: number) => `$${v.toFixed(0)}`}
+          domain={[min * 1.05, max * 1.05]}
+        />
+        <Tooltip
+          contentStyle={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 8, fontFamily: C.mono, fontSize: 11 }}
+          labelStyle={{ color: C.muted }}
+          formatter={(v: number) => [`$${v.toFixed(2)}`, "Cumulative PnL"]}
+          labelFormatter={(label: string) => `Date: ${label}`}
+        />
+        {min < 0 && <ReferenceLine y={0} stroke={C.dim} strokeDasharray="4 4" strokeWidth={1} />}
+        <Line
+          type="monotone"
+          dataKey="cumPnl"
+          stroke={C.green}
+          strokeWidth={2}
+          dot={false}
+          activeDot={{ r: 4, fill: C.green }}
+        />
+      </LineChart>
+    </ResponsiveContainer>
   );
 }
 
-function CumulativeChart({ data }: { data: { timestamp: string; pnl: number; cumPnl: number }[] }) {
-  if (!data.length) return <div style={{ color: C.dim, fontFamily: C.mono, fontSize: 12 }}>No data</div>;
-  const values = data.map(d => d.cumPnl);
-  const min = Math.min(...values);
-  const max = Math.max(...values);
-  const range = max - min || 1;
-  const w = 600;
-  const h = 120;
-  const points = data.map((d, i) => {
-    const x = (i / (data.length - 1 || 1)) * w;
-    const y = h - ((d.cumPnl - min) / range) * h;
-    return `${x},${y}`;
-  }).join(" ");
-  const zeroY = min < 0 ? h - ((0 - min) / range) * h : h;
+function PnLDistributionChart({ data }: { data: { bucket: string; count: number }[] }) {
+  if (!data || data.length === 0) {
+    return <div style={{ color: C.dim, fontFamily: C.mono, fontSize: 12 }}>No data</div>;
+  }
+  // Color gradient: red for losses, green for wins
+  const getBarColor = (bucket: string) => {
+    if (bucket.startsWith("<") || bucket.startsWith("-")) return C.red;
+    if (bucket.includes("$0")) return C.dim;
+    return C.green;
+  };
+  const chartData = data.map(d => ({ ...d, fill: getBarColor(d.bucket) }));
+
   return (
-    <svg viewBox={`0 0 ${w} ${h}`} style={{ width: "100%", height: 120 }}>
-      <line x1="0" y1={zeroY} x2={w} y2={zeroY} stroke={C.dim} strokeWidth="1" strokeDasharray="4,4" />
-      <polyline points={points} fill="none" stroke={C.green} strokeWidth="2" />
-    </svg>
+    <ResponsiveContainer width="100%" height={160}>
+      <BarChart data={chartData} margin={{ top: 8, right: 16, left: -20, bottom: 0 }}>
+        <CartesianGrid strokeDasharray="3 3" stroke={`${C.dim}22`} vertical={false} />
+        <XAxis
+          dataKey="bucket"
+          tick={{ fill: C.muted, fontSize: 10, fontFamily: C.mono }}
+          tickLine={false}
+          axisLine={{ stroke: `${C.dim}33` }}
+        />
+        <YAxis
+          tick={{ fill: C.muted, fontSize: 10, fontFamily: C.mono }}
+          tickLine={false}
+          axisLine={false}
+          allowDecimals={false}
+        />
+        <Tooltip
+          contentStyle={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 8, fontFamily: C.mono, fontSize: 11 }}
+          labelStyle={{ color: C.muted }}
+          formatter={(v: number, _name: string) => [v, "Trades"]}
+        />
+        <Bar dataKey="count" radius={[3, 3, 0, 0]}>
+          {chartData.map((entry, index) => (
+            <rect key={index} fill={entry.fill} />
+          ))}
+        </Bar>
+      </BarChart>
+    </ResponsiveContainer>
+  );
+}
+
+function WeeklyRevenueChart({ data }: { data: { week: string; kalshi_optimize: number; shadow: number; live: number }[] }) {
+  if (!data || data.length === 0) {
+    return <div style={{ color: C.dim, fontFamily: C.mono, fontSize: 12 }}>No data</div>;
+  }
+
+  return (
+    <ResponsiveContainer width="100%" height={180}>
+      <BarChart data={data} margin={{ top: 8, right: 16, left: -20, bottom: 0 }}>
+        <CartesianGrid strokeDasharray="3 3" stroke={`${C.dim}22`} vertical={false} />
+        <XAxis
+          dataKey="week"
+          tick={{ fill: C.muted, fontSize: 10, fontFamily: C.mono }}
+          tickLine={false}
+          axisLine={{ stroke: `${C.dim}33` }}
+        />
+        <YAxis
+          tick={{ fill: C.muted, fontSize: 10, fontFamily: C.mono }}
+          tickLine={false}
+          axisLine={false}
+          tickFormatter={(v: number) => `$${v.toFixed(0)}`}
+        />
+        <Tooltip
+          contentStyle={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 8, fontFamily: C.mono, fontSize: 11 }}
+          labelStyle={{ color: C.muted }}
+          formatter={(v: number, name: string) => [`$${v.toFixed(2)}`, name]}
+        />
+        <Legend
+          wrapperStyle={{ fontFamily: C.mono, fontSize: 11, color: C.muted, paddingTop: 8 }}
+          iconType="circle"
+          iconSize={8}
+        />
+        <ReferenceLine y={0} stroke={C.dim} strokeDasharray="4 4" strokeWidth={1} />
+        <Bar dataKey="shadow" stackId="a" fill={C.cyan} name="Shadow" radius={[0, 0, 0, 0]} />
+        <Bar dataKey="kalshi_optimize" stackId="a" fill={C.green} name="Kalshi" radius={[0, 0, 0, 0]} />
+        <Bar dataKey="live" stackId="a" fill={C.orange} name="Live" radius={[3, 3, 0, 0]} />
+      </BarChart>
+    </ResponsiveContainer>
   );
 }
 
@@ -86,6 +200,7 @@ export default function TradingTab({ isActive }: { isActive: boolean }) {
   const [kalshi, setKalshi] = useState<any>(null);
   const [matched, setMatched] = useState<any>(null);
   const [bootstrap, setBootstrap] = useState<any>(null);
+  const [timeseries, setTimeseries] = useState<any>(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -95,13 +210,14 @@ export default function TradingTab({ isActive }: { isActive: boolean }) {
   async function fetchAll() {
     setLoading(true);
     try {
-      const [ov, kal, mat, boot] = await Promise.all([
+      const [ov, kal, mat, boot, ts] = await Promise.all([
         fetch("/api/owner/crypto/trading/overview", { credentials: "include" }).then(r => r.json()).catch(() => null),
         fetch("/api/owner/crypto/trading/kalshi", { credentials: "include" }).then(r => r.json()).catch(() => null),
         fetch("/api/owner/crypto/trading/matched", { credentials: "include" }).then(r => r.json()).catch(() => null),
         fetch("/api/owner/crypto/trading/bootstrap", { credentials: "include" }).then(r => r.json()).catch(() => null),
+        fetch("/api/owner/crypto/trading/timeseries", { credentials: "include" }).then(r => r.json()).catch(() => null),
       ]);
-      setOverview(ov); setKalshi(kal); setMatched(mat); setBootstrap(boot);
+      setOverview(ov); setKalshi(kal); setMatched(mat); setBootstrap(boot); setTimeseries(ts);
     } catch (e) {
       console.error("Trading data fetch failed:", e);
     }
@@ -168,7 +284,7 @@ export default function TradingTab({ isActive }: { isActive: boolean }) {
                   <tbody>
                     {overview.recentActivity.map((r: any, i: number) => (
                       <tr key={i} style={{ borderBottom: `1px solid ${C.dim}11` }}>
-                        <td style={{ padding: "6px 8px", color: C.sub }}>{new Date(r.timestamp).toLocaleString()}</td>
+                        <td style={{ padding: "6px 8px", color: C.sub }}><ClientTimestamp dateStr={r.timestamp} /></td>
                         <td style={{ padding: "6px 8px", color: C.text }}>{r.market}</td>
                         <td style={{ padding: "6px 8px" }}><Badge text={r.source} color={C.cyan} /></td>
                         <td style={{ padding: "6px 8px", textAlign: "right", color: r.pnl >= 0 ? C.green : C.red }}>{r.pnl >= 0 ? "+" : ""}{r.pnl.toFixed(2)}</td>
@@ -177,6 +293,13 @@ export default function TradingTab({ isActive }: { isActive: boolean }) {
                   </tbody>
                 </table>
               </div>
+            </div>
+          )}
+
+          {timeseries?.series?.length > 0 && (
+            <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 12, padding: 16, marginBottom: 16 }}>
+              <div style={{ fontSize: 11, color: C.muted, fontFamily: C.mono, letterSpacing: 1, textTransform: "uppercase", marginBottom: 12 }}>Weekly Revenue</div>
+              <WeeklyRevenueChart data={timeseries.series} />
             </div>
           )}
         </div>
@@ -199,14 +322,14 @@ export default function TradingTab({ isActive }: { isActive: boolean }) {
           {kalshi.cumulativePnl?.length > 0 && (
             <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 12, padding: 16, marginBottom: 16 }}>
               <div style={{ fontSize: 11, color: C.muted, fontFamily: C.mono, letterSpacing: 1, textTransform: "uppercase", marginBottom: 12 }}>Cumulative PnL</div>
-              <CumulativeChart data={kalshi.cumulativePnl} />
+              <CumulativePnLChart data={kalshi.cumulativePnl} />
             </div>
           )}
 
           {kalshi.pnlDistribution && (
             <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 12, padding: 16, marginBottom: 16 }}>
               <div style={{ fontSize: 11, color: C.muted, fontFamily: C.mono, letterSpacing: 1, textTransform: "uppercase", marginBottom: 12 }}>PnL Distribution</div>
-              <MiniBarChart data={kalshi.pnlDistribution} />
+              <PnLDistributionChart data={kalshi.pnlDistribution} />
             </div>
           )}
 
@@ -228,7 +351,7 @@ export default function TradingTab({ isActive }: { isActive: boolean }) {
                   <tbody>
                     {kalshi.recentTrades.map((r: any, i: number) => (
                       <tr key={i} style={{ borderBottom: `1px solid ${C.dim}11` }}>
-                        <td style={{ padding: "5px 8px", color: C.sub, fontSize: 11 }}>{new Date(r.timestamp).toLocaleString()}</td>
+                        <td style={{ padding: "5px 8px", color: C.sub, fontSize: 11 }}><ClientTimestamp dateStr={r.timestamp} /></td>
                         <td style={{ padding: "5px 8px", color: C.text, maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.marketId}</td>
                         <td style={{ padding: "5px 8px", color: r.side === "BUY" ? C.green : C.red }}>{r.side}</td>
                         <td style={{ padding: "5px 8px", textAlign: "right", color: C.text }}>{r.entryPrice.toFixed(2)}</td>
@@ -329,7 +452,7 @@ export default function TradingTab({ isActive }: { isActive: boolean }) {
                         <td style={{ padding: "6px 8px", textAlign: "right", color: C.cyan }}>{c.conversionRate.toFixed(1)}%</td>
                         <td style={{ padding: "6px 8px", textAlign: "right", color: C.yellow }}>${c.guaranteedProfit.toFixed(2)}</td>
                         <td style={{ padding: "6px 8px", textAlign: "right", color: c.actualProfit >= 0 ? C.green : C.red }}>${c.actualProfit.toFixed(2)}</td>
-                        <td style={{ padding: "6px 8px", color: C.sub, fontSize: 11 }}>{new Date(c.completedAt).toLocaleDateString()}</td>
+                        <td style={{ padding: "6px 8px", color: C.sub, fontSize: 11 }}><ClientTimestamp dateStr={c.completedAt} format="date" /></td>
                       </tr>
                     ))}
                   </tbody>
@@ -438,7 +561,7 @@ export default function TradingTab({ isActive }: { isActive: boolean }) {
                         <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
                           <Badge text={h.verdict} color={verdictColor(h.verdict)} />
                           <span style={{ color: C.sub, fontFamily: C.mono, fontSize: 11 }}>
-                            {new Date(h.date).toLocaleString()}
+                            <ClientTimestamp dateStr={h.date} />
                           </span>
                           <span style={{ color: C.dim, fontFamily: C.mono, fontSize: 11 }}>
                             {h.trades} trades · p={h.pValue?.toFixed(4)}
