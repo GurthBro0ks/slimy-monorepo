@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 export const config = {
   matcher: [
-    "/((?!_next/|_static/|[\w-]+\.\w+).*)",
+    "/((?!_next/|_static/|[\w-]+.\w+).*)",
     "/api/mission-control/:path*",
     "/api/owner/:path*",
     "/api/guilds/:path*",
@@ -32,11 +32,12 @@ export default async function middleware(req: NextRequest) {
     "/_next",
     "/auth",
     "/brand",
+    "/snail",
   ];
   
   const isExactPublic = publicRoutes.includes(pathname);
   const isPublicPrefix = publicPrefixes.some(p => pathname.startsWith(p));
-  const isPublicApi = pathname === "/api/codes" || pathname.startsWith("/api/session/") || pathname.startsWith("/api/local-auth/") || pathname.startsWith("/api/owner/invites") || pathname.startsWith("/api/webhook/") || pathname.startsWith("/api/owner/notifications/discord-push");
+  const isPublicApi = pathname === "/api/codes" || pathname.startsWith("/api/codes/") || pathname.startsWith("/api/session/") || pathname.startsWith("/api/local-auth/") || pathname.startsWith("/api/owner/invites") || pathname.startsWith("/api/webhook/") || pathname.startsWith("/api/owner/notifications/discord-push");
 
   if (isExactPublic || isPublicPrefix || isPublicApi) {
     return NextResponse.next();
