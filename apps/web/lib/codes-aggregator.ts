@@ -6,6 +6,7 @@
 
 import { createSnelpSource } from "./codes/sources/snelp";
 import { createRedditSource } from "./codes/sources/reddit";
+import { createWikiSource } from "./codes/sources/wiki";
 import { SourceResult, CodeSource, AggregatorConfig } from "./codes/sources/types";
 import { getCache, CacheKeys } from "./codes/cache";
 import { getDeduplicator } from "./codes/deduplication";
@@ -70,6 +71,13 @@ const DEFAULT_CONFIG: AggregatorConfig = {
       cacheTtl: 600,
       enabled: true,
     },
+    wiki: {
+      timeout: 10000,
+      retries: 2,
+      retryDelay: 1000,
+      cacheTtl: 300,
+      enabled: true,
+    },
   },
   cache: {
     enabled: true,
@@ -80,7 +88,7 @@ const DEFAULT_CONFIG: AggregatorConfig = {
   deduplication: {
     enabled: true,
     strategy: "newest",
-    priorityOrder: ["snelp", "reddit"],
+    priorityOrder: ["snelp", "wiki", "reddit"],
   },
   refresh: {
     enabled: true,
@@ -112,9 +120,11 @@ export class CodesAggregator {
     // Create source adapters
     const snelpSource = createSnelpSource(this.config.sources.snelp);
     const redditSource = createRedditSource(this.config.sources.reddit);
+    const wikiSource = createWikiSource(this.config.sources.wiki);
 
     this.sources.set("snelp", snelpSource);
     this.sources.set("reddit", redditSource);
+    this.sources.set("wiki", wikiSource);
 
     // Configure deduplicator
     this.deduplicator = getDeduplicator(this.config.deduplication);
@@ -375,9 +385,10 @@ export function filterByScope(codes: Code[], scope: string): Code[] {
         return code.tags.includes("active");
       });
 
-    case "past7":
+    case "past7": {
       const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
       return codes.filter((code) => new Date(code.ts) > sevenDaysAgo);
+    }
 
     case "all":
     default:
