@@ -19,4 +19,3 @@ export default async function CryptoPage() {
 
   return <CryptoDashboard />;
 }
-// lint test
