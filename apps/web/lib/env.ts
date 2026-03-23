@@ -8,8 +8,10 @@
 
 import { z, type ZodIssue } from 'zod';
 
+// eslint-disable-next-line deprecation/deprecation -- ZodIssue is still stable in Zod v4; z.core.$ZodIssue requires @zod/core
 type InvalidTypeIssue = ZodIssue & { code: 'invalid_type'; received?: string };
 
+// eslint-disable-next-line deprecation/deprecation
 const isInvalidTypeIssue = (issue: ZodIssue): issue is InvalidTypeIssue => {
   return issue.code === 'invalid_type';
 };
@@ -21,10 +23,10 @@ const serverEnvSchema = z.object({
 
   // OpenAI Configuration
   OPENAI_API_KEY: z.string().optional(),
-  OPENAI_API_BASE: z.string().url().optional().default('https://api.openai.com/v1'),
+  OPENAI_API_BASE: z.url().optional().default('https://api.openai.com/v1'),
 
   // MCP Integration
-  MCP_BASE_URL: z.string().url().optional(),
+  MCP_BASE_URL: z.url().optional(),
   MCP_API_KEY: z.string().optional(),
 
   // Documentation
@@ -32,7 +34,7 @@ const serverEnvSchema = z.object({
   GITHUB_TOKEN: z.string().optional(),
 
   // Redis (optional)
-  REDIS_URL: z.string().url().optional(),
+  REDIS_URL: z.url().optional(),
   REDIS_HOST: z.string().optional(),
   REDIS_PORT: z.string().optional().transform((val) => val ? parseInt(val, 10) : undefined),
   REDIS_PASSWORD: z.string().optional(),
@@ -47,16 +49,17 @@ const serverEnvSchema = z.object({
 // Define the schema for client-side (public) environment variables
 const clientEnvSchema = z.object({
   // App Configuration
-  NEXT_PUBLIC_APP_URL: z.string().url().optional().default('http://localhost:3000'),
+  NEXT_PUBLIC_APP_URL: z.url().optional().default('http://localhost:3000'),
 
   // API Configuration
-  NEXT_PUBLIC_ADMIN_API_BASE: z.string().url(),
-  NEXT_PUBLIC_SNELP_CODES_URL: z.string().url(),
+  NEXT_PUBLIC_ADMIN_API_BASE: z.url(),
+  NEXT_PUBLIC_SNELP_CODES_URL: z.url(),
 
   // Analytics
   NEXT_PUBLIC_PLAUSIBLE_DOMAIN: z.string().optional(),
 
   // CDN (optional)
+  // eslint-disable-next-line deprecation/deprecation -- CDN domain may be bare hostname without protocol
   NEXT_PUBLIC_CDN_DOMAIN: z.string().url().optional(),
 });
 

@@ -72,7 +72,7 @@ export function useChat(conversationId?: string) {
 
     // Add user message
     const userMessage: Message = {
-      id: `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      id: `msg_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`,
       role: 'user',
       content,
       timestamp: Date.now(),
@@ -96,7 +96,7 @@ export function useChat(conversationId?: string) {
     }
 
     // Add placeholder assistant message for streaming
-    assistantMessageId = `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    assistantMessageId = `msg_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
     const placeholderMessage: Message = {
       id: assistantMessageId,
       role: 'assistant',

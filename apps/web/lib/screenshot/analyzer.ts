@@ -308,7 +308,7 @@ export function compareScreenshotAnalyses(
  * Generate a unique screenshot analysis ID
  */
 export function generateScreenshotId(): string {
-  return `screenshot_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  return `screenshot_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
 }
 
 /**
