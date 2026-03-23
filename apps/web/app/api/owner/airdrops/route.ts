@@ -15,7 +15,6 @@ export async function GET(request: NextRequest) {
 
     const today = new Date();
     today.setUTCHours(0, 0, 0, 0);
-    const thirtyDaysAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
 
     const airdrops = await prisma.airdrop.findMany({
       orderBy: [{ tier: 'asc' }, { protocol: 'asc' }],
@@ -37,11 +36,9 @@ export async function GET(request: NextRequest) {
     const enriched = airdrops.map((airdrop) => {
       const totalTasks = airdrop.tasks.length;
       let completedToday = 0;
-      let totalCompletions = 0;
 
       const tasksWithStats = airdrop.tasks.map((task) => {
         const lastCompletion = task.completions[0]?.completedAt ?? null;
-        totalCompletions += task._count.completions;
 
         // Check if completed today (UTC)
         const isCompletedToday = task.completions.some((c) => {

@@ -6,7 +6,6 @@ import { Badge } from "@/components/ui/badge";
 import { Metadata } from "next";
 
 // Mock data for demonstration
-const MOCK_GUILD_ID = "123456789";
 const MOCK_GUILD_NAME = "The Snail Club";
 
 // Set dynamic metadata for OG image

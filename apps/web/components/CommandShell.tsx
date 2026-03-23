@@ -1,8 +1,6 @@
 // Stub for CommandShell component
-export function CommandShell({ title, breadcrumbs, statusText, children }: {
+export function CommandShell({ title, children }: {
   title: string;
-  breadcrumbs?: string;
-  statusText?: string;
   children?: React.ReactNode;
 }) {
   return (

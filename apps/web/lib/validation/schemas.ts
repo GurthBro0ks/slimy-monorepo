@@ -61,14 +61,14 @@ export const chatUserSchema = z.object({
  * Guild API Schemas
  */
 
-export const guildListQuerySchema = paginationSchema.merge(searchSchema).merge(z.object({
+export const guildListQuerySchema = paginationSchema.extend(searchSchema.shape).extend({
   includeMembers: z.string().optional().transform((val) => val === 'true'),
-}));
+});
 
 export const createGuildSchema = z.object({
   name: z.string().min(1, 'Guild name is required').max(100, 'Guild name too long'),
   description: z.string().max(500, 'Description too long').optional(),
-  iconUrl: z.string().url('Invalid icon URL').optional(),
+  iconUrl: z.url('Invalid icon URL').optional(),
 });
 
 export const updateGuildSchema = createGuildSchema.partial();
@@ -98,14 +98,14 @@ export const guildFlagsSchema = z.object({
  */
 
 export const uploadScreenshotSchema = z.object({
-  imageUrl: z.string().url('Invalid image URL'),
+  imageUrl: z.url('Invalid image URL'),
   fileName: z.string().min(1),
   fileSize: z.number().positive().max(10 * 1024 * 1024, 'File too large (max 10MB)'),
   mimeType: z.enum(['image/jpeg', 'image/png', 'image/webp']),
 });
 
 export const analyzeScreenshotSchema = z.object({
-  imageUrls: z.array(z.string().url()).min(1, 'At least one image required').max(5, 'Maximum 5 images'),
+  imageUrls: z.array(z.url()).min(1, 'At least one image required').max(5, 'Maximum 5 images'),
   guildId: z.string().min(1),
   userId: z.string().min(1),
   title: z.string().max(200).optional(),
@@ -121,7 +121,7 @@ export const exportAnalysisSchema = z.object({
  */
 
 export const screenshotAnalysisSchema = z.object({
-  imageUrl: z.string().url('Invalid image URL'),
+  imageUrl: z.url('Invalid image URL'),
   analysisType: z.enum(['club', 'stats', 'general']).optional().default('general'),
   extractMetrics: z.boolean().optional().default(true),
 });
@@ -130,16 +130,16 @@ export const screenshotAnalysisSchema = z.object({
  * Snail Tools Schemas
  */
 
-export const snailHistoryQuerySchema = paginationSchema.merge(z.object({
+export const snailHistoryQuerySchema = paginationSchema.extend({
   userId: z.string().optional(),
-  startDate: z.string().datetime().optional(),
-  endDate: z.string().datetime().optional(),
-}));
+  startDate: z.iso.datetime().optional(),
+  endDate: z.iso.datetime().optional(),
+});
 
 export const updateSnailHistorySchema = z.object({
   userId: z.string().min(1),
   tier: z.number().int().min(0).max(100),
-  timestamp: z.string().datetime().optional(),
+  timestamp: z.iso.datetime().optional(),
 });
 
 /**

@@ -1,6 +1,6 @@
 #!/usr/bin/env tsx
 
-import { writeFileSync, mkdirSync, existsSync } from "fs";
+import { writeFileSync, mkdirSync } from "fs";
 import { join, dirname } from "path";
 import matter from "gray-matter";
 
@@ -63,7 +63,7 @@ async function downloadFile(url: string): Promise<string> {
   return response.text();
 }
 
-function normalizeMarkdown(content: string, filePath: string): string {
+function normalizeMarkdown(content: string, _filePath: string): string {
   // Parse frontmatter
   const { data, content: body } = matter(content);
 

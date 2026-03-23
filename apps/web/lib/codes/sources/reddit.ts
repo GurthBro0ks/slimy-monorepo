@@ -152,63 +152,43 @@ export class RedditSource implements CodeSource {
   }
 
   /**
-   * Extract potential codes from Reddit posts
+   * Multi-word Super Snail code extraction
+   * Codes are uppercase multi-word phrases like "WE WANT YOU TO 996", "ARES 2.0"
    */
   private extractCodesFromPosts(posts: any[]): Code[] {
     const codes: Code[] = [];
-    const codePattern = /\b[A-Z0-9]{6,12}\b/g;
+    // Pattern: 2+ space-separated uppercase tokens, each 2+ chars, with allowed punctuation
+    const codePattern = /^[A-Z0-9][A-Z0-9'&.#-]{1,}(?: [A-Z0-9][A-Z0-9'&.#-]{1,}){1,}$/;
 
     for (const post of posts) {
       if (!post.data) continue;
 
       const title = post.data.title || "";
       const selftext = post.data.selftext || "";
-      const text = `${title} ${selftext}`;
 
-      // Extract potential codes
-      const matches = text.match(codePattern);
-      if (matches) {
-        for (const match of matches) {
-          const code = this.validateAndCreateCode(match, post.data);
-          if (code) {
-            codes.push(code);
-          }
-        }
+      // Extract: each line is potentially a code
+      const lines = [...title.split(/[\r\n]+/), ...selftext.split(/[\r\n]+/)];
+
+      for (const rawLine of lines) {
+        // Normalize whitespace and dashes
+        const line = rawLine.replace(/\s+/g, " ").replace(/[–—]/g, "-").trim().toUpperCase();
+        if (line.length < 6 || line.length > 50) continue;
+        if (!codePattern.test(line)) continue;
+        if (this.isLikelyFalsePositive(line)) continue;
+
+        codes.push({
+          code: line,
+          source: "reddit" as const,
+          ts: new Date(post.data.created_utc * 1000).toISOString(),
+          tags: ["reddit", "community"],
+          expires: null,
+          region: "global",
+          description: this.createDescription(post.data),
+        });
       }
     }
 
     return codes;
-  }
-
-  /**
-   * Validate and create a code from extracted text
-   */
-  private validateAndCreateCode(match: string, postData: any): Code | null {
-    // Filter out common false positives
-    if (match.length < 6 || match.length > 12) {
-      return null;
-    }
-
-    // Must contain both letters and numbers
-    if (!/[A-Z]/.test(match) || !/[0-9]/.test(match)) {
-      return null;
-    }
-
-    // Filter out obvious non-codes
-    const upperMatch = match.toUpperCase();
-    if (this.isLikelyFalsePositive(upperMatch)) {
-      return null;
-    }
-
-    return {
-      code: upperMatch,
-      source: "reddit" as const,
-      ts: new Date(postData.created_utc * 1000).toISOString(),
-      tags: ["reddit", "community"],
-      expires: null, // Reddit codes don't have expiry info
-      region: "global",
-      description: this.createDescription(postData),
-    };
   }
 
   /**
@@ -217,16 +197,17 @@ export class RedditSource implements CodeSource {
   private isLikelyFalsePositive(code: string): boolean {
     // Common false positives
     const falsePositives = [
-      /^HTTPS?$/, // HTTP/HTTPS
-      /^API\d*$/, // API123 etc
-      /^TEST\d*$/, // TEST123
-      /^DEMO\d*$/, // DEMO123
-      /^NULL\d*$/, // NULL123
-      /^TRUE\d*$/, // TRUE123
-      /^FALSE\d*$/, // FALSE123
-      /^[A-Z]{2,3}\d{1,2}[A-Z]*$/, // Country codes like US123, UK456
+      /^HTTPS?$/,
+      /^API\d*$/,
+      /^TEST\d*$/,
+      /^DEMO\d*$/,
+      /^NULL\d*$/,
+      /^TRUE\d*$/,
+      /^FALSE\d*$/,
+      /^[A-Z]{2,3}\d{1,2}[A-Z]*$/,
+      /^REDIT\s+PLATINUM$/,
+      /^SUPER\s+SNOWFLAKE$/,
     ];
-
     return falsePositives.some(pattern => pattern.test(code));
   }
 

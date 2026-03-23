@@ -195,7 +195,7 @@ export default function LiveCodesPage() {
                     
                     {codeObj.description && (
                       <p className="mt-4 text-[#d6b4fc] opacity-80 italic text-sm line-clamp-2">
-                        // {codeObj.description}
+                        {/* {codeObj.description} */}
                       </p>
                     )}
                   </div>

@@ -1,6 +1,6 @@
 'use client';
 import { useState, useRef } from 'react';
-import { Upload, Eye, FileImage } from 'lucide-react';
+import { Upload, Eye } from 'lucide-react';
 
 export function ScannerPanel({ guildId, onScanComplete }: { guildId: string, onScanComplete: () => void }) {
     const [files, setFiles] = useState<File[]>([]);

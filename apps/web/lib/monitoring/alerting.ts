@@ -94,7 +94,7 @@ class EmailAlertChannel implements AlertChannel {
     this.recipients = recipients;
   }
 
-  async send(alert: Alert): Promise<void> {
+  async send(_alert: Alert): Promise<void> {
     // TODO: Implement email sending
     console.log(`Would send email alert to: ${this.recipients.join(', ')}`);
   }

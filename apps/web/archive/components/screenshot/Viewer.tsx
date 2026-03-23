@@ -10,10 +10,8 @@ import {
   Download,
   GitCompare,
   Search,
-  Filter,
   ZoomIn,
   ZoomOut,
-  RotateCw,
   X,
   BarChart3,
   Lightbulb,
@@ -34,7 +32,7 @@ interface ScreenshotViewerProps {
 
 export function ScreenshotViewer({
   analyses,
-  onAnalyze,
+  onAnalyze: _onAnalyze,
   onCompare,
   onExport,
   loading

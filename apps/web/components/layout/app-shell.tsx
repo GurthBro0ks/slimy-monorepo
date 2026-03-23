@@ -1,15 +1,10 @@
 'use client';
 
-import { useState } from 'react';
-import { usePathname } from 'next/navigation';
-
 interface AppShellProps {
   children: React.ReactNode;
 }
 
 export function AppShell({ children }: AppShellProps) {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const pathname = usePathname();
 
   // RetroShell handles the outer layout (Header, Nav, Background, Chat Widget).
   // AppShell now focuses strictly on inner content layout if needed.

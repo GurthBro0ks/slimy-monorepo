@@ -3,7 +3,7 @@
 import React, { useEffect, useState, Suspense } from "react";
 import { AlertCircle } from "lucide-react";
 import { useAuth } from "@/lib/auth/context";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 
 function LoginForm() {
     const [email, setEmail] = useState("");

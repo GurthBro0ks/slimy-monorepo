@@ -57,7 +57,7 @@ export default function SupersnailDashboard() {
       
       <section>
         <h2>Bot Alerts</h2>
-        <p>Score milestone → Telegram "1M → Edge market?" (stub)</p>
+        <p>Score milestone -&gt; Telegram &quot;1M -&gt; Edge market?&quot; (stub)</p>
       </section>
       
       <hr />
