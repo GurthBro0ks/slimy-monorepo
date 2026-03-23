@@ -24,8 +24,8 @@ export default function TutorialPage() {
         <p>For QCPlay Supersnail players (~60 club-mates):</p>
         <ul>
           <li>Connect Apple Music/Game Center → Track scores/boosts.</li>
-          <li>Bot dashboard: Shadow trades tied to game events (e.g., "Edge on [market] → snail boost?").</li>
-          <li>Private MVP: Alerts → Discord/Telegram ("Score 1M → bet $0.01?").</li>
+          <li>Bot dashboard: Shadow trades tied to game events (e.g., &quot;Edge on [market] -&gt; snail boost?&quot;).</li>
+          <li>Private MVP: Alerts -&gt; Discord/Telegram (&quot;Score 1M -&gt; bet $0.01?&quot;).</li>
         </ul>
         <p><strong>Next:</strong> /dashboard/supersnail stub → full tie-in.</p>
       </section>
@@ -35,7 +35,7 @@ export default function TutorialPage() {
         <p>Shadow → micro-live → scale. Gates: VenueBook/Stale-Edge/Launch Radar.</p>
         <details>
           <summary>Verify Shadow</summary>
-          <pre>ssh nuc2 'cd /opt/slimy/pm_updown_bot_bundle && ./scripts/run_tests.sh'</pre>
+          <pre>ssh nuc2 &apos;cd /opt/slimy/pm_updown_bot_bundle && ./scripts/run_tests.sh&apos;</pre>
         </details>
       </section>
       

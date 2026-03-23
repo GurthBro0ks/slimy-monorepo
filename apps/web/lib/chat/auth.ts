@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server'
-import { headers } from 'next/headers'
 
 // Existing auth logic (assumed)
 export async function verifyChatAuth() {

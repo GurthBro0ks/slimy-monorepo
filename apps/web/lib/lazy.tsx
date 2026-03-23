@@ -1,4 +1,4 @@
-import React, { Suspense, ComponentType } from 'react';
+import React, { ComponentType } from 'react';
 import dynamic from 'next/dynamic';
 import { Skeleton } from '@/components/ui/skeleton';
 

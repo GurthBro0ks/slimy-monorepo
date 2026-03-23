@@ -8,7 +8,7 @@ function createToken(payload: object): string {
   return encoded;
 }
 
-function parseToken(token: string): { userId: string; email: string; role: string; expires: number } | null {
+function _parseToken(token: string): { userId: string; email: string; role: string; expires: number } | null {
   try {
     const decoded = Buffer.from(token, "base64url").toString();
     const payload = JSON.parse(decoded);

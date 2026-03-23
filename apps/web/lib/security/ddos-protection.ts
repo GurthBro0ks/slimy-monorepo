@@ -7,7 +7,6 @@
 
 import { getCacheHelper } from '../cache/redis-client';
 import { RateLimitError } from '../errors';
-import { config } from '../config';
 
 /**
  * Rate limit tier configuration

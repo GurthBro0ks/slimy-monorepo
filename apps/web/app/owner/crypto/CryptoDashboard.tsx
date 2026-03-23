@@ -102,106 +102,6 @@ const Tip = ({ term, text, children }) => {
   );
 };
 
-// ─── CALENDAR COMPONENT ──────────────────────────────────────
-const AirdropCalendar = ({ airdrops }) => {
-  const [viewMonth, setViewMonth] = useState(2); // 0-indexed, March=2
-  const [viewYear] = useState(2026);
-  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-  const [hoveredDay, setHoveredDay] = useState(null);
-
-  const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
-  const firstDow = new Date(viewYear, viewMonth, 1).getDay();
-  const today = new Date();
-  const isToday = (day) => today.getFullYear() === viewYear && today.getMonth() === viewMonth && today.getDate() === day;
-
-  const getDropsForDay = (day) => {
-    const d = new Date(viewYear, viewMonth, day);
-    return airdrops.filter(a => {
-      if (a.tier === "F") return false;
-      const s = new Date(a.windowStart);
-      const e = new Date(a.windowEnd);
-      return d >= s && d <= e;
-    });
-  };
-
-  const days = [];
-  for (let i = 0; i < firstDow; i++) days.push(null);
-  for (let i = 1; i <= daysInMonth; i++) days.push(i);
-
-  return (
-    <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 12, overflow: "hidden" }}>
-      <div style={{ padding: "14px 20px", borderBottom: `1px solid ${C.border}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <span style={{ fontSize: 14, fontWeight: 700, color: C.cyan, letterSpacing: 2.5, textTransform: "uppercase", fontFamily: C.mono }}>Airdrop Calendar</span>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <button onClick={() => setViewMonth(m => m === 0 ? 11 : m - 1)} style={{ background: "none", border: `1px solid ${C.dim}`, color: C.sub, padding: "4px 10px", borderRadius: 4, fontSize: 14 }}>◀</button>
-          <span style={{ fontSize: 14, fontWeight: 700, color: C.text, fontFamily: C.mono, minWidth: 100, textAlign: "center" }}>{months[viewMonth]} {viewYear}</span>
-          <button onClick={() => setViewMonth(m => m === 11 ? 0 : m + 1)} style={{ background: "none", border: `1px solid ${C.dim}`, color: C.sub, padding: "4px 10px", borderRadius: 4, fontSize: 14 }}>▶</button>
-        </div>
-      </div>
-      <div style={{ padding: "12px 16px" }}>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 2, marginBottom: 4 }}>
-          {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(d => (
-            <div key={d} style={{ textAlign: "center", fontSize: 10, color: C.muted, fontFamily: C.mono, padding: "4px 0" }}>{d}</div>
-          ))}
-        </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 2 }}>
-          {days.map((day, i) => {
-            if (!day) return <div key={`e${i}`} />;
-            const drops = getDropsForDay(day);
-            const hasDrop = drops.length > 0;
-            const isH = hoveredDay === day;
-            return (
-              <div key={day} onMouseEnter={() => setHoveredDay(day)} onMouseLeave={() => setHoveredDay(null)}
-                style={{
-                  position: "relative", textAlign: "center", padding: "8px 4px", borderRadius: 6, cursor: hasDrop ? "pointer" : "default",
-                  background: isToday(day) ? `${C.green}18` : isH && hasDrop ? `${C.cyan}10` : "transparent",
-                  border: isToday(day) ? `1px solid ${C.green}44` : "1px solid transparent",
-                  transition: "all 0.15s",
-                }}>
-                <div style={{ fontSize: 13, fontWeight: isToday(day) ? 700 : 400, color: isToday(day) ? C.green : hasDrop ? C.text : C.dim, fontFamily: C.mono }}>{day}</div>
-                {hasDrop && (
-                  <div style={{ display: "flex", justifyContent: "center", gap: 2, marginTop: 3 }}>
-                    {drops.slice(0, 3).map((d, j) => (
-                      <div key={j} style={{ width: 6, height: 6, borderRadius: "50%", background: d.color }} />
-                    ))}
-                    {drops.length > 3 && <span style={{ fontSize: 8, color: C.muted }}>+{drops.length - 3}</span>}
-                  </div>
-                )}
-                {isH && hasDrop && (
-                  <div style={{
-                    position: "absolute", bottom: "calc(100% + 6px)", left: "50%", transform: "translateX(-50%)",
-                    background: "#1c0e38", border: `1px solid ${C.pink}44`, borderRadius: 8, padding: "8px 10px",
-                    minWidth: 160, zIndex: 50, textAlign: "left",
-                    boxShadow: `0 4px 16px rgba(0,0,0,0.5)`,
-                  }}>
-                    <div style={{ fontSize: 10, color: C.muted, fontFamily: C.mono, marginBottom: 4 }}>{months[viewMonth]} {day}</div>
-                    {drops.map((d, j) => (
-                      <div key={j} style={{ display: "flex", alignItems: "center", gap: 6, padding: "2px 0" }}>
-                        <div style={{ width: 8, height: 8, borderRadius: "50%", background: d.color, flexShrink: 0 }} />
-                        <span style={{ fontSize: 11, color: C.text }}>{d.protocol}</span>
-                        <span style={{ fontSize: 9, color: C.muted, marginLeft: "auto" }}>{d.token}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-        {/* Legend */}
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginTop: 10, paddingTop: 8, borderTop: `1px solid ${C.border}` }}>
-          {airdrops.filter(a => a.tier !== "F").map((a, i) => (
-            <div key={i} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 10, color: C.sub }}>
-              <div style={{ width: 8, height: 8, borderRadius: "50%", background: a.color }} />
-              <span style={{ fontFamily: C.mono }}>{a.protocol}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-};
-
 // ─── UI PRIMITIVES ───────────────────────────────────────────
 const Card = ({ children, s = {} }) => <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 12, overflow: "hidden", ...s }}>{children}</div>;
 const Head = ({ children, right }) => <div style={{ padding: "14px 20px", borderBottom: `1px solid ${C.border}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}><span style={{ fontSize: 14, fontWeight: 700, color: C.cyan, letterSpacing: 2.5, textTransform: "uppercase", fontFamily: C.mono }}>{children}</span>{right && <span suppressHydrationWarning style={{ fontSize: 12, color: C.green, fontFamily: C.mono }}>{right}</span>}</div>;
@@ -219,22 +119,17 @@ const Bar = ({ label, val, max, unit = "", color = C.green, desc }) => {
     <div style={{ height: 5, background: "rgba(255,255,255,0.05)", borderRadius: 3, overflow: "hidden" }}><div style={{ height: "100%", width: `${p}%`, background: color, borderRadius: 3, transition: "width 0.5s" }} /></div>
   </div>;
 };
-const Badge = ({ text, color }) => <span style={{ padding: "3px 9px", borderRadius: 5, fontSize: 10, fontWeight: 700, background: `${color}18`, color, border: `1px solid ${color}33`, fontFamily: C.mono, letterSpacing: 1 }}>{text}</span>;
-const LogLine = ({ item }) => {
-  const lc = { ok: C.green, info: C.cyan, warn: C.yellow, error: C.red };
-  return <div style={{ display: "flex", gap: 10, padding: "5px 0", fontSize: 13, fontFamily: C.mono }}><span style={{ color: C.orange, minWidth: 42, fontWeight: 600 }}>{item.time}</span><span style={{ color: lc[item.level] || C.muted, minWidth: 44, fontWeight: 700 }}>[{item.level}]</span><span style={{ color: C.text }}>{item.msg}</span></div>;
-};
 
 // ─── MAIN ────────────────────────────────────────────────────
 export default function Dashboard() {
   const [tab, setTab] = useState("overview");
   const [d] = useState(MOCK);
   const [now, setNow] = useState(new Date());
-  const [expanded, setExpanded] = useState(null);
-  const [scanSt, setScanSt] = useState({});
-  const [newAddr, setNewAddr] = useState(""); const [newLbl, setNewLbl] = useState("");
-  const [wallets, setWallets] = useState<any[]>([]); // Now from API
-  const [logCat, setLogCat] = useState("trading");
+  const [, _setExpanded] = useState(null);
+  const [, _setScanSt] = useState({});
+  const [, _setNewAddr] = useState(""); const [, _setNewLbl] = useState("");
+  const [, _setWallets] = useState<any[]>([]); // Now from API
+  const [, _setLogCat] = useState("trading");
   const [edits, setEdits] = useState({});
   const [gFilter, setGFilter] = useState(""); const [gHover, setGHover] = useState(null);
 
@@ -242,9 +137,9 @@ export default function Dashboard() {
   const [airdrops, setAirdrops] = useState<any[]>([]);
   const [airdropsLoading, setAirdropsLoading] = useState(false);
   const [expandedAirdrop, setExpandedAirdrop] = useState<string | null>(null);
-  const [calendarData, setCalendarData] = useState<Record<string, any[]>>({});
-  const [calendarYear, setCalendarYear] = useState(new Date().getFullYear());
-  const [calendarMonth, setCalendarMonth] = useState(new Date().getMonth() + 1);
+  const [, _setCalendarData] = useState<Record<string, any[]>>({});
+  const [, _setCalendarYear] = useState(new Date().getFullYear());
+  const [, _setCalendarMonth] = useState(new Date().getMonth() + 1);
 
   // Completion modal state
   const [completionModal, setCompletionModal] = useState<{ taskId: string; airdropId: string; taskName: string } | null>(null);
@@ -257,16 +152,16 @@ export default function Dashboard() {
   const [newAirdrop, setNewAirdrop] = useState({ protocol: "", token: "", tier: "B", status: "EXPLORING", frequency: "daily", notes: "" });
 
   // Task management state
-  const [addingTaskFor, setAddingTaskFor] = useState<string | null>(null);
+  const [_addingTaskFor, setAddingTaskFor] = useState<string | null>(null);
   const [newTaskName, setNewTaskName] = useState("");
   const [newTaskFrequency, setNewTaskFrequency] = useState("daily");
   const [newTaskBotKey, setNewTaskBotKey] = useState("");
   const [editingTask, setEditingTask] = useState<{ taskId: string; airdropId: string; name: string; frequency: string; botActionKey?: string } | null>(null);
-  const [taskSaving, setTaskSaving] = useState(false);
+  const [_taskSaving, setTaskSaving] = useState(false);
 
   // Airdrop edit state
   const [editingAirdrop, setEditingAirdrop] = useState<any | null>(null);
-  const [airdropSaving, setAirdropSaving] = useState(false);
+  const [_airdropSaving, setAirdropSaving] = useState(false);
 
   // Dashboard settings state
   const [dashSettings, setDashSettings] = useState<any>(null);
@@ -415,7 +310,7 @@ export default function Dashboard() {
     }
   };
 
-  const createTask = async (airdropId: string) => {
+  const _createTask = async (airdropId: string) => {
     if (!newTaskName.trim()) return;
     setTaskSaving(true);
     try {
@@ -445,7 +340,7 @@ export default function Dashboard() {
     }
   };
 
-  const updateTask = async () => {
+  const _updateTask = async () => {
     if (!editingTask) return;
     setTaskSaving(true);
     try {
@@ -472,7 +367,7 @@ export default function Dashboard() {
     }
   };
 
-  const deleteTask = async (airdropId: string, taskId: string, taskName: string) => {
+  const _deleteTask = async (airdropId: string, taskId: string, taskName: string) => {
     if (!window.confirm(`Delete task "${taskName}"? This will also delete all its completions.`)) return;
     try {
       const res = await fetch(`/api/owner/airdrops/${airdropId}/tasks/${taskId}`, {
@@ -693,16 +588,16 @@ export default function Dashboard() {
 
   useEffect(() => { const t = setInterval(() => setNow(new Date()), 1000); return () => clearInterval(t); }, []);
   // Calculate total from real wallet data
-  const all$ = walletData?.wallets ? walletData.wallets.reduce((sum: number, w: any) => sum + w.chains.reduce((s: number, c: any) => s + (parseFloat(c.balance) || 0), 0), 0) : 0;
-  const pC = (botData?.trading?.bankroll?.pnl || 0) >= 0 ? C.green : C.red;
-  const mx = 1; // Not used anymore - wallet data shows each chain separately
-  const act = airdrops.filter(a => a.tier !== "F");
-  const evL = act.reduce((s, a) => s + a.est_low * (a.probability / 100), 0);
-  const evH = act.reduce((s, a) => s + a.est_high * (a.probability / 100), 0);
-  const scan = (p) => { setScanSt(s => ({ ...s, [p]: "scanning" })); setTimeout(() => setScanSt(s => ({ ...s, [p]: Math.random() > .3 ? "eligible" : "unknown" })), 1400); };
-  const scanAll = () => act.forEach((a, i) => setTimeout(() => scan(a.protocol), i * 700));
+  const _all$ = walletData?.wallets ? walletData.wallets.reduce((sum: number, w: any) => sum + w.chains.reduce((s: number, c: any) => s + (parseFloat(c.balance) || 0), 0), 0) : 0;
+  const _pC = (botData?.trading?.bankroll?.pnl || 0) >= 0 ? C.green : C.red;
+  const _mx = 1; // Not used anymore - wallet data shows each chain separately
+  const _act = airdrops.filter(a => a.tier !== "F");
+  const _evL = _act.reduce((s, a) => s + a.est_low * (a.probability / 100), 0);
+  const _evH = _act.reduce((s, a) => s + a.est_high * (a.probability / 100), 0);
+  const scan = (p) => { _setScanSt(s => ({ ...s, [p]: "scanning" })); setTimeout(() => _setScanSt(s => ({ ...s, [p]: Math.random() > .3 ? "eligible" : "unknown" })), 1400); };
+  const _scanAll = () => _act.forEach((a, i) => setTimeout(() => scan(a.protocol), i * 700));
   const tabs = [{ id: "overview", l: "Overview", i: "◈" }, { id: "airdrops", l: "Airdrops", i: "◎" }, { id: "risk", l: "Risk", i: "△" }, { id: "logs", l: "Logs", i: "▤" }, { id: "howto", l: "How-To", i: "📖" }, { id: "trading", l: "Trading", i: "📈" }, { id: "settings", l: "Settings", i: "⚙" }];
-  const chainColors = { Base: C.cyan, ETH: C.green, Linea: C.pink, Monad: C.orange, Optimism: C.red };
+  const _chainColors = { Base: C.cyan, ETH: C.green, Linea: C.pink, Monad: C.orange, Optimism: C.red };
 
   return (
     <div style={{ minHeight: "100vh", background: C.bg, color: C.text, fontFamily: C.sans, width: "100%", maxWidth: 1240, margin: "0 auto" }}>
