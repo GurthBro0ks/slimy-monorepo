@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Bot, BarChart3, MessageSquare, Shield, Image, FileText, Code, Zap } from "lucide-react";
+import { Bot, BarChart3, MessageSquare, Shield, FileText, Code } from "lucide-react";
 
 export default function FeaturesPage() {
   const features = [

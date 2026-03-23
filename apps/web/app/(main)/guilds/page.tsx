@@ -1,7 +1,5 @@
 "use client";
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Callout } from "@/components/ui/callout";
 import { Shield } from "lucide-react";
 import { ProtectedRoute } from "@/components/auth/protected-route";
 import { GuildList } from "@/components/dashboard/guild-list";

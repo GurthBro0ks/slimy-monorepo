@@ -49,7 +49,7 @@ export default function ForgotPasswordPage() {
             </>
           ) : (
             <>
-              <p style={styles.label}>Enter your email address and we'll send a reset link.</p>
+              <p style={styles.label}>Enter your email address and we&apos;ll send a reset link.</p>
               <form onSubmit={handleSubmit}>
                 <input
                   type="email"

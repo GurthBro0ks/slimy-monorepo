@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 // Returns farming stats derived from airdrop completions
 export async function GET(request: NextRequest) {
   try {
-    const ctx = await requireOwner(request);
+    await requireOwner(request);
 
     const now = new Date();
     const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);

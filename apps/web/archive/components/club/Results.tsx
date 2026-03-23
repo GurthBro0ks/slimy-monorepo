@@ -8,11 +8,7 @@ import { Callout } from "@/components/ui/callout";
 import {
   BarChart3,
   TrendingUp,
-  Users,
   Target,
-  Lightbulb,
-  CheckCircle,
-  AlertCircle,
   Download,
   Eye,
   Calendar

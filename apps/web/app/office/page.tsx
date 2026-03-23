@@ -30,7 +30,7 @@ function getAgentStatus(agentName: string, sessions: any[]): { isActive: boolean
 }
 
 export default function OfficeDashboard() {
-  const { status, sessions, presence, lastUpdated } = useOfficeState();
+  const { status, sessions, lastUpdated } = useOfficeState();
 
   return (
     <div className="min-h-screen bg-gray-900 text-white flex flex-col">
@@ -97,7 +97,7 @@ export default function OfficeDashboard() {
                     </div>
                   </div>
                   <div className="text-xs text-gray-500 mb-2">
-                    "{agent.personality}"
+                    &quot;{agent.personality}&quot;
                   </div>
                   <div className="bg-gray-900/50 rounded p-2 text-xs text-gray-300">
                     {message}

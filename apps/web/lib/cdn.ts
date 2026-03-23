@@ -183,8 +183,6 @@ export const CDNUtils = {
    * Generate CDN configuration for deployment
    */
   generateDeploymentConfig(provider: 'cloudflare' | 'aws' | 'vercel' | 'netlify') {
-    const config = getCDNConfig();
-
     switch (provider) {
       case 'cloudflare':
         return {

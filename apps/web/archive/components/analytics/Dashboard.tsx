@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { AlertCircle, TrendingUp, Users, MessageSquare, Image, Gamepad2, Download } from 'lucide-react';
+import { AlertCircle, TrendingUp, Users, MessageSquare, Gamepad2, Download } from 'lucide-react';
 
 interface StatsSummary {
   totalEvents: number;
@@ -399,7 +399,7 @@ export function Dashboard({ className }: DashboardProps) {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {summary.topCategories.map((category, index) => (
+              {summary.topCategories.map((category, _index) => (
                 <div key={category.event_category} className="flex items-center justify-between">
                   <Badge variant="secondary" className="capitalize">
                     {category.event_category.replace('_', ' ')}

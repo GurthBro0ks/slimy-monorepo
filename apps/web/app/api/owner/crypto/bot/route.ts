@@ -52,7 +52,7 @@ async function notifyIfNew(opts: {
 export async function GET(request: NextRequest) {
   try {
     // Auth check
-    const ctx = await requireOwner(request);
+    await requireOwner(request);
 
     // Fetch all bot endpoints in parallel
     const [status, health, farming, farmingLog, signals] = await Promise.all([

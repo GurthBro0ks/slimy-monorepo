@@ -149,7 +149,7 @@ export async function validateImageUrl(imageUrl: string): Promise<boolean> {
  * Generate a unique analysis ID
  */
 export function generateAnalysisId(): string {
-  return `analysis_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  return `analysis_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
 }
 
 /**

@@ -3,14 +3,13 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { useParams } from "next/navigation";
 import { ServerDetails } from "@/lib/db/server-queries";
-import { 
-  Loader2, 
-  LayoutDashboard, 
-  BarChart3, 
-  PieChart, 
-  Settings, 
-  Lock, 
-  RefreshCw, 
+import {
+  Loader2,
+  LayoutDashboard,
+  PieChart,
+  Settings,
+  Lock,
+  RefreshCw,
   AlertCircle,
   Database,
   History,

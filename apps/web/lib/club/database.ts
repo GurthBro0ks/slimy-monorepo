@@ -88,7 +88,7 @@ class ClubDatabaseClient {
     return storedAnalysis;
   }
 
-  async getAnalysesByGuild(guildId: string, limit = 10, offset = 0): Promise<StoredClubAnalysis[]> {
+  async getAnalysesByGuild(guildId: string, _limit = 10, _offset = 0): Promise<StoredClubAnalysis[]> {
     await this.connect();
 
     // TODO: Implement actual database query
@@ -96,14 +96,14 @@ class ClubDatabaseClient {
     return [];
   }
 
-  async getAnalysisById(id: string): Promise<StoredClubAnalysis | null> {
+  async getAnalysisById(_id: string): Promise<StoredClubAnalysis | null> {
     await this.connect();
 
     // TODO: Implement actual database query
     return null;
   }
 
-  async deleteAnalysis(id: string): Promise<boolean> {
+  async deleteAnalysis(_id: string): Promise<boolean> {
     await this.connect();
 
     // TODO: Implement actual database deletion

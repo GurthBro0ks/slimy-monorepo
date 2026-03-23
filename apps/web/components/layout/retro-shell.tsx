@@ -12,24 +12,17 @@ export function RetroShell({ children }: { children: React.ReactNode }) {
   const isLoginPage = pathname === '/';
   const isAuthCallback = pathname.startsWith('/api/auth');
   // chat removed
-  
+
   const isMissionControl = pathname.startsWith("/mission-control");
-  if (isMissionControl) return <>{children}</>;
   const showHeader = !isAuthCallback;
   const showNav = !isLoginPage && !isAuthCallback;
-  const showWidget = false; // chat removed
+  // chat removed: showWidget = false
 
-  let marqueeText = "slimyai.xyz System Operational.";
-  if (isLoginPage) marqueeText = "Welcome to slimyai.xyz! Connect to the Grid...";
-  else if (pathname === '/dashboard') marqueeText = "Dashboard Loaded. Metrics: Nominal.";
-  else if (pathname === '/club') marqueeText = "Club Analytics Active. Upload baseline data.";
-  
-  else if (pathname.startsWith('/admin')) marqueeText = "Admin Control Panel Activated. System Administration Mode.";
-
+  // Hooks must be called before any early returns
   useEffect(() => {
     if (!slimeContainerRef.current) return;
     const container = slimeContainerRef.current;
-    container.innerHTML = ''; 
+    container.innerHTML = '';
     const dripCount = Math.floor(window.innerWidth / 40);
     for (let i = 0; i < dripCount; i++) {
       const drip = document.createElement('div');
@@ -42,6 +35,14 @@ export function RetroShell({ children }: { children: React.ReactNode }) {
       container.appendChild(drip);
     }
   }, [pathname]);
+
+  if (isMissionControl) return <>{children}</>;
+
+  let marqueeText = "slimyai.xyz System Operational.";
+  if (isLoginPage) marqueeText = "Welcome to slimyai.xyz! Connect to the Grid...";
+  else if (pathname === '/dashboard') marqueeText = "Dashboard Loaded. Metrics: Nominal.";
+  else if (pathname === '/club') marqueeText = "Club Analytics Active. Upload baseline data.";
+  else if (pathname.startsWith('/admin')) marqueeText = "Admin Control Panel Activated. System Administration Mode.";
 
   const handleLogout = async () => {
      try { await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' }); } catch {

@@ -22,12 +22,6 @@ interface MCPClientConfig {
   apiKey?: string;
 }
 
-interface MCPToolCall {
-  tool: string;
-  method: string;
-  params: Record<string, any>;
-}
-
 export class MCPClient {
   private baseUrl: string;
   private apiKey: string;
@@ -73,7 +67,7 @@ export class MCPClient {
    * @param guildId - Guild ID to subscribe to
    * @param onMessage - Callback for new messages
    */
-  subscribeToChat(guildId: string, onMessage: (message: any) => void): () => void {
+  subscribeToChat(guildId: string, _onMessage: (message: any) => void): () => void {
     // TODO: Implement WebSocket subscription
     // This will connect to the chat.service WebSocket endpoint
     
