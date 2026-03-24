@@ -167,8 +167,8 @@ export default function Dashboard() {
   const [airdropsLoading, setAirdropsLoading] = useState(false);
   const [expandedAirdrop, setExpandedAirdrop] = useState<string | null>(null);
   const [, _setCalendarData] = useState<Record<string, any[]>>({});
-  const [, _setCalendarYear] = useState(new Date().getFullYear());
-  const [, _setCalendarMonth] = useState(new Date().getMonth() + 1);
+  const [calendarYear, _setCalendarYear] = useState(new Date().getFullYear());
+  const [calendarMonth, _setCalendarMonth] = useState(new Date().getMonth() + 1);
 
   // Completion modal state
   const [completionModal, setCompletionModal] = useState<{ taskId: string; airdropId: string; taskName: string } | null>(null);
@@ -237,7 +237,7 @@ export default function Dashboard() {
     try {
       const res = await fetch(`/api/owner/airdrops/calendar?year=${year}&month=${month}`, { credentials: "include" });
       const data = await res.json();
-      setCalendarData(data.days || {});
+      _setCalendarData(data.days || {});
     } catch (err) {
       console.error("Failed to fetch calendar:", err);
     }
