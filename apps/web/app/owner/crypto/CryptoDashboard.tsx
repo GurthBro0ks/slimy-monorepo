@@ -52,6 +52,25 @@ const GLOSSARY = [
 
 const C = { bg: "#0a0612", card: "rgba(14,8,28,0.92)", border: "rgba(0,255,157,0.12)", green: "#00ff9d", pink: "#ff2d95", cyan: "#00e5ff", yellow: "#ffe700", red: "#ff3355", orange: "#ff8a2d", text: "#eee4ff", sub: "#c0b0e0", muted: "#9080b8", dim: "#5a4a7a", mono: "'JetBrains Mono',monospace", sans: "'Space Grotesk',sans-serif" };
 
+// ─── CLIENT-SIDE TIMESTAMP ──────────────────────────────────
+function useClientTime(format: (d: Date) => string, dateStr: string | null | undefined, fallback: string) {
+  const [display, setDisplay] = useState<string>(fallback);
+  useEffect(() => {
+    if (!dateStr) { setDisplay(fallback); return; }
+    try { setDisplay(format(new Date(dateStr))); } catch { setDisplay(fallback); }
+  }, [dateStr, format, fallback]);
+  return display;
+}
+
+function ClientTimestamp({ dateStr, format = "string", fallback = "—" }: { dateStr?: string | null; format?: "string" | "date" | "time"; fallback?: string }) {
+  const fmt = useCallback((d: Date) => {
+    if (format === "date") return d.toLocaleDateString();
+    if (format === "time") return d.toLocaleTimeString();
+    return d.toLocaleString();
+  }, [format]);
+  return <span suppressHydrationWarning>{useClientTime(fmt, dateStr, fallback)}</span>;
+}
+
 // ─── TOOLTIP — hover-persistent, positioned near trigger ─────
 const Tip = ({ term, text, children }) => {
   const [show, setShow] = useState(false);
@@ -105,6 +124,16 @@ const Tip = ({ term, text, children }) => {
 // ─── UI PRIMITIVES ───────────────────────────────────────────
 const Card = ({ children, s = {} }) => <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 12, overflow: "hidden", ...s }}>{children}</div>;
 const Head = ({ children, right }) => <div style={{ padding: "14px 20px", borderBottom: `1px solid ${C.border}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}><span style={{ fontSize: 14, fontWeight: 700, color: C.cyan, letterSpacing: 2.5, textTransform: "uppercase", fontFamily: C.mono }}>{children}</span>{right && <span suppressHydrationWarning style={{ fontSize: 12, color: C.green, fontFamily: C.mono }}>{right}</span>}</div>;
+
+// Head variant that formats timestamps client-side only to avoid hydration mismatches
+const HeadTime = ({ children, rightTimestamp }) => {
+  const [timeStr, setTimeStr] = useState("");
+  useEffect(() => {
+    if (rightTimestamp) setTimeStr(new Date(rightTimestamp).toLocaleTimeString());
+  }, [rightTimestamp]);
+  return <Head right={timeStr}>{children}</Head>;
+};
+
 const Stat = ({ label, value, sub, color = C.green, desc }) => (
   <div style={{ background: C.card, border: `1px solid ${color}22`, borderRadius: 12, padding: "16px 20px" }}>
     <div style={{ fontSize: 13, color: C.green, letterSpacing: 1.5, textTransform: "uppercase", fontFamily: C.mono, marginBottom: 4, fontWeight: 600 }}>{desc ? <Tip term={label} text={desc}>{label}</Tip> : label}</div>
@@ -684,9 +713,9 @@ export default function Dashboard() {
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 18 }}>
             {/* Trading Bot Status */}
             <Card>
-              <Head right={botData?.fetchedAt ? new Date(botData.fetchedAt).toLocaleTimeString() : ""}>
+              <HeadTime rightTimestamp={botData?.fetchedAt}>
                 Trading Bot
-              </Head>
+              </HeadTime>
               <div style={{ padding: "12px 20px" }}>
                 {botLoading && !botData ? (
                   <div style={{ color: C.sub, padding: 20 }}>Connecting to bot...</div>
@@ -756,7 +785,7 @@ export default function Dashboard() {
             </Card>
 
             {/* All Wallets - real data */}
-            <Card><Head right={walletData?.timestamp ? new Date(walletData.timestamp).toLocaleTimeString() : ""}>All Wallets</Head>
+            <Card><HeadTime rightTimestamp={walletData?.timestamp}>All Wallets</HeadTime>
               <div style={{ padding: "12px 20px" }}>
                 {walletLoading ? (
                   <div style={{ color: C.sub, padding: 20 }}>Loading wallet data...</div>
@@ -819,7 +848,7 @@ export default function Dashboard() {
                     {farmingStats.recentCompletions.map((c: any) => (
                       <div key={c.id} style={{ display: "flex", justifyContent: "space-between", padding: "4px 0", fontSize: 12, borderBottom: `1px solid ${C.border}22` }}>
                         <span><span style={{ color: C.green }}>{c.protocol}</span>: {c.taskName}</span>
-                        <span suppressHydrationWarning style={{ color: C.dim }}>{new Date(c.completedAt).toLocaleDateString()}</span>
+                        <span style={{ color: C.dim }}><ClientTimestamp dateStr={c.completedAt} format="date" /></span>
                       </div>
                     ))}
                   </div>
@@ -831,9 +860,9 @@ export default function Dashboard() {
           {/* Bot Phases - real data from NUC1 */}
           {botData?.trading && (
             <Card>
-              <Head right={botData?.trading?.timestamp ? new Date(botData.trading.timestamp).toLocaleTimeString() : ""}>
+              <HeadTime rightTimestamp={botData?.trading?.timestamp}>
                 Bot Status
-              </Head>
+              </HeadTime>
               <div style={{ padding: "10px 20px" }}>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
                   <div style={{ textAlign: "center", padding: 10, background: "rgba(0,0,0,0.3)", borderRadius: 6 }}>
@@ -1116,8 +1145,8 @@ export default function Dashboard() {
                         TX ↗
                       </a>
                     )}
-                    <span suppressHydrationWarning style={{ fontSize: 11, color: C.dim, whitespace: "nowrap" }}>
-                      {new Date(log.timestamp).toLocaleString()}
+                    <span style={{ fontSize: 11, color: C.dim, whitespace: "nowrap" }}>
+                      <ClientTimestamp dateStr={log.timestamp} />
                     </span>
                   </div>
                 ))}
@@ -1135,7 +1164,7 @@ export default function Dashboard() {
 
         {/* HOW-TO */}
         {tab === "howto" && <div style={{ animation: "fadeUp 0.3s" }}>
-          <Card s={{ marginBottom: 16 }}><Head>Quick Start Guide</Head><div style={{ padding: "18px 22px", fontSize: 14, color: C.text, lineHeight: 1.9 }}><div style={{ color: C.pink, fontWeight: 700, fontFamily: C.mono, marginBottom: 8, fontSize: 14 }}>YOUR BOT IN 30 SECONDS:</div>{["Bot runs every 10 min on cron.", `Scans ${(d.scanner?.kalshi_series ?? 0).toLocaleString()} Kalshi + ${d.scanner?.crypto_pairs ?? '—'} crypto pairs.`, "5-gate Kelly pipeline on every trade.", "No edge ≥5%? Does nothing. Correct.", "Farms airdrops alongside trading.", `${(d.bot?.proofs ?? 0).toLocaleString()} JSON proofs generated.`].map((s, i) => <div key={i}><span style={{ color: C.green, fontWeight: 700 }}>{i + 1}.</span> {s}</div>)}<div style={{ marginTop: 12, color: C.yellow, fontWeight: 600 }}>SHADOW MODE — paper trading only.</div></div></Card>
+          <Card s={{ marginBottom: 16 }}><Head>Quick Start Guide</Head><div style={{ padding: "18px 22px", fontSize: 14, color: C.text, lineHeight: 1.9 }}><div style={{ color: C.pink, fontWeight: 700, fontFamily: C.mono, marginBottom: 8, fontSize: 14 }}>YOUR BOT IN 30 SECONDS:</div>{["Bot runs every 10 min on cron.", `Scans ${((d.scanner?.kalshi_series) ?? 0).toLocaleString()} Kalshi + ${(d.scanner?.crypto_pairs) ?? '—'} crypto pairs.`, "5-gate Kelly pipeline on every trade.", "No edge ≥5%? Does nothing. Correct.", "Farms airdrops alongside trading.", `${(d.bot?.proofs ?? 0).toLocaleString()} JSON proofs generated.`].map((s, i) => <div key={i}><span style={{ color: C.green, fontWeight: 700 }}>{i + 1}.</span> {s}</div>)}<div style={{ marginTop: 12, color: C.yellow, fontWeight: 600 }}>SHADOW MODE — paper trading only.</div></div></Card>
           <Card s={{ marginBottom: 16 }}><Head>Key Instructions</Head><div style={{ padding: "18px 22px", fontSize: 14, color: C.text, lineHeight: 1.9 }}>{[{ t: "Trigger farming", s: ["/farm in Discord", "Default: dry run", "/farm --live for real", "/farm-status"] }, { t: "Go LIVE", s: ["Settings → Farm Mode → live", "≥0.05 ETH on Base", "Watch Logs → Airdrops", "Capped $5/wk"] }, { t: "Add wallet", s: ["Overview → All Wallets", "Paste 0x + label", "+Add"] }, { t: "Circuit Breaker trips", s: ["Don't panic", "Settings → Reset", "Check Logs → Trading", "Reset if normal"] }, { t: "Read Risk tab", s: ["Green = OK", "Yellow = watch", "Red = tripped", "(?) for details"] }].map((sec, i) => <div key={i} style={{ marginBottom: 18 }}><div style={{ color: C.pink, fontWeight: 700, fontFamily: C.mono, fontSize: 13, marginBottom: 6 }}>{sec.t.toUpperCase()}</div>{sec.s.map((s, j) => <div key={j} style={{ paddingLeft: 18 }}><span style={{ color: C.cyan, fontWeight: 700 }}>{j + 1}.</span> {s}</div>)}</div>)}</div></Card>
           <Card><Head right={`${GLOSSARY.length} terms`}>Glossary</Head><div style={{ padding: "14px 20px" }}><input value={gFilter} onChange={e => setGFilter(e.target.value)} placeholder="Search..." style={{ width: "100%", marginBottom: 14 }} />{GLOSSARY.filter(g => !gFilter || g.term.toLowerCase().includes(gFilter.toLowerCase()) || g.def.toLowerCase().includes(gFilter.toLowerCase())).map((g, i) => <div key={i} onMouseEnter={() => setGHover(g.term)} onMouseLeave={() => setGHover(null)} onClick={() => setGHover(gHover === g.term ? null : g.term)} style={{ padding: gHover === g.term ? "14px 16px" : "10px 0", borderBottom: `1px solid ${C.border}`, transition: "all 0.2s", background: gHover === g.term ? `${C.cyan}0c` : "transparent", borderRadius: gHover === g.term ? 8 : 0, margin: gHover === g.term ? "4px 0" : 0, cursor: "pointer", transform: gHover === g.term ? "scale(1.015)" : "" }}><div style={{ fontSize: gHover === g.term ? 17 : 14, fontWeight: 700, color: gHover === g.term ? C.green : C.cyan, fontFamily: C.mono, transition: "all 0.2s" }}>{g.term}</div><div style={{ fontSize: gHover === g.term ? 14 : 13, color: C.text, lineHeight: 1.6, marginTop: 3 }}>{g.def}</div></div>)}</div></Card>
         </div>}
@@ -1391,7 +1420,7 @@ export default function Dashboard() {
         </div>
       )}
 
-      <footer style={{ padding: "10px 0", borderTop: `1px solid ${C.pink}22` }}><div style={{ maxWidth: 1200, margin: "0 auto", padding: "0 24px", display: "flex", justifyContent: "space-between", fontSize: 11, fontFamily: C.mono, letterSpacing: 2 }}><span style={{ color: C.pink }}>SLIMY_CRYPTO_V1.0</span><span style={{ color: C.cyan }}>{botData?.farming?.stats?.total_actions || 0} bot actions • {botData?.trading?.mode?.toUpperCase() || "OFFLINE"}</span><span suppressHydrationWarning style={{ color: C.green }}>{botData?.fetchedAt ? new Date(botData.fetchedAt).toLocaleTimeString() : "—"}</span></div></footer>
+      <footer style={{ padding: "10px 0", borderTop: `1px solid ${C.pink}22` }}><div style={{ maxWidth: 1200, margin: "0 auto", padding: "0 24px", display: "flex", justifyContent: "space-between", fontSize: 11, fontFamily: C.mono, letterSpacing: 2 }}><span style={{ color: C.pink }}>SLIMY_CRYPTO_V1.0</span><span style={{ color: C.cyan }}>{botData?.farming?.stats?.total_actions || 0} bot actions • {botData?.trading?.mode?.toUpperCase() || "OFFLINE"}</span><span style={{ color: C.green }}><ClientTimestamp dateStr={botData?.fetchedAt} format="time" fallback="—" /></span></div></footer>
     </div>
   );
 }
