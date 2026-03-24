@@ -13,6 +13,7 @@ export default function SnailLayout({ children }: { children: React.ReactNode })
     { name: "GUILDS", href: "/snail/guilds", icon: <Users size={18} /> },
     { name: "PERSONAL", href: "/snail/personal", icon: <User size={18} /> },
     { name: "CODES", href: "/snail/codes", icon: <Hash size={18} /> },
+    { name: "CLUB", href: "/snail/club", icon: <Users size={18} /> },
     { name: "DOCS", href: "/snail/docs", icon: <FileText size={18} /> },
   ];
 
