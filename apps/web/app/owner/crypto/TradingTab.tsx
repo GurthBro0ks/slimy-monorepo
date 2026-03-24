@@ -67,9 +67,10 @@ function CumulativePnLChart({ data }: { data: { timestamp: string; pnl: number; 
   if (!data || data.length === 0) {
     return <div style={{ color: C.dim, fontFamily: C.mono, fontSize: 12 }}>No data</div>;
   }
+  // Parse timestamps as UTC midnight to avoid SSR/client timezone mismatches in toLocaleDateString
   const chartData = data.map(d => ({
     ...d,
-    date: d.timestamp ? new Date(d.timestamp).toLocaleDateString() : "",
+    date: d.timestamp ? new Date(d.timestamp + "T00:00:00Z").toLocaleDateString("en-US", { timeZone: "UTC" }) : "",
   }));
   const min = Math.min(...chartData.map(d => d.cumPnl));
   const max = Math.max(...chartData.map(d => d.cumPnl));
