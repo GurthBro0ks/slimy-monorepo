@@ -19,8 +19,15 @@ export default function MissionControlPage() {
   const router = useRouter();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
+  // Track hydration to avoid React #300 hydration mismatch with auth state
+  const [hasHydrated, setHasHydrated] = useState(false);
 
   useEffect(() => {
+    setHasHydrated(true);
+  }, []);
+
+  useEffect(() => {
+    if (!hasHydrated) return;
     if (!isLoading) {
       if (!isAuthenticated) {
         router.push("/login");
@@ -31,24 +38,32 @@ export default function MissionControlPage() {
         return;
       }
     }
-  }, [isAuthenticated, isLoading, role, router]);
+  }, [hasHydrated, isAuthenticated, isLoading, role, router]);
 
   useEffect(() => {
-    if (isAuthenticated && role === "owner") {
-      fetch("/api/mission-control/tasks", { credentials: "include" })
-        .then(res => res.json())
-        .then(data => {
-          setTasks(data.tasks || []);
-          setLoading(false);
-        })
-        .catch(err => {
-          console.error("Failed to fetch tasks:", err);
-          setLoading(false);
-        });
-    }
-  }, [isAuthenticated, role]);
+    if (!hasHydrated || !isAuthenticated || role !== "owner") return;
 
-  if (isLoading || role !== "owner") {
+    fetch("/api/mission-control/tasks", { credentials: "include" })
+      .then(res => {
+        if (res.status === 401) {
+          router.push("/login");
+          return null;
+        }
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json();
+      })
+      .then(data => {
+        if (data === null) return; // 401 case, already redirecting
+        setTasks(data.tasks || []);
+        setLoading(false);
+      })
+      .catch(err => {
+        console.error("Failed to fetch tasks:", err);
+        setLoading(false);
+      });
+  }, [hasHydrated, isAuthenticated, role, router]);
+
+  if (!hasHydrated || isLoading || role !== "owner") {
     return <div className="min-h-screen bg-black" />;
   }
 
