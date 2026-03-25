@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { isRateLimited } from "@/lib/rate-limiter";
-import { join } from "path";
 
 // Create a shared store outside the mock so we can access it for clearing
 const fileStore = new Map<string, string>();

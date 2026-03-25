@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
       for (const file of screenshots) {
         // Generate unique filename
         const timestamp = Date.now();
-        const randomId = Math.random().toString(36).substr(2, 9);
+        const randomId = Math.random().toString(36).substring(2, 11);
         const extension = file.name.split('.').pop() || 'png';
         const filename = `${timestamp}_${randomId}.${extension}`;
         const filepath = join(uploadDir, filename);

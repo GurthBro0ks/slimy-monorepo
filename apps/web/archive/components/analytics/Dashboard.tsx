@@ -46,6 +46,7 @@ export function Dashboard({ className }: DashboardProps) {
 
   useEffect(() => {
     fetchSystemMetrics();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchSystemMetrics is stable across renders
   }, [timeRange]);
 
   useEffect(() => {

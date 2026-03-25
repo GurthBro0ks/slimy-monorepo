@@ -123,6 +123,7 @@ export default function ClubDashboardPage() {
         <div className="flex items-center gap-6">
           <div className="w-20 h-20 bg-[#1a0b2e] border-2 border-[#39ff14] flex items-center justify-center overflow-hidden shadow-[0_0_15px_rgba(57,255,20,0.3)]">
             {guildData?.guild.icon ? (
+              /* eslint-disable-next-line @next/next/no-img-element -- External URL from chat API, next/image requires domain config */
               <img src={`https://chat.slimyai.xyz/api/servers/${guildId}/icon`} alt="" className="w-full h-full object-cover" />
             ) : (
               <span className="text-4xl text-[#39ff14] font-bold">{guildData?.guild.name.charAt(0)}</span>

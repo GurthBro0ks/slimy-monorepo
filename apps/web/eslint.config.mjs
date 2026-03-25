@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const compat = new FlatCompat({ baseDirectory: __dirname });
 
-export default [
+const config = [
   ...compat.extends("next/core-web-vitals"),
   {
     ignores: [".next/**", "out/**", "build/**", "next-env.d.ts", "vitest.config.ts"],
@@ -37,3 +37,5 @@ export default [
     },
   },
 ];
+
+export default config;

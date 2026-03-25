@@ -304,7 +304,7 @@ describe('/api/screenshot', () => {
       } as any;
 
       const response = await POST(mockRequest);
-      const data = await response.json();
+      const _data = await response.json();
 
       expect(analyzeScreenshot).toHaveBeenCalledWith('http://example.com/image.png', {
         type: undefined,

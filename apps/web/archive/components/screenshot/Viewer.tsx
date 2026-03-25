@@ -243,6 +243,7 @@ export function ScreenshotViewer({
             <CardContent className="space-y-3">
               {/* Screenshot thumbnail */}
               <div className="aspect-video bg-muted rounded-lg overflow-hidden">
+                {/* eslint-disable-next-line @next/next/no-img-element -- Archive component, using img for simplicity */}
                 <img
                   src={analysis.imageUrl}
                   alt={analysis.analysis.title}
@@ -396,6 +397,7 @@ export function ScreenshotViewer({
                 </div>
 
                 <div className="border rounded-lg overflow-hidden bg-muted">
+                  {/* eslint-disable-next-line @next/next/no-img-element -- Archive component, using img for simplicity */}
                   <img
                     src={selectedAnalysis.imageUrl}
                     alt={selectedAnalysis.analysis.title}

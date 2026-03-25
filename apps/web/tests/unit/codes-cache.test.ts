@@ -6,7 +6,7 @@ let mockConnectResolve = true;
 let mockConnectError: Error | null = null;
 
 vi.mock("redis", () => ({
-  createClient: vi.fn((config: any) => {
+  createClient: vi.fn((_config: any) => {
     const listeners: { [key: string]: Function[] } = {};
 
     return {

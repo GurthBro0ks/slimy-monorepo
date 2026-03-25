@@ -573,12 +573,14 @@ export default function Dashboard() {
       fetchAirdrops();
       fetchCalendar(calendarYear, calendarMonth);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchCalendar uses calendarYear/Month handled by separate effect
   }, [tab]);
 
   useEffect(() => {
     if (tab === "airdrops") {
       fetchCalendar(calendarYear, calendarMonth);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- tab is checked inside but intentionally not a dep
   }, [calendarYear, calendarMonth]);
 
   // Load dashboard settings when settings tab is active
@@ -586,6 +588,7 @@ export default function Dashboard() {
     if (tab === "settings" && !dashSettings) {
       fetchDashSettings();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- dashSettings is checked inside, adding it would cause infinite loops
   }, [tab]);
 
   // Load settings on mount (for Overview tab later)
@@ -613,6 +616,7 @@ export default function Dashboard() {
     if (tab === "logs") {
       fetchLogs(logsCategory);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchLogs recreated on each render, adding to deps would cause infinite loop
   }, [tab, logsCategory]);
 
   useEffect(() => { const t = setInterval(() => setNow(new Date()), 1000); return () => clearInterval(t); }, []);

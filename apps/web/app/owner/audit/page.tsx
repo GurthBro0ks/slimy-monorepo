@@ -53,6 +53,7 @@ export default function OwnerAuditPage() {
   // Load audit logs on mount and when filter changes
   useEffect(() => {
     loadLogs();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- loadLogs is stable across renders
   }, [selectedAction]);
 
   async function loadLogs() {

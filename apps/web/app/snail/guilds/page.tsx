@@ -71,9 +71,10 @@ export default function GuildsPage() {
                   <div className="flex items-center gap-4">
                     <div className="w-16 h-16 bg-[#1a0b2e] border border-[#8a4baf] group-hover:border-[#39ff14] flex items-center justify-center overflow-hidden">
                       {guild.serverIcon ? (
-                        <img 
-                          src={`https://chat.slimyai.xyz/api/servers/${guild.serverId}/icon`} 
-                          alt="" 
+                        /* eslint-disable-next-line @next/next/no-img-element -- External URL from chat API, next/image requires domain config */
+                        <img
+                          src={`https://chat.slimyai.xyz/api/servers/${guild.serverId}/icon`}
+                          alt=""
                           className="w-full h-full object-cover"
                         />
                       ) : (
