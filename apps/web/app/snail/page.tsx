@@ -1,40 +1,13 @@
 "use client";
 
 import React from "react";
-import { Users, User, Hash, FileText } from "lucide-react";
+import { Hash, Users, Lock } from "lucide-react";
 import Link from "next/link";
+import { useAuth } from "@/lib/auth/context";
 
 export default function SnailLanding() {
-  const sections = [
-    {
-      title: "GUILD SELECTION",
-      icon: <Users className="w-12 h-12" />,
-      href: "/snail/guilds",
-      borderColor: "#39ff14",
-      description: "Manage and monitor your Discord guilds",
-    },
-    {
-      title: "PERSONAL DASHBOARD",
-      icon: <User className="w-12 h-12" />,
-      href: "/snail/personal",
-      borderColor: "#8a4baf",
-      description: "Your individual stats and preferences",
-    },
-    {
-      title: "LIVE CODES",
-      icon: <Hash className="w-12 h-12" />,
-      href: "/snail/codes",
-      borderColor: "#d400ff",
-      description: "Real-time snail code tracking and generation",
-    },
-    {
-      title: "DOCUMENTATION",
-      icon: <FileText className="w-12 h-12" />,
-      href: "/snail/docs",
-      borderColor: "#00ffff",
-      description: "Learn how to master the Super Snail system",
-    },
-  ];
+  const { user } = useAuth();
+  const isOwner = user?.role === "owner";
 
   return (
     <div className="space-y-12">
@@ -45,25 +18,67 @@ export default function SnailLanding() {
         <p className="text-2xl text-[#8a4baf]">NEON-NATIVE AUTOMATION INTERFACE</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {sections.map((section, idx) => (
-          <Link key={idx} href={section.href} className="no-underline group">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-3xl mx-auto">
+        {/* Snail Codes Card */}
+        <Link href="/snail/codes" className="no-underline group">
+          <div
+            className="bg-[#0a0412] border-2 p-8 flex flex-col items-center gap-4 transition-all group-hover:bg-[#1a0b2e] group-hover:shadow-[0_0_20px_rgba(212,0,255,0.3)]"
+            style={{ borderColor: "#d400ff" }}
+          >
+            <div style={{ color: "#d400ff" }} className="drop-shadow-[0_0_5px_#d400ff] group-hover:scale-110 transition-transform">
+              <Hash className="w-14 h-14" />
+            </div>
+            <h2 className="text-2xl font-bold tracking-widest" style={{ color: "#d400ff" }}>
+              SNAIL CODES
+            </h2>
+            <p className="text-[#d6b4fc] text-center opacity-70 group-hover:opacity-100">
+              603+ active codes — track &amp; manage Super Snail redemption codes in real-time
+            </p>
+            <span className="text-xs text-[#d400ff] font-mono tracking-widest mt-2 opacity-60 group-hover:opacity-100">VIEW CODES →</span>
+          </div>
+        </Link>
+
+        {/* Club Dashboard Card */}
+        {isOwner ? (
+          <Link href="/snail/club" className="no-underline group">
             <div
-              className="bg-[#0a0412] border-2 p-6 flex flex-col items-center gap-4 transition-all group-hover:bg-[#1a0b2e] group-hover:shadow-[0_0_20px_rgba(57,255,20,0.2)]"
-              style={{ borderColor: section.borderColor }}
+              className="bg-[#0a0412] border-2 p-8 flex flex-col items-center gap-4 transition-all group-hover:bg-[#1a0b2e] group-hover:shadow-[0_0_20px_rgba(57,255,20,0.3)]"
+              style={{ borderColor: "#39ff14" }}
             >
-              <div style={{ color: section.borderColor }} className="drop-shadow-[0_0_5px_currentColor] group-hover:scale-110 transition-transform">
-                {section.icon}
+              <div style={{ color: "#39ff14" }} className="drop-shadow-[0_0_5px_#39ff14] group-hover:scale-110 transition-transform">
+                <Users className="w-14 h-14" />
               </div>
-              <h2 className="text-2xl font-bold tracking-widest" style={{ color: section.borderColor }}>
-                {section.title}
+              <h2 className="text-2xl font-bold tracking-widest" style={{ color: "#39ff14" }}>
+                CLUB DASHBOARD
               </h2>
               <p className="text-[#d6b4fc] text-center opacity-70 group-hover:opacity-100">
-                {section.description}
+                Club stats, member power rankings &amp; spreadsheet upload for Cormys Bar
               </p>
+              <span className="text-xs text-[#39ff14] font-mono tracking-widest mt-2 opacity-60 group-hover:opacity-100">OPEN DASHBOARD →</span>
             </div>
           </Link>
-        ))}
+        ) : (
+          <div
+            className="bg-[#0a0412] border-2 p-8 flex flex-col items-center gap-4 opacity-50 cursor-not-allowed"
+            style={{ borderColor: "#39ff14" }}
+          >
+            <div style={{ color: "#39ff14" }} className="drop-shadow-[0_0_5px_#39ff14]">
+              <Lock className="w-14 h-14" />
+            </div>
+            <h2 className="text-2xl font-bold tracking-widest" style={{ color: "#39ff14" }}>
+              CLUB DASHBOARD
+            </h2>
+            <p className="text-[#d6b4fc] text-center opacity-70">
+              Owner-only — club stats &amp; member management
+            </p>
+            <span className="text-xs text-[#39ff14] font-mono tracking-widest mt-2 opacity-60">RESTRICTED</span>
+          </div>
+        )}
+      </div>
+
+      {/* Secondary nav */}
+      <div className="text-center pt-8 border-t border-[#8a4baf]/30">
+        <p className="text-[#8a4baf] text-sm tracking-widest font-mono">MORE SNAIL FEATURES COMING SOON</p>
       </div>
     </div>
   );

@@ -127,7 +127,7 @@ export function RetroShell({ children }: { children: React.ReactNode }) {
 
       <header className="web-header">
         <Link href="/" className="web-logo"><div style={{ width: 32, height: 32, position: "relative" }}><Image src="/brand/snail-glitch.png" alt="Snail" width={32} height={32} style={{ objectFit: "contain" }} /></div>slimyai.xyz</Link>
-        {showNav && <nav className="web-nav"><Link href="/dashboard" className="nav-btn">Dashboard</Link><Link href="/mission-control" className="nav-btn">Mission Control</Link><button onClick={handleLogout} className="nav-btn">Log Out</button></nav>}
+        {showNav && <nav className="web-nav"><Link href="/dashboard" className="nav-btn">Dashboard</Link><Link href="/mission-control" className="nav-btn">Mission Control</Link><Link href="/snail" className="nav-btn">🐌 Super Snail</Link><button onClick={handleLogout} className="nav-btn">Log Out</button></nav>}
       </header>
 
       <div className="marquee-container">
