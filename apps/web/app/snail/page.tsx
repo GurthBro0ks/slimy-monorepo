@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Hash, Users, Lock } from "lucide-react";
+import { Hash, Users, Lock, TrendingUp, BookOpen } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth/context";
 
@@ -18,7 +18,7 @@ export default function SnailLanding() {
         <p className="text-2xl text-[#8a4baf]">NEON-NATIVE AUTOMATION INTERFACE</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-3xl mx-auto">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
         {/* Snail Codes Card */}
         <Link href="/snail/codes" className="no-underline group">
           <div
@@ -74,6 +74,44 @@ export default function SnailLanding() {
             <span className="text-xs text-[#39ff14] font-mono tracking-widest mt-2 opacity-60">RESTRICTED</span>
           </div>
         )}
+
+        {/* Personal Stats Card */}
+        <Link href="/snail/stats" className="no-underline group">
+          <div
+            className="bg-[#0a0412] border-2 p-8 flex flex-col items-center gap-4 transition-all group-hover:bg-[#1a0b2e] group-hover:shadow-[0_0_20px_rgba(0,255,255,0.3)]"
+            style={{ borderColor: "#00ffff" }}
+          >
+            <div style={{ color: "#00ffff" }} className="drop-shadow-[0_0_5px_#00ffff] group-hover:scale-110 transition-transform">
+              <TrendingUp className="w-14 h-14" />
+            </div>
+            <h2 className="text-2xl font-bold tracking-widest" style={{ color: "#00ffff" }}>
+              PERSONAL STATS
+            </h2>
+            <p className="text-[#d6b4fc] text-center opacity-70 group-hover:opacity-100">
+              Track your snail&apos;s power, growth, and compare against club members
+            </p>
+            <span className="text-xs text-[#00ffff] font-mono tracking-widest mt-2 opacity-60 group-hover:opacity-100">VIEW STATS →</span>
+          </div>
+        </Link>
+
+        {/* Knowledge Base Card */}
+        <Link href="/snail/wiki" className="no-underline group">
+          <div
+            className="bg-[#0a0412] border-2 p-8 flex flex-col items-center gap-4 transition-all group-hover:bg-[#1a0b2e] group-hover:shadow-[0_0_20px_rgba(255,107,0,0.3)]"
+            style={{ borderColor: "#ff6b00" }}
+          >
+            <div style={{ color: "#ff6b00" }} className="drop-shadow-[0_0_5px_#ff6b00] group-hover:scale-110 transition-transform">
+              <BookOpen className="w-14 h-14" />
+            </div>
+            <h2 className="text-2xl font-bold tracking-widest" style={{ color: "#ff6b00" }}>
+              KNOWLEDGE BASE
+            </h2>
+            <p className="text-[#d6b4fc] text-center opacity-70 group-hover:opacity-100">
+              Super Snail guides, tips, and game mechanics reference
+            </p>
+            <span className="text-xs text-[#ff6b00] font-mono tracking-widest mt-2 opacity-60 group-hover:opacity-100">OPEN WIKI →</span>
+          </div>
+        </Link>
       </div>
 
       {/* Secondary nav */}

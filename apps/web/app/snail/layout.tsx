@@ -3,7 +3,7 @@
 import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChevronRight, Home, Users, User, Hash, FileText } from "lucide-react";
+import { ChevronRight, Home, Users, User, Hash, FileText, TrendingUp, BookOpen } from "lucide-react";
 
 export default function SnailLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -12,6 +12,8 @@ export default function SnailLayout({ children }: { children: React.ReactNode })
     { name: "HOME", href: "/snail", icon: <Home size={18} /> },
     { name: "GUILDS", href: "/snail/guilds", icon: <Users size={18} /> },
     { name: "PERSONAL", href: "/snail/personal", icon: <User size={18} /> },
+    { name: "STATS", href: "/snail/stats", icon: <TrendingUp size={18} /> },
+    { name: "WIKI", href: "/snail/wiki", icon: <BookOpen size={18} /> },
     { name: "CODES", href: "/snail/codes", icon: <Hash size={18} /> },
     { name: "CLUB", href: "/snail/club", icon: <Users size={18} /> },
     { name: "DOCS", href: "/snail/docs", icon: <FileText size={18} /> },
