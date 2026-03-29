@@ -62,14 +62,14 @@ export async function GET(request: NextRequest) {
 
       // Get club data sorted by total_power DESC
       const [rows] = await connection.query<mysql.RowDataPacket[]>(`
-        SELECT name, sim_power, total_power, change_pct
+        SELECT name_display, sim_power, total_power, total_pct_change
         FROM club_latest
         ORDER BY total_power DESC
       `);
 
       // Get last updated timestamp
       const [tsRows] = await connection.query<mysql.RowDataPacket[]>(`
-        SELECT MAX(snapshot_at) as last_updated
+        SELECT MAX(latest_at) as last_updated
         FROM club_latest
       `);
 
@@ -78,10 +78,10 @@ export async function GET(request: NextRequest) {
         : new Date().toISOString();
 
       const members: ClubMember[] = rows.map((row) => ({
-        name: row.name ?? "",
+        name: row.name_display ?? "",
         sim_power: Number(row.sim_power) || 0,
         total_power: Number(row.total_power) || 0,
-        change_pct: Number(row.change_pct) || 0,
+        change_pct: Number(row.total_pct_change) || 0,
       }));
 
       const totalPower = members.reduce((sum, m) => sum + m.total_power, 0);
