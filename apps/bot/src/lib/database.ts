@@ -134,11 +134,11 @@ class Database {
 
   // ─── Query Helpers ──────────────────────────────────────────────────────────
 
-  async query<T extends RowDataPacket[]>(sql: string, params: any[] = []): Promise<T> {
+  async query<T>(sql: string, params: any[] = []): Promise<T> {
     const pool = this.getPool();
     try {
-      const [rows] = await pool.execute<T>(sql, params);
-      return rows;
+      const [rows] = await pool.execute(sql, params);
+      return rows as T;
     } catch (err) {
       console.error('[database] Query failed:', (err as Error).message);
       console.error('[database] SQL:', sql);
