@@ -1,0 +1,26 @@
+/**
+ * Image intent detection from text prompts.
+ * Ported from /opt/slimy/app/lib/image-intent.js
+ */
+
+const OPENAI_KEY_MISSING = !process.env.OPENAI_API_KEY && !process.env.AI_API_KEY;
+
+const IMAGE_TRIGGERS = [
+  /\bcreate (an? )?(image|picture|photo|art|poster|logo|banner|icon)\b/i,
+  /\bmake (an? )?(image|picture|photo|art|poster|logo|banner|icon)\b/i,
+  /\bimage prompt:/i,
+  /\bdraw\b/i,
+  /\billustrate\b/i,
+  /\bgenerate\b.*\b(image|picture|photo)\b/i,
+  /\b(render|paint|design)\b.*\b(image|picture|photo|art)\b/i,
+  /\b(show|send|display|give|share)\b.*\b(photo|picture|image)\b/i,
+  /\b(photo|picture|image)\b.*\bof\b/i,
+];
+
+function detectImageIntent(text = ""): boolean {
+  const t = text.toLowerCase();
+  if (!t || OPENAI_KEY_MISSING) return false;
+  return IMAGE_TRIGGERS.some((regex) => regex.test(text));
+}
+
+export { detectImageIntent };
