@@ -13,6 +13,7 @@
 
 import { parseNumber, isValidSnowflake } from './utils/parsing';
 import { calculateClubStats } from './utils/stats';
+import { database } from './lib/database.js';
 
 async function main() {
   console.log('[bot] Starting Slimy Discord Bot (scaffold mode)...');
@@ -26,16 +27,29 @@ async function main() {
     return;
   }
 
+  // Initialize database (creates tables if not exist, skips gracefully if unconfigured)
+  const dbOk = await database.initialize();
+  if (dbOk) {
+    console.log('[bot] Database initialized successfully');
+    try {
+      const connected = await database.testConnection();
+      console.log('[bot] Database connection verified:', connected);
+    } catch (err) {
+      console.warn('[bot] Database connection test failed (non-fatal):', (err as Error).message);
+    }
+  } else {
+    console.warn('[bot] Database not configured — skipping DB init (env vars missing)');
+  }
+
   console.log('[bot] Configuration validated');
   console.log('[bot] Utils available:', {
     parseNumber,
     isValidSnowflake,
-    calculateClubStats
+    calculateClubStats,
   });
 
   // TODO: Initialize Discord client
   // TODO: Register command handlers
-  // TODO: Connect to database
 
   console.log('[bot] Scaffold initialization complete');
   console.log('[bot] Waiting for actual bot implementation...');
@@ -53,7 +67,8 @@ process.on('SIGTERM', () => {
 });
 
 // Run if this is the main module
-if (require.main === module) {
+const isMain = process.argv[1] != null && import.meta.url === `file://${process.argv[1]}`;
+if (isMain) {
   main().catch(error => {
     console.error('[bot] Fatal error:', error);
     process.exit(1);
