@@ -186,9 +186,11 @@ if (fs.existsSync(commandsDir)) {
     const fp = path.join(commandsDir, file);
     try {
       const cmd = require(fp) as DiscordCommand;
-      if (cmd?.data && cmd?.execute) {
-        (client as ClientWithCommands).commands.set(cmd.data.name, cmd);
-        console.log(`✅ Loaded command: ${cmd.data.name}`);
+      const cmdData = cmd?.data ?? (cmd as any)?.default?.data;
+      const cmdExecute = cmd?.execute ?? (cmd as any)?.default?.execute;
+      if (cmdData && cmdExecute) {
+        (client as ClientWithCommands).commands.set(cmdData.name, cmd);
+        console.log(`✅ Loaded command: ${cmdData.name}`);
       } else if (cmd && (cmd as Record<string, unknown>).registerSubcommand) {
         continue;
       } else {
