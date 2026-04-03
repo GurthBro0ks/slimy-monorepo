@@ -116,6 +116,18 @@
       ],
       "passes": true,
       "priority": "critical"
+    },
+    {
+      "id": "bot-openai-401-fix-001",
+      "category": "bot",
+      "description": "Update bot OPENAI_API_KEY on NUC1 and restart PM2 id 3 to fix OpenAI 401",
+      "steps": [
+        "Edit apps/bot/.env on NUC1",
+        "pm2 restart 3 --update-env",
+        "Verify bot online"
+      ],
+      "passes": true,
+      "priority": "critical"
     }
   ]
 }

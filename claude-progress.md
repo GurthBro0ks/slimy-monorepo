@@ -1,5 +1,24 @@
 # Claude Progress Log — slimy-monorepo
 
+## Session: 2026-04-03 (Bot OpenAI 401 fix on NUC1)
+
+**Agent:** Codex
+**Features worked on:** bot-openai-401-fix-001
+
+**What was done:**
+- Updated `OPENAI_API_KEY` in NUC1 `apps/bot/.env`.
+- Executed `pm2 restart 3 --update-env` on NUC1.
+- Verified process 3 (`slimy-bot-v2`) is online.
+- Reviewed recent logs for explicit OpenAI key-auth signatures.
+
+**What needs to happen next:**
+- Trigger real `/chat` and `/dream` requests in Discord to confirm end-to-end behavior under live traffic.
+
+**Environment state:** Bot online on PM2 after restart.
+**Git state:** Tracker/progress files updated.
+
+---
+
 ## Session: 2026-04-03 (Web DATABASE_URL fix)
 
 **Agent:** Codex
