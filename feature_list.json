@@ -101,6 +101,21 @@
       ],
       "passes": false,
       "priority": "high"
+    },
+    {
+      "id": "web-database-url-fix-001",
+      "category": "web-app",
+      "description": "Fix apps/web DATABASE_URL from slimyai_prod to slimy and verify snail API/pages",
+      "steps": [
+        "grep DATABASE_URL apps/web/.env",
+        "Update db name to slimy and host to 127.0.0.1",
+        "pnpm --filter web build",
+        "systemctl --user restart slimy-web.service",
+        "curl /snail /snail/stats /snail/club",
+        "curl /api/snail/club"
+      ],
+      "passes": true,
+      "priority": "critical"
     }
   ]
 }
