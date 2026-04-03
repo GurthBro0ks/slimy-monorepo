@@ -335,7 +335,7 @@ async function handleQuickAnalyze(interaction: InteractionLike): Promise<unknown
   }
 }
 
-export default {
+module.exports = {
   data: new SlashCommandBuilder()
     .setName("club-analyze")
     .setDescription("Analyze club screenshots with AI vision")

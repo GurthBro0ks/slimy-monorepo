@@ -169,7 +169,7 @@ async function handleSheet(interaction: {
   return interaction.editReply({ content: "📊 Google Sheets integration not yet configured. Use `/snail stats` to view stored stats." });
 }
 
-export default {
+module.exports = {
   data: new SlashCommandBuilder()
     .setName("snail")
     .setDescription("🐌 Super Snail stats — analyze screenshots and track progress")

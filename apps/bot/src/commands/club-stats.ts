@@ -34,7 +34,7 @@ function hasStatsPermission(interaction: ChatInputCommandInteraction): boolean {
   return false;
 }
 
-export default {
+module.exports = {
   data: new SlashCommandBuilder()
     .setName("club-stats")
     .setDescription("Show weekly club stats with movers and aggregates.")

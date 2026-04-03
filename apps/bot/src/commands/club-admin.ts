@@ -299,7 +299,7 @@ async function handleCorrect(interaction: ChatInputCommandInteraction): Promise<
   }
 }
 
-export default {
+module.exports = {
   data: new SlashCommandBuilder()
     .setName("club-admin")
     .setDescription("Club admin panel — aliases, stats, corrections, and settings")
