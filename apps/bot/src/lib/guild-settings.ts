@@ -65,6 +65,23 @@ export async function getGuildSetting(guildId: string, key: string): Promise<str
   return rows[0]?.value ?? null;
 }
 
+export interface GuildSettingEntry {
+  key: string;
+  value: string;
+}
+
+export async function getGuildSettings(guildId: string): Promise<GuildSettingEntry[]> {
+  ensureDatabaseConfigured();
+  if (!guildId) throw new Error("guildId is required");
+
+  interface Row { key_name: string; value: string; }
+  const rows = await database.query<Row[]>(
+    `SELECT key_name, value FROM guild_settings WHERE guild_id = ?`,
+    [guildId],
+  );
+  return rows.map((row) => ({ key: row.key_name, value: row.value }));
+}
+
 export async function setGuildSetting(guildId: string, key: string, value: string): Promise<void> {
   ensureDatabaseConfigured();
   if (!guildId) throw new Error("guildId is required");

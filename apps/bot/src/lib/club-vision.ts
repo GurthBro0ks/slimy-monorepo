@@ -6,6 +6,7 @@
 import { openai } from "./openai.js";
 import { canonicalize } from "./club-store.js";
 import { parsePower } from "./numparse.js";
+import { database } from "./database.js";
 
 const DEFAULT_MODEL = process.env.CLUB_VISION_MODEL || "gpt-4o";
 const STRICT_MODEL = process.env.CLUB_VISION_STRICT_MODEL || "gpt-4o";
