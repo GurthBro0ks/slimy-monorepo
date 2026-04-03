@@ -12,13 +12,10 @@
  */
 
 import 'dotenv/config';
-import { createRequire } from 'module';
 import http from 'http';
 import fs from 'fs';
 import path from 'path';
-import { fileURLToPath } from 'url';
 
-const require = createRequire(import.meta.url);
 import {
   Client,
   GatewayIntentBits,
@@ -33,9 +30,6 @@ import {
 import { database } from './lib/database.js';
 import { logInfo, logWarn, logError } from './lib/logger.js';
 import { startHealthServer, recordBotError } from './lib/health-server.js';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 // ─── Global Bot Stats ────────────────────────────────────────────────────────
 

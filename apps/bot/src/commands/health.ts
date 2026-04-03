@@ -5,22 +5,13 @@
 
 import { Client, Message, EmbedBuilder, PermissionFlagsBits } from 'discord.js';
 import { readFileSync } from 'fs';
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
+import { join, dirname } from 'path';
 import { logInfo } from '../lib/logger.js';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const packageJson = require('../../package.json');
 
-let botVersion = '0.1.0';
-try {
-  const packageJson = JSON.parse(
-    readFileSync(join(__dirname, '../../package.json'), 'utf-8')
-  );
-  botVersion = packageJson.version;
-} catch {
-  // Use default version if package.json can't be read
-}
+let botVersion = packageJson.version || '0.1.0';
 
 /**
  * Format uptime in a human-readable format
