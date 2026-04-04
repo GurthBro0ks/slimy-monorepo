@@ -128,6 +128,19 @@
       ],
       "passes": true,
       "priority": "critical"
+    },
+    {
+      "id": "bot-dream-image-403-fix-001",
+      "category": "bot",
+      "description": "/dream command uses only OpenAI images/generations (no invalid chat.completions preflight with dall-e-3)",
+      "steps": [
+        "Open apps/bot/src/lib/images.ts and confirm generateImage() has no openai.chat.completions.create() call",
+        "Run pnpm --filter @slimy/bot build and verify exit code 0",
+        "Run pm2 restart slimy-bot-v2 and verify status online",
+        "Run direct node fetch test to https://api.openai.com/v1/images/generations and verify Status: 200"
+      ],
+      "passes": true,
+      "priority": "high"
     }
   ]
 }
