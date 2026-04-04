@@ -3,7 +3,6 @@
  * Ported from /opt/slimy/app/lib/images.js
  */
 
-import { openai } from "./openai.js";
 import { database } from "./database.js";
 
 function isGLMImageModel(model?: string): boolean {
@@ -22,22 +21,8 @@ async function generateImage({
   const model = process.env.IMAGE_MODEL || "dall-e-3";
   const isGLM = isGLMImageModel(model);
 
-  const response_format = isGLM ? "url" : "b64_json";
-  const params: Record<string, unknown> = { model, prompt, size, response_format };
-
-  if (!isGLM) {
-    params.quality = quality;
-  }
-
-  const result = await openai.chat.completions.create({
-    // Use the openai client for image generation - call the AI API
-    model: model,
-    messages: [{ role: "user", content: `Generate an image: ${prompt}` }],
-    max_tokens: 1000,
-  });
-
   // For image generation, we use a direct API approach
-  const apiKey = process.env.OPENAI_API_KEY || process.env.AI_API_KEY;
+  const apiKey = process.env.AI_API_KEY || process.env.OPENAI_API_KEY;
   const imageUrl = `https://api.openai.com/v1/images/generations`;
 
   const response = await fetch(imageUrl, {
