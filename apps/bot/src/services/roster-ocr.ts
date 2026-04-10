@@ -468,8 +468,8 @@ export async function extractRoster(
     throw new Error("At least one image is required");
   }
 
-  if (imageAttachments.length > 9) {
-    throw new Error("Maximum 9 images per roster scan");
+  if (imageAttachments.length > 10) {
+    throw new Error("Maximum 10 images per roster scan");
   }
 
   const skipLive = options.skipLiveOcr ?? process.env.SKIP_LIVE_OCR === "1";

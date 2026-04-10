@@ -163,6 +163,19 @@ Do NOT include any text outside the JSON array.`;
         }
         if (rows.length > 0) break;
       }
+
+      // Pattern C: plain text name list fallback (GLM-4.6V returns comma-separated names without JSON)
+      // e.g. "The visible member names are: Stone, Traveler12521, Smitty..."
+      if (rows.length === 0) {
+        const nameListMatch = cleaned.match(/(?:names?:?\s*|\[)([A-Za-z0-9_]+(?:\s*,\s*[A-Za-z0-9_]+)*)/i);
+        if (nameListMatch) {
+          const names = nameListMatch[1].split(/\s*,\s*/).map(n => n.trim()).filter(n => n && n.length > 1);
+          for (const name of names) {
+            rows.push({ name, power: 0n, last_seen: '' });
+          }
+        }
+      }
+
       return rows;
     }
 
@@ -188,16 +201,17 @@ Do NOT include any text outside the JSON array.`;
     }
 
     async function callGlm(url: string, model: string, dataUrl: string): Promise<string> {
+      // NOTE: GLM-4.6V does NOT handle system prompt with vision input (returns 401).
+      // Extraction instructions are embedded in the user message instead.
       const response = await fetch(url, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${GLM_KEY}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
           model,
           messages: [
-            { role: 'system', content: SYSTEM_PROMPT },
             { role: 'user', content: [
               { type: 'image_url', image_url: { url: dataUrl } },
-              { type: 'text', text: 'Extract the roster data from this screenshot.' },
+              { type: 'text', text: 'Extract ALL visible members from this Super Snail roster. Return a JSON array of {name, power, last_seen}. power is integer, no commas. last_seen like "5h ago" or "Online". Skip cut-off rows. Return JSON only.' },
             ]},
           ],
           max_tokens: 4000,
@@ -213,8 +227,11 @@ Do NOT include any text outside the JSON array.`;
     const seenNames = new Set<string>();
     const allOcrRows: RosterRow[] = [];
     let totalAgreed = 0;
+    // Conflicts: power mismatches (both models found the name, different powers)
     let totalConflicts = 0;
-    const perScreenshotStats: Array<{ file: string; members: number; agreed: number; conflicts: number; latencyMs: number }> = [];
+    // Single-model rows: name found by only one model (a disagreement, not a conflict)
+    let totalSingleModel = 0;
+    const perScreenshotStats: Array<{ file: string; members: number; agreed: number; conflicts: number; singleModel: number; latencyMs: number }> = [];
 
     for (let i = 0; i < imageDataUrls.length; i++) {
       const { url: dataUrl, name } = imageDataUrls[i];
@@ -231,12 +248,17 @@ Do NOT include any text outside the JSON array.`;
       const glmRows = await parseJsonResponse(glmRaw);
       const diffed = diffResults(geminiRows, glmRows);
 
+      // 'agreed' = both models found the name and agreed on power
+      // 'conflict' = both models found the name but power differs (triggers tiebreaker in real pipeline)
+      // 'gemini'/'glm' = name found by only that model (a disagreement, not a conflict)
       const agreed = diffed.filter(e => e.source === 'agreed').length;
       const conflicts = diffed.filter(e => e.source === 'conflict').length;
+      const singleModel = diffed.filter(e => e.source === 'gemini' || e.source === 'glm').length;
       totalAgreed += agreed;
       totalConflicts += conflicts;
+      totalSingleModel += singleModel;
 
-      perScreenshotStats.push({ file: name, members: diffed.length, agreed, conflicts, latencyMs });
+      perScreenshotStats.push({ file: name, members: diffed.length, agreed, conflicts, singleModel, latencyMs });
 
       // Merge with deduplication (keep first occurrence by name)
       for (const row of diffed) {
@@ -249,24 +271,34 @@ Do NOT include any text outside the JSON array.`;
     }
 
     const totalRows = allOcrRows.length;
+    // Metric definitions (fixed per Part 3):
+    // - 'agreed': both Flash and GLM found the name AND agreed on power
+    // - 'conflict': both models found the name but power differs (triggers Pro tiebreaker)
+    // - 'single-model': name found by only one model (a disagreement)
+    // Agreement rate = agreed / total_rows
+    // Total disagreements = conflicts + single-model
+    const totalDisagreements = totalConflicts + totalSingleModel;
     const agreementRate = `${totalAgreed}/${totalRows}`;
-    const conflictRate = `${totalConflicts}`;
+    const disagreementBreakdown = `${totalConflicts} power-conflicts + ${totalSingleModel} single-model = ${totalDisagreements} total disagreements`;
 
     // Print summary table
     console.info('\n=== Roster OCR Integration Summary ===');
     console.info(`Total members extracted: ${totalRows}`);
-    console.info(`Flash+GLM agreement: ${agreementRate} (${((totalAgreed / totalRows) * 100).toFixed(1)}%)`);
-    console.info(`Conflicts (Pro tiebreaker triggered): ${conflictRate}`);
+    console.info(`Flash+GLM agreement: ${agreementRate} (${totalRows > 0 ? ((totalAgreed / totalRows) * 100).toFixed(1) : 0}%)`);
+    console.info(`Disagreements: ${disagreementBreakdown}`);
+    console.info(`Note: conflicts trigger Gemini 2.5 Pro tiebreaker in live pipeline; single-model rows use whichever model found the name`);
     console.info('\nPer-screenshot breakdown:');
-    console.info('File                     | Members | Agreed | Conflicts | Latency');
-    console.info('-------------------------|---------|--------|-----------|---------');
+    console.info('File                     | Members | Agreed | Conflicts | Single | Latency');
+    console.info('-------------------------|---------|--------|-----------|--------|---------');
     for (const s of perScreenshotStats) {
-      console.info(`${s.file.padEnd(24)}| ${String(s.members).padStart(7)} | ${String(s.agreed).padStart(6)} | ${String(s.conflicts).padStart(9)} | ${s.latencyMs}ms`);
+      console.info(`${s.file.padEnd(24)}| ${String(s.members).padStart(7)} | ${String(s.agreed).padStart(6)} | ${String(s.conflicts).padStart(9)} | ${String(s.singleModel).padStart(6)} | ${s.latencyMs}ms`);
     }
 
-    // Assertions — allow 54-58 range (ground truth is 55; near-duplicate dedupe may give 54-56)
-    expect(totalRows).toBeGreaterThanOrEqual(54);
-    expect(totalRows).toBeLessThanOrEqual(58);
+    // Assertions — hard constraints per task requirements:
+    // 1. Pipeline count must exactly equal ground truth count
+    expect(totalRows).toBe(groundTruth.length);
+    // 2. Agreement + disagreement counts must sum to total rows
+    expect(totalAgreed + totalDisagreements).toBe(totalRows);
 
     // All ground truth names should be present in OCR results
     const missingNames = groundTruth.filter(gt => {
