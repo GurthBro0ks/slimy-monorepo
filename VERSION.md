@@ -1,11 +1,11 @@
 # Version Snapshot — slimy-monorepo
 
-> Generated: 2026-04-05T16:11:45Z | Host: slimy-nuc1
+> Generated: 2026-04-10T06:30:28Z | Host: slimy-nuc1
 
 ## Git State
 - **Branch:** `main`
-- **HEAD:** `393933d`
-- **Last commit:** `2026-04-05` — `docs: auto-sync project docs from slimy-nuc1 2026-04-05`
+- **HEAD:** `5f95034`
+- **Last commit:** `2026-04-10` — `feat(bot): dual-model VLM roster OCR with Gemini+GLM verification`
 - **Remote:** `git@github.com:GurthBro0ks/slimy-monorepo.git`
 - **Dirty:** NO
 
@@ -16,8 +16,8 @@
 - **Listening ports:** none detected
 
 ## Last Verified
-- **Date:** 2026-04-05
-- **Verification:** `git -C /home/slimy/.qoder-server/slimy-monorepo log -1 --oneline`
+- **Date:** 2026-04-10
+- **Verification:** `git --no-pager -C /home/slimy/.qoder-server/slimy-monorepo log -1 --oneline`
 
 ## Host Notes
 - Managed by kb-project-doc-sync.sh automation
