@@ -112,12 +112,17 @@ async function glmChat(
   }
 
   const data = await response.json() as {
-    choices?: Array<{ message?: { content?: string } }>;
+    choices?: Array<{ message?: { content?: string; reasoning_content?: string } }>;
     usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number };
   };
 
+  // GLM-4.6V (chain-of-thought mode) may return response in reasoning_content
+  // instead of content when the model is doing internal reasoning
+  const message = data.choices?.[0]?.message;
+  const content = message?.content || message?.reasoning_content || "";
+
   return {
-    content: data.choices?.[0]?.message?.content || "",
+    content,
     usage: data.usage,
   };
 }
