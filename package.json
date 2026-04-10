@@ -33,6 +33,8 @@
   },
   "devDependencies": {
     "@eslint/js": "^8.57.1",
+    "@typescript-eslint/eslint-plugin": "^5.62.0",
+    "@typescript-eslint/parser": "^5.62.0",
     "eslint": "^8.57.1",
     "eslint-plugin-deprecation": "^3.0.0",
     "glob": "^13.0.6",
@@ -43,6 +45,15 @@
     "vitest": "^4.0.18"
   },
   "lint-staged": {
+    "apps/web/**/*.{ts,tsx,js,jsx}": [
+      "pnpm --filter @slimy/web exec eslint --fix"
+    ],
+    "apps/bot/**/*.{ts,tsx,js,jsx}": [
+      "pnpm --filter @slimy/bot exec eslint --fix"
+    ],
+    "packages/**/*.{ts,tsx,js,jsx}": [
+      "pnpm exec eslint --fix"
+    ],
     "*.{ts,tsx,js,jsx}": [
       "pnpm exec eslint --fix"
     ]

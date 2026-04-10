@@ -10,7 +10,7 @@ import {
 } from 'discord.js';
 import { extractRoster, formatRosterEmbed } from '../services/roster-ocr.js';
 
-const MAX_IMAGES = 9;
+const MAX_IMAGES = 10;
 
 function attachmentToUrl(att: Attachment): { url: string; name: string } {
   return { url: att.url, name: att.name || "image" };
@@ -73,17 +73,23 @@ module.exports = {
         .setName("image_9")
         .setDescription("Manage Members screenshot (page 9)")
         .setRequired(false)
+    )
+    .addAttachmentOption((option) =>
+      option
+        .setName("image_10")
+        .setDescription("Manage Members screenshot (page 10)")
+        .setRequired(false)
     ),
 
   async execute(interaction: ChatInputCommandInteraction): Promise<void> {
-    const loading = await interaction.editReply({
+    await interaction.editReply({
       content: "⏳ Running dual-model OCR on roster screenshots...",
     });
 
     // Collect attachments
     const attachmentNames = [
       "image_1", "image_2", "image_3", "image_4", "image_5",
-      "image_6", "image_7", "image_8", "image_9",
+      "image_6", "image_7", "image_8", "image_9", "image_10",
     ];
 
     const attachments = attachmentNames
@@ -91,7 +97,7 @@ module.exports = {
       .filter((att): att is Attachment => att !== null);
 
     if (!attachments.length) {
-      await interaction.editReply({ content: "❌ No images attached. Provide 1-9 Manage Members screenshots." });
+      await interaction.editReply({ content: "❌ No images attached. Provide 1-10 Manage Members screenshots." });
       return;
     }
 

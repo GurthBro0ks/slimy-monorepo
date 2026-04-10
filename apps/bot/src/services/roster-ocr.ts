@@ -10,8 +10,6 @@
  *   ROSTER_OCR_GLM_MODEL    — GLM model string (default: glm-4.6v)
  */
 
-import { trackCommand } from '../lib/metrics.js';
-
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai/";
@@ -19,7 +17,7 @@ const ZAI_BASE_URL = process.env.AI_BASE_URL || "https://api.z.ai/api/paas/v4";
 
 const GEMINI_MODEL_PRIMARY = "gemini-2.5-flash";
 const GEMINI_MODEL_TIEBREAKER = "gemini-2.5-pro";
-const GLM_MODEL = process.env.ROSTER_OCR_GLM_MODEL || "glm-4.6v";
+const GLM_MODEL = process.env.ROSTER_OCR_GLM_MODEL || "gpt-4o";
 
 const SYSTEM_PROMPT = `Extract visible member rows from this Super Snail Manage Members screenshot.
 Return ONLY a JSON array. Each row: {name, power, last_seen}.
@@ -71,7 +69,7 @@ async function geminiChat(
   const response = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ model, messages, temperature: 0, max_tokens: 2000 }),
+    body: JSON.stringify({ model, messages, temperature: 0 }),
   });
 
   if (!response.ok) {
@@ -102,7 +100,7 @@ async function glmChat(
       "Content-Type": "application/json",
       "Authorization": `Bearer ${apiKey}`,
     },
-    body: JSON.stringify({ model, messages, temperature: 0, max_tokens: 2000 }),
+    body: JSON.stringify({ model, messages, temperature: 0 }),
   });
 
   if (!response.ok) {
@@ -191,22 +189,33 @@ function parseRosterJson(raw: string, model: string): RosterRow[] {
   }
   cleaned = cleaned.trim();
 
+  // Try JSON array first
   let parsed: unknown;
   try {
     parsed = JSON.parse(cleaned);
   } catch {
-    console.warn(`[roster-ocr] ${model} returned invalid JSON, skipping`, { snippet: cleaned.slice(0, 200) });
-    return [];
+    // Fall back to regex-based markdown parsing
+    return parseMarkdownRoster(cleaned, model);
   }
 
   if (!Array.isArray(parsed)) {
-    console.warn(`[roster-ocr] ${model} did not return an array, skipping`);
-    return [];
+    // Try to find a JSON array inside the text
+    const arrayMatch = cleaned.match(/\[[\s\S]*\]/);
+    if (arrayMatch) {
+      try {
+        parsed = JSON.parse(arrayMatch[0]);
+      } catch {
+        return parseMarkdownRoster(cleaned, model);
+      }
+    } else {
+      return parseMarkdownRoster(cleaned, model);
+    }
   }
 
   const rows: RosterRow[] = [];
-  for (const item of parsed) {
-    const obj = item as { name?: unknown; power?: unknown; last_seen?: unknown };
+  const items = parsed as Array<{ name?: unknown; power?: unknown; last_seen?: unknown }>;
+  for (const item of items) {
+    const obj = item;
 
     const name = typeof obj.name === 'string' ? obj.name.trim() : null;
     if (!name) continue;
@@ -217,8 +226,8 @@ function parseRosterJson(raw: string, model: string): RosterRow[] {
     } else if (typeof obj.power === 'number') {
       power = BigInt(Math.floor(obj.power));
     } else if (typeof obj.power === 'string') {
-      const cleaned = obj.power.replace(/[^0-9]/g, '');
-      power = cleaned ? BigInt(cleaned) : 0n;
+      const cleaned2 = obj.power.replace(/[^0-9]/g, '');
+      power = cleaned2 ? BigInt(cleaned2) : 0n;
     } else {
       continue;
     }
@@ -226,6 +235,55 @@ function parseRosterJson(raw: string, model: string): RosterRow[] {
     const last_seen = typeof obj.last_seen === 'string' ? obj.last_seen.trim() : '';
 
     rows.push({ name, power, last_seen });
+  }
+
+  return rows;
+}
+
+/**
+ * Parse markdown-formatted roster responses (e.g. from Gemini Flash
+ * when it ignores the "return JSON only" instruction).
+ *
+ * Handles two observed formats:
+ *   **Name:** Stone        (label + name)
+ *   **Sim Power:** 14,321,191
+ *   **Status:** Online
+ *
+ *   **Stone**              (bold name only, no label)
+ *   - Sim Power: 14,321,191
+ *   - Status: Online
+ */
+function parseMarkdownRoster(text: string, model: string): RosterRow[] {
+  const rows: RosterRow[] = [];
+
+  // Pattern A: **Name:** Stone or **Username:** Stone (label before name)
+  const patternA = /\*\*(?:Name|Username):?\*\*\s*(.+?)\n[\s\S]*?(?:Sim\s*Power)[:\s]+([0-9,]+)[\s\S]*?(?:Status|Active|Last Active)[:\s]+(.+?)(?=\n\s*\d+\.|\n\n|$)/gi;
+
+  // Pattern B: **Stone** (bold name only, no label — GLM numbered list style)
+  const patternB = /\*\*([^*]+)\*\*[\s\S]*?(?:Sim\s*Power)[:\s]+([0-9,]+)[\s\S]*?(?:Status|Active|Last Active)[:\s]+(.+?)(?=\n\s*\d+\.|\n\n|$)/gi;
+
+  for (const pattern of [patternA, patternB]) {
+    let match;
+    pattern.lastIndex = 0;
+    while ((match = pattern.exec(text)) !== null) {
+      let name = match[1].trim();
+      // Skip empty slots and placeholder names
+      if (!name || name === '(Empty Slot)' || name === 'None' || name.toLowerCase().includes('empty')) continue;
+      // Strip surrounding ** from pattern B captures
+      name = name.replace(/^\*+/, '').replace(/\*+$/, '').trim();
+      if (!name) continue;
+      const powerStr = match[2].replace(/,/g, '');
+      const power = powerStr ? BigInt(powerStr) : 0n;
+      const last_seen = match[3].trim();
+      rows.push({ name, power, last_seen });
+    }
+    if (rows.length > 0) break;
+  }
+
+  if (rows.length === 0) {
+    console.warn(`[roster-ocr] ${model} returned unparseable format, skipping`, {
+      snippet: text.slice(0, 300),
+    });
   }
 
   return rows;
