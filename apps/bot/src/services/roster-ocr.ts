@@ -13,11 +13,14 @@
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai/";
-const ZAI_BASE_URL = process.env.AI_BASE_URL || "https://api.z.ai/api/paas/v4";
+const ZAI_BASE_URL =
+  process.env.ROSTER_OCR_ZAI_BASE_URL ||
+  process.env.AI_BASE_URL ||
+  "https://api.z.ai/api/paas/v4";
 
 const GEMINI_MODEL_PRIMARY = "gemini-2.5-flash";
 const GEMINI_MODEL_TIEBREAKER = "gemini-2.5-pro";
-const GLM_MODEL = process.env.ROSTER_OCR_GLM_MODEL || "gpt-4o";
+const GLM_MODEL = process.env.ROSTER_OCR_GLM_MODEL || "glm-4.6v";
 
 const SYSTEM_PROMPT = `Extract visible member rows from this Super Snail Manage Members screenshot.
 Return ONLY a JSON array. Each row: {name, power, last_seen}.
@@ -393,10 +396,64 @@ export async function extractRoster(
   options: ExtractRosterOptions = {},
 ): Promise<RosterOcrResult[]> {
   const geminiKey = process.env.GEMINI_API_KEY;
-  const glmKey = process.env.AI_API_KEY || process.env.OPENAI_API_KEY;
+  const glmKey =
+    process.env.ROSTER_OCR_GLM_API_KEY ||
+    process.env.AI_API_KEY ||
+    process.env.OPENAI_API_KEY;
 
   if (!geminiKey || !glmKey) {
     throw new Error("Missing API keys: GEMINI_API_KEY and AI_API_KEY are required for roster OCR");
+  }
+
+  // ─── GLM Model Validation ─────────────────────────────────────────────────
+  // Verify GLM model is accessible. If Z.AI returns 401 (expired key) or
+  // model_not_found, fail loudly rather than silently falling back to GPT-4o.
+  const glmUrl = `${ZAI_BASE_URL}/chat/completions`;
+  try {
+    const validationResponse = await fetch(glmUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${glmKey}`,
+      },
+      body: JSON.stringify({
+        model: GLM_MODEL,
+        messages: [{ role: "user", content: "reply with just the word: ok" }],
+        max_tokens: 5,
+        temperature: 0,
+      }),
+    });
+    if (!validationResponse.ok) {
+      const body = await validationResponse.json().catch(() => ({})) as {
+        error?: { message?: string; code?: string | number };
+      };
+      const errMsg = body?.error?.message || `HTTP ${validationResponse.status}`;
+      const status = validationResponse.status;
+      if (status === 401 || status === 403) {
+        throw new Error(
+          `GLM auth failed (${status}): Z.AI API key is expired or invalid. ` +
+          `Key starts with: ${glmKey.slice(0, 12)}... Please renew at z.ai. Got: ${errMsg}`,
+        );
+      }
+      if (errMsg.includes("not_found") || errMsg.includes("model_not_found")) {
+        throw new Error(
+          `GLM model not found: '${GLM_MODEL}'. Check ROSTER_OCR_GLM_MODEL. Got: ${errMsg}`,
+        );
+      }
+      throw new Error(`GLM validation failed: ${errMsg}`);
+    }
+  } catch (err) {
+    if (err instanceof Error && (
+      err.message.includes("GLM") ||
+      err.message.includes("auth") ||
+      err.message.includes("model_not_found") ||
+      err.message.includes("not_found") ||
+      err.message.includes("401") ||
+      err.message.includes("403")
+    )) {
+      throw err;
+    }
+    // For other errors (network, etc.), let them propagate from the actual OCR call
   }
 
   if (imageAttachments.length === 0) {
@@ -433,15 +490,13 @@ export async function extractRoster(
     const imageDataUrl = await attachmentToDataUrl(attachment.url);
 
     // Run both models in parallel
+    // GLM errors propagate — pipeline fails loudly if GLM is unavailable (no silent fallback to GPT-4o)
     const [gem, glm] = await Promise.all([
       callGemini(imageDataUrl, geminiKey).catch((err) => {
         console.error(`[roster-ocr] Gemini failed for image ${i}: ${err.message}`);
         return { rows: [], raw: '', model: GEMINI_MODEL_PRIMARY } as ModelResult;
       }),
-      callGlm(imageDataUrl, glmKey).catch((err) => {
-        console.error(`[roster-ocr] GLM failed for image ${i}: ${err.message}`);
-        return { rows: [], raw: '', model: GLM_MODEL } as ModelResult;
-      }),
+      callGlm(imageDataUrl, glmKey),
     ]);
 
     geminiResult = gem;
