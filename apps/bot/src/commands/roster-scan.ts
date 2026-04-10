@@ -83,7 +83,7 @@ module.exports = {
 
   async execute(interaction: ChatInputCommandInteraction): Promise<void> {
     await interaction.editReply({
-      content: "⏳ Running dual-model OCR on roster screenshots...",
+      content: "⏳ Starting dual-model OCR — processing 0/? screenshots...",
     });
 
     // Collect attachments
@@ -118,9 +118,23 @@ module.exports = {
     }
 
     try {
+      let lastProgressUpdate = 0;
       const results = await extractRoster(
         imageAttachments.map(attachmentToUrl),
-        { skipLiveOcr: process.env.SKIP_LIVE_OCR === "1" },
+        {
+          skipLiveOcr: process.env.SKIP_LIVE_OCR === "1",
+          onProgress: (completed, total, imageName) => {
+            // Update Discord at most every 10 seconds to avoid spam
+            const now = Date.now();
+            if (now - lastProgressUpdate >= 10_000 || completed === total) {
+              lastProgressUpdate = now;
+              const pct = Math.round((completed / total) * 100);
+              interaction.editReply({
+                content: `⏳ Processing screenshot ${completed}/${total} (${pct}%) — ${imageName}...`,
+              }).catch(() => { /* ignore edit failures */ });
+            }
+          },
+        },
       );
 
       const summary = formatRosterEmbed(results);

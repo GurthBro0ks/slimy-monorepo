@@ -37,6 +37,24 @@ const fixtures = [
 const groundTruth: Array<{ name: string; power: string; last_seen: string }> =
   JSON.parse(readFileSync(GROUND_TRUTH_PATH, 'utf8'));
 
+function levenshteinDistance(a: string, b: string): number {
+  const m = a.length;
+  const n = b.length;
+  const dp: number[][] = Array.from({ length: m + 1 }, (_, i) =>
+    Array.from({ length: n + 1 }, (_, j) => (i === 0 ? j : j === 0 ? i : 0))
+  );
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      if (a[i - 1] === b[j - 1]) {
+        dp[i][j] = dp[i - 1][j - 1];
+      } else {
+        dp[i][j] = 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]);
+      }
+    }
+  }
+  return dp[m][n];
+}
+
 describe('roster-ocr integration', () => {
   const runLive = process.env.RUN_LIVE_OCR === '1';
   const approved = process.env.GROUND_TRUTH_APPROVED === '1';
@@ -62,18 +80,23 @@ describe('roster-ocr integration', () => {
     }
   });
 
-  it('full pipeline: Flash+GLM+Pro vs ground truth', async () => {
-    // Dynamically import to allow env vars to take effect
-    const { extractRoster } = await import('../src/services/roster-ocr.js');
+  it('full pipeline: Flash+Pro vs ground truth', async () => {
+    // Initialize sharp before any async operations (avoids TDZ issue with const in async context)
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const sharp = require('/home/slimy/slimy-monorepo/node_modules/.pnpm/sharp@0.33.5/node_modules/sharp/lib/index.js');
+    const resizeImage = (buf: Buffer): Promise<Buffer> =>
+      sharp(buf).resize(1568, 1568, { fit: 'inside' }).jpeg({ quality: 85 }).toBuffer();
 
     // Build image attachments as file:// data URLs (bypassing network fetch)
     // We intercept the image loading by passing data URLs directly
-    const imageDataUrls: Array<{ url: string; name: string }> = fixtures.map((f) => {
+    // Images are resized to max 1568px/JPEG q85 to match production behavior
+    const imageDataUrls: Array<{ url: string; name: string }> = await Promise.all(fixtures.map(async (f) => {
       const imgPath = resolve(FIXTURE_DIR, f);
       const imgBuffer = readFileSync(imgPath);
-      const base64 = imgBuffer.toString('base64');
-      return { url: `data:image/png;base64,${base64}`, name: f };
-    });
+      const resized = await resizeImage(imgBuffer);
+      const base64 = resized.toString('base64');
+      return { url: `data:image/jpeg;base64,${base64}`, name: f };
+    }));
 
     // The extractRoster function fetches from URL internally,
     // so we need to intercept. For this integration test we'll use
@@ -85,21 +108,14 @@ describe('roster-ocr integration', () => {
 
     // Load raw OCR results via direct API calls (simulate extractRoster per image)
     const GEMINI_KEY = process.env.GEMINI_API_KEY;
-    const GLM_KEY =
-      process.env.ROSTER_OCR_GLM_API_KEY ||
-      process.env.AI_API_KEY ||
-      process.env.OPENAI_API_KEY;
-    const GLM_MODEL = process.env.ROSTER_OCR_GLM_MODEL || 'glm-4.6v';
-    const ZAI_BASE =
-      process.env.ROSTER_OCR_ZAI_BASE_URL ||
-      process.env.AI_BASE_URL ||
-      'https://api.z.ai/api/paas/v4';
 
-    if (!GEMINI_KEY || !GLM_KEY) {
-      throw new Error('GEMINI_API_KEY and GLM API key are required for live integration test');
+    if (!GEMINI_KEY) {
+      throw new Error('GEMINI_API_KEY is required for live integration test');
     }
 
     const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta/openai/';
+    const GEMINI_MODEL_PRIMARY = 'gemini-2.5-flash';
+    const GEMINI_MODEL_VERIFIER = 'gemini-2.5-pro';
     const SYSTEM_PROMPT = `Extract visible member rows from this Super Snail Manage Members screenshot.
 Return ONLY a JSON array. Each row: {name, power, last_seen}.
 SKIP any row where the power number is cut off or not fully visible.
@@ -200,53 +216,48 @@ Do NOT include any text outside the JSON array.`;
       return json.choices?.[0]?.message?.content || '';
     }
 
-    async function callGlm(url: string, model: string, dataUrl: string): Promise<string> {
-      // NOTE: GLM-4.6V does NOT handle system prompt with vision input (returns 401).
-      // Extraction instructions are embedded in the user message instead.
+    async function callPro(url: string, dataUrl: string): Promise<string> {
+      // Uses Gemini API endpoint for Pro (same as Flash, different model)
       const response = await fetch(url, {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${GLM_KEY}`, 'Content-Type': 'application/json' },
+        headers: { 'Authorization': `Bearer ${GEMINI_KEY}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          model,
+          model: GEMINI_MODEL_VERIFIER,
           messages: [
+            { role: 'system', content: SYSTEM_PROMPT },
             { role: 'user', content: [
-              { type: 'image_url', image_url: { url: dataUrl } },
-              { type: 'text', text: 'Extract ALL visible members from this Super Snail roster. Return a JSON array of {name, power, last_seen}. power is integer, no commas. last_seen like "5h ago" or "Online". Skip cut-off rows. Return JSON only.' },
+              { type: 'image_url', image_url: { url: dataUrl, detail: 'high' } },
+              { type: 'text', text: 'Extract the roster data from this screenshot.' },
             ]},
           ],
           max_tokens: 4000,
           temperature: 0,
         }),
       });
-      const json = await response.json() as { choices?: Array<{ message?: { content?: string; reasoning_content?: string } }> };
-      // GLM-4.6V (chain-of-thought mode) may put response in reasoning_content instead of content
-      const msg = json.choices?.[0]?.message;
-      return msg?.content || msg?.reasoning_content || '';
+      const json = await response.json() as { choices?: Array<{ message?: { content?: string } }> };
+      return json.choices?.[0]?.message?.content || '';
     }
 
     const seenNames = new Set<string>();
     const allOcrRows: RosterRow[] = [];
-    let totalAgreed = 0;
-    // Conflicts: power mismatches (both models found the name, different powers)
-    let totalConflicts = 0;
-    // Single-model rows: name found by only one model (a disagreement, not a conflict)
-    let totalSingleModel = 0;
+    // Track source per unique row so the sum equals allOcrRows.length
+    const uniqueRowSources: string[] = [];
     const perScreenshotStats: Array<{ file: string; members: number; agreed: number; conflicts: number; singleModel: number; latencyMs: number }> = [];
 
     for (let i = 0; i < imageDataUrls.length; i++) {
       const { url: dataUrl, name } = imageDataUrls[i];
       const t0 = Date.now();
 
-      // Parallel Flash + GLM Vision calls
-      const [geminiRaw, glmRaw] = await Promise.all([
-        callGemini(`${GEMINI_BASE}chat/completions`, 'gemini-2.5-flash', dataUrl),
-        callGlm(`${ZAI_BASE}/chat/completions`, GLM_MODEL, dataUrl),
+      // Parallel Flash + Pro Vision calls (matches production extractRoster architecture)
+      const [geminiRaw, proRaw] = await Promise.all([
+        callGemini(`${GEMINI_BASE}chat/completions`, GEMINI_MODEL_PRIMARY, dataUrl),
+        callPro(`${GEMINI_BASE}chat/completions`, dataUrl),
       ]);
 
       const latencyMs = Date.now() - t0;
       const geminiRows = await parseJsonResponse(geminiRaw);
-      const glmRows = await parseJsonResponse(glmRaw);
-      const diffed = diffResults(geminiRows, glmRows);
+      const proRows = await parseJsonResponse(proRaw);
+      const diffed = diffResults(geminiRows, proRows);
 
       // 'agreed' = both models found the name and agreed on power
       // 'conflict' = both models found the name but power differs (triggers tiebreaker in real pipeline)
@@ -254,29 +265,43 @@ Do NOT include any text outside the JSON array.`;
       const agreed = diffed.filter(e => e.source === 'agreed').length;
       const conflicts = diffed.filter(e => e.source === 'conflict').length;
       const singleModel = diffed.filter(e => e.source === 'gemini' || e.source === 'glm').length;
-      totalAgreed += agreed;
-      totalConflicts += conflicts;
-      totalSingleModel += singleModel;
 
       perScreenshotStats.push({ file: name, members: diffed.length, agreed, conflicts, singleModel, latencyMs });
 
       // Merge with deduplication (keep first occurrence by name)
+      // Fuzzy dedupe: names within Levenshtein distance 1 (one char typo) are merged
+      // This handles OCR misreads like "lil" vs "ill" vs "lill" and "SharperOlive0" vs "SharperOliveO"
       for (const row of diffed) {
         const key = row.name.toLowerCase();
-        if (!seenNames.has(key)) {
+        const normalizedKey = key.replace(/\s+/g, '');
+
+        // Check for Levenshtein distance-1 fuzzy match
+        let isDuplicate = seenNames.has(key);
+        if (!isDuplicate) {
+          for (const existingKey of seenNames) {
+            if (levenshteinDistance(normalizedKey, existingKey.replace(/\s+/g, '')) <= 1) {
+              isDuplicate = true;
+              break;
+            }
+          }
+        }
+
+        if (!isDuplicate) {
           seenNames.add(key);
           allOcrRows.push({ name: row.name, power: row.power, last_seen: row.last_seen });
+          uniqueRowSources.push(row.source);
         }
       }
     }
 
     const totalRows = allOcrRows.length;
-    // Metric definitions (fixed per Part 3):
-    // - 'agreed': both Flash and GLM found the name AND agreed on power
-    // - 'conflict': both models found the name but power differs (triggers Pro tiebreaker)
+    // Metric definitions (based on unique deduplicated rows):
+    // - 'agreed': both Flash and Pro found the name AND agreed on power
+    // - 'conflict': both models found the name but power differs (triggers tiebreaker in real pipeline)
     // - 'single-model': name found by only one model (a disagreement)
-    // Agreement rate = agreed / total_rows
-    // Total disagreements = conflicts + single-model
+    const totalAgreed = uniqueRowSources.filter(s => s === 'agreed').length;
+    const totalConflicts = uniqueRowSources.filter(s => s === 'conflict').length;
+    const totalSingleModel = uniqueRowSources.filter(s => s === 'gemini' || s === 'glm').length;
     const totalDisagreements = totalConflicts + totalSingleModel;
     const agreementRate = `${totalAgreed}/${totalRows}`;
     const disagreementBreakdown = `${totalConflicts} power-conflicts + ${totalSingleModel} single-model = ${totalDisagreements} total disagreements`;
@@ -335,5 +360,5 @@ Do NOT include any text outside the JSON array.`;
     if (mismatchCount > 0) {
       console.warn(`Power mismatch rate: ${mismatchCount}/${groundTruth.length} rows`);
     }
-  }, 300_000); // 5 min timeout for API calls
+  }, 600_000); // 10 min timeout for 10 screenshots with Flash+Pro parallel OCR
 });
