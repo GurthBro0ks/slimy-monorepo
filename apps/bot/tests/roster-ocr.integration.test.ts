@@ -222,7 +222,7 @@ Do NOT include any text outside the JSON array.`;
 
       // Parallel Flash + GLM Vision calls
       const [geminiRaw, glmRaw] = await Promise.all([
-        callGemini(`${GEMINI_BASE}chat/completions?key=${GEMINI_KEY}`, 'gemini-2.5-flash', dataUrl),
+        callGemini(`${GEMINI_BASE}chat/completions`, 'gemini-2.5-flash', dataUrl),
         callGlm(`${ZAI_BASE}/chat/completions`, GLM_MODEL, dataUrl),
       ]);
 

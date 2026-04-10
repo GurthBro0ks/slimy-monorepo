@@ -68,10 +68,13 @@ async function geminiChat(
   messages: Array<{ role: string; content: unknown }>,
   apiKey: string,
 ): Promise<{ content: string; usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number } }> {
-  const url = `${GEMINI_BASE_URL}chat/completions?key=${apiKey}`;
+  const url = `${GEMINI_BASE_URL}chat/completions`;
   const response = await fetch(url, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${apiKey}`,
+    },
     body: JSON.stringify({ model, messages, temperature: 0 }),
   });
 
