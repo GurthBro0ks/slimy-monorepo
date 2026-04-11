@@ -56,7 +56,6 @@ interface ScanSession {
   interactionId: string;
   guildId: string;
   userId: string;
-  invokerUsername: string;
   metric: 'sim' | 'total';
   currentPage: number;
   pages: Page[];
@@ -86,17 +85,6 @@ function getSession(interactionId: string): ScanSession | null {
     return null;
   }
   return session;
-}
-
-function checkInvoker(interaction: ButtonInteraction | ModalSubmitInteraction, session: ScanSession): boolean {
-  if (interaction.user.id !== session.userId) {
-    interaction.reply({
-      content: `Only ${session.invokerUsername} can edit this scan. Run your own /club-analyze to make edits.`,
-      flags: MessageFlags.Ephemeral,
-    }).catch(() => {});
-    return false;
-  }
-  return true;
 }
 
 // ─── Slash Command Definition ────────────────────────────────────────────────
@@ -149,7 +137,7 @@ module.exports = {
   // ─── Main Execute ─────────────────────────────────────────────────────────
 
   async execute(interaction: ChatInputCommandInteraction): Promise<void> {
-    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+    await interaction.deferReply({ ephemeral: true });
 
     cleanExpiredSessions();
 
@@ -231,7 +219,6 @@ module.exports = {
         interactionId: sessionId,
         guildId,
         userId,
-        invokerUsername: interaction.user.username,
         metric,
         currentPage: 0,
         pages,
@@ -242,10 +229,10 @@ module.exports = {
       sessions.set(sessionId, session);
 
       await interaction.editReply({
-        content: `✅ Scan complete — ${imageAttachments.length} screenshot(s), ${canonicalMerged.length} unique members. Results posted below.`,
+        content: `✅ Scanned ${imageAttachments.length} screenshot(s), found ${canonicalMerged.length} members. Review below:`,
       });
 
-      await sendPublicPage(interaction, sessionId);
+      await sendPage(interaction, sessionId);
     } catch (err) {
       console.error('[club-analyze] Scan failed:', err);
       await interaction.editReply({
@@ -270,8 +257,6 @@ module.exports = {
       });
       return;
     }
-
-    if (!checkInvoker(interaction, session)) return;
 
     // Refresh TTL on activity
     session.createdAt = Date.now();
@@ -345,8 +330,6 @@ module.exports = {
       return;
     }
 
-    if (!checkInvoker(interaction, session)) return;
-
     session.createdAt = Date.now();
 
     const rowNumStr = interaction.fields.getTextInputValue('row_select');
@@ -402,12 +385,20 @@ module.exports = {
 
 // ─── Render Helpers ──────────────────────────────────────────────────────────
 
-async function sendPublicPage(
-  interaction: ChatInputCommandInteraction,
+async function sendPage(
+  interaction: ChatInputCommandInteraction | ButtonInteraction,
   sessionId: string,
 ): Promise<void> {
   const session = getSession(sessionId);
   if (!session) return;
+
+  const replyFn = async (content: string, embeds?: EmbedBuilder[], components?: ActionRowBuilder<ButtonBuilder>[]) => {
+    if (interaction.isButton() || interaction.isModalSubmit()) {
+      await interaction.update({ content, embeds, components } as Record<string, unknown>);
+    } else {
+      await interaction.editReply({ content, embeds, components });
+    }
+  };
 
   const page = session.pages[session.currentPage];
   const metricLabel = session.metric === 'sim' ? 'SIM' : 'TOTAL';
@@ -441,14 +432,13 @@ async function sendPublicPage(
 
   const components = buildNavigationRow(session, sessionId);
 
-  await interaction.followUp({
-    content: `📊 **${session.canonicalMerged.length}** members scanned from ${totalPages} screenshot(s):`,
-    embeds: [embed],
-    components,
-  });
+  await replyFn('', [embed], components);
 }
 
-function buildPagePayload(session: ScanSession): Record<string, unknown> {
+async function renderPage(
+  interaction: ButtonInteraction,
+  session: ScanSession,
+): Promise<void> {
   const page = session.pages[session.currentPage];
   const metricLabel = session.metric === 'sim' ? 'SIM' : 'TOTAL';
   const totalPages = session.pages.length;
@@ -481,18 +471,11 @@ function buildPagePayload(session: ScanSession): Record<string, unknown> {
 
   const components = buildNavigationRow(session, session.interactionId);
 
-  return {
+  await interaction.update({
     content: '',
     embeds: [embed],
     components,
-  };
-}
-
-async function renderPage(
-  interaction: ButtonInteraction,
-  session: ScanSession,
-): Promise<void> {
-  await interaction.update(buildPagePayload(session));
+  } as Record<string, unknown>);
 }
 
 function buildNavigationRow(
@@ -594,6 +577,7 @@ async function handleSave(
   const { guildId, userId, metric } = session;
 
   try {
+    // Run dedupe across all pages (with edits applied)
     const allRawRows: RawRosterRow[] = [];
     for (let i = 0; i < session.pages.length; i++) {
       for (const row of session.pages[i].rows) {
@@ -604,6 +588,7 @@ async function handleSave(
     const canonicalMerged = dedupeRosterRows(allRawRows);
     session.canonicalMerged = canonicalMerged;
 
+    // Save to staging
     await saveStagingRows(
       guildId,
       metric,
@@ -611,6 +596,7 @@ async function handleSave(
       canonicalMerged.map((r) => ({ member_name: r.name, power_value: r.power })),
     );
 
+    // Mark all rows as saved
     for (const page of session.pages) {
       for (const row of page.rows) {
         row.edited = false;
@@ -618,19 +604,19 @@ async function handleSave(
     }
     session.dirty = false;
 
-    await interaction.update(buildPagePayload(session));
-
-    await interaction.followUp({
+    await interaction.reply({
       content: `💾 Saved **${canonicalMerged.length}** members to **${metric.toUpperCase()}** staging. Run /club-push when ready to commit both metrics to the database.`,
       flags: MessageFlags.Ephemeral,
     });
+
+    // Re-render the current page
+    await renderPage(interaction, session);
   } catch (err) {
     console.error('[club-analyze] Save failed:', err);
-    const method = interaction.replied || interaction.deferred ? 'followUp' : 'reply';
-    await interaction[method]({
+    await interaction.reply({
       content: `❌ Save failed: ${(err as Error).message}`,
       flags: MessageFlags.Ephemeral,
-    }).catch(() => {});
+    });
   }
 }
 

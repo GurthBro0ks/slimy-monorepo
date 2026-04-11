@@ -26,6 +26,7 @@ import {
   ChatInputCommandInteraction,
   ButtonInteraction,
   ModalSubmitInteraction,
+  ContextMenuCommandInteraction,
 } from 'discord.js';
 import { database } from './lib/database.js';
 import { logInfo, logWarn, logError } from './lib/logger.js';
@@ -167,7 +168,7 @@ globalThis.client = client;
 
 interface DiscordCommand {
   data?: { name: string };
-  execute?(interaction: ChatInputCommandInteraction): Promise<void>;
+  execute?(interaction: ChatInputCommandInteraction | ContextMenuCommandInteraction): Promise<void>;
   handleButton?(interaction: ButtonInteraction): Promise<void>;
   handleModal?(interaction: ModalSubmitInteraction): Promise<void>;
 }
@@ -266,6 +267,27 @@ client.on(Events.InteractionCreate, async (interaction) => {
       if (handler?.handleModal) {
         await handler.handleModal(interaction);
       }
+      return;
+    }
+
+    if (interaction.isContextMenuCommand()) {
+      const ctxInteraction = interaction as ContextMenuCommandInteraction;
+      logInfo('Context menu command invoked', {
+        commandName: ctxInteraction.commandName,
+        commandsLoaded: Array.from((client as ClientWithCommands).commands.keys()).join(','),
+      });
+      const command = (client as ClientWithCommands).commands.get(ctxInteraction.commandName);
+      if (!command) {
+        console.warn('Context menu command lookup failed', {
+          commandName: ctxInteraction.commandName,
+          knownCommands: Array.from((client as ClientWithCommands).commands.keys()),
+        });
+        await ctxInteraction
+          .reply({ content: '❌ Unknown command.', flags: MessageFlags.Ephemeral })
+          .catch(() => {});
+        return;
+      }
+      await command.execute!(ctxInteraction);
       return;
     }
 
