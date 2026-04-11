@@ -1,8 +1,9 @@
 /**
  * Snail screenshot vision analysis.
  * Ported from /opt/slimy/app/lib/snail-vision.js
- * Stub implementation — actual AI vision requires Chunk 5 port of vision.ts + openai.ts wiring.
  */
+
+import { openai } from "./openai.js";
 
 const SNAIL_SYSTEM_PROMPT = `You are a Super Snail game stats analyzer. Extract data from screenshots with precision.
 
@@ -31,18 +32,65 @@ function normalizeStatValue(value: unknown): number | null {
   return Number.isFinite(num) ? Math.round(num) : null;
 }
 
-async function performAnalysis(_base64Image: string, prompt: string): Promise<Record<string, unknown>> {
-  // Stub: requires actual vision API (Chunk 5)
-  console.warn("[snail-vision] Vision API not yet wired — stub response");
-  return {
-    stats: {
-      hp: null, atk: null, def: null, rush: null,
-      fame: null, tech: null, art: null, civ: null, fth: null,
-    },
-    equipment: { weapon: null, armor: null, accessory: null },
-    confidence: "low",
-    notes: `Vision API not configured. Prompt was: ${prompt.slice(0, 100)}...`,
-  };
+function stripCodeFence(text: string): string {
+  let cleaned = String(text || "").trim();
+  if (cleaned.startsWith("```")) {
+    cleaned = cleaned.replace(/^```[a-zA-Z]*\n?/, "").replace(/```$/, "");
+  }
+  return cleaned.trim();
+}
+
+function clampConfidence(value: unknown): number {
+  const num = Number(value);
+  if (!Number.isFinite(num)) return 0;
+  if (num < 0) return 0;
+  if (num > 1) return 1;
+  return Math.round(num * 1000) / 1000;
+}
+
+async function performAnalysis(imageUrl: string, prompt: string): Promise<Record<string, unknown>> {
+  if (!imageUrl) throw new Error("Image URL is required for vision analysis");
+
+  const response = await openai.chat.completions.create({
+    model: "glm-4.6v",
+    temperature: 0,
+    max_tokens: 500,
+    messages: [
+      { role: "system", content: SNAIL_SYSTEM_PROMPT },
+      {
+        role: "user",
+        content: [
+          { type: "text" as const, text: prompt },
+          { type: "image_url" as const, image_url: { url: imageUrl, detail: "high" } },
+        ],
+      },
+    ],
+  });
+
+  const rawContent = (response as { choices?: Array<{ message?: { content?: string } }> })
+    ?.choices?.[0]?.message?.content;
+  if (!rawContent) throw new Error("Vision response was empty");
+
+  let parsed: Record<string, unknown>;
+  try {
+    parsed = JSON.parse(stripCodeFence(rawContent)) as Record<string, unknown>;
+  } catch (err) {
+    throw new Error(`Vision returned invalid JSON: ${(err as Error).message}`);
+  }
+
+  // Validate stats object presence
+  if (!parsed.stats || typeof parsed.stats !== "object") {
+    throw new Error("Vision response missing stats object");
+  }
+
+  // Validate confidence field
+  const confidenceRaw = parsed.confidence;
+  if (confidenceRaw !== "high" && confidenceRaw !== "medium" && confidenceRaw !== "low") {
+    // Downgrade to low if missing/invalid rather than throwing, to be resilient
+    (parsed as Record<string, unknown>).confidence = "low";
+  }
+
+  return parsed;
 }
 
 export async function analyzeSnailScreenshot(discordAttachmentUrl: string): Promise<Record<string, unknown>> {
@@ -50,7 +98,7 @@ export async function analyzeSnailScreenshot(discordAttachmentUrl: string): Prom
   const prompt = `Analyze this Super Snail screenshot and extract all visible stats.
 Return ONLY the JSON object, no other text.`;
 
-  let analysis = await performAnalysis("", prompt);
+  const analysis = await performAnalysis(discordAttachmentUrl, prompt);
 
   // Normalize stats
   if (!analysis.stats) (analysis as Record<string, unknown>).stats = {};
@@ -58,11 +106,32 @@ Return ONLY the JSON object, no other text.`;
     (analysis.stats as Record<string, unknown>)[key] = normalizeStatValue((analysis.stats as Record<string, unknown>)[key]);
   }
 
+  // Build per-stat confidence map (all stats same confidence level for now)
+  const confLevel = (analysis.confidence as string) || "low";
+  const confMap: Record<string, number> = {};
+  const confScore: Record<string, number> = { high: 0.9, medium: 0.6, low: 0.3 };
+  for (const key of STAT_KEYS) {
+    confMap[key] = confScore[confLevel] ?? 0.3;
+  }
+  (analysis as Record<string, unknown>).confidence = confMap;
+
   return analysis;
 }
 
 export function formatSnailAnalysis(analysis: Record<string, unknown>): string {
   const stats = (analysis.stats || {}) as Record<string, number | null>;
+  const confMap = (analysis.confidence || {}) as Record<string, number>;
+
+  const overallConf: string = (() => {
+    const vals = Object.values(confMap);
+    if (!vals.length) return "low";
+    const avg = vals.reduce((a, b) => a + b, 0) / vals.length;
+    if (avg >= 0.75) return "high";
+    if (avg >= 0.45) return "medium";
+    return "low";
+  })();
+  const confidenceEmoji: Record<string, string> = { high: "✅", medium: "⚠️", low: "❌" };
+  const confidenceLabel = overallConf.charAt(0).toUpperCase() + overallConf.slice(1);
 
   let output = "🐌 **Super Snail Stats Extracted**\n\n";
 
@@ -79,9 +148,7 @@ export function formatSnailAnalysis(analysis: Record<string, unknown>): string {
   output += `• CIV: ${stats.civ?.toLocaleString() || "???"}\n`;
   output += `• FTH: ${stats.fth?.toLocaleString() || "???"}\n\n`;
 
-  const confidence = (analysis.confidence || "low") as string;
-  const confidenceEmoji: Record<string, string> = { high: "✅", medium: "⚠️", low: "❌" };
-  output += `Confidence: ${confidenceEmoji[confidence] || "❌"} ${confidence}\n`;
+  output += `Confidence: ${confidenceEmoji[overallConf] || "❌"} ${confidenceLabel}\n`;
 
   const notes = analysis.notes as string | undefined;
   if (notes) output += `\n📝 Notes: ${notes}\n`;
