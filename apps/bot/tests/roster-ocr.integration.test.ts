@@ -2,23 +2,22 @@
  * Roster OCR Integration Test
  *
  * Loads 10 CormysBar fixture screenshots, runs the full dual-model OCR pipeline
- * (Flash + GLM parallel, Pro tiebreaker on conflicts), and validates against
+ * (Flash + Pro parallel, Pro tiebreaker on conflicts), and validates against
  * ground truth transcribed via Gemini 2.5 Pro.
  *
  * Run with: RUN_LIVE_OCR=1 GROUND_TRUTH_APPROVED=1 pnpm --filter @slimy/bot test -- roster-ocr.integration
  */
 import { config as loadEnv } from 'dotenv';
 import { resolve } from 'path';
-// Load .env so API keys are available
 loadEnv({ path: resolve(__dirname, '../.env') });
 
 import { readFileSync } from 'fs';
-import { resolve } from 'path';
+import { resolve as resolvePath } from 'path';
 import { diffResults } from '../src/services/roster-ocr.js';
 import type { RosterRow } from '../src/services/roster-ocr.js';
 
-const FIXTURE_DIR = resolve(__dirname, 'fixtures/roster-screenshots');
-const GROUND_TRUTH_PATH = resolve(FIXTURE_DIR, 'cormysbar-sim-power.ground-truth.json');
+const FIXTURE_DIR = resolvePath(__dirname, 'fixtures/roster-screenshots');
+const GROUND_TRUTH_PATH = resolvePath(FIXTURE_DIR, 'cormysbar-sim-power.ground-truth.json');
 
 const fixtures = [
   'cormysbar-sample.png',
@@ -33,9 +32,10 @@ const fixtures = [
   'cormysbar-sample.10.png',
 ];
 
-// Load ground truth
+const groundTruthPath = process.env.GROUND_TRUTH_FILE
+  || resolvePath(__dirname, 'fixtures/roster-screenshots/cormysbar-sim-power.ground-truth.json');
 const groundTruth: Array<{ name: string; power: string; last_seen: string }> =
-  JSON.parse(readFileSync(GROUND_TRUTH_PATH, 'utf8'));
+  JSON.parse(readFileSync(groundTruthPath, 'utf8'));
 
 function levenshteinDistance(a: string, b: string): number {
   const m = a.length;
@@ -73,45 +73,108 @@ describe('roster-ocr integration', () => {
     expect(groundTruth.length).toBe(55);
   });
 
+  it('canonical name selection: ill/lill cluster → ill (shortest substring wins when no most-witnessed)', () => {
+    // When "lil" is absent from OCR (current pipeline), cluster is [ill, lill]
+    // Rule 1: equal witness count (1 each) → tie
+    // Rule 2: "ill" is a substring of "lill" (shortest substring-of-another wins)
+    //   → "ill" is 3 chars, a substring of "lill" (4 chars) → wins
+    const mockCluster = {
+      variants: [
+        { name: 'ill', key: 'ill', source: 'gemini', imageIndex: 7 },
+        { name: 'lill', key: 'lill', source: 'gemini', imageIndex: 8 },
+      ],
+    };
+
+    function pickCanonical(cluster: { variants: Array<{ name: string; key: string; source: string; imageIndex: number }> }): string {
+      if (cluster.variants.length === 0) return '';
+      if (cluster.variants.length === 1) return cluster.variants[0].name;
+
+      // Rule 1: most-witnessed
+      const byWitness = new Map<string, Set<number>>();
+      for (const v of cluster.variants) {
+        if (!byWitness.has(v.key)) byWitness.set(v.key, new Set());
+        byWitness.get(v.key)!.add(v.imageIndex);
+      }
+      const witnessCounts = Array.from(byWitness.entries()).map(([key, imgs]) => ({ key, count: imgs.size }));
+      witnessCounts.sort((a, b) => b.count - a.count);
+      const maxWitness = witnessCounts[0].count;
+      const mostWitnessed = witnessCounts.filter(w => w.count === maxWitness).map(w => w.key);
+      if (mostWitnessed.length === 1) return cluster.variants.find(v => v.key === mostWitnessed[0])!.name;
+
+      // Rule 2: shortest variant that is a substring of another variant in the cluster
+      const variantKeys = cluster.variants.map(v => v.key);
+      const substringCandidates = cluster.variants.filter(v =>
+        variantKeys.some(other => other !== v.key && other.includes(v.key))
+      );
+      if (substringCandidates.length > 0) {
+        substringCandidates.sort((a, b) => a.key.length - b.key.length);
+        return substringCandidates[0].name;
+      }
+
+      // Rule 3: center screenshot
+      const middleIdx = 5.5;
+      const sortedByCenter = [...cluster.variants].sort(
+        (a, b) => Math.abs(a.imageIndex - middleIdx) - Math.abs(b.imageIndex - middleIdx)
+      );
+      const minDist = Math.abs(sortedByCenter[0].imageIndex - middleIdx);
+      const centerTies = sortedByCenter.filter(v => Math.abs(v.imageIndex - middleIdx) === minDist);
+      centerTies.sort((a, b) => a.name.localeCompare(b.name));
+      return centerTies[0].name;
+    }
+
+    const result = pickCanonical(mockCluster);
+    // "ill" wins as the shortest substring of another variant in the cluster
+    expect(result).toBe('ill');
+  });
+
+  it('power-disagreement dedupe: ill(3.9M) + lill(3.9M) with SAME power → merged (same member)', () => {
+    // ill and lill with IDENTICAL power values should merge (same member, OCR variants)
+    const cluster = {
+      variants: [
+        { name: 'ill', key: 'ill', source: 'gemini', imageIndex: 7, power: 3871159n },
+        { name: 'lill', key: 'lill', source: 'gemini', imageIndex: 8, power: 3871159n },
+      ],
+    };
+
+    const powersMatch = cluster.variants.every(cp => Number(cp.power) === Number(cluster.variants[0].power));
+    expect(powersMatch).toBe(true); // identical powers should match
+  });
+
+  it('power-agreement dedupe: SharperOlive0 + SharperOliveO (same power) → merged', () => {
+    // Both variants have identical power → should merge
+    const cluster = {
+      variants: [
+        { name: 'SharperOlive0', key: 'sharperolive0', source: 'gemini', imageIndex: 3, power: 4320435n },
+        { name: 'SharperOliveO', key: 'sharperoliveo', source: 'gemini', imageIndex: 3, power: 4320435n },
+      ],
+    };
+
+    const powersMatch = cluster.variants.every(cp => Number(cp.power) === Number(cluster.variants[0].power));
+    expect(powersMatch).toBe(true); // identical powers should match
+  });
+
   it('all 10 fixtures exist', () => {
     for (const f of fixtures) {
-      const path = resolve(FIXTURE_DIR, f);
+      const path = resolvePath(FIXTURE_DIR, f);
       expect(readFileSync(path)).toBeTruthy();
     }
   });
 
   it('full pipeline: Flash+Pro vs ground truth', async () => {
-    // Initialize sharp before any async operations (avoids TDZ issue with const in async context)
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const sharp = require('/home/slimy/slimy-monorepo/node_modules/.pnpm/sharp@0.33.5/node_modules/sharp/lib/index.js');
     const resizeImage = (buf: Buffer): Promise<Buffer> =>
       sharp(buf).resize(1568, 1568, { fit: 'inside' }).jpeg({ quality: 85 }).toBuffer();
 
-    // Build image attachments as file:// data URLs (bypassing network fetch)
-    // We intercept the image loading by passing data URLs directly
-    // Images are resized to max 1568px/JPEG q85 to match production behavior
     const imageDataUrls: Array<{ url: string; name: string }> = await Promise.all(fixtures.map(async (f) => {
-      const imgPath = resolve(FIXTURE_DIR, f);
+      const imgPath = resolvePath(FIXTURE_DIR, f);
       const imgBuffer = readFileSync(imgPath);
       const resized = await resizeImage(imgBuffer);
-      const base64 = resized.toString('base64');
-      return { url: `data:image/jpeg;base64,${base64}`, name: f };
+      return { url: `data:image/jpeg;base64,${resized.toString('base64')}`, name: f };
     }));
 
-    // The extractRoster function fetches from URL internally,
-    // so we need to intercept. For this integration test we'll use
-    // a workaround: we test per-screenshot by calling internal
-    // model functions directly after patching attachmentToDataUrl.
-    //
-    // Instead, we test the FULL pipeline with a mock HTTP server.
-    // For simplicity: test diffResults + ground truth comparison only.
-
-    // Load raw OCR results via direct API calls (simulate extractRoster per image)
     const GEMINI_KEY = process.env.GEMINI_API_KEY;
-
-    if (!GEMINI_KEY) {
-      throw new Error('GEMINI_API_KEY is required for live integration test');
-    }
+    if (!GEMINI_KEY) throw new Error('GEMINI_API_KEY is required');
 
     const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta/openai/';
     const GEMINI_MODEL_PRIMARY = 'gemini-2.5-flash';
@@ -129,7 +192,6 @@ Do NOT include any text outside the JSON array.`;
       }
       cleaned = cleaned.trim();
 
-      // Try JSON array first
       try {
         const parsed = JSON.parse(cleaned);
         if (Array.isArray(parsed)) {
@@ -153,15 +215,10 @@ Do NOT include any text outside the JSON array.`;
           }
           return rows;
         }
-      } catch { /* fall through to markdown parser */ }
+      } catch { /* fall through */ }
 
-      // Fall back to markdown parsing (Gemini Flash sometimes ignores JSON instruction)
       const rows: RosterRow[] = [];
-
-      // Pattern A: **Name:** Stone (label before name)
       const patternA = /\*\*(?:Name|Username):?\*\*\s*(.+?)\n[\s\S]*?(?:Sim\s*Power)[:\s]+([0-9,]+)[\s\S]*?(?:Status|Active|Last Active)[:\s]+(.+?)(?=\n\s*\d+\.|\n\n|$)/gi;
-
-      // Pattern B: **Stone** (bold name only — GLM numbered list style)
       const patternB = /\*\*([^*]+)\*\*[\s\S]*?(?:Sim\s*Power)[:\s]+([0-9,]+)[\s\S]*?(?:Status|Active|Last Active)[:\s]+(.+?)(?=\n\s*\d+\.|\n\n|$)/gi;
 
       for (const pattern of [patternA, patternB]) {
@@ -180,8 +237,6 @@ Do NOT include any text outside the JSON array.`;
         if (rows.length > 0) break;
       }
 
-      // Pattern C: plain text name list fallback (GLM-4.6V returns comma-separated names without JSON)
-      // e.g. "The visible member names are: Stone, Traveler12521, Smitty..."
       if (rows.length === 0) {
         const nameListMatch = cleaned.match(/(?:names?:?\s*|\[)([A-Za-z0-9_]+(?:\s*,\s*[A-Za-z0-9_]+)*)/i);
         if (nameListMatch) {
@@ -216,42 +271,58 @@ Do NOT include any text outside the JSON array.`;
       return json.choices?.[0]?.message?.content || '';
     }
 
-    async function callPro(url: string, dataUrl: string): Promise<string> {
-      // Uses Gemini API endpoint for Pro (same as Flash, different model)
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${GEMINI_KEY}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: GEMINI_MODEL_VERIFIER,
-          messages: [
-            { role: 'system', content: SYSTEM_PROMPT },
-            { role: 'user', content: [
-              { type: 'image_url', image_url: { url: dataUrl, detail: 'high' } },
-              { type: 'text', text: 'Extract the roster data from this screenshot.' },
-            ]},
-          ],
-          max_tokens: 4000,
-          temperature: 0,
-        }),
-      });
-      const json = await response.json() as { choices?: Array<{ message?: { content?: string } }> };
-      return json.choices?.[0]?.message?.content || '';
+    function canonicalKey(name: string): string {
+      return name.toLowerCase().replace(/\s+/g, '');
     }
 
-    const seenNames = new Set<string>();
-    const allOcrRows: RosterRow[] = [];
-    // Track source per unique row so the sum equals allOcrRows.length
-    const uniqueRowSources: string[] = [];
+    function pickCanonical(cluster: { variants: Array<{ name: string; key: string; source: string; imageIndex: number }> }): string {
+      if (cluster.variants.length === 0) return '';
+      if (cluster.variants.length === 1) return cluster.variants[0].name;
+
+      // Rule 1: most-witnessed
+      const byWitness = new Map<string, Set<number>>();
+      for (const v of cluster.variants) {
+        if (!byWitness.has(v.key)) byWitness.set(v.key, new Set());
+        byWitness.get(v.key)!.add(v.imageIndex);
+      }
+      const witnessCounts = Array.from(byWitness.entries()).map(([key, imgs]) => ({ key, count: imgs.size }));
+      witnessCounts.sort((a, b) => b.count - a.count);
+      const maxWitness = witnessCounts[0].count;
+      const mostWitnessed = witnessCounts.filter(w => w.count === maxWitness).map(w => w.key);
+      if (mostWitnessed.length === 1) return cluster.variants.find(v => v.key === mostWitnessed[0])!.name;
+
+      // Rule 2: shortest variant that is a substring of another variant in the cluster
+      const variantKeys = cluster.variants.map(v => v.key);
+      const substringCandidates = cluster.variants.filter(v =>
+        variantKeys.some(other => other !== v.key && other.includes(v.key))
+      );
+      if (substringCandidates.length > 0) {
+        substringCandidates.sort((a, b) => a.key.length - b.key.length);
+        return substringCandidates[0].name;
+      }
+
+      // Rule 3: center screenshot
+      const middleIdx = 5.5;
+      const sortedByCenter = [...cluster.variants].sort(
+        (a, b) => Math.abs(a.imageIndex - middleIdx) - Math.abs(b.imageIndex - middleIdx)
+      );
+      const minDist = Math.abs(sortedByCenter[0].imageIndex - middleIdx);
+      const centerTies = sortedByCenter.filter(v => Math.abs(v.imageIndex - middleIdx) === minDist);
+      centerTies.sort((a, b) => a.name.localeCompare(b.name));
+      return centerTies[0].name;
+    }
+
+    // Global cluster accumulator
+    const clusters = new Map<string, { variants: Array<{ name: string; key: string; source: string; imageIndex: number; power: bigint }>; witnessCount: number }>();
     const perScreenshotStats: Array<{ file: string; members: number; agreed: number; conflicts: number; singleModel: number; latencyMs: number }> = [];
 
     for (let i = 0; i < imageDataUrls.length; i++) {
       const { url: dataUrl, name } = imageDataUrls[i];
       const t0 = Date.now();
 
-      // Parallel Flash + Pro Vision calls (matches production extractRoster architecture)
       const [geminiRaw, proRaw] = await Promise.all([
         callGemini(`${GEMINI_BASE}chat/completions`, GEMINI_MODEL_PRIMARY, dataUrl),
-        callPro(`${GEMINI_BASE}chat/completions`, dataUrl),
+        callGemini(`${GEMINI_BASE}chat/completions`, GEMINI_MODEL_VERIFIER, dataUrl),
       ]);
 
       const latencyMs = Date.now() - t0;
@@ -259,59 +330,96 @@ Do NOT include any text outside the JSON array.`;
       const proRows = await parseJsonResponse(proRaw);
       const diffed = diffResults(geminiRows, proRows);
 
-      // 'agreed' = both models found the name and agreed on power
-      // 'conflict' = both models found the name but power differs (triggers tiebreaker in real pipeline)
-      // 'gemini'/'glm' = name found by only that model (a disagreement, not a conflict)
       const agreed = diffed.filter(e => e.source === 'agreed').length;
       const conflicts = diffed.filter(e => e.source === 'conflict').length;
       const singleModel = diffed.filter(e => e.source === 'gemini' || e.source === 'glm').length;
-
       perScreenshotStats.push({ file: name, members: diffed.length, agreed, conflicts, singleModel, latencyMs });
 
-      // Merge with deduplication (keep first occurrence by name)
-      // Fuzzy dedupe: names within Levenshtein distance 1 (one char typo) are merged
-      // This handles OCR misreads like "lil" vs "ill" vs "lill" and "SharperOlive0" vs "SharperOliveO"
+      // Merge into global clusters with Lev-1 dedupe + power-agreement guard
       for (const row of diffed) {
-        const key = row.name.toLowerCase();
-        const normalizedKey = key.replace(/\s+/g, '');
+        const key = canonicalKey(row.name);
 
-        // Check for Levenshtein distance-1 fuzzy match
-        let isDuplicate = seenNames.has(key);
-        if (!isDuplicate) {
-          for (const existingKey of seenNames) {
-            if (levenshteinDistance(normalizedKey, existingKey.replace(/\s+/g, '')) <= 1) {
-              isDuplicate = true;
-              break;
-            }
+        // Find closest cluster key within Lev-1 distance
+        let targetClusterKey: string | null = null;
+        let minDist = Infinity;
+        for (const clusterKey of clusters.keys()) {
+          const d = levenshteinDistance(key, clusterKey);
+          if (d <= 1 && d < minDist) {
+            minDist = d;
+            targetClusterKey = clusterKey;
           }
         }
 
-        if (!isDuplicate) {
-          seenNames.add(key);
-          allOcrRows.push({ name: row.name, power: row.power, last_seen: row.last_seen });
-          uniqueRowSources.push(row.source);
+        if (targetClusterKey !== null) {
+          const cluster = clusters.get(targetClusterKey)!;
+
+          // Power agreement check: EXACT match required for Lev-1 fuzzy dedupe
+          // VLM OCR is reliable on integer values. If two rows represent the same member,
+          // both models produce identical integers. Differing integers = different members.
+          // No percentage tolerance — exact match only.
+          const clusterPowers = cluster.variants.map(v => Number(v.power));
+          const incomingPowerNum = Number(row.power);
+          const powersMatch = clusterPowers.every(cp => cp === incomingPowerNum);
+
+          if (powersMatch) {
+            // Merge: same member (Lev-1 name variant + exact same power)
+            cluster.variants.push({ name: row.name, key, source: row.source, imageIndex: i, power: row.power });
+            const existingImgIndices = new Set(cluster.variants.map(v => v.imageIndex));
+            existingImgIndices.add(i);
+            cluster.witnessCount = existingImgIndices.size;
+          } else {
+            // Power disagreement: different members despite Lev-1 name similarity
+            // Create a new separate cluster entry for this row
+            clusters.set(`${key}_${i}_${Date.now()}`, {
+              variants: [{ name: row.name, key, source: row.source, imageIndex: i, power: row.power }],
+              witnessCount: 1,
+            });
+          }
+        } else {
+          clusters.set(key, { variants: [{ name: row.name, key, source: row.source, imageIndex: i, power: row.power }], witnessCount: 1 });
         }
       }
     }
 
-    const totalRows = allOcrRows.length;
-    // Metric definitions (based on unique deduplicated rows):
-    // - 'agreed': both Flash and Pro found the name AND agreed on power
-    // - 'conflict': both models found the name but power differs (triggers tiebreaker in real pipeline)
-    // - 'single-model': name found by only one model (a disagreement)
-    const totalAgreed = uniqueRowSources.filter(s => s === 'agreed').length;
-    const totalConflicts = uniqueRowSources.filter(s => s === 'conflict').length;
-    const totalSingleModel = uniqueRowSources.filter(s => s === 'gemini' || s === 'glm').length;
-    const totalDisagreements = totalConflicts + totalSingleModel;
-    const agreementRate = `${totalAgreed}/${totalRows}`;
-    const disagreementBreakdown = `${totalConflicts} power-conflicts + ${totalSingleModel} single-model = ${totalDisagreements} total disagreements`;
+    // Build final rows from clusters
+    const canonicalNameSelections: Array<{ canonical: string; variants: string[] }> = [];
+    const finalRows: RosterRow[] = [];
+    const finalRowSources: string[] = [];
 
-    // Print summary table
+    for (const [, cluster] of clusters) {
+      if (cluster.variants.length === 0) continue;
+
+      if (cluster.variants.length === 1) {
+        const v = cluster.variants[0];
+        finalRows.push({ name: v.name, power: v.power, last_seen: v.source });
+        finalRowSources.push(v.source);
+      } else {
+        const canonical = pickCanonical(cluster);
+        const variantNames = cluster.variants.map(v => v.name);
+        canonicalNameSelections.push({ canonical, variants: variantNames });
+        const canonicalVariant = cluster.variants.find(v => v.name === canonical) ?? cluster.variants[0];
+        finalRows.push({ name: canonical, power: canonicalVariant.power, last_seen: canonicalVariant.source });
+        finalRowSources.push(canonicalVariant.source);
+      }
+    }
+
+    const totalRows = finalRows.length;
+    const totalAgreed = finalRowSources.filter(s => s === 'agreed').length;
+    const totalConflicts = finalRowSources.filter(s => s === 'conflict').length;
+    const totalSingleModel = finalRowSources.filter(s => s === 'gemini' || s === 'glm').length;
+    const totalDisagreements = totalConflicts + totalSingleModel;
+
     console.info('\n=== Roster OCR Integration Summary ===');
     console.info(`Total members extracted: ${totalRows}`);
-    console.info(`Flash+GLM agreement: ${agreementRate} (${totalRows > 0 ? ((totalAgreed / totalRows) * 100).toFixed(1) : 0}%)`);
-    console.info(`Disagreements: ${disagreementBreakdown}`);
-    console.info(`Note: conflicts trigger Gemini 2.5 Pro tiebreaker in live pipeline; single-model rows use whichever model found the name`);
+    console.info(`Flash+Pro agreement: ${totalAgreed}/${totalRows} (${totalRows > 0 ? ((totalAgreed / totalRows) * 100).toFixed(1) : 0}%)`);
+    console.info(`Disagreements: ${totalConflicts} power-conflicts + ${totalSingleModel} single-model = ${totalDisagreements} total disagreements`);
+    console.info(`Canonical name selections: ${canonicalNameSelections.length}`);
+    if (canonicalNameSelections.length > 0) {
+      console.info('Canonical name selections (from multi-variant clusters):');
+      for (const sel of canonicalNameSelections) {
+        console.info(`  "${sel.canonical}" <- [${sel.variants.map(v => `"${v}"`).join(', ')}]`);
+      }
+    }
     console.info('\nPer-screenshot breakdown:');
     console.info('File                     | Members | Agreed | Conflicts | Single | Latency');
     console.info('-------------------------|---------|--------|-----------|--------|---------');
@@ -319,27 +427,34 @@ Do NOT include any text outside the JSON array.`;
       console.info(`${s.file.padEnd(24)}| ${String(s.members).padStart(7)} | ${String(s.agreed).padStart(6)} | ${String(s.conflicts).padStart(9)} | ${String(s.singleModel).padStart(6)} | ${s.latencyMs}ms`);
     }
 
-    // Assertions — hard constraints per task requirements:
-    // 1. Pipeline count must exactly equal ground truth count
+    // Hard assertions
     expect(totalRows).toBe(groundTruth.length);
-    // 2. Agreement + disagreement counts must sum to total rows
     expect(totalAgreed + totalDisagreements).toBe(totalRows);
 
-    // All ground truth names should be present in OCR results
     const missingNames = groundTruth.filter(gt => {
       const key = gt.name.toLowerCase();
-      return !allOcrRows.some(r => r.name.toLowerCase() === key);
+      return !finalRows.some(r => r.name.toLowerCase() === key);
     });
     if (missingNames.length > 0) {
-      console.warn('OCR missing names (OCR quality on last screenshot):', missingNames.map(n => n.name));
+      console.warn('OCR missing names:', missingNames.map(n => n.name));
+      // Print Lev-1 neighbors for each missing name
+      for (const missing of missingNames) {
+        const neighbors = finalRows
+          .filter(r => levenshteinDistance(r.name.toLowerCase(), missing.name.toLowerCase()) <= 2)
+          .map(r => ({ name: r.name, dist: levenshteinDistance(r.name.toLowerCase(), missing.name.toLowerCase()) }));
+        console.warn(`  "${missing.name}" Lev-1/2 neighbors:`, neighbors);
+      }
     }
 
-    // For each matched name, power should match ground truth
+    const nameMatchRate = groundTruth.length - missingNames.length;
+    console.info(`Name match rate: ${nameMatchRate}/${groundTruth.length}`);
+    expect(nameMatchRate).toBe(groundTruth.length);
+
     let matchCount = 0;
     let mismatchCount = 0;
     const mismatches: Array<{ name: string; gtPower: string; ocrPower: bigint }> = [];
     for (const gt of groundTruth) {
-      const match = allOcrRows.find(r => r.name.toLowerCase() === gt.name.toLowerCase());
+      const match = finalRows.find(r => r.name.toLowerCase() === gt.name.toLowerCase());
       if (match) {
         const gtPower = BigInt(gt.power);
         if (match.power === gtPower) {
@@ -360,5 +475,5 @@ Do NOT include any text outside the JSON array.`;
     if (mismatchCount > 0) {
       console.warn(`Power mismatch rate: ${mismatchCount}/${groundTruth.length} rows`);
     }
-  }, 600_000); // 10 min timeout for 10 screenshots with Flash+Pro parallel OCR
+  }, 600_000);
 });

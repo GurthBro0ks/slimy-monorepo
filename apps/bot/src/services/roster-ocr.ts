@@ -9,27 +9,31 @@
  *
  * Env vars:
  *   GEMINI_API_KEY          — Gemini API key (for Flash and Pro)
- *   AI_API_KEY              — Z.AI API key (for GLM-4.6V, optional/offline tool)
- *   ROSTER_OCR_GLM_MODEL    — GLM model string (default: glm-4.6v, not used in hot path)
  */
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai/";
-const ZAI_BASE_URL =
-  process.env.ROSTER_OCR_ZAI_BASE_URL ||
-  process.env.AI_BASE_URL ||
-  "https://api.z.ai/api/paas/v4";
 
 const GEMINI_MODEL_PRIMARY = "gemini-2.5-flash";
 const GEMINI_MODEL_TIEBREAKER = "gemini-2.5-pro";
-const GLM_MODEL = process.env.ROSTER_OCR_GLM_MODEL || "glm-4.6v";
 
-const SYSTEM_PROMPT = `Extract visible member rows from this Super Snail Manage Members screenshot.
-Return ONLY a JSON array. Each row: {name, power, last_seen}.
+// TODO(roster-ocr): Total power support is wired but not yet validated.
+// Next session: capture cormysbar-total-power.ground-truth.json fixtures and run full
+// integration validation against the total power metric.
+const SYSTEM_PROMPT_BASE = `Extract visible member rows from this Super Snail Manage Members screenshot.
 SKIP any row where the power number is cut off or not fully visible.
-power must be an integer with no commas. last_seen is a string like '5h ago' or 'Online'.
+last_seen is a string like '5h ago' or 'Online'.
 Do NOT include any text outside the JSON array.`;
+
+function buildSystemPrompt(metric: 'sim' | 'total' = 'sim'): string {
+  const field = metric === 'sim' ? 'power' : 'total_power';
+  const metricLabel = metric === 'sim' ? 'Sim Power' : 'Power';
+  return `${SYSTEM_PROMPT_BASE}
+The screenshots show the "${metricLabel}" view of the Manage Members list.
+Return ONLY a JSON array. Each row: {name, ${field}, last_seen}.
+${field} must be an integer with no commas.`;
+}
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -97,42 +101,6 @@ async function geminiChat(
   };
 }
 
-async function glmChat(
-  model: string,
-  messages: Array<{ role: string; content: unknown }>,
-  apiKey: string,
-): Promise<{ content: string; usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number } }> {
-  const url = `${ZAI_BASE_URL}/chat/completions`;
-  const response = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({ model, messages, temperature: 0 }),
-  });
-
-  if (!response.ok) {
-    const text = await response.text().catch(() => "");
-    throw new Error(`GLM API error ${response.status}: ${text}`);
-  }
-
-  const data = await response.json() as {
-    choices?: Array<{ message?: { content?: string; reasoning_content?: string } }>;
-    usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number };
-  };
-
-  // GLM-4.6V (chain-of-thought mode) may return response in reasoning_content
-  // instead of content when the model is doing internal reasoning
-  const message = data.choices?.[0]?.message;
-  const content = message?.content || message?.reasoning_content || "";
-
-  return {
-    content,
-    usage: data.usage,
-  };
-}
-
 // ─── Image Resizing ────────────────────────────────────────────────────────────
 // Resize images before VLM inference to reduce latency.
 // VLM APIs process images server-side anyway; resizing to 1568px max edge
@@ -191,9 +159,11 @@ async function callGemini(
   imageDataUrl: string,
   apiKey: string,
   model: string = GEMINI_MODEL_PRIMARY,
+  metric: 'sim' | 'total' = 'sim',
 ): Promise<ModelResult> {
+  const systemPrompt = buildSystemPrompt(metric);
   const messages = [
-    { role: 'system' as const, content: SYSTEM_PROMPT },
+    { role: 'system' as const, content: systemPrompt },
     {
       role: 'user' as const,
       content: [
@@ -206,26 +176,6 @@ async function callGemini(
   const response = await geminiChat(model, messages, apiKey);
   const rows = parseRosterJson(response.content, model);
   return { rows, raw: response.content, model };
-}
-
-async function callGlm(
-  imageDataUrl: string,
-  apiKey: string,
-): Promise<ModelResult> {
-  const messages = [
-    { role: 'system' as const, content: SYSTEM_PROMPT },
-    {
-      role: 'user' as const,
-      content: [
-        { type: 'text' as const, text: 'Extract the roster data from this screenshot.' },
-        buildVisionMessage(imageDataUrl),
-      ],
-    },
-  ];
-
-  const response = await glmChat(GLM_MODEL, messages, apiKey);
-  const rows = parseRosterJson(response.content, GLM_MODEL);
-  return { rows, raw: response.content, model: GLM_MODEL };
 }
 
 // ─── JSON Parsing ─────────────────────────────────────────────────────────────
@@ -434,6 +384,12 @@ Return ONLY a plain integer — no JSON, no explanation.`;
 
 export interface ExtractRosterOptions {
   skipLiveOcr?: boolean;
+  /**
+   * Which power metric to extract: 'sim' (Sim Power) or 'total' (Power/total).
+   * Affects the extraction prompt and output field name.
+   * @default 'sim'
+   */
+  metric?: 'sim' | 'total';
   /** Called after each image is processed with (completedCount, totalCount, imageName) */
   onProgress?: (completed: number, total: number, imageName: string) => void;
 }
@@ -443,6 +399,7 @@ export async function extractRoster(
   options: ExtractRosterOptions = {},
 ): Promise<RosterOcrResult[]> {
   const geminiKey = process.env.GEMINI_API_KEY;
+  const metric = options.metric ?? 'sim';
 
   if (!geminiKey) {
     throw new Error("Missing GEMINI_API_KEY: required for roster OCR");
@@ -484,11 +441,11 @@ export async function extractRoster(
     // Pro is used instead of GLM because GLM-4.6V vision takes ~40s/image vs Pro's ~10s.
     // Image resizing (max 1568px / JPEG q85) further reduces per-image latency to ~5-10s.
     const [gem, pro] = await Promise.all([
-      callGemini(imageDataUrl, geminiKey).catch((err) => {
+      callGemini(imageDataUrl, geminiKey, GEMINI_MODEL_PRIMARY, metric).catch((err) => {
         console.error(`[roster-ocr] Flash failed for image ${i}: ${err.message}`);
         return { rows: [], raw: '', model: GEMINI_MODEL_PRIMARY } as ModelResult;
       }),
-      callGemini(imageDataUrl, geminiKey, GEMINI_MODEL_TIEBREAKER).catch((err) => {
+      callGemini(imageDataUrl, geminiKey, GEMINI_MODEL_TIEBREAKER, metric).catch((err) => {
         console.error(`[roster-ocr] Pro failed for image ${i}: ${err.message}`);
         return { rows: [], raw: '', model: GEMINI_MODEL_TIEBREAKER } as ModelResult;
       }),
