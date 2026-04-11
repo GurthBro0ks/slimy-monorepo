@@ -495,6 +495,157 @@ export async function extractRoster(
   return results;
 }
 
+// ─── Canonical Dedup ─────────────────────────────────────────────────────────
+
+export interface RawRosterRow {
+  name: string;
+  power: bigint;
+  /** Zero-based screenshot index this row came from */
+  source_screenshot: number;
+}
+
+interface ClusterVariant {
+  name: string;
+  key: string;
+  source: string;
+  imageIndex: number;
+  power: bigint;
+}
+
+function canonicalizeRosterKey(name: string): string {
+  return name.toLowerCase().replace(/\s+/g, '');
+}
+
+function levenshteinDistance(a: string, b: string): number {
+  const m = a.length;
+  const n = b.length;
+  const dp: number[][] = Array.from({ length: m + 1 }, (_, i) =>
+    Array.from({ length: n + 1 }, (_, j) => (i === 0 ? j : j === 0 ? i : 0))
+  );
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      if (a[i - 1] === b[j - 1]) {
+        dp[i][j] = dp[i - 1][j - 1];
+      } else {
+        dp[i][j] = 1 + Math.min(dp[i - 1][j], dp[i - 1][j - 1], dp[i][j - 1]);
+      }
+    }
+  }
+  return dp[m][n];
+}
+
+function pickCanonicalName(cluster: { variants: ClusterVariant[] }): string {
+  if (cluster.variants.length === 0) return '';
+  if (cluster.variants.length === 1) return cluster.variants[0].name;
+
+  // Rule 1: most-witnessed (most screenshots contain this variant)
+  const byWitness = new Map<string, Set<number>>();
+  for (const v of cluster.variants) {
+    if (!byWitness.has(v.key)) byWitness.set(v.key, new Set());
+    byWitness.get(v.key)!.add(v.imageIndex);
+  }
+  const witnessCounts = Array.from(byWitness.entries()).map(([key, imgs]) => ({ key, count: imgs.size }));
+  witnessCounts.sort((a, b) => b.count - a.count);
+  const maxWitness = witnessCounts[0].count;
+  const mostWitnessed = witnessCounts.filter(w => w.count === maxWitness).map(w => w.key);
+  if (mostWitnessed.length === 1) {
+    return cluster.variants.find(v => v.key === mostWitnessed[0])!.name;
+  }
+
+  // Rule 2: shortest variant that is a substring of another variant in the cluster
+  const variantKeys = cluster.variants.map(v => v.key);
+  const substringCandidates = cluster.variants.filter(v =>
+    variantKeys.some(other => other !== v.key && other.includes(v.key))
+  );
+  if (substringCandidates.length > 0) {
+    substringCandidates.sort((a, b) => a.key.length - b.key.length);
+    return substringCandidates[0].name;
+  }
+
+  // Rule 3: center screenshot (imageIndex closest to middle)
+  const middleIdx = 5.5;
+  const sortedByCenter = [...cluster.variants].sort(
+    (a, b) => Math.abs(a.imageIndex - middleIdx) - Math.abs(b.imageIndex - middleIdx)
+  );
+  const minDist = Math.abs(sortedByCenter[0].imageIndex - middleIdx);
+  const centerTies = sortedByCenter.filter(v => Math.abs(v.imageIndex - middleIdx) === minDist);
+  centerTies.sort((a, b) => a.name.localeCompare(b.name));
+  return centerTies[0].name;
+}
+
+/**
+ * Deduplicate roster rows from multiple screenshots.
+ *
+ * Uses Lev-1 fuzzy name matching + exact power agreement:
+ * - Two rows with Lev-1 name distance AND identical power → merged (same member)
+ * - Two rows with Lev-1 name distance but DIFFERENT power → separate members
+ *
+ * Canonical name selection per cluster:
+ * 1. Most-witnessed (appears in most screenshots)
+ * 2. Shortest variant that is a substring of another cluster variant
+ * 3. Screenshot closest to center (index ~5.5)
+ */
+export function dedupeRosterRows(
+  rawRows: RawRosterRow[],
+): Array<{ name: string; power: bigint }> {
+  const clusters = new Map<string, ClusterVariant[]>();
+
+  for (const row of rawRows) {
+    const key = canonicalizeRosterKey(row.name);
+
+    // Find Lev-1 neighbor clusters
+    let targetClusterKey: string | null = null;
+    let minDist = Infinity;
+    for (const clusterKey of clusters.keys()) {
+      const d = levenshteinDistance(key, clusterKey);
+      if (d <= 1 && d < minDist) {
+        minDist = d;
+        targetClusterKey = clusterKey;
+      }
+    }
+
+    if (targetClusterKey !== null) {
+      const cluster = clusters.get(targetClusterKey)!;
+
+      // Power agreement check: EXACT match required for Lev-1 fuzzy dedupe
+      const clusterPowers = cluster.map(v => Number(v.power));
+      const incomingPowerNum = Number(row.power);
+      const powersMatch = clusterPowers.every(cp => cp === incomingPowerNum);
+
+      if (powersMatch) {
+        // Merge: same member (Lev-1 name variant + exact same power)
+        cluster.push({ name: row.name, key, source: 'merged', imageIndex: row.source_screenshot, power: row.power });
+      } else {
+        // Power disagreement: different members despite Lev-1 name similarity
+        // Create a new separate cluster entry for this row
+        clusters.set(`${key}_${row.source_screenshot}_${Date.now()}`, [
+          { name: row.name, key, source: 'split', imageIndex: row.source_screenshot, power: row.power },
+        ]);
+      }
+    } else {
+      clusters.set(key, [{ name: row.name, key, source: 'new', imageIndex: row.source_screenshot, power: row.power }]);
+    }
+  }
+
+  // Build final rows from clusters
+  const finalRows: Array<{ name: string; power: bigint }> = [];
+
+  for (const [, cluster] of clusters) {
+    if (cluster.length === 0) continue;
+
+    if (cluster.length === 1) {
+      const v = cluster[0];
+      finalRows.push({ name: v.name, power: v.power });
+    } else {
+      const canonical = pickCanonicalName({ variants: cluster });
+      const canonicalVariant = cluster.find(v => v.name === canonical) ?? cluster[0];
+      finalRows.push({ name: canonical, power: canonicalVariant.power });
+    }
+  }
+
+  return finalRows;
+}
+
 // ─── Formatting ───────────────────────────────────────────────────────────────
 
 export function formatRosterEmbed(results: RosterOcrResult[]): string {

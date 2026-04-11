@@ -1,6 +1,13 @@
 /**
- * Club Analyze — AI-powered club screenshot analysis with session management.
- * Ported from /opt/slimy/app/commands/club-analyze.js
+ * Club Analyze — Paginated edit UI for roster OCR with staging persistence.
+ *
+ * Architecture:
+ *   /club-analyze → extractRoster() → dedupeRosterRows() → saveStagingRows()
+ *   Edit UI (paginated) → updateStagingRow() → saveStagingRows()
+ *   /club-push (future) → reads staging → writes club_latest
+ *
+ * Command: /club-analyze metric:<sim|total> image1:... image2:... ... image10:...
+ * Flow: Scan → Paginated Edit → Save to Staging
  */
 
 import {
@@ -12,67 +19,54 @@ import {
   ModalBuilder,
   TextInputBuilder,
   TextInputStyle,
-  PermissionFlagsBits,
+  Attachment,
+  ChatInputCommandInteraction,
+  ButtonInteraction,
+  ModalSubmitInteraction,
+  MessageFlags,
 } from 'discord.js';
 import { v4 as uuidv4 } from 'uuid';
-import { database } from '../lib/database.js';
-import { trackCommand } from '../lib/metrics.js';
+import { extractRoster } from '../services/roster-ocr.js';
+import { dedupeRosterRows, RawRosterRow } from '../services/roster-ocr.js';
 import {
-  parseManageMembersImage,
-  parseManageMembersImageEnsemble,
-} from '../lib/club-vision.js';
-import {
-  canonicalize,
-  upsertMembers,
-  createSnapshot,
-  insertMetrics,
-  recomputeLatestForGuild,
-  getLatestForGuild,
-  findLikelyMemberId,
-} from '../lib/club-store.js';
-import { getSheetConfig } from '../lib/guild-settings.js';
-import { generateClubExport } from '../utils/xlsx-export.js';
-import { RowDataPacket } from 'mysql2/promise';
+  clearStaging,
+  saveStagingRows,
+} from '../services/club-staging.js';
 
-const LOW_CONFIDENCE_THRESHOLD = 0.7;
-const MIN_ROWS_FOR_COMMIT = 3;
-const SESSION_TTL_MS = 15 * 60 * 1000;
-const SUSPICIOUS_THRESHOLD = Number(process.env.CLUB_QA_SUSPICIOUS_JUMP_PCT || 85);
-const EXTREME_VOLATILITY_THRESHOLD = 40;
-const EXTREME_VOLATILITY_COUNT = 5;
-const BUTTON_PREFIX = "club-analyze";
-const USE_ENSEMBLE = process.env.CLUB_USE_ENSEMBLE === "1";
+// ─── Constants ────────────────────────────────────────────────────────────────
 
-interface Session {
-  id: string;
+const MAX_IMAGES = 10;
+const BUTTON_PREFIX = 'club-analyze';
+const SESSION_TTL_MS = 60 * 60 * 1000; // 1 hour
+
+// ─── Types ───────────────────────────────────────────────────────────────────
+
+interface PageRow {
+  name: string;
+  power: bigint;
+  edited: boolean;
+}
+
+interface Page {
+  screenshotFilename: string;
+  rows: PageRow[];
+}
+
+interface ScanSession {
+  interactionId: string;
   guildId: string;
   userId: string;
-  channelId: string;
-  type: "quick" | "full" | "both";
-  attachments: { url: string; name: string }[];
-  metrics: { sim: Map<string, MetricEntry>; total: Map<string, MetricEntry> };
-  displayNames: Map<string, string>;
-  previousByCanonical: Map<string, { memberId: number; display: string; totalPower: number | null; simPower: number | null }>;
-  lastWeekSet: Set<string>;
-  ensembleMetadata: Record<string, number> | null;
-  sheetConfig: { url: string | null; sheetId: string | null };
-  qa: Record<string, unknown> | null;
-  approvals: Set<string>;
-  forceCommit: boolean;
-  strictRuns: number;
+  metric: 'sim' | 'total';
+  currentPage: number;
+  pages: Page[];
+  canonicalMerged: Array<{ name: string; power: bigint }>;
+  dirty: boolean;
   createdAt: number;
-  useEnsemble: boolean;
 }
 
-interface MetricEntry {
-  canonical: string;
-  display: string;
-  value: number | null;
-  confidence: number;
-  sources?: Set<string>;
-}
+// ─── Session Store ───────────────────────────────────────────────────────────
 
-const sessions = new Map<string, Session>();
+const sessions = new Map<string, ScanSession>();
 
 function cleanExpiredSessions(): void {
   const now = Date.now();
@@ -83,320 +77,566 @@ function cleanExpiredSessions(): void {
   }
 }
 
-function ensureDatabase(): void {
-  if (!database.isConfigured()) {
-    throw new Error("Database not configured for club analyze.");
+function getSession(interactionId: string): ScanSession | null {
+  const session = sessions.get(interactionId);
+  if (!session) return null;
+  if (Date.now() - session.createdAt > SESSION_TTL_MS) {
+    sessions.delete(interactionId);
+    return null;
   }
+  return session;
 }
 
-function checkPermissions(member: unknown): boolean {
-  if (!member) return false;
-  const m = member as { permissions: { has: (flag: bigint) => boolean }; roles: { cache: { has: (id: string) => boolean } } };
-  if (m.permissions?.has(PermissionFlagsBits.Administrator)) return true;
-  const roleId = process.env.CLUB_ROLE_ID;
-  if (roleId && m.roles?.cache?.has(roleId)) return true;
-  return false;
-}
-
-function mergeRows(session: Session, metric: string, rows: { canonical: string; display: string; value: number | null; confidence: number }[], _url: string): void {
-  const map = metric === "sim" ? session.metrics.sim : session.metrics.total;
-  for (const row of rows) {
-    const canonical = row.canonical || canonicalize(row.display);
-    if (!canonical) continue;
-
-    if (row.display) session.displayNames.set(canonical, row.display);
-
-    const existing = map.get(canonical);
-    if (!existing) {
-      map.set(canonical, { canonical, display: row.display || canonical, value: row.value, confidence: row.confidence });
-    } else if (row.value !== null && (existing.value === null || row.confidence > existing.confidence)) {
-      existing.value = row.value;
-      existing.display = row.display || existing.display;
-      existing.confidence = row.confidence;
-    }
-  }
-}
-
-function toNumber(value: unknown): number | null {
-  if (value === null || typeof value === "undefined") return null;
-  const num = Number(value);
-  return Number.isFinite(num) ? num : null;
-}
-
-async function parseAttachments(session: Session, strict = false): Promise<void> {
-  // Determine forced metric from session type (quick=both, full/sim/total determined separately)
-  const forcedMetric: string | null = null;
-  const useEnsemble = session.useEnsemble && !strict;
-
-  for (const attachment of session.attachments) {
-    try {
-      let result;
-      if (useEnsemble) {
-        result = await parseManageMembersImageEnsemble(attachment.url, forcedMetric);
-        if (result.ensembleMetadata) {
-          session.ensembleMetadata = result.ensembleMetadata as Record<string, number>;
-        }
-      } else {
-        result = await parseManageMembersImage(attachment.url, forcedMetric, { strict });
-      }
-      mergeRows(session, result.metric, result.rows, attachment.url);
-    } catch (err) {
-      console.error("[club-analyze] Vision parse failed", { url: attachment.url, error: (err as Error).message });
-      throw err;
-    }
-  }
-}
-
-async function loadPreviousState(session: Session): Promise<void> {
-  const latest = await getLatestForGuild(session.guildId);
-  for (const row of latest) {
-    session.previousByCanonical.set(row.name_canonical, {
-      memberId: row.member_id,
-      display: row.name_display,
-      totalPower: toNumber(row.total_power),
-      simPower: toNumber(row.sim_power),
-    });
-  }
-  session.lastWeekSet = new Set(session.previousByCanonical.keys());
-}
-
-function buildPreviewEmbed(session: Session): EmbedBuilder {
-  const qa = session.qa as { coverageGuardTriggered?: boolean; missingGuardTriggered?: boolean; coveragePct?: number; missing?: string[]; newNames?: string[]; suspicious?: { display: string; pct: number }[]; lowConfidence?: { display: string; metric: string; confidence: number }[]; requiresSecondApprover?: boolean; totalRows?: number } | null;
-  const coverageColor = qa?.coverageGuardTriggered ? 0xff3366 : qa?.missingGuardTriggered ? 0xffa500 : 0x3b82f6;
-
-  const totalSim = session.metrics.sim.size;
-  const totalTotal = session.metrics.total.size;
-
-  const embed = new EmbedBuilder()
-    .setTitle("Club Analyze — Preview")
-    .setColor(coverageColor)
-    .setDescription([
-      `• Parsed **${totalSim + totalTotal}** rows`,
-      `  • Sim: ${totalSim}`,
-      `  • Total: ${totalTotal}`,
-    ].join("\n"));
-
-  if (qa) {
-    if (qa.missing?.length) {
-      embed.addFields({
-        name: `Missing vs last week (${qa.missing.length})`,
-        value: qa.missing.slice(0, 5).join("\n") || "—",
-      });
-    }
-    if (qa.suspicious?.length) {
-      embed.addFields({
-        name: `Suspicious changes (${qa.suspicious.length})`,
-        value: qa.suspicious.slice(0, 3).map((r) => `${r.pct > 0 ? "+" : ""}${r.pct}% • ${r.display}`).join("\n") || "—",
-      });
-    }
-    if (qa.requiresSecondApprover) {
-      embed.addFields({
-        name: "🔐 Second Approval Required",
-        value: "Awaiting approval from 2 admins",
-      });
-    }
-    if (qa.totalRows !== undefined && qa.totalRows < MIN_ROWS_FOR_COMMIT) {
-      embed.addFields({
-        name: "⚠️ Not enough rows",
-        value: `Need ${MIN_ROWS_FOR_COMMIT}, got ${qa.totalRows}`,
-      });
-    }
-  }
-
-  return embed;
-}
-
-function buildPreviewComponents(session: Session): ActionRowBuilder<ButtonBuilder>[] {
-  const qa = session.qa as { totalRows?: number; requiresSecondApprover?: boolean; coverageGuardTriggered?: boolean; missingGuardTriggered?: boolean } | null;
-  const notEnoughRows = (qa?.totalRows ?? 0) < MIN_ROWS_FOR_COMMIT;
-  let approveDisabled = notEnoughRows;
-
-  const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
-    new ButtonBuilder()
-      .setCustomId(`${BUTTON_PREFIX}:approve:${session.id}`)
-      .setEmoji("✅")
-      .setLabel("Approve & Commit")
-      .setStyle(ButtonStyle.Success)
-      .setDisabled(approveDisabled),
-    new ButtonBuilder()
-      .setCustomId(`${BUTTON_PREFIX}:cancel:${session.id}`)
-      .setEmoji("🛑")
-      .setLabel("Cancel")
-      .setStyle(ButtonStyle.Danger),
-  );
-
-  return [row];
-}
-
-async function commitSession(session: Session, source: string): Promise<void> {
-  const qa = session.qa as { totalRows?: number; coverageGuardTriggered?: boolean; missingGuardTriggered?: boolean; coveragePct?: number; missing?: string[] } | null;
-  if ((qa?.totalRows ?? 0) < MIN_ROWS_FOR_COMMIT) {
-    throw new Error(`Need at least ${MIN_ROWS_FOR_COMMIT} rows to commit (currently ${qa?.totalRows ?? 0}).`);
-  }
-
-  const canonicalSet = new Set<string>();
-  for (const [canonical] of session.metrics.sim) canonicalSet.add(canonical);
-  for (const [canonical] of session.metrics.total) canonicalSet.add(canonical);
-
-  const members = Array.from(canonicalSet).map(canonical => ({
-    canonical,
-    display: session.displayNames.get(canonical) || canonical,
-  }));
-
-  const memberMap = await upsertMembers(session.guildId, members);
-
-  const snapshot = await createSnapshot(session.guildId, session.userId, null, new Date());
-
-  const metricEntries: { memberId: number; metric: string; value: number | null }[] = [];
-  for (const [canonical, entry] of session.metrics.sim) {
-    const memberId = memberMap.get(canonical);
-    if (memberId) metricEntries.push({ memberId, metric: "sim", value: entry.value });
-  }
-  for (const [canonical, entry] of session.metrics.total) {
-    const memberId = memberMap.get(canonical);
-    if (memberId) metricEntries.push({ memberId, metric: "total", value: entry.value });
-  }
-
-  await insertMetrics(snapshot.snapshotId, metricEntries as { memberId: number; metric: string; value: number | null }[]);
-  await recomputeLatestForGuild(session.guildId, snapshot.snapshotAt);
-
-  sessions.delete(session.id);
-}
-
-interface InteractionLike {
-  guildId: string;
-  channelId: string;
-  user: { id: string };
-  member: unknown;
-  options: {
-    getString: (name: string) => string | null;
-    getAttachment: (name: string) => { url: string; name: string } | null;
-    getSubcommand: () => string;
-  };
-  deferReply: (opts: { ephemeral?: boolean }) => Promise<unknown>;
-  editReply: (opts: Record<string, unknown>) => Promise<unknown>;
-  reply: (opts: Record<string, unknown>) => Promise<unknown>;
-  channel: { id: string; sendTyping: () => Promise<void> };
-}
-
-async function handleQuickAnalyze(interaction: InteractionLike): Promise<unknown> {
-  ensureDatabase();
-  await interaction.deferReply({});
-
-  const sessionId = uuidv4();
-  const session: Session = {
-    id: sessionId,
-    guildId: interaction.guildId,
-    userId: interaction.user.id,
-    channelId: interaction.channelId,
-    type: "both",
-    attachments: [],
-    metrics: { sim: new Map(), total: new Map() },
-    displayNames: new Map(),
-    previousByCanonical: new Map(),
-    lastWeekSet: new Set(),
-    ensembleMetadata: null,
-    sheetConfig: await getSheetConfig(interaction.guildId),
-    qa: null,
-    approvals: new Set(),
-    forceCommit: checkPermissions(interaction.member),
-    strictRuns: 0,
-    createdAt: Date.now(),
-    useEnsemble: USE_ENSEMBLE,
-  };
-
-  // Collect attachments from options
-  const attachmentNames = ["images", "image_2", "image_3", "image_4", "image_5"];
-  for (const name of attachmentNames) {
-    const att = interaction.options.getAttachment(name);
-    if (att) session.attachments.push(att);
-  }
-
-  if (!session.attachments.length) {
-    return interaction.editReply({ content: "❌ No images attached. Use `/club-analyze full` for step-by-step." });
-  }
-
-  try {
-    await parseAttachments(session);
-    await loadPreviousState(session);
-
-    // Stub QA computation
-    const totalRows = session.metrics.sim.size + session.metrics.total.size;
-    session.qa = { totalRows, missing: [], suspicious: [], lowConfidence: [], requiresSecondApprover: false };
-
-    const embed = buildPreviewEmbed(session);
-    const components = buildPreviewComponents(session);
-
-    sessions.set(sessionId, session);
-
-    return interaction.editReply({ embeds: [embed], components });
-  } catch (err) {
-    return interaction.editReply({ content: `❌ Analysis failed: ${(err as Error).message}` });
-  }
-}
+// ─── Slash Command Definition ────────────────────────────────────────────────
 
 module.exports = {
   data: new SlashCommandBuilder()
-    .setName("club-analyze")
-    .setDescription("Analyze club screenshots with AI vision")
-    .addSubcommand((sub) =>
-      sub
-        .setName("quick")
-        .setDescription("Quick analyze with attached images")
-        .addAttachmentOption((opt) => opt.setName("images").setDescription("Screenshot(s)").setRequired(true)),
+    .setName('club-analyze')
+    .setDescription('Scan Super Snail club roster screenshots and review extracted data before pushing to database')
+    .addStringOption((option) =>
+      option
+        .setName('metric')
+        .setDescription('Power metric to scan')
+        .setRequired(true)
+        .addChoices(
+          { name: 'Sim Power', value: 'sim' },
+          { name: 'Total Power', value: 'total' },
+        ),
     )
-    .addSubcommand((sub) =>
-      sub
-        .setName("full")
-        .setDescription("Step-by-step club analysis with manual review"),
+    .addAttachmentOption((option) =>
+      option.setName('image_1').setDescription('Manage Members screenshot (page 1)').setRequired(true),
+    )
+    .addAttachmentOption((option) =>
+      option.setName('image_2').setDescription('Manage Members screenshot (page 2)').setRequired(false),
+    )
+    .addAttachmentOption((option) =>
+      option.setName('image_3').setDescription('Manage Members screenshot (page 3)').setRequired(false),
+    )
+    .addAttachmentOption((option) =>
+      option.setName('image_4').setDescription('Manage Members screenshot (page 4)').setRequired(false),
+    )
+    .addAttachmentOption((option) =>
+      option.setName('image_5').setDescription('Manage Members screenshot (page 5)').setRequired(false),
+    )
+    .addAttachmentOption((option) =>
+      option.setName('image_6').setDescription('Manage Members screenshot (page 6)').setRequired(false),
+    )
+    .addAttachmentOption((option) =>
+      option.setName('image_7').setDescription('Manage Members screenshot (page 7)').setRequired(false),
+    )
+    .addAttachmentOption((option) =>
+      option.setName('image_8').setDescription('Manage Members screenshot (page 8)').setRequired(false),
+    )
+    .addAttachmentOption((option) =>
+      option.setName('image_9').setDescription('Manage Members screenshot (page 9)').setRequired(false),
+    )
+    .addAttachmentOption((option) =>
+      option.setName('image_10').setDescription('Manage Members screenshot (page 10)').setRequired(false),
     ),
 
-  async execute(interaction: InteractionLike) {
-    const startTime = Date.now();
-    try {
-      cleanExpiredSessions();
-      const subcommand = interaction.options.getSubcommand();
+  // ─── Main Execute ─────────────────────────────────────────────────────────
 
-      switch (subcommand) {
-        case "quick":
-          trackCommand("club-analyze-quick", Date.now() - startTime, true);
-          return handleQuickAnalyze(interaction);
-        case "full":
-          trackCommand("club-analyze-full", Date.now() - startTime, true);
-          return interaction.reply({ content: "Step-by-step analysis not yet implemented. Use `/club-analyze quick` with attached images.", ephemeral: true });
-        default:
-          return interaction.reply({ content: "Unknown subcommand.", ephemeral: true });
-      }
-    } catch (err) {
-      const error = err as Error;
-      console.error("[club-analyze] Failed", { error: error.message });
-      trackCommand("club-analyze", Date.now() - startTime, false);
-      return interaction.reply({ content: `❌ ${error.message}`, ephemeral: true });
-    }
-  },
+  async execute(interaction: ChatInputCommandInteraction): Promise<void> {
+    await interaction.deferReply({ ephemeral: true });
 
-  async handleButton(interaction: { customId: string; deferUpdate: () => Promise<unknown>; reply: (opts: { content: string; ephemeral?: boolean }) => Promise<unknown> }): Promise<void> {
-    const parts = String(interaction.customId || "").split(":");
-    if (parts[0] !== BUTTON_PREFIX || parts.length < 3) return;
+    cleanExpiredSessions();
 
-    const [, action, sessionId] = parts;
-    const session = sessions.get(sessionId);
+    const metric = (interaction.options.getString('metric') ?? 'sim') as 'sim' | 'total';
+    const guildId = interaction.guildId ?? 'dm';
+    const userId = interaction.user.id;
 
-    if (!session) {
-      await interaction.reply({ content: "❌ Session expired. Run `/club-analyze quick` again.", ephemeral: true });
+    // Collect attachments
+    const attachmentNames = Array.from({ length: MAX_IMAGES }, (_, i) => `image_${i + 1}`);
+    const attachments = attachmentNames
+      .map((name) => interaction.options.getAttachment(name))
+      .filter((att): att is Attachment => att !== null);
+
+    if (!attachments.length) {
+      await interaction.editReply({ content: '❌ No images attached. Provide 1-10 Manage Members screenshots.' });
       return;
     }
 
-    if (action === "approve") {
-      try {
-        await commitSession(session, "button");
-        await interaction.reply({ content: "✅ Committed successfully!" });
-      } catch (err) {
-        await interaction.reply({ content: `❌ Commit failed: ${(err as Error).message}`, ephemeral: true });
+    const imageAttachments = attachments.filter((att) => {
+      const mime = att.contentType || '';
+      return mime.startsWith('image/') || mime === '';
+    });
+
+    if (!imageAttachments.length) {
+      await interaction.editReply({ content: '❌ None of the attachments appear to be images.' });
+      return;
+    }
+
+    if (imageAttachments.length > MAX_IMAGES) {
+      await interaction.editReply({ content: `❌ Maximum ${MAX_IMAGES} images per scan.` });
+      return;
+    }
+
+    try {
+      let lastProgressUpdate = 0;
+      const ocrResults = await extractRoster(
+        imageAttachments.map((att) => ({ url: att.url, name: att.name || 'image' })),
+        {
+          metric,
+          skipLiveOcr: process.env.SKIP_LIVE_OCR === '1',
+          onProgress: (completed, total, imageName) => {
+            const now = Date.now();
+            if (now - lastProgressUpdate >= 8_000 || completed === total) {
+              lastProgressUpdate = now;
+              const pct = Math.round((completed / total) * 100);
+              interaction
+                .editReply({
+                  content: `⏳ Processing screenshot ${completed}/${total} (${pct}%) — ${imageName}...`,
+                })
+                .catch(() => {
+                  /* ignore edit failures */
+                });
+            }
+          },
+        },
+      );
+
+      // Build pages from OCR results
+      const pages: Page[] = ocrResults.map((result) => ({
+        screenshotFilename: imageAttachments[result.imageIndex]?.name || `screenshot_${result.imageIndex + 1}`,
+        rows: result.rows.map((row) => ({
+          name: row.name,
+          power: row.power,
+          edited: false,
+        })),
+      }));
+
+      // Compute canonical merged result
+      const allRawRows: RawRosterRow[] = [];
+      for (let i = 0; i < ocrResults.length; i++) {
+        for (const row of ocrResults[i].rows) {
+          allRawRows.push({ name: row.name, power: row.power, source_screenshot: i });
+        }
       }
-    } else if (action === "cancel") {
-      sessions.delete(sessionId);
-      await interaction.reply({ content: "🛑 Analysis cancelled." });
+      const canonicalMerged = dedupeRosterRows(allRawRows);
+
+      const sessionId = uuidv4();
+      const session: ScanSession = {
+        interactionId: sessionId,
+        guildId,
+        userId,
+        metric,
+        currentPage: 0,
+        pages,
+        canonicalMerged,
+        dirty: false,
+        createdAt: Date.now(),
+      };
+      sessions.set(sessionId, session);
+
+      await interaction.editReply({
+        content: `✅ Scanned ${imageAttachments.length} screenshot(s), found ${canonicalMerged.length} members. Review below:`,
+      });
+
+      await sendPage(interaction, sessionId);
+    } catch (err) {
+      console.error('[club-analyze] Scan failed:', err);
+      await interaction.editReply({
+        content: `❌ Scan failed: ${(err as Error).message}`,
+      });
     }
   },
+
+  // ─── Button Handler ────────────────────────────────────────────────────────
+
+  async handleButton(interaction: ButtonInteraction): Promise<void> {
+    const parts = String(interaction.customId || '').split(':');
+    if (parts[0] !== BUTTON_PREFIX || parts.length < 3) return;
+
+    const [, action, sessionId] = parts;
+    const session = getSession(sessionId);
+
+    if (!session) {
+      await interaction.reply({
+        content: '❌ Session expired. Run /club-analyze again.',
+        flags: MessageFlags.Ephemeral,
+      });
+      return;
+    }
+
+    // Refresh TTL on activity
+    session.createdAt = Date.now();
+
+    switch (action) {
+      case 'prev':
+        session.currentPage = Math.max(0, session.currentPage - 1);
+        await renderPage(interaction, session);
+        break;
+
+      case 'next':
+        session.currentPage = Math.min(session.pages.length - 1, session.currentPage + 1);
+        await renderPage(interaction, session);
+        break;
+
+      case 'edit':
+        await sendEditModal(interaction, session);
+        break;
+
+      case 'save':
+        await handleSave(interaction, session);
+        break;
+
+      case 'cancel_confirm':
+        await handleCancelConfirm(interaction, session);
+        break;
+
+      case 'cancel':
+        await interaction.reply({
+          content: '⚠️ Discard all edits and unsaved data?',
+          components: [
+            new ActionRowBuilder<ButtonBuilder>().addComponents(
+              new ButtonBuilder()
+                .setCustomId(`${BUTTON_PREFIX}:cancel_confirm:${sessionId}`)
+                .setLabel('Yes, discard everything')
+                .setStyle(ButtonStyle.Danger),
+              new ButtonBuilder()
+                .setCustomId(`${BUTTON_PREFIX}:page:${sessionId}`)
+                .setLabel('Keep editing')
+                .setStyle(ButtonStyle.Secondary),
+            ),
+          ],
+          flags: MessageFlags.Ephemeral,
+        });
+        break;
+
+      case 'page':
+        // Keep editing — just re-render current page
+        await renderPage(interaction, session);
+        break;
+
+      default:
+        await interaction.reply({ content: 'Unknown action.', flags: MessageFlags.Ephemeral });
+    }
+  },
+
+  // ─── Modal Submit Handler ──────────────────────────────────────────────────
+
+  async handleModal(interaction: ModalSubmitInteraction): Promise<void> {
+    const parts = String(interaction.customId || '').split(':');
+    if (parts[0] !== BUTTON_PREFIX || parts[2] !== 'edit_row') return;
+
+    const [, sessionId] = parts;
+    const session = getSession(sessionId);
+
+    if (!session) {
+      await interaction.reply({
+        content: '❌ Session expired. Run /club-analyze again.',
+        flags: MessageFlags.Ephemeral,
+      });
+      return;
+    }
+
+    session.createdAt = Date.now();
+
+    const rowNumStr = interaction.fields.getTextInputValue('row_select');
+    const nameInput = interaction.fields.getTextInputValue('name_input');
+    const powerInput = interaction.fields.getTextInputValue('power_input');
+
+    const rowIndex = parseInt(rowNumStr, 10) - 1; // Convert to 0-indexed
+
+    if (
+      isNaN(rowIndex) ||
+      rowIndex < 0 ||
+      rowIndex >= session.pages[session.currentPage].rows.length
+    ) {
+      await interaction.reply({
+        content: `❌ Invalid row number. Must be between 1 and ${session.pages[session.currentPage].rows.length}.`,
+        flags: MessageFlags.Ephemeral,
+      });
+      return;
+    }
+
+    const powerNum = Number(powerInput);
+    if (!Number.isFinite(powerNum) || powerNum < 0) {
+      await interaction.reply({
+        content: '❌ Power must be a non-negative integer.',
+        flags: MessageFlags.Ephemeral,
+      });
+      return;
+    }
+
+    const trimmedName = nameInput.trim().slice(0, 64);
+    if (!trimmedName) {
+      await interaction.reply({
+        content: '❌ Name cannot be empty.',
+        flags: MessageFlags.Ephemeral,
+      });
+      return;
+    }
+
+    // Apply edit
+    session.pages[session.currentPage].rows[rowIndex].name = trimmedName;
+    session.pages[session.currentPage].rows[rowIndex].power = BigInt(Math.floor(powerNum));
+    session.pages[session.currentPage].rows[rowIndex].edited = true;
+    session.dirty = true;
+
+    await interaction.reply({
+      content: `✅ Row ${rowIndex + 1} updated: **${trimmedName}** — ${BigInt(Math.floor(powerNum)).toLocaleString()}`,
+      flags: MessageFlags.Ephemeral,
+    });
+
+    await renderPage(interaction as unknown as ButtonInteraction, session);
+  },
 };
+
+// ─── Render Helpers ──────────────────────────────────────────────────────────
+
+async function sendPage(
+  interaction: ChatInputCommandInteraction | ButtonInteraction,
+  sessionId: string,
+): Promise<void> {
+  const session = getSession(sessionId);
+  if (!session) return;
+
+  const replyFn = async (content: string, embeds?: EmbedBuilder[], components?: ActionRowBuilder<ButtonBuilder>[]) => {
+    if (interaction.isButton() || interaction.isModalSubmit()) {
+      await interaction.update({ content, embeds, components } as Record<string, unknown>);
+    } else {
+      await interaction.editReply({ content, embeds, components });
+    }
+  };
+
+  const page = session.pages[session.currentPage];
+  const metricLabel = session.metric === 'sim' ? 'SIM' : 'TOTAL';
+  const totalPages = session.pages.length;
+  const currentPageNum = session.currentPage + 1;
+
+  const embed = new EmbedBuilder()
+    .setTitle(`Club Analyze — ${metricLabel} Power — Screenshot ${currentPageNum}/${totalPages}`)
+    .setDescription(`\`${page.screenshotFilename}\``)
+    .setColor(0x3b82f6);
+
+  for (let i = 0; i < page.rows.length; i++) {
+    const row = page.rows[i];
+    const editedFlag = row.edited ? ' ✏️' : '';
+    embed.addFields({
+      name: `${i + 1}. ${row.name}${editedFlag}`,
+      value: `Power: **${row.power.toLocaleString()}**`,
+      inline: false,
+    });
+  }
+
+  const dirtyCount = session.pages.reduce(
+    (sum, p) => sum + p.rows.filter((r) => r.edited).length,
+    0,
+  );
+  const dirtyText = dirtyCount > 0 ? ` • ${dirtyCount} unsaved edit${dirtyCount === 1 ? '' : 's'}` : ' • no pending edits';
+
+  embed.setFooter({
+    text: `Page ${currentPageNum} of ${totalPages}${dirtyText}`,
+  });
+
+  const components = buildNavigationRow(session, sessionId);
+
+  await replyFn('', [embed], components);
+}
+
+async function renderPage(
+  interaction: ButtonInteraction,
+  session: ScanSession,
+): Promise<void> {
+  const page = session.pages[session.currentPage];
+  const metricLabel = session.metric === 'sim' ? 'SIM' : 'TOTAL';
+  const totalPages = session.pages.length;
+  const currentPageNum = session.currentPage + 1;
+
+  const embed = new EmbedBuilder()
+    .setTitle(`Club Analyze — ${metricLabel} Power — Screenshot ${currentPageNum}/${totalPages}`)
+    .setDescription(`\`${page.screenshotFilename}\``)
+    .setColor(0x3b82f6);
+
+  for (let i = 0; i < page.rows.length; i++) {
+    const row = page.rows[i];
+    const editedFlag = row.edited ? ' ✏️' : '';
+    embed.addFields({
+      name: `${i + 1}. ${row.name}${editedFlag}`,
+      value: `Power: **${row.power.toLocaleString()}**`,
+      inline: false,
+    });
+  }
+
+  const dirtyCount = session.pages.reduce(
+    (sum, p) => sum + p.rows.filter((r) => r.edited).length,
+    0,
+  );
+  const dirtyText = dirtyCount > 0 ? ` • ${dirtyCount} unsaved edit${dirtyCount === 1 ? '' : 's'}` : ' • no pending edits';
+
+  embed.setFooter({
+    text: `Page ${currentPageNum} of ${totalPages}${dirtyText}`,
+  });
+
+  const components = buildNavigationRow(session, session.interactionId);
+
+  await interaction.update({
+    content: '',
+    embeds: [embed],
+    components,
+  } as Record<string, unknown>);
+}
+
+function buildNavigationRow(
+  session: ScanSession,
+  sessionId: string,
+): ActionRowBuilder<ButtonBuilder>[] {
+  const isFirstPage = session.currentPage === 0;
+  const isLastPage = session.currentPage === session.pages.length - 1;
+  const dirtyCount = session.pages.reduce(
+    (sum, p) => sum + p.rows.filter((r) => r.edited).length,
+    0,
+  );
+
+  const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
+    new ButtonBuilder()
+      .setCustomId(`${BUTTON_PREFIX}:prev:${sessionId}`)
+      .setLabel('⬅ Prev')
+      .setStyle(ButtonStyle.Secondary)
+      .setDisabled(isFirstPage),
+    new ButtonBuilder()
+      .setCustomId(`${BUTTON_PREFIX}:edit:${sessionId}`)
+      .setLabel('✏️ Edit Row')
+      .setStyle(ButtonStyle.Primary),
+    new ButtonBuilder()
+      .setCustomId(`${BUTTON_PREFIX}:save:${sessionId}`)
+      .setLabel(dirtyCount > 0 ? `💾 Save All (${dirtyCount})` : '💾 Save All')
+      .setStyle(ButtonStyle.Success),
+    new ButtonBuilder()
+      .setCustomId(`${BUTTON_PREFIX}:next:${sessionId}`)
+      .setLabel('Next ➡')
+      .setStyle(ButtonStyle.Secondary)
+      .setDisabled(isLastPage),
+  );
+
+  const cancelRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
+    new ButtonBuilder()
+      .setCustomId(`${BUTTON_PREFIX}:cancel:${sessionId}`)
+      .setLabel('❌ Cancel')
+      .setStyle(ButtonStyle.Danger),
+  );
+
+  return [row, cancelRow];
+}
+
+// ─── Edit Modal ─────────────────────────────────────────────────────────────
+
+async function sendEditModal(
+  interaction: ButtonInteraction,
+  session: ScanSession,
+): Promise<void> {
+  const sessionId = session.interactionId;
+  const page = session.pages[session.currentPage];
+
+  // Show a modal with row number (1-indexed), name, and power
+  const modal = new ModalBuilder()
+    .setCustomId(`${BUTTON_PREFIX}:edit_row:${sessionId}`)
+    .setTitle(`Edit Row — ${session.metric.toUpperCase()} Power`);
+
+  const rowNumberField = new TextInputBuilder()
+    .setCustomId('row_select')
+    // eslint-disable-next-line deprecation/deprecation
+    .setLabel(`Row number (1-${page.rows.length})`)
+    .setStyle(TextInputStyle.Short)
+    .setPlaceholder('Enter row number to edit')
+    .setRequired(true)
+    .setValue('1');
+
+  const nameField = new TextInputBuilder()
+    .setCustomId('name_input')
+    // eslint-disable-next-line deprecation/deprecation
+    .setLabel('Member name')
+    .setStyle(TextInputStyle.Short)
+    .setPlaceholder('Enter corrected name')
+    .setRequired(true)
+    .setMaxLength(64);
+
+  const powerField = new TextInputBuilder()
+    .setCustomId('power_input')
+    // eslint-disable-next-line deprecation/deprecation
+    .setLabel('Power (integer)')
+    .setStyle(TextInputStyle.Short)
+    .setPlaceholder('Enter power value')
+    .setRequired(true);
+
+  // eslint-disable-next-line deprecation/deprecation
+  modal.addComponents(
+    new ActionRowBuilder<TextInputBuilder>().addComponents(rowNumberField),
+    new ActionRowBuilder<TextInputBuilder>().addComponents(nameField),
+    new ActionRowBuilder<TextInputBuilder>().addComponents(powerField),
+  );
+
+  await interaction.showModal(modal);
+}
+
+async function handleSave(
+  interaction: ButtonInteraction,
+  session: ScanSession,
+): Promise<void> {
+  const { guildId, userId, metric } = session;
+
+  try {
+    // Run dedupe across all pages (with edits applied)
+    const allRawRows: RawRosterRow[] = [];
+    for (let i = 0; i < session.pages.length; i++) {
+      for (const row of session.pages[i].rows) {
+        allRawRows.push({ name: row.name, power: row.power, source_screenshot: i });
+      }
+    }
+
+    const canonicalMerged = dedupeRosterRows(allRawRows);
+    session.canonicalMerged = canonicalMerged;
+
+    // Save to staging
+    await saveStagingRows(
+      guildId,
+      metric,
+      userId,
+      canonicalMerged.map((r) => ({ member_name: r.name, power_value: r.power })),
+    );
+
+    // Mark all rows as saved
+    for (const page of session.pages) {
+      for (const row of page.rows) {
+        row.edited = false;
+      }
+    }
+    session.dirty = false;
+
+    await interaction.reply({
+      content: `💾 Saved **${canonicalMerged.length}** members to **${metric.toUpperCase()}** staging. Run /club-push when ready to commit both metrics to the database.`,
+      flags: MessageFlags.Ephemeral,
+    });
+
+    // Re-render the current page
+    await renderPage(interaction, session);
+  } catch (err) {
+    console.error('[club-analyze] Save failed:', err);
+    await interaction.reply({
+      content: `❌ Save failed: ${(err as Error).message}`,
+      flags: MessageFlags.Ephemeral,
+    });
+  }
+}
+
+async function handleCancelConfirm(
+  interaction: ButtonInteraction,
+  session: ScanSession,
+): Promise<void> {
+  const { guildId, metric } = session;
+
+  try {
+    await clearStaging(guildId, metric);
+  } catch {
+    /* ignore clear errors on cancel */
+  }
+
+  sessions.delete(session.interactionId);
+
+  await interaction.update({
+    content: '🛑 Scan discarded. Run /club-analyze to start fresh.',
+    embeds: [],
+    components: [],
+  } as Record<string, unknown>);
+}
