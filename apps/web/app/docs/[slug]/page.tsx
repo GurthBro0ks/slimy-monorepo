@@ -18,8 +18,12 @@ export async function generateStaticParams() {
   ];
 }
 
-export default async function DocPage({ params }: { params: { slug: string } }) {
-  const { slug } = params;
+export default async function DocPage({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}) {
+  const { slug } = await params;
   
   try {
     const filePath = join(DOCS_DIR, `${slug}.mdx`);

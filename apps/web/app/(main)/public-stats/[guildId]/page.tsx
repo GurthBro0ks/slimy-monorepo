@@ -12,9 +12,9 @@ const MOCK_GUILD_NAME = "The Snail Club";
 export async function generateMetadata({
   params,
 }: {
-  params: { guildId: string };
+  params: Promise<{ guildId: string }>;
 }): Promise<Metadata> {
-  const guildId = params.guildId;
+  const { guildId } = await params;
 
   return {
     title: `${MOCK_GUILD_NAME} - Public Stats`,
@@ -30,8 +30,12 @@ export async function generateMetadata({
   };
 }
 
-export default function PublicStatsPage({ params }: { params: { guildId: string } }) {
-  const guildId = params.guildId;
+export default async function PublicStatsPage({
+  params,
+}: {
+  params: Promise<{ guildId: string }>;
+}) {
+  const { guildId } = await params;
 
   // 1. Check feature flag (server-side)
   // We use "web" as a mock guild ID for testing the feature flag system

@@ -18,12 +18,12 @@ import {
  * API Handler type
  */
 type RouteContext = {
-  params?: Record<string, string> | Promise<Record<string, string>>;
+  params: Promise<Record<string, string>>;
 };
 
 export type APIHandler = (
   request: NextRequest,
-  context?: RouteContext
+  context: RouteContext
 ) => Promise<NextResponse>;
 
 /**
@@ -46,9 +46,11 @@ function handleZodError(error: ZodError): ValidationError {
  * Wrap an API handler with error handling
  */
 export function withErrorHandler(handler: APIHandler): APIHandler {
-  return async (request: NextRequest, context?: RouteContext) => {
+  return async (request: NextRequest, context: RouteContext) => {
+    const safeContext: RouteContext =
+      context || { params: Promise.resolve({}) };
     try {
-      return await handler(request, context);
+      return await handler(request, safeContext);
     } catch (error) {
       // Handle Zod validation errors
       if (error instanceof ZodError) {

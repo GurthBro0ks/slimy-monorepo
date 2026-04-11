@@ -1,13 +1,13 @@
 # Version Snapshot — slimy-monorepo
 
-> Generated: 2026-04-10T18:41:46Z | Host: slimy-nuc1
+> Generated: 2026-04-11T22:27:43Z | Host: slimy-nuc1
 
 ## Git State
 - **Branch:** `main`
-- **HEAD:** `d68f43a`
-- **Last commit:** `2026-04-10` — `fix(bot): GLM reasoning_content parsing + integration test uses real glm-4.6v`
+- **HEAD:** `6894d5d`
+- **Last commit:** `2026-04-11` — `feat(bot): /club-analyze paginated edit UI + club_analyze_staging table`
 - **Remote:** `git@github.com:GurthBro0ks/slimy-monorepo.git`
-- **Dirty:** NO
+- **Dirty:** YES (4 uncommitted)
 
 ## Runtime
 - **Runtime info:** Node.js package detected; scripts found
@@ -16,7 +16,7 @@
 - **Listening ports:** none detected
 
 ## Last Verified
-- **Date:** 2026-04-10
+- **Date:** 2026-04-11
 - **Verification:** `git --no-pager -C /opt/slimy/slimy-monorepo log -1 --oneline`
 
 ## Host Notes
