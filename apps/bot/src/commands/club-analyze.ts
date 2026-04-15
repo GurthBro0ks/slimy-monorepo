@@ -435,10 +435,7 @@ async function sendPage(
   await replyFn('', [embed], components);
 }
 
-async function renderPage(
-  interaction: ButtonInteraction,
-  session: ScanSession,
-): Promise<void> {
+function buildPagePayload(session: ScanSession): Record<string, unknown> {
   const page = session.pages[session.currentPage];
   const metricLabel = session.metric === 'sim' ? 'SIM' : 'TOTAL';
   const totalPages = session.pages.length;
@@ -471,11 +468,18 @@ async function renderPage(
 
   const components = buildNavigationRow(session, session.interactionId);
 
-  await interaction.update({
+  return {
     content: '',
     embeds: [embed],
     components,
-  } as Record<string, unknown>);
+  };
+}
+
+async function renderPage(
+  interaction: ButtonInteraction,
+  session: ScanSession,
+): Promise<void> {
+  await interaction.update(buildPagePayload(session));
 }
 
 function buildNavigationRow(
@@ -577,7 +581,6 @@ async function handleSave(
   const { guildId, userId, metric } = session;
 
   try {
-    // Run dedupe across all pages (with edits applied)
     const allRawRows: RawRosterRow[] = [];
     for (let i = 0; i < session.pages.length; i++) {
       for (const row of session.pages[i].rows) {
@@ -588,7 +591,6 @@ async function handleSave(
     const canonicalMerged = dedupeRosterRows(allRawRows);
     session.canonicalMerged = canonicalMerged;
 
-    // Save to staging
     await saveStagingRows(
       guildId,
       metric,
@@ -596,7 +598,6 @@ async function handleSave(
       canonicalMerged.map((r) => ({ member_name: r.name, power_value: r.power })),
     );
 
-    // Mark all rows as saved
     for (const page of session.pages) {
       for (const row of page.rows) {
         row.edited = false;
@@ -604,19 +605,19 @@ async function handleSave(
     }
     session.dirty = false;
 
-    await interaction.reply({
+    await interaction.update(buildPagePayload(session));
+
+    await interaction.followUp({
       content: `💾 Saved **${canonicalMerged.length}** members to **${metric.toUpperCase()}** staging. Run /club-push when ready to commit both metrics to the database.`,
       flags: MessageFlags.Ephemeral,
     });
-
-    // Re-render the current page
-    await renderPage(interaction, session);
   } catch (err) {
     console.error('[club-analyze] Save failed:', err);
-    await interaction.reply({
+    const method = interaction.replied || interaction.deferred ? 'followUp' : 'reply';
+    await interaction[method]({
       content: `❌ Save failed: ${(err as Error).message}`,
       flags: MessageFlags.Ephemeral,
-    });
+    }).catch(() => {});
   }
 }
 
