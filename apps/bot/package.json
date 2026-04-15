@@ -7,7 +7,10 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "build:scripts": "tsc -p scripts/tsconfig.json",
+    "deploy-commands": "pnpm build:scripts && node dist/scripts/deploy-commands.js",
+    "deploy-commands:guild": "pnpm build:scripts && DISCORD_TEST_GUILD_ID=$DISCORD_TEST_GUILD_ID node dist/scripts/deploy-commands.js"
   },
   "dependencies": {
     "discord.js": "^14.14.1",
