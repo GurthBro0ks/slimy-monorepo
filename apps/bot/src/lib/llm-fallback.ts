@@ -6,7 +6,7 @@
 import { openai } from "./openai.js";
 
 const DEFAULT_TIMEOUT_MS = 45000;
-const TRANSIENT_STATUS_CODES = new Set([408, 409, 425, 429, 500, 502, 503, 504]);
+const _TRANSIENT_STATUS_CODES = new Set([408, 409, 425, 429, 500, 502, 503, 504]);
 
 function getFetch() {
   if (typeof globalThis.fetch === "function") return globalThis.fetch;

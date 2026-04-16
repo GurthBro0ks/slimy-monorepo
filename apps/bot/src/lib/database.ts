@@ -3,7 +3,7 @@
  * Ported from /opt/slimy/app/lib/database.js
  */
 
-import mysql, { Pool, PoolConnection, RowDataPacket, ResultSetHeader } from 'mysql2/promise';
+import mysql, { Pool, RowDataPacket, ResultSetHeader } from 'mysql2/promise';
 import { v4 as uuidv4 } from 'uuid';
 
 // ─── Types ─────────────────────────────────────────────────────────────────

@@ -28,7 +28,7 @@ export async function addCorrection(opts: AddCorrectionOpts): Promise<{ id: numb
   return { id: 0, replaced: false };
 }
 
-export async function getCorrections(guildId: string, weekId: string): Promise<unknown[]> {
+export async function getCorrections(_guildId: string, _weekId: string): Promise<unknown[]> {
   if (!database.isConfigured()) return [];
   console.warn("[club-corrections] getCorrections stub called");
   return [];

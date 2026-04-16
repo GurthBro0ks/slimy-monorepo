@@ -9,7 +9,6 @@ import {
   ChannelType,
   ChatInputCommandInteraction,
   GuildChannel,
-  Guild,
 } from "discord.js";
 import { setModes, viewModes, listModes, formatModeState } from "../lib/mode-store.js";
 
@@ -53,7 +52,7 @@ interface TargetResult {
   parents: Array<{ targetId: string; targetType: string }>;
 }
 
-function resolveTargetAndParents(
+function _resolveTargetAndParents(
   interaction: ChatInputCommandInteraction,
 ): TargetResult {
   const channelOption = interaction.options.getChannel("channel");

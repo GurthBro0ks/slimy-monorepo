@@ -23,7 +23,7 @@ import {
 import { getSheetConfig } from '../lib/guild-settings.js';
 
 export const BUTTON_PREFIX = "club-analyze";
-const LOW_CONFIDENCE_THRESHOLD = 0.7;
+const _LOW_CONFIDENCE_THRESHOLD = 0.7;
 const MIN_ROWS_FOR_COMMIT = 3;
 const SESSION_TTL_MS = 15 * 60 * 1000;
 const USE_ENSEMBLE = process.env.CLUB_USE_ENSEMBLE === "1";
@@ -204,7 +204,7 @@ export function buildPreviewComponents(session: Session): ActionRowBuilder<Butto
   return [row];
 }
 
-export async function commitSession(session: Session, source: string): Promise<void> {
+export async function commitSession(session: Session, _source: string): Promise<void> {
   const qa = session.qa as { totalRows?: number; coverageGuardTriggered?: boolean; missingGuardTriggered?: boolean; coveragePct?: number; missing?: string[] } | null;
   if ((qa?.totalRows ?? 0) < MIN_ROWS_FOR_COMMIT) {
     throw new Error(`Need at least ${MIN_ROWS_FOR_COMMIT} rows to commit (currently ${qa?.totalRows ?? 0}).`);

@@ -193,7 +193,7 @@ export function buildClubStatsEmbed(
   data: ClubStatsData,
   options: { metric?: string } = {},
 ): { embed: EmbedBuilder; components: ActionRowBuilder<ButtonBuilder>[] } {
-  const { aggregates, latest, sheetConfig, totalMovers, simMovers, cohorts } = data;
+  const { aggregates, latest: _latest, sheetConfig, totalMovers, simMovers, cohorts } = data;
 
   const anchorDisplay = formatAnchorDisplay(_guildId);
 

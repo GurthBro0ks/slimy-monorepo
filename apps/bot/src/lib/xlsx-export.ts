@@ -8,7 +8,6 @@
 import * as fs from "fs";
 import * as path from "path";
 import XLSX from "xlsx";
-import { database } from "./database.js";
 import { getLatestForGuild } from "./club-store.js";
 
 const EXPORT_DIR = path.join(process.cwd(), "data", "club-exports");

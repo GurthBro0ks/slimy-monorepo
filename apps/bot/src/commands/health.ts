@@ -3,9 +3,7 @@
  * Provides uptime, environment info, and version details
  */
 
-import { Client, Message, EmbedBuilder, PermissionFlagsBits } from 'discord.js';
-import { readFileSync } from 'fs';
-import { join, dirname } from 'path';
+import { Client, Message, EmbedBuilder } from 'discord.js';
 import { logInfo } from '../lib/logger.js';
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires

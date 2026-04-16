@@ -315,7 +315,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
     await command.execute!(chatInteraction);
   } catch (err) {
     const chatInteraction = interaction as ChatInputCommandInteraction;
-    const commandName = chatInteraction.commandName || 'unknown';
+    const _commandName = chatInteraction.commandName || 'unknown';
     console.error('Command error:', err);
     recordBotError(err);
 

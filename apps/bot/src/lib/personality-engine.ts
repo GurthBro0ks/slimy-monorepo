@@ -6,7 +6,6 @@
 import fs from "fs";
 import path from "path";
 import {
-  loadAdjustments,
   mergeAdjustments,
 } from "./personality-store.js";
 

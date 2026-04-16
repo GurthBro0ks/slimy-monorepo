@@ -40,7 +40,7 @@ function stripCodeFence(text: string): string {
   return cleaned.trim();
 }
 
-function clampConfidence(value: unknown): number {
+function _clampConfidence(value: unknown): number {
   const num = Number(value);
   if (!Number.isFinite(num)) return 0;
   if (num < 0) return 0;

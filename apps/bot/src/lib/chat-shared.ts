@@ -5,10 +5,10 @@
 
 import { ChannelType, GuildChannel, Guild } from "discord.js";
 import { getEffectiveModesForChannel } from "./modes.js";
-import { callWithFallback, hasConfiguredProvider } from "./llm-fallback.js";
+import { callWithFallback } from "./llm-fallback.js";
 import { getPersona } from "./persona.js";
 
-const THREAD_TYPES = new Set([
+const _THREAD_TYPES = new Set([
   ChannelType.PublicThread,
   ChannelType.PrivateThread,
   ChannelType.AnnouncementThread,

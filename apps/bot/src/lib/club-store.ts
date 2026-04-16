@@ -4,7 +4,6 @@
  */
 
 import { database } from './database.js';
-import { RowDataPacket } from 'mysql2/promise';
 
 function ensureDatabaseConfigured(): void {
   if (!database.isConfigured()) {

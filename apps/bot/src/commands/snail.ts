@@ -11,12 +11,9 @@ import {
   ButtonStyle,
   EmbedBuilder,
 } from 'discord.js';
-import { v4 as uuidv4 } from 'uuid';
 import { database } from '../lib/database.js';
 import { trackCommand } from '../lib/metrics.js';
 import { analyzeSnailScreenshot, formatSnailAnalysis } from '../lib/snail-vision.js';
-
-const PENDING_TTL_MS = 15 * 60 * 1000;
 
 interface PendingEntry {
   userId: string;

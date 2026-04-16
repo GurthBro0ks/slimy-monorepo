@@ -1,0 +1,5 @@
+
+> @slimy/bot@0.1.0 build /opt/slimy/slimy-monorepo/apps/bot
+> tsc
+
+EXIT=0

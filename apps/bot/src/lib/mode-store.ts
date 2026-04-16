@@ -214,7 +214,7 @@ export function cacheDelete(
 
 import { emptyState } from "./modes.js";
 
-interface StubModeRow {
+interface _StubModeRow {
   guild_id: string;
   channel_id: string | null;
   category_id: string | null;
@@ -230,7 +230,7 @@ function configToModes(config: unknown): Record<string, boolean> {
   return {};
 }
 
-function modesToTarget(entry: ModeEntry): { targetId: string; targetType: "channel" | "category" | "thread" } {
+function _modesToTarget(entry: ModeEntry): { targetId: string; targetType: "channel" | "category" | "thread" } {
   return {
     targetId: entry.targetId,
     targetType: entry.targetType,

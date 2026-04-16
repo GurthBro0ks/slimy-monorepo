@@ -69,11 +69,11 @@ function loadStore(guildId: string): GuildModeEntry[] {
   return inMemoryStore.get(guildId) || [];
 }
 
-function saveStore(guildId: string, modes: GuildModeEntry[]): void {
+function _saveStore(guildId: string, modes: GuildModeEntry[]): void {
   inMemoryStore.set(guildId, modes);
 }
 
-function findRecord(store: GuildModeEntry[], guildId: string, targetId: string, targetType: string): { index: number; record: GuildModeEntry | null } {
+function _findRecord(store: GuildModeEntry[], guildId: string, targetId: string, targetType: string): { index: number; record: GuildModeEntry | null } {
   const index = store.findIndex(
     (entry) => entry.guildId === guildId && entry.targetId === targetId && entry.targetType === targetType,
   );

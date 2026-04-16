@@ -1,0 +1,20 @@
+
+> @slimy/bot@0.1.0 test /opt/slimy/slimy-monorepo/apps/bot
+> vitest run
+
+[33mThe CJS build of Vite's Node API is deprecated. See https://vite.dev/guide/troubleshooting.html#vite-cjs-node-api-deprecated for more details.[39m
+
+ RUN  v1.6.1 /opt/slimy/slimy-monorepo/apps/bot
+
+ ✓ tests/errorHandler.test.ts  (9 tests) 56ms
+ ✓ tests/logger.test.ts  (13 tests) 61ms
+ ✓ tests/utils/parsing.test.ts  (13 tests) 57ms
+ ✓ tests/utils/stats.test.ts  (10 tests) 34ms
+ ✓ tests/club-analyze-context.test.ts  (10 tests) 2336ms
+
+ Test Files  5 passed (5)
+      Tests  55 passed (55)
+   Start at  15:49:43
+   Duration  4.08s (transform 730ms, setup 7ms, collect 743ms, tests 2.54s, environment 2ms, prepare 2.29s)
+
+EXIT=0

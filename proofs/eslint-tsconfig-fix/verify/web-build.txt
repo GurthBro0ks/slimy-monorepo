@@ -1,0 +1,298 @@
+
+> @slimy/web@0.1.0 build /opt/slimy/slimy-monorepo/apps/web
+> next build
+
+[baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+ ⚠ `eslint` configuration in next.config.js is no longer supported. See more info here: https://nextjs.org/docs/app/api-reference/cli/next#next-lint-options
+ ⚠ Invalid next.config.js options detected: 
+ ⚠     Unrecognized key(s) in object: 'eslint'
+ ⚠ See more info here: https://nextjs.org/docs/messages/invalid-next-config
+ ⚠ Warning: Next.js inferred your workspace root, but it may not be correct.
+ We detected multiple lockfiles and selected the directory of /opt/slimy/slimy-monorepo/pnpm-lock.yaml as the root directory.
+ To silence this warning, set `turbopack.root` in your Next.js config, or consider removing one of the lockfiles if it's not needed.
+   See https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#root-directory for more information.
+ Detected additional lockfiles: 
+   * /opt/slimy/slimy-monorepo/apps/web/pnpm-lock.yaml
+
+   ▲ Next.js 16.0.7 (Turbopack)
+   - Environments: .env.local, .env
+
+ ⚠ The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+   Creating an optimized production build ...
+[baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+ ✓ Compiled successfully in 37.8s
+   Skipping validation of types
+   Collecting page data using 3 workers ...
+[baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+[baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+[baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+   Generating static pages using 3 workers (0/73) ...
+[baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+[baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+[baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+   Generating static pages using 3 workers (18/73) 
+Failed to load doc: undefined Error: ENOENT: no such file or directory, open '/opt/slimy/slimy-monorepo/apps/web/content/docs/undefined.mdx'
+    at p (.next/server/chunks/ssr/[root-of-the-server]__da54a6b7._.js:1:55347)
+    at stringify (<anonymous>) {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: '/opt/slimy/slimy-monorepo/apps/web/content/docs/undefined.mdx'
+}
+   Generating static pages using 3 workers (36/73) 
+Failed to load doc: undefined Error: ENOENT: no such file or directory, open '/opt/slimy/slimy-monorepo/apps/web/content/docs/undefined.mdx'
+    at p (.next/server/chunks/ssr/[root-of-the-server]__da54a6b7._.js:1:55347)
+    at stringify (<anonymous>) {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: '/opt/slimy/slimy-monorepo/apps/web/content/docs/undefined.mdx'
+}
+[SlimyAuth] Session validation error: Error: Dynamic server usage: Route /owner/audit couldn't be rendered statically because it used `cookies`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at x (.next/server/chunks/ssr/661ed_next_dist_30581fe4._.js:1:16024)
+    at n (.next/server/chunks/ssr/_ad0ba716._.js:1:8501)
+    at f (.next/server/chunks/ssr/_ad0ba716._.js:1:20115)
+    at g (.next/server/chunks/ssr/_ad0ba716._.js:1:20860)
+    at i (.next/server/chunks/ssr/[root-of-the-server]__cde2fe02._.js:1:4132)
+    at stringify (<anonymous>) {
+  description: "Route /owner/audit couldn't be rendered statically because it used `cookies`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+Failed to load doc: undefined Error: ENOENT: no such file or directory, open '/opt/slimy/slimy-monorepo/apps/web/content/docs/undefined.mdx'
+    at p (.next/server/chunks/ssr/[root-of-the-server]__da54a6b7._.js:1:55347)
+    at stringify (<anonymous>) {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: '/opt/slimy/slimy-monorepo/apps/web/content/docs/undefined.mdx'
+}
+   Generating static pages using 3 workers (54/73) 
+[SlimyAuth] Session validation error: Error: Dynamic server usage: Route /owner/crypto couldn't be rendered statically because it used `cookies`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at x (.next/server/chunks/ssr/661ed_next_dist_30581fe4._.js:1:16024)
+    at n (.next/server/chunks/ssr/_ad0ba716._.js:1:8501)
+    at f (.next/server/chunks/ssr/_ad0ba716._.js:1:20115)
+    at g (.next/server/chunks/ssr/_ad0ba716._.js:1:20860)
+    at i (.next/server/chunks/ssr/[root-of-the-server]__cde2fe02._.js:1:4132)
+    at stringify (<anonymous>) {
+  description: "Route /owner/crypto couldn't be rendered statically because it used `cookies`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+[SlimyAuth] Session validation error: Error: Dynamic server usage: Route /owner/crypto couldn't be rendered statically because it used `cookies`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at x (.next/server/chunks/ssr/661ed_next_dist_30581fe4._.js:1:16024)
+    at n (.next/server/chunks/ssr/_ad0ba716._.js:1:8501)
+    at f (.next/server/chunks/ssr/_ad0ba716._.js:1:20115)
+    at g (.next/server/chunks/ssr/_ad0ba716._.js:1:20860)
+    at f (.next/server/chunks/ssr/[root-of-the-server]__b06ab701._.js:1:1501)
+    at stringify (<anonymous>) {
+  description: "Route /owner/crypto couldn't be rendered statically because it used `cookies`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+[SlimyAuth] Session validation error: Error: Dynamic server usage: Route /owner couldn't be rendered statically because it used `cookies`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at x (.next/server/chunks/ssr/661ed_next_dist_30581fe4._.js:1:16024)
+    at n (.next/server/chunks/ssr/_ad0ba716._.js:1:8501)
+    at f (.next/server/chunks/ssr/_ad0ba716._.js:1:20115)
+    at g (.next/server/chunks/ssr/_ad0ba716._.js:1:20860)
+    at i (.next/server/chunks/ssr/[root-of-the-server]__cde2fe02._.js:1:4132)
+    at stringify (<anonymous>) {
+  description: "Route /owner couldn't be rendered statically because it used `cookies`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+[SlimyAuth] Session validation error: Error: Dynamic server usage: Route /owner/settings couldn't be rendered statically because it used `cookies`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at x (.next/server/chunks/ssr/661ed_next_dist_30581fe4._.js:1:16024)
+    at n (.next/server/chunks/ssr/_ad0ba716._.js:1:8501)
+    at f (.next/server/chunks/ssr/_ad0ba716._.js:1:20115)
+    at g (.next/server/chunks/ssr/_ad0ba716._.js:1:20860)
+    at i (.next/server/chunks/ssr/[root-of-the-server]__cde2fe02._.js:1:4132)
+    at stringify (<anonymous>) {
+  description: "Route /owner/settings couldn't be rendered statically because it used `cookies`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+[SlimyAuth] Session validation error: Error: Dynamic server usage: Route /owner/snail-codes couldn't be rendered statically because it used `cookies`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at x (.next/server/chunks/ssr/661ed_next_dist_30581fe4._.js:1:16024)
+    at n (.next/server/chunks/ssr/_ad0ba716._.js:1:8501)
+    at f (.next/server/chunks/ssr/_ad0ba716._.js:1:20115)
+    at g (.next/server/chunks/ssr/_ad0ba716._.js:1:20860)
+    at i (.next/server/chunks/ssr/[root-of-the-server]__cde2fe02._.js:1:4132)
+    at stringify (<anonymous>) {
+  description: "Route /owner/snail-codes couldn't be rendered statically because it used `cookies`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+[SlimyAuth] Session validation error: Error: Dynamic server usage: Route /owner/snail-codes couldn't be rendered statically because it used `cookies`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at x (.next/server/chunks/ssr/661ed_next_dist_30581fe4._.js:1:16024)
+    at n (.next/server/chunks/ssr/_ad0ba716._.js:1:8501)
+    at f (.next/server/chunks/ssr/_ad0ba716._.js:1:20115)
+    at g (.next/server/chunks/ssr/_ad0ba716._.js:1:20860)
+    at f (.next/server/chunks/ssr/[root-of-the-server]__28f5fb44._.js:1:1539)
+    at stringify (<anonymous>) {
+  description: "Route /owner/snail-codes couldn't be rendered statically because it used `cookies`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+[SlimyAuth] Session validation error: Error: Dynamic server usage: Route /owner/forbidden couldn't be rendered statically because it used `cookies`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at x (.next/server/chunks/ssr/661ed_next_dist_30581fe4._.js:1:16024)
+    at n (.next/server/chunks/ssr/_ad0ba716._.js:1:8501)
+    at f (.next/server/chunks/ssr/_ad0ba716._.js:1:20115)
+    at g (.next/server/chunks/ssr/_ad0ba716._.js:1:20860)
+    at i (.next/server/chunks/ssr/[root-of-the-server]__cde2fe02._.js:1:4132)
+    at stringify (<anonymous>) {
+  description: "Route /owner/forbidden couldn't be rendered statically because it used `cookies`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+[SlimyAuth] Session validation error: Error: Dynamic server usage: Route /owner/invites couldn't be rendered statically because it used `cookies`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at x (.next/server/chunks/ssr/661ed_next_dist_30581fe4._.js:1:16024)
+    at n (.next/server/chunks/ssr/_ad0ba716._.js:1:8501)
+    at f (.next/server/chunks/ssr/_ad0ba716._.js:1:20115)
+    at g (.next/server/chunks/ssr/_ad0ba716._.js:1:20860)
+    at i (.next/server/chunks/ssr/[root-of-the-server]__cde2fe02._.js:1:4132)
+    at stringify (<anonymous>) {
+  description: "Route /owner/invites couldn't be rendered statically because it used `cookies`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+ ✓ Generating static pages using 3 workers (73/73) in 2.2s
+   Finalizing page optimization ...
+
+Route (app)                                           Revalidate  Expire
+┌ ○ /
+├ ○ /_not-found
+├ ○ /admin
+├ ○ /admin/flags
+├ ○ /analytics
+├ ƒ /api/admin/chat-invites
+├ ƒ /api/admin/chat-invites/count
+├ ƒ /api/auth-test/login
+├ ƒ /api/codes
+├ ƒ /api/codes/health
+├ ƒ /api/codes/report
+├ ○ /api/diag                                                 1m      1y
+├ ƒ /api/guilds
+├ ƒ /api/guilds/[guildId]
+├ ○ /api/health                                               1m      1y
+├ ƒ /api/local-auth/login
+├ ƒ /api/local-auth/me
+├ ƒ /api/local-codes
+├ ƒ /api/mission-control/agents
+├ ƒ /api/mission-control/calendar
+├ ƒ /api/mission-control/missions
+├ ƒ /api/mission-control/tasks
+├ ƒ /api/mission-control/tasks/[taskId]
+├ ƒ /api/office/stream
+├ ƒ /api/og/stats
+├ ƒ /api/owner/airdrops
+├ ƒ /api/owner/airdrops/[id]
+├ ƒ /api/owner/airdrops/[id]/tasks
+├ ƒ /api/owner/airdrops/[id]/tasks/[taskId]
+├ ƒ /api/owner/airdrops/[id]/tasks/[taskId]/complete
+├ ƒ /api/owner/airdrops/calendar
+├ ƒ /api/owner/airdrops/export
+├ ƒ /api/owner/airdrops/verify-tx
+├ ƒ /api/owner/audit
+├ ƒ /api/owner/crypto/bot
+├ ƒ /api/owner/crypto/farming
+├ ƒ /api/owner/crypto/holdings
+├ ƒ /api/owner/crypto/logs
+├ ƒ /api/owner/crypto/settings
+├ ƒ /api/owner/crypto/sync-bot
+├ ƒ /api/owner/crypto/trading/bootstrap
+├ ƒ /api/owner/crypto/trading/kalshi
+├ ƒ /api/owner/crypto/trading/matched
+├ ƒ /api/owner/crypto/trading/overview
+├ ƒ /api/owner/crypto/trading/timeseries
+├ ƒ /api/owner/crypto/wallets
+├ ƒ /api/owner/invites
+├ ƒ /api/owner/invites/[id]
+├ ƒ /api/owner/invites/[id]/revoke
+├ ƒ /api/owner/me
+├ ƒ /api/owner/notifications
+├ ƒ /api/owner/notifications/[id]
+├ ƒ /api/owner/notifications/discord-push
+├ ƒ /api/owner/notifications/discord-test
+├ ƒ /api/owner/notifications/read-all
+├ ƒ /api/owner/settings
+├ ƒ /api/owner/snail-codes
+├ ƒ /api/owner/snail-codes/push-discord
+├ ƒ /api/owner/snail-codes/scan
+├ ƒ /api/screenshot
+├ ƒ /api/session/forgot-password
+├ ƒ /api/session/login
+├ ƒ /api/session/logout
+├ ƒ /api/session/me
+├ ƒ /api/session/register
+├ ƒ /api/session/reset-password
+├ ƒ /api/session/verify
+├ ƒ /api/snail/club
+├ ƒ /api/snail/club/import
+├ ○ /api/snail/history                                        1m      1y
+├ ƒ /api/snail/stats
+├ ƒ /api/supersnail/scores
+├ ƒ /api/test-route
+├ ƒ /api/web-vitals
+├ ƒ /api/webhook/bot-sync
+├ ○ /auth/forgot-password
+├ ○ /auth/register
+├ ○ /auth/reset-password
+├ ○ /dashboard
+├ ○ /dashboard/supersnail
+├ ○ /docs
+├ ● /docs/[slug]
+│ ├ /docs/getting-started
+│ ├ /docs/snail-tools
+│ └ /docs/club-analytics
+├ ○ /docs/tutorial
+├ ○ /features
+├ ○ /guilds
+├ ○ /login
+├ ○ /mission-control
+├ ○ /office
+├ ƒ /owner
+├ ƒ /owner/audit
+├ ƒ /owner/crypto
+├ ƒ /owner/forbidden
+├ ƒ /owner/invites
+├ ƒ /owner/settings
+├ ƒ /owner/snail-codes
+├ ƒ /public-stats/[guildId]
+├ ○ /settings
+├ ○ /snail
+├ ○ /snail/club
+├ ○ /snail/codes
+├ ○ /snail/docs
+├ ○ /snail/guilds
+├ ƒ /snail/guilds/[guildId]
+├ ○ /snail/personal
+├ ○ /snail/stats
+├ ○ /snail/wiki
+├ ○ /status
+├ ○ /trader/overview
+└ ○ /usage
+
+Route (pages)
+─ ƒ /api/d1337
+
+ƒ Proxy (Middleware)
+
+○  (Static)   prerendered as static content
+●  (SSG)      prerendered as static HTML (uses generateStaticParams)
+ƒ  (Dynamic)  server-rendered on demand
+
+
+> @slimy/web@0.1.0 postbuild /opt/slimy/slimy-monorepo/apps/web
+> tsx scripts/postbuild-validate.ts && tsx scripts/check-bundle-size.ts && (test -d .next/standalone && (mkdir -p .next/standalone/apps/web/.next && cp -R .next/static .next/standalone/apps/web/.next/static && cp -R public .next/standalone/apps/web/public && cp -R .next/server .next/standalone/apps/web/.next/server) || true)
+
+
+📋 Post-build validation:
+✅ All checks passed
+📦 Analyzing bundle sizes...
+
+Configuration:
+  Max initial bundle: 1000KB
+  Max route chunk: 500KB
+  Max total bundle: 3000KB
+  Warn threshold: 80%
+
+📊 Bundle Size Summary:
+  Initial bundle: 0KB
+  Total bundles: 6
+  Largest chunk: 299KB
+
+✅ Bundle size checks passed!
+
+EXIT=0
