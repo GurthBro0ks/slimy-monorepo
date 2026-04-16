@@ -4,8 +4,8 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { diffResults } from '../src/services/roster-ocr.js';
-import type { RosterRow } from '../src/services/roster-ocr.js';
+import { diffResults, dedupeRosterRows } from '../src/services/roster-ocr.js';
+import type { RosterRow, RawRosterRow } from '../src/services/roster-ocr.js';
 
 // Helper to build RosterRow
 function row(name: string, power: number | bigint, last_seen = '5h ago'): RosterRow {
@@ -155,5 +155,33 @@ describe('parseRosterJson (via diffResults integration)', () => {
     expect(result).toHaveLength(1);
     expect(result[0].power).toBe(6000n);
     expect(result[0].source).toBe('glm');
+  });
+});
+
+describe('dedupeRosterRows with 200M+ power values', () => {
+  it('deduplicates rows with 200M+ power values correctly', () => {
+    const rawRows: RawRosterRow[] = [
+      { name: 'AlphaPlayer', power: 250000000n, source_screenshot: 0 },
+      { name: 'AlphaPlayer', power: 250000000n, source_screenshot: 1 },
+      { name: 'BetaPlayer', power: 489123456n, source_screenshot: 0 },
+      { name: 'BetaPlayer', power: 489123456n, source_screenshot: 1 },
+    ];
+
+    const result = dedupeRosterRows(rawRows);
+
+    expect(result).toHaveLength(2);
+    expect(result.find(r => r.name === 'AlphaPlayer')!.power).toBe(250000000n);
+    expect(result.find(r => r.name === 'BetaPlayer')!.power).toBe(489123456n);
+  });
+
+  it('handles single-row clusters with large power values', () => {
+    const rawRows: RawRosterRow[] = [
+      { name: 'Solo', power: 500000000n, source_screenshot: 0 },
+    ];
+
+    const result = dedupeRosterRows(rawRows);
+
+    expect(result).toHaveLength(1);
+    expect(result[0].power).toBe(500000000n);
   });
 });

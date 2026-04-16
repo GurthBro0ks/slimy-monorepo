@@ -56,6 +56,7 @@ interface ScanSession {
   interactionId: string;
   guildId: string;
   userId: string;
+  invokerUsername: string;
   metric: 'sim' | 'total';
   currentPage: number;
   pages: Page[];
@@ -85,6 +86,17 @@ function getSession(interactionId: string): ScanSession | null {
     return null;
   }
   return session;
+}
+
+function checkInvoker(interaction: ButtonInteraction | ModalSubmitInteraction, session: ScanSession): boolean {
+  if (interaction.user.id !== session.userId) {
+    interaction.reply({
+      content: `Only ${session.invokerUsername} can edit this scan. Run your own /club-analyze to make edits.`,
+      flags: MessageFlags.Ephemeral,
+    }).catch(() => {});
+    return false;
+  }
+  return true;
 }
 
 // ─── Slash Command Definition ────────────────────────────────────────────────
@@ -137,7 +149,7 @@ module.exports = {
   // ─── Main Execute ─────────────────────────────────────────────────────────
 
   async execute(interaction: ChatInputCommandInteraction): Promise<void> {
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
     cleanExpiredSessions();
 
@@ -219,6 +231,7 @@ module.exports = {
         interactionId: sessionId,
         guildId,
         userId,
+        invokerUsername: interaction.user.username,
         metric,
         currentPage: 0,
         pages,
@@ -229,10 +242,10 @@ module.exports = {
       sessions.set(sessionId, session);
 
       await interaction.editReply({
-        content: `✅ Scanned ${imageAttachments.length} screenshot(s), found ${canonicalMerged.length} members. Review below:`,
+        content: `✅ Scan complete — ${imageAttachments.length} screenshot(s), ${canonicalMerged.length} unique members. Results posted below.`,
       });
 
-      await sendPage(interaction, sessionId);
+      await sendPublicPage(interaction, sessionId);
     } catch (err) {
       console.error('[club-analyze] Scan failed:', err);
       await interaction.editReply({
@@ -257,6 +270,8 @@ module.exports = {
       });
       return;
     }
+
+    if (!checkInvoker(interaction, session)) return;
 
     // Refresh TTL on activity
     session.createdAt = Date.now();
@@ -330,6 +345,8 @@ module.exports = {
       return;
     }
 
+    if (!checkInvoker(interaction, session)) return;
+
     session.createdAt = Date.now();
 
     const rowNumStr = interaction.fields.getTextInputValue('row_select');
@@ -385,20 +402,12 @@ module.exports = {
 
 // ─── Render Helpers ──────────────────────────────────────────────────────────
 
-async function sendPage(
-  interaction: ChatInputCommandInteraction | ButtonInteraction,
+async function sendPublicPage(
+  interaction: ChatInputCommandInteraction,
   sessionId: string,
 ): Promise<void> {
   const session = getSession(sessionId);
   if (!session) return;
-
-  const replyFn = async (content: string, embeds?: EmbedBuilder[], components?: ActionRowBuilder<ButtonBuilder>[]) => {
-    if (interaction.isButton() || interaction.isModalSubmit()) {
-      await interaction.update({ content, embeds, components } as Record<string, unknown>);
-    } else {
-      await interaction.editReply({ content, embeds, components });
-    }
-  };
 
   const page = session.pages[session.currentPage];
   const metricLabel = session.metric === 'sim' ? 'SIM' : 'TOTAL';
@@ -432,7 +441,11 @@ async function sendPage(
 
   const components = buildNavigationRow(session, sessionId);
 
-  await replyFn('', [embed], components);
+  await interaction.followUp({
+    content: `📊 **${session.canonicalMerged.length}** members scanned from ${totalPages} screenshot(s):`,
+    embeds: [embed],
+    components,
+  });
 }
 
 function buildPagePayload(session: ScanSession): Record<string, unknown> {

@@ -6,6 +6,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { MessageFlags } from 'discord.js';
 
 const FIXED_SESSION_ID = '00000000-0000-0000-0000-000000000001';
 
@@ -58,8 +59,9 @@ function createMockExecuteInteraction() {
   return {
     deferReply: vi.fn().mockResolvedValue(undefined),
     editReply: vi.fn().mockResolvedValue(undefined),
+    followUp: vi.fn().mockResolvedValue(undefined),
     guildId: 'guild-123',
-    user: { id: 'user-456' },
+    user: { id: 'user-456', username: 'TestUser' },
     options: {
       getString: vi.fn((name: string) => {
         if (name === 'metric') return 'sim';
@@ -75,7 +77,7 @@ function createMockExecuteInteraction() {
   } as unknown as import('discord.js').ChatInputCommandInteraction;
 }
 
-function createMockButtonInteraction(action: string, sessionId?: string) {
+function createMockButtonInteraction(action: string, sessionId?: string, userId: string = 'user-456') {
   const sid = sessionId ?? FIXED_SESSION_ID;
   return {
     customId: `club-analyze:${action}:${sid}`,
@@ -84,6 +86,7 @@ function createMockButtonInteraction(action: string, sessionId?: string) {
     followUp: vi.fn().mockResolvedValue(undefined),
     deferred: false,
     replied: false,
+    user: { id: userId, username: userId === 'user-456' ? 'TestUser' : 'OtherUser' },
     isButton: () => true,
   } as unknown as import('discord.js').ButtonInteraction;
 }
@@ -194,5 +197,27 @@ describe('handleSave interaction lifecycle', () => {
     expect(replyContent).toContain('Session expired');
     expect(interaction.update).not.toHaveBeenCalled();
     expect(interaction.followUp).not.toHaveBeenCalled();
+  });
+
+  it('blocks non-invoker from tapping buttons', async () => {
+    await setupSession();
+
+    const interaction = createMockButtonInteraction('save', FIXED_SESSION_ID, 'other-user-999');
+    await cmd.handleButton(interaction);
+
+    expect(interaction.reply).toHaveBeenCalledTimes(1);
+    const replyContent = (interaction.reply as ReturnType<typeof vi.fn>).mock.calls[0][0].content;
+    expect(replyContent).toContain('Only TestUser can edit this scan');
+    expect((interaction.reply as ReturnType<typeof vi.fn>).mock.calls[0][0].flags).toBe(MessageFlags.Ephemeral);
+  });
+
+  it('allows invoker to tap buttons normally', async () => {
+    await setupSession();
+
+    const interaction = createMockButtonInteraction('save', FIXED_SESSION_ID, 'user-456');
+    await cmd.handleButton(interaction);
+
+    expect(interaction.update).toHaveBeenCalled();
+    expect(interaction.followUp).toHaveBeenCalled();
   });
 });

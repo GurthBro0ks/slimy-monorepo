@@ -27,12 +27,12 @@ last_seen is a string like '5h ago' or 'Online'.
 Do NOT include any text outside the JSON array.`;
 
 function buildSystemPrompt(metric: 'sim' | 'total' = 'sim'): string {
-  const field = metric === 'sim' ? 'power' : 'total_power';
   const metricLabel = metric === 'sim' ? 'Sim Power' : 'Power';
   return `${SYSTEM_PROMPT_BASE}
 The screenshots show the "${metricLabel}" view of the Manage Members list.
-Return ONLY a JSON array. Each row: {name, ${field}, last_seen}.
-${field} must be an integer with no commas.`;
+The power value is labeled either "Sim Power" (when sim toggle is active) or "Power" (when total toggle is active).
+Return ONLY a JSON array. Each row: {name, power, last_seen}.
+power must be an integer with no commas.`;
 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -211,26 +211,26 @@ function parseRosterJson(raw: string, model: string): RosterRow[] {
   }
 
   const rows: RosterRow[] = [];
-  const items = parsed as Array<{ name?: unknown; power?: unknown; last_seen?: unknown }>;
-  for (const item of items) {
-    const obj = item;
-
-    const name = typeof obj.name === 'string' ? obj.name.trim() : null;
+  const items = parsed as Array<Record<string, unknown>>;
+  for (const obj of items) {
+    const name = typeof obj.name === 'string' ? (obj.name as string).trim() : null;
     if (!name) continue;
 
+    const rawPower = obj.power ?? obj.total_power ?? obj.sim_power;
+
     let power: bigint;
-    if (typeof obj.power === 'bigint') {
-      power = obj.power;
-    } else if (typeof obj.power === 'number') {
-      power = BigInt(Math.floor(obj.power));
-    } else if (typeof obj.power === 'string') {
-      const cleaned2 = obj.power.replace(/[^0-9]/g, '');
+    if (typeof rawPower === 'bigint') {
+      power = rawPower;
+    } else if (typeof rawPower === 'number') {
+      power = BigInt(Math.floor(rawPower));
+    } else if (typeof rawPower === 'string') {
+      const cleaned2 = (rawPower as string).replace(/[^0-9]/g, '');
       power = cleaned2 ? BigInt(cleaned2) : 0n;
     } else {
       continue;
     }
 
-    const last_seen = typeof obj.last_seen === 'string' ? obj.last_seen.trim() : '';
+    const last_seen = typeof obj.last_seen === 'string' ? (obj.last_seen as string).trim() : '';
 
     rows.push({ name, power, last_seen });
   }
@@ -254,11 +254,13 @@ function parseRosterJson(raw: string, model: string): RosterRow[] {
 function parseMarkdownRoster(text: string, model: string): RosterRow[] {
   const rows: RosterRow[] = [];
 
+  const powerLabel = '(?:Sim\\s*Power|Total\\s*Power|Power)';
+
   // Pattern A: **Name:** Stone or **Username:** Stone (label before name)
-  const patternA = /\*\*(?:Name|Username):?\*\*\s*(.+?)\n[\s\S]*?(?:Sim\s*Power)[:\s]+([0-9,]+)[\s\S]*?(?:Status|Active|Last Active)[:\s]+(.+?)(?=\n\s*\d+\.|\n\n|$)/gi;
+  const patternA = new RegExp(`\\*\\*(?:Name|Username):?\\*\\*\\s*(.+?)\\n[\\s\\S]*?${powerLabel}[:\\s]+([0-9,]+)[\\s\\S]*?(?:Status|Active|Last Active)[:\\s]+(.+?)(?=\\n\\s*\\d+\\.|\\n\\n|$)`, 'gi');
 
   // Pattern B: **Stone** (bold name only, no label — GLM numbered list style)
-  const patternB = /\*\*([^*]+)\*\*[\s\S]*?(?:Sim\s*Power)[:\s]+([0-9,]+)[\s\S]*?(?:Status|Active|Last Active)[:\s]+(.+?)(?=\n\s*\d+\.|\n\n|$)/gi;
+  const patternB = new RegExp(`\\*\\*([^*]+)\\*\\*[\\s\\S]*?${powerLabel}[:\\s]+([0-9,]+)[\\s\\S]*?(?:Status|Active|Last Active)[:\\s]+(.+?)(?=\\n\\s*\\d+\\.|\\n\\n|$)`, 'gi');
 
   for (const pattern of [patternA, patternB]) {
     let match;
