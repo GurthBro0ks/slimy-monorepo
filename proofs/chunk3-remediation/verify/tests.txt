@@ -1,0 +1,64 @@
+
+> @slimy/bot@0.1.0 test /opt/slimy/slimy-monorepo/apps/bot
+> vitest run
+
+[33mThe CJS build of Vite's Node API is deprecated. See https://vite.dev/guide/troubleshooting.html#vite-cjs-node-api-deprecated for more details.[39m
+
+ RUN  v1.6.1 /opt/slimy/slimy-monorepo/apps/bot
+
+ ✓ tests/club-staging.test.ts  (13 tests) 58ms
+ ✓ tests/roster-ocr.integration.test.ts  (1 test) 9ms
+ ✓ tests/club-analyze.test.ts  (9 tests) 212ms
+stderr | tests/club-analyze.test.ts > handleSave interaction lifecycle > uses reply in catch when error occurs before update (no response yet sent)
+[club-analyze] Save failed: Error: DB down
+    at /opt/slimy/slimy-monorepo/apps/bot/tests/club-analyze.test.ts:165:47
+    at file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@1.6.1/node_modules/@vitest/runner/dist/index.js:135:14
+    at file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@1.6.1/node_modules/@vitest/runner/dist/index.js:60:26
+    at runTest (file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@1.6.1/node_modules/@vitest/runner/dist/index.js:781:17)
+    at runSuite (file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@1.6.1/node_modules/@vitest/runner/dist/index.js:909:15)
+    at runSuite (file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@1.6.1/node_modules/@vitest/runner/dist/index.js:909:15)
+    at runFiles (file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@1.6.1/node_modules/@vitest/runner/dist/index.js:958:5)
+    at startTests (file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@1.6.1/node_modules/@vitest/runner/dist/index.js:967:3)
+    at file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/vitest@1.6.1_@types+node@20.19.25_jsdom@27.2.0_lightningcss@1.30.2/node_modules/vitest/dist/chunks/runtime-runBaseTests.oAvMKtQC.js:116:7
+    at withEnv (file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/vitest@1.6.1_@types+node@20.19.25_jsdom@27.2.0_lightningcss@1.30.2/node_modules/vitest/dist/chunks/runtime-runBaseTests.oAvMKtQC.js:83:5)
+
+stderr | tests/club-analyze.test.ts > handleSave interaction lifecycle > catch block handles reply failure gracefully (no unhandled rejection)
+[club-analyze] Save failed: Error: DB down
+    at /opt/slimy/slimy-monorepo/apps/bot/tests/club-analyze.test.ts:180:47
+    at file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@1.6.1/node_modules/@vitest/runner/dist/index.js:135:14
+    at file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@1.6.1/node_modules/@vitest/runner/dist/index.js:60:26
+    at runTest (file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@1.6.1/node_modules/@vitest/runner/dist/index.js:781:17)
+    at runSuite (file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@1.6.1/node_modules/@vitest/runner/dist/index.js:909:15)
+    at runSuite (file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@1.6.1/node_modules/@vitest/runner/dist/index.js:909:15)
+    at runFiles (file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@1.6.1/node_modules/@vitest/runner/dist/index.js:958:5)
+    at startTests (file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@1.6.1/node_modules/@vitest/runner/dist/index.js:967:3)
+    at file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/vitest@1.6.1_@types+node@20.19.25_jsdom@27.2.0_lightningcss@1.30.2/node_modules/vitest/dist/chunks/runtime-runBaseTests.oAvMKtQC.js:116:7
+    at withEnv (file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/vitest@1.6.1_@types+node@20.19.25_jsdom@27.2.0_lightningcss@1.30.2/node_modules/vitest/dist/chunks/runtime-runBaseTests.oAvMKtQC.js:83:5)
+
+ ✓ tests/club-push.test.ts  (9 tests) 59ms
+stderr | tests/club-push.test.ts > club-push command > rolls back and does not clear staging on write failure
+[club-push] Failed: Error: Write failed
+    at /opt/slimy/slimy-monorepo/apps/bot/tests/club-push.test.ts:192:43
+    at file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@1.6.1/node_modules/@vitest/runner/dist/index.js:135:14
+    at file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@1.6.1/node_modules/@vitest/runner/dist/index.js:60:26
+    at runTest (file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@1.6.1/node_modules/@vitest/runner/dist/index.js:781:17)
+    at runSuite (file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@1.6.1/node_modules/@vitest/runner/dist/index.js:909:15)
+    at runSuite (file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@1.6.1/node_modules/@vitest/runner/dist/index.js:909:15)
+    at runFiles (file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@1.6.1/node_modules/@vitest/runner/dist/index.js:958:5)
+    at startTests (file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/@vitest+runner@1.6.1/node_modules/@vitest/runner/dist/index.js:967:3)
+    at file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/vitest@1.6.1_@types+node@20.19.25_jsdom@27.2.0_lightningcss@1.30.2/node_modules/vitest/dist/chunks/runtime-runBaseTests.oAvMKtQC.js:116:7
+    at withEnv (file:///opt/slimy/slimy-monorepo/node_modules/.pnpm/vitest@1.6.1_@types+node@20.19.25_jsdom@27.2.0_lightningcss@1.30.2/node_modules/vitest/dist/chunks/runtime-runBaseTests.oAvMKtQC.js:83:5)
+
+ ✓ tests/club-analyze-context.test.ts  (10 tests) 1496ms
+ ✓ tests/roster-ocr.test.ts  (12 tests) 47ms
+ ✓ tests/errorHandler.test.ts  (9 tests) 67ms
+ ✓ tests/logger.test.ts  (13 tests) 42ms
+ ✓ tests/utils/parsing.test.ts  (13 tests) 24ms
+ ✓ tests/utils/stats.test.ts  (10 tests) 32ms
+
+ Test Files  10 passed (10)
+      Tests  99 passed (99)
+   Start at  16:16:25
+   Duration  6.06s (transform 1.24s, setup 2ms, collect 4.28s, tests 2.05s, environment 10ms, prepare 3.87s)
+
+EXIT=0

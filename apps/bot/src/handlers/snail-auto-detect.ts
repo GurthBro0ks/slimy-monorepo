@@ -99,4 +99,6 @@ export function attachSnailAutoDetect(client: {
   });
 }
 
-export default { attachSnailAutoDetect };
+const snailAutoDetect = { attachSnailAutoDetect };
+
+export default snailAutoDetect;

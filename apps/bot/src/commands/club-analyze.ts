@@ -56,6 +56,7 @@ interface ScanSession {
   interactionId: string;
   guildId: string;
   userId: string;
+  username: string;
   metric: 'sim' | 'total';
   currentPage: number;
   pages: Page[];
@@ -219,6 +220,7 @@ module.exports = {
         interactionId: sessionId,
         guildId,
         userId,
+        username: interaction.user.username,
         metric,
         currentPage: 0,
         pages,
@@ -576,8 +578,15 @@ async function handleSave(
 ): Promise<void> {
   const { guildId, userId, metric } = session;
 
+  if (interaction.user.id !== userId) {
+    await interaction.reply({
+      content: `Only ${session.username} can edit this scan`,
+      flags: MessageFlags.Ephemeral,
+    });
+    return;
+  }
+
   try {
-    // Run dedupe across all pages (with edits applied)
     const allRawRows: RawRosterRow[] = [];
     for (let i = 0; i < session.pages.length; i++) {
       for (const row of session.pages[i].rows) {
@@ -588,7 +597,6 @@ async function handleSave(
     const canonicalMerged = dedupeRosterRows(allRawRows);
     session.canonicalMerged = canonicalMerged;
 
-    // Save to staging
     await saveStagingRows(
       guildId,
       metric,
@@ -596,7 +604,6 @@ async function handleSave(
       canonicalMerged.map((r) => ({ member_name: r.name, power_value: r.power })),
     );
 
-    // Mark all rows as saved
     for (const page of session.pages) {
       for (const row of page.rows) {
         row.edited = false;
@@ -604,19 +611,26 @@ async function handleSave(
     }
     session.dirty = false;
 
-    await interaction.reply({
-      content: `💾 Saved **${canonicalMerged.length}** members to **${metric.toUpperCase()}** staging. Run /club-push when ready to commit both metrics to the database.`,
-      flags: MessageFlags.Ephemeral,
+    await interaction.update({
+      content: `💾 Saved **${canonicalMerged.length}** members to **${metric.toUpperCase()}** staging.`,
+      embeds: [],
+      components: [],
     });
 
-    // Re-render the current page
-    await renderPage(interaction, session);
-  } catch (err) {
-    console.error('[club-analyze] Save failed:', err);
-    await interaction.reply({
-      content: `❌ Save failed: ${(err as Error).message}`,
+    await interaction.followUp({
+      content: `Saved **${canonicalMerged.length}** members to **${metric.toUpperCase()}** staging. Run /club-push when ready to commit both metrics to the database.`,
       flags: MessageFlags.Ephemeral,
     });
+  } catch (err) {
+    console.error('[club-analyze] Save failed:', err);
+    try {
+      await interaction.reply({
+        content: `❌ Save failed: ${(err as Error).message}`,
+        flags: MessageFlags.Ephemeral,
+      });
+    } catch {
+      // interaction may have expired — swallow to avoid unhandled rejection
+    }
   }
 }
 
