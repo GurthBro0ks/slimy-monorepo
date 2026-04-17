@@ -18,4 +18,3 @@ describe('images — isGLMImageModel', () => {
     expect(isGLMImageModel(undefined)).toBe(false);
   });
 });
-
