@@ -198,6 +198,37 @@ async function patchChannelModes({
     return idx >= 0 ? db.channelModes[idx].modes : emptyModeState();
   }
 
+  if (operation === "replace") {
+    const clearedModes = emptyModeState();
+    for (const mode of modeList) clearedModes[mode] = true;
+
+    if (idx === -1) {
+      if (MODE_KEYS.every((key) => !clearedModes[key])) {
+        await save(db);
+        return emptyModeState();
+      }
+      const entry: MemoryChannelMode = {
+        guildId,
+        targetId,
+        targetType: targetType as "category" | "channel" | "thread",
+        modes: clearedModes,
+        updatedAt: Date.now(),
+      };
+      db.channelModes.push(entry);
+      await save(db);
+      return entry.modes;
+    }
+
+    const entry = db.channelModes[idx];
+    entry.modes = clearedModes;
+    entry.updatedAt = Date.now();
+    if (MODE_KEYS.every((key) => !entry.modes[key])) {
+      db.channelModes.splice(idx, 1);
+    }
+    await save(db);
+    return entry.modes;
+  }
+
   if (idx === -1) {
     const entry: MemoryChannelMode = {
       guildId,

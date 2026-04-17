@@ -127,20 +127,45 @@ describe('memoryStore — channelModes', () => {
     expect(stored.chat).toBe(true);
   });
 
-  it('should call clearChannelModes without error', async () => {
+  it('should clear channel modes back to empty state', async () => {
     const g = uid(), ch = uid();
     await memoryStore.patchChannelModes({
       guildId: g,
       targetId: ch,
       targetType: 'channel',
-      modes: ['chat'],
+      modes: ['chat', 'admin'],
     });
+    const before = await memoryStore.getChannelModes({ guildId: g, targetId: ch, targetType: 'channel' });
+    expect(before.chat).toBe(true);
+    expect(before.admin).toBe(true);
+
     const result = await memoryStore.clearChannelModes({
       guildId: g,
       targetId: ch,
       targetType: 'channel',
     });
-    expect(typeof result).toBe('object');
+    expect(result.chat).toBe(false);
+    expect(result.admin).toBe(false);
+
+    const after = await memoryStore.getChannelModes({ guildId: g, targetId: ch, targetType: 'channel' });
+    expect(after.chat).toBe(false);
+    expect(after.admin).toBe(false);
+  });
+
+  it('should replace modes with operation replace', async () => {
+    const g = uid(), ch = uid();
+    await memoryStore.patchChannelModes({
+      guildId: g, targetId: ch, targetType: 'channel',
+      modes: ['chat', 'admin'],
+    });
+    const result = await memoryStore.patchChannelModes({
+      guildId: g, targetId: ch, targetType: 'channel',
+      modes: ['super_snail'],
+      operation: 'replace',
+    });
+    expect(result.chat).toBe(false);
+    expect(result.admin).toBe(false);
+    expect(result.super_snail).toBe(true);
   });
 
   it('should list all modes for a guild', async () => {
