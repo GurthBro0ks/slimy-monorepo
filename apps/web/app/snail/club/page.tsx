@@ -58,7 +58,12 @@ type SortDir = "asc" | "desc";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function formatNumber(num: number): string {
+function abbreviateNumber(num: number): string {
+  const abs = Math.abs(num);
+  const sign = num < 0 ? "-" : "";
+  if (abs >= 1_000_000_000) return sign + (abs / 1_000_000_000).toFixed(1) + "B";
+  if (abs >= 1_000_000) return sign + (abs / 1_000_000).toFixed(1) + "M";
+  if (abs >= 1_000) return sign + Math.round(abs / 1_000) + "K";
   return num.toLocaleString("en-US");
 }
 
@@ -365,7 +370,7 @@ export default function ClubDashboardPage() {
                 <span className="text-[#8a4baf] text-lg font-bold tracking-widest uppercase">Avg Total Power</span>
               </div>
               <p className="text-4xl font-bold text-[#39ff14] drop-shadow-[0_0_5px_rgba(57,255,20,0.5)]">
-                {formatNumber(data.avgTotalPower)}
+                {abbreviateNumber(data.avgTotalPower)}
               </p>
             </div>
 
@@ -420,8 +425,8 @@ export default function ClubDashboardPage() {
                         {sortKey === "rank" ? rank : idx + 1}
                       </td>
                       <td className="px-4 py-4 text-[#d6b4fc] font-bold text-lg">{member.name}</td>
-                      <td className="px-4 py-4 text-[#d6b4fc]">{formatNumber(member.sim_power)}</td>
-                      <td className="px-4 py-4 text-[#39ff14] font-bold">{formatNumber(member.total_power)}</td>
+                      <td className="px-4 py-4 text-[#d6b4fc]">{abbreviateNumber(member.sim_power)}</td>
+                      <td className="px-4 py-4 text-[#39ff14] font-bold">{abbreviateNumber(member.total_power)}</td>
                       <td className="px-4 py-4">
                         <span className="font-bold flex items-center gap-1" style={{ color: changeColor }}>
                           {isPositive ? <TrendingUp size={16} /> : isNegative ? <TrendingDown size={16} /> : null}
