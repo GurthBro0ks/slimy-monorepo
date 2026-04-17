@@ -24,7 +24,14 @@ const GEMINI_MODEL_TIEBREAKER = "gemini-2.5-pro";
 const SYSTEM_PROMPT_BASE = `Extract visible member rows from this Super Snail Manage Members screenshot.
 SKIP any row where the power number is cut off or not fully visible.
 last_seen is a string like '5h ago' or 'Online'.
-Do NOT include any text outside the JSON array.`;
+Do NOT include any text outside the JSON array.
+
+IMPORTANT — Character disambiguation:
+The game font makes certain characters very hard to distinguish. Be especially careful with short names (1-4 characters):
+- Lowercase "l" (L) vs uppercase "I" (i) vs digit "1": these look nearly identical. Prefer "l" (lowercase L) for names.
+- Uppercure "O" vs digit "0": prefer the letter "O" for names.
+- If a name could be read multiple ways, choose the reading that looks most like a player name (e.g., "lil" not "ill" or "1i1").
+Examine each character of short names extra carefully before committing to a reading.`;
 
 function buildSystemPrompt(metric: 'sim' | 'total' = 'sim'): string {
   const metricLabel = metric === 'sim' ? 'Sim Power' : 'Power';

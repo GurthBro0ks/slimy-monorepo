@@ -21,6 +21,13 @@ import {
 } from 'discord.js';
 import { database } from '../lib/database.js';
 
+export function canonicalizeAmbiguous(name: string): string {
+  const lower = name.toLowerCase();
+  return lower
+    .replace(/[i1]/g, 'l')
+    .replace(/0/g, 'o');
+}
+
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('club-push')
@@ -76,8 +83,8 @@ module.exports = {
         }
       }
 
-      const simNames = new Set(simRows.map((r) => r.member_name.toLowerCase()));
-      const totalNames = new Set(totalRows.map((r) => r.member_name.toLowerCase()));
+      const simNames = new Set(simRows.map((r) => canonicalizeAmbiguous(r.member_name)));
+      const totalNames = new Set(totalRows.map((r) => canonicalizeAmbiguous(r.member_name)));
       const allMemberNames = new Set([...simNames, ...totalNames]);
 
       if (!force && simRows.length > 0 && totalRows.length > 0) {
@@ -114,8 +121,8 @@ module.exports = {
       if (dryRun) {
         const rows: Array<{ name: string; sim_power: string | null; total_power: string | null }> = [];
         for (const name of allMemberNames) {
-          const sim = simRows.find((r) => r.member_name.toLowerCase() === name);
-          const total = totalRows.find((r) => r.member_name.toLowerCase() === name);
+          const sim = simRows.find((r) => canonicalizeAmbiguous(r.member_name) === name);
+          const total = totalRows.find((r) => canonicalizeAmbiguous(r.member_name) === name);
           rows.push({
             name: sim?.member_name ?? total?.member_name ?? name,
             sim_power: sim ? BigInt(sim.power_value).toLocaleString() : null,
@@ -193,7 +200,7 @@ async function pushStagingToLatest(
 
     const allNames = new Map<string, { sim_power: string | null; total_power: string | null; display_name: string }>();
     for (const r of simRows) {
-      const key = r.member_name.toLowerCase();
+      const key = canonicalizeAmbiguous(r.member_name);
       const existing = allNames.get(key);
       if (existing) {
         existing.sim_power = r.power_value;
@@ -202,7 +209,7 @@ async function pushStagingToLatest(
       }
     }
     for (const r of totalRows) {
-      const key = r.member_name.toLowerCase();
+      const key = canonicalizeAmbiguous(r.member_name);
       const existing = allNames.get(key);
       if (existing) {
         existing.total_power = r.power_value;
