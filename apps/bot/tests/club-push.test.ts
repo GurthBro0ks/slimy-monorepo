@@ -166,7 +166,7 @@ describe('club-push command', () => {
     mockConnExecute
       .mockResolvedValueOnce([[{ member_id: 1 }]])
       .mockResolvedValueOnce({ affectedRows: 1 })
-      .mockResolvedValueOnce({ affectedRows: 1 });
+      .mockResolvedValueOnce([{ affectedRows: 0 }]);
 
     const interaction = createMockInteraction();
     await cmd.execute(interaction);
@@ -214,7 +214,8 @@ describe('club-push command', () => {
     setupConnectionMock();
     mockConnExecute
       .mockResolvedValueOnce([[{ member_id: 1 }]])
-      .mockResolvedValueOnce({ affectedRows: 1 });
+      .mockResolvedValueOnce({ affectedRows: 1 })
+      .mockResolvedValueOnce([{ affectedRows: 0 }]);
 
     const interaction = createMockInteraction({ force: true });
     await cmd.execute(interaction);
@@ -233,5 +234,141 @@ describe('club-push command', () => {
 
     const content = (interaction.editReply as ReturnType<typeof vi.fn>).mock.calls[0][0].content;
     expect(content).toContain('only be used in a server');
+  });
+
+  it('removes stale members and reports count in response', async () => {
+    mockDbQuery
+      .mockResolvedValueOnce([
+        { member_name: 'Alice', power_value: '1000000' },
+        { member_name: 'Bob', power_value: '2000000' },
+      ])
+      .mockResolvedValueOnce([
+        { member_name: 'Alice', power_value: '3000000' },
+        { member_name: 'Bob', power_value: '4000000' },
+      ]);
+
+    setupConnectionMock();
+    mockConnExecute
+      .mockResolvedValueOnce([[{ member_id: 1 }]])
+      .mockResolvedValueOnce({ affectedRows: 1 })
+      .mockResolvedValueOnce([[{ member_id: 2 }]])
+      .mockResolvedValueOnce({ affectedRows: 1 })
+      .mockResolvedValueOnce([{ affectedRows: 14 }]);
+
+    const interaction = createMockInteraction();
+    await cmd.execute(interaction);
+
+    expect(mockConnCommit).toHaveBeenCalled();
+
+    const staleDeleteCall = mockConnExecute.mock.calls.find(
+      (call: [string, ...unknown[]]) => typeof call[0] === 'string' && call[0].includes('NOT IN'),
+    );
+    expect(staleDeleteCall).toBeDefined();
+    expect(staleDeleteCall![0]).toContain('DELETE FROM club_latest');
+    expect(staleDeleteCall![0]).toContain('NOT IN');
+
+    const content = (interaction.editReply as ReturnType<typeof vi.fn>).mock.calls[0][0].content;
+    expect(content).toContain('Pushed **2** members');
+    expect(content).toContain('Removed **14** former members');
+  });
+
+  it('does not mention removal when no stale members', async () => {
+    mockDbQuery
+      .mockResolvedValueOnce([
+        { member_name: 'Alice', power_value: '1000000' },
+      ])
+      .mockResolvedValueOnce([
+        { member_name: 'Alice', power_value: '2000000' },
+      ]);
+
+    setupConnectionMock();
+    mockConnExecute
+      .mockResolvedValueOnce([[{ member_id: 1 }]])
+      .mockResolvedValueOnce({ affectedRows: 1 })
+      .mockResolvedValueOnce([{ affectedRows: 0 }]);
+
+    const interaction = createMockInteraction();
+    await cmd.execute(interaction);
+
+    const content = (interaction.editReply as ReturnType<typeof vi.fn>).mock.calls[0][0].content;
+    expect(content).not.toContain('Removed');
+    expect(content).toContain('Pushed **1** members');
+  });
+
+  it('stale delete uses correct guild_id and display names', async () => {
+    mockDbQuery
+      .mockResolvedValueOnce([
+        { member_name: 'Alice', power_value: '1000000' },
+      ])
+      .mockResolvedValueOnce([
+        { member_name: 'Alice', power_value: '2000000' },
+      ]);
+
+    setupConnectionMock();
+    mockConnExecute
+      .mockResolvedValueOnce([[{ member_id: 1 }]])
+      .mockResolvedValueOnce({ affectedRows: 1 })
+      .mockResolvedValueOnce([{ affectedRows: 5 }]);
+
+    const interaction = createMockInteraction();
+    await cmd.execute(interaction);
+
+    const staleDeleteCall = mockConnExecute.mock.calls.find(
+      (call: [string, ...unknown[]]) => typeof call[0] === 'string' && call[0].includes('NOT IN'),
+    );
+    expect(staleDeleteCall![1]).toEqual(['guild-123', 'Alice']);
+  });
+
+  it('rollback on stale delete failure preserves existing data', async () => {
+    mockDbQuery
+      .mockResolvedValueOnce([
+        { member_name: 'Alice', power_value: '1000000' },
+      ])
+      .mockResolvedValueOnce([
+        { member_name: 'Alice', power_value: '2000000' },
+      ]);
+
+    setupConnectionMock();
+    mockConnExecute
+      .mockResolvedValueOnce([[{ member_id: 1 }]])
+      .mockResolvedValueOnce({ affectedRows: 1 })
+      .mockRejectedValueOnce(new Error('Delete failed'));
+
+    const interaction = createMockInteraction();
+    await cmd.execute(interaction);
+
+    expect(mockConnRollback).toHaveBeenCalled();
+    expect(mockDbExecute).not.toHaveBeenCalledWith(
+      expect.stringContaining('DELETE FROM club_analyze_staging'),
+      expect.anything(),
+    );
+  });
+
+  it('sim_prev is SET before sim_power in UPDATE SQL', async () => {
+    mockDbQuery
+      .mockResolvedValueOnce([
+        { member_name: 'Alice', power_value: '1000000' },
+      ])
+      .mockResolvedValueOnce([
+        { member_name: 'Alice', power_value: '2000000' },
+      ]);
+
+    setupConnectionMock();
+    mockConnExecute
+      .mockResolvedValueOnce([[{ member_id: 1 }]])
+      .mockResolvedValueOnce({ affectedRows: 1 })
+      .mockResolvedValueOnce([{ affectedRows: 0 }]);
+
+    const interaction = createMockInteraction();
+    await cmd.execute(interaction);
+
+    const updateCall = mockConnExecute.mock.calls.find(
+      (call: [string, ...unknown[]]) => typeof call[0] === 'string' && call[0].includes('UPDATE club_latest'),
+    );
+    expect(updateCall).toBeDefined();
+    const sql = updateCall![0] as string;
+    const prevIndex = sql.indexOf('sim_prev = sim_power');
+    const powerIndex = sql.indexOf('sim_power = ?');
+    expect(prevIndex).toBeLessThan(powerIndex);
   });
 });

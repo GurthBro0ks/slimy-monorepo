@@ -199,7 +199,7 @@ module.exports = {
         return;
       }
 
-      const pushedCount = await pushStagingToLatest(guildId, simRows, totalRows);
+      const { pushedCount, removedCount } = await pushStagingToLatest(guildId, simRows, totalRows);
 
       await clearStagingForGuild(guildId);
 
@@ -207,8 +207,9 @@ module.exports = {
       if (simRows.length > 0) metricsPushed.push('SIM');
       if (totalRows.length > 0) metricsPushed.push('TOTAL');
 
+      const removedMsg = removedCount > 0 ? ` Removed **${removedCount}** former member${removedCount !== 1 ? 's' : ''}.` : '';
       await interaction.editReply({
-        content: `✅ Pushed **${pushedCount}** members to club_latest. ${metricsPushed.join(' + ')} both updated. Staging cleared.`,
+        content: `✅ Pushed **${pushedCount}** members to club_latest.${removedMsg} ${metricsPushed.join(' + ')} updated. Staging cleared.`,
       });
     } catch (err) {
       console.error('[club-push] Failed:', err);
@@ -242,7 +243,7 @@ async function pushStagingToLatest(
   guildId: string,
   simRows: StagingRow[],
   totalRows: StagingRow[],
-): Promise<number> {
+): Promise<{ pushedCount: number; removedCount: number }> {
   const pool = database.getPool();
   const connection = await pool.getConnection();
 
@@ -271,9 +272,12 @@ async function pushStagingToLatest(
       }
     }
 
+    const pushedDisplayNames: string[] = [];
     const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
 
     for (const [, entry] of allNames) {
+      pushedDisplayNames.push(entry.display_name);
+
       const [existing] = await connection.execute(
         'SELECT member_id FROM club_latest WHERE guild_id = ? AND name_display = ?',
         [guildId, entry.display_name],
@@ -284,14 +288,14 @@ async function pushStagingToLatest(
         const values: (string | null)[] = [];
 
         if (entry.sim_power !== null) {
+          updates.push('sim_prev = sim_power');
           updates.push('sim_power = ?');
           values.push(entry.sim_power);
-          updates.push('sim_prev = sim_power');
         }
         if (entry.total_power !== null) {
+          updates.push('total_prev = total_power');
           updates.push('total_power = ?');
           values.push(entry.total_power);
-          updates.push('total_prev = total_power');
         }
 
         if (updates.length > 0) {
@@ -321,8 +325,22 @@ async function pushStagingToLatest(
       }
     }
 
+    let removedCount = 0;
+    if (pushedDisplayNames.length > 0) {
+      const placeholders = pushedDisplayNames.map(() => '?').join(',');
+      const [result] = await connection.execute(
+        `DELETE FROM club_latest WHERE guild_id = ? AND name_display NOT IN (${placeholders})`,
+        [guildId, ...pushedDisplayNames],
+      ) as [import('mysql2').ResultSetHeader, unknown];
+      removedCount = result.affectedRows;
+    }
+
+    if (removedCount > 0) {
+      console.log(`[club-push] Removed ${removedCount} stale member(s) from guild ${guildId}`);
+    }
+
     await connection.commit();
-    return allNames.size;
+    return { pushedCount: allNames.size, removedCount };
   } catch (err) {
     await connection.rollback();
     throw err;

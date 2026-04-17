@@ -136,7 +136,8 @@ describe('club-push — ambiguity canonicalization', () => {
       .mockResolvedValueOnce([[{ member_id: 1 }]])
       .mockResolvedValueOnce({ affectedRows: 1 })
       .mockResolvedValueOnce([[{ member_id: 2 }]])
-      .mockResolvedValueOnce({ affectedRows: 1 });
+      .mockResolvedValueOnce({ affectedRows: 1 })
+      .mockResolvedValueOnce([{ affectedRows: 0 }]);
 
     const interaction = createMockInteraction();
     await pushCmd.execute(interaction);
@@ -191,7 +192,8 @@ describe('club-push — ambiguity canonicalization', () => {
       .mockResolvedValueOnce([[{ member_id: 1 }]])
       .mockResolvedValueOnce({ affectedRows: 1 })
       .mockResolvedValueOnce([[{ member_id: 2 }]])
-      .mockResolvedValueOnce({ affectedRows: 1 });
+      .mockResolvedValueOnce({ affectedRows: 1 })
+      .mockResolvedValueOnce([{ affectedRows: 0 }]);
 
     const interaction = createMockInteraction();
     await pushCmd.execute(interaction);
@@ -223,7 +225,8 @@ describe('club-push — ambiguity canonicalization', () => {
     mockPoolGetConnection.mockResolvedValue(mockConnection);
     mockConnExecute
       .mockResolvedValueOnce([[{ member_id: 1 }]])
-      .mockResolvedValueOnce({ affectedRows: 1 });
+      .mockResolvedValueOnce({ affectedRows: 1 })
+      .mockResolvedValueOnce([{ affectedRows: 0 }]);
 
     const interaction = createMockInteraction();
     await pushCmd.execute(interaction);
