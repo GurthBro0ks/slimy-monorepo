@@ -37,7 +37,7 @@ export default async function middleware(req: NextRequest) {
   
   const isExactPublic = publicRoutes.includes(pathname);
   const isPublicPrefix = publicPrefixes.some(p => pathname.startsWith(p));
-  const isPublicApi = pathname === "/api/codes" || pathname.startsWith("/api/codes/") || pathname.startsWith("/api/session/") || pathname.startsWith("/api/local-auth/") || pathname.startsWith("/api/owner/invites") || pathname.startsWith("/api/webhook/") || pathname.startsWith("/api/owner/notifications/discord-push");
+  const isPublicApi = pathname === "/api/codes" || pathname.startsWith("/api/codes/") || pathname.startsWith("/api/session/") || pathname.startsWith("/api/local-auth/") || pathname.startsWith("/api/owner/invites") || pathname.startsWith("/api/webhook/") || pathname.startsWith("/api/owner/notifications/discord-push") || pathname.startsWith("/api/snail/");
 
   if (isExactPublic || isPublicPrefix || isPublicApi) {
     return NextResponse.next();
