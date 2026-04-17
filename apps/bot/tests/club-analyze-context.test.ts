@@ -262,9 +262,11 @@ describe('club-analyze-context handleButton', () => {
     const mockUpdate = vi.fn().mockResolvedValue(undefined);
     const mockFollowUp = vi.fn().mockResolvedValue(undefined);
 
+    const mockButtonEditReply = vi.fn().mockResolvedValue(undefined);
     const result = await cmd.default.handleButton({
       customId: `Analyze Club Roster:metric:sim:${pendingId}`,
       update: mockUpdate,
+      editReply: mockButtonEditReply,
       reply: vi.fn(),
       followUp: mockFollowUp,
       user: { id: 'user-456' },
@@ -276,12 +278,17 @@ describe('club-analyze-context handleButton', () => {
         content: expect.stringContaining('Processing'),
       }),
     );
-    expect(mockFollowUp).toHaveBeenCalledWith(
+    expect(mockButtonEditReply).toHaveBeenCalledWith(
       expect.objectContaining({
         content: expect.stringContaining('Scanned'),
       }),
     );
-    // FollowUp should have embeds and components (paginated UI)
+    expect(mockFollowUp).toHaveBeenCalledWith(
+      expect.objectContaining({
+        embeds: expect.any(Array),
+        components: expect.any(Array),
+      }),
+    );
     const followUpCall = mockFollowUp.mock.calls[0][0];
     expect(followUpCall.embeds).toBeDefined();
     expect(followUpCall.components).toBeDefined();

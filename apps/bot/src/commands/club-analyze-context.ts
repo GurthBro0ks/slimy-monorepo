@@ -142,26 +142,39 @@ module.exports = {
       return true;
     }
 
-    // Update the metric selection message to show progress
     await interaction.update({
       content: `⏳ Processing **${metric === 'sim' ? 'Sim Power' : 'Total Power'}** screenshots...`,
       components: [],
     });
 
     try {
+      let lastProgressUpdate = 0;
       const sessionId = await runClubAnalyze({
         metric,
         attachments: pending.attachments,
         guildId: pending.guildId,
         userId: pending.userId,
         username: pending.username,
+        onProgress: (completed, total, imageName) => {
+          const now = Date.now();
+          if (now - lastProgressUpdate >= 8_000 || completed === total) {
+            lastProgressUpdate = now;
+            const pct = Math.round((completed / total) * 100);
+            interaction
+              .editReply({
+                content: `⏳ Processing screenshot ${completed}/${total} (${pct}%) — ${imageName}...`,
+              })
+              .catch(() => {
+                /* ignore edit failures */
+              });
+          }
+        },
       });
 
       const session = getSession(sessionId);
       if (!session) {
         await interaction.followUp({
           content: '❌ Session creation failed.',
-          flags: MessageFlags.Ephemeral,
         });
         return true;
       }
@@ -169,17 +182,19 @@ module.exports = {
       const embed = buildPageEmbed(session);
       const components = buildNavigationRow(session, sessionId);
 
-      await interaction.followUp({
+      await interaction.editReply({
         content: `✅ Scanned ${pending.attachments.length} screenshot(s), found ${session.canonicalMerged.length} members. Review below:`,
+      });
+
+      await interaction.followUp({
+        content: '',
         embeds: [embed],
         components,
-        flags: MessageFlags.Ephemeral,
       });
     } catch (err) {
       console.error('[club-analyze-context] OCR failed:', err);
       await interaction.followUp({
         content: `❌ Scan failed: ${(err as Error).message}`,
-        flags: MessageFlags.Ephemeral,
       });
     }
 
