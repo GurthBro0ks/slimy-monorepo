@@ -15,8 +15,8 @@
 
 const GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai/";
 
-const GEMINI_MODEL_PRIMARY = "gemini-2.5-flash";
-const GEMINI_MODEL_TIEBREAKER = "gemini-2.5-pro";
+const GEMINI_MODEL_PRIMARY = "gemini-2.5-flash-preview-05-20";
+const GEMINI_MODEL_TIEBREAKER = "gemini-2.5-pro-preview-05-06";
 
 // TODO(roster-ocr): Total power support is wired but not yet validated.
 // Next session: capture cormysbar-total-power.ground-truth.json fixtures and run full
