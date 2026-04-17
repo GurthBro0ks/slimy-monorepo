@@ -92,7 +92,7 @@ module.exports = {
   // ─── Main Execute ─────────────────────────────────────────────────────────
 
   async execute(interaction: ChatInputCommandInteraction): Promise<void> {
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply();
 
     cleanExpiredSessions();
 
@@ -435,7 +435,6 @@ async function handleSave(
 
     await interaction.followUp({
       content: `Saved **${canonicalMerged.length}** members to **${metric.toUpperCase()}** staging. Run /club-push when ready to commit both metrics to the database.`,
-      flags: MessageFlags.Ephemeral,
     });
   } catch (err) {
     console.error('[club-analyze] Save failed:', err);

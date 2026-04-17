@@ -164,4 +164,89 @@ describe('club-push — ambiguity canonicalization', () => {
     expect(call.embeds).toBeDefined();
     expect(call.embeds).toHaveLength(1);
   });
+
+  it('lill vs ill does NOT trigger mismatch (Lev-1 fuzzy)', async () => {
+    mockDbQuery
+      .mockResolvedValueOnce([
+        { member_name: 'lill', power_value: '1000000' },
+        { member_name: 'Alice', power_value: '2000000' },
+      ])
+      .mockResolvedValueOnce([
+        { member_name: 'ill', power_value: '3000000' },
+        { member_name: 'Alice', power_value: '4000000' },
+      ]);
+
+    const { default: pushCmd } = await import('../src/commands/club-push.js');
+
+    const mockPool = { getConnection: mockPoolGetConnection };
+    const mockConnection = {
+      beginTransaction: mockConnBeginTransaction,
+      execute: mockConnExecute,
+      commit: mockConnCommit,
+      rollback: mockConnRollback,
+      release: mockConnRelease,
+    };
+    mockPoolGetConnection.mockResolvedValue(mockConnection);
+    mockConnExecute
+      .mockResolvedValueOnce([[{ member_id: 1 }]])
+      .mockResolvedValueOnce({ affectedRows: 1 })
+      .mockResolvedValueOnce([[{ member_id: 2 }]])
+      .mockResolvedValueOnce({ affectedRows: 1 });
+
+    const interaction = createMockInteraction();
+    await pushCmd.execute(interaction);
+
+    const call = (interaction.editReply as ReturnType<typeof vi.fn>).mock.calls[0][0];
+    expect(call.embeds).toBeUndefined();
+    expect(call.content).toContain('Pushed');
+  });
+
+  it('abc vs abd does NOT trigger mismatch (Lev-1 substitution)', async () => {
+    mockDbQuery
+      .mockResolvedValueOnce([
+        { member_name: 'abc', power_value: '1000000' },
+      ])
+      .mockResolvedValueOnce([
+        { member_name: 'abd', power_value: '2000000' },
+      ]);
+
+    const { default: pushCmd } = await import('../src/commands/club-push.js');
+
+    const mockPool = { getConnection: mockPoolGetConnection };
+    const mockConnection = {
+      beginTransaction: mockConnBeginTransaction,
+      execute: mockConnExecute,
+      commit: mockConnCommit,
+      rollback: mockConnRollback,
+      release: mockConnRelease,
+    };
+    mockPoolGetConnection.mockResolvedValue(mockConnection);
+    mockConnExecute
+      .mockResolvedValueOnce([[{ member_id: 1 }]])
+      .mockResolvedValueOnce({ affectedRows: 1 });
+
+    const interaction = createMockInteraction();
+    await pushCmd.execute(interaction);
+
+    const call = (interaction.editReply as ReturnType<typeof vi.fn>).mock.calls[0][0];
+    expect(call.embeds).toBeUndefined();
+    expect(call.content).toContain('Pushed');
+  });
+
+  it('lill vs xyz DOES trigger mismatch (Lev > 1)', async () => {
+    mockDbQuery
+      .mockResolvedValueOnce([
+        { member_name: 'lill', power_value: '1000000' },
+      ])
+      .mockResolvedValueOnce([
+        { member_name: 'xyz', power_value: '2000000' },
+      ]);
+
+    const interaction = createMockInteraction();
+    await cmd.execute(interaction);
+
+    const call = (interaction.editReply as ReturnType<typeof vi.fn>).mock.calls[0][0];
+    expect(call.embeds).toBeDefined();
+    expect(call.embeds).toHaveLength(1);
+  });
 });

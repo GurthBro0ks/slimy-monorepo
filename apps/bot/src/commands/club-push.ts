@@ -28,6 +28,58 @@ export function canonicalizeAmbiguous(name: string): string {
     .replace(/0/g, 'o');
 }
 
+function levenshteinDistance(a: string, b: string): number {
+  const m = a.length;
+  const n = b.length;
+  const dp: number[][] = Array.from({ length: m + 1 }, (_, i) =>
+    Array.from({ length: n + 1 }, (_, j) => (i === 0 ? j : j === 0 ? i : 0)),
+  );
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      if (a[i - 1] === b[j - 1]) {
+        dp[i][j] = dp[i - 1][j - 1];
+      } else {
+        dp[i][j] = 1 + Math.min(dp[i - 1][j], dp[i - 1][j - 1], dp[i][j - 1]);
+      }
+    }
+  }
+  return dp[m][n];
+}
+
+function fuzzyMatchSets(
+  simNames: Set<string>,
+  totalNames: Set<string>,
+): { onlyInSim: string[]; onlyInTotal: string[] } {
+  const matchedSim = new Set<string>();
+  const matchedTotal = new Set<string>();
+
+  for (const s of simNames) {
+    for (const t of totalNames) {
+      if (s === t || levenshteinDistance(s, t) <= 1) {
+        matchedSim.add(s);
+        matchedTotal.add(t);
+        break;
+      }
+    }
+  }
+
+  return {
+    onlyInSim: [...simNames].filter((n) => !matchedSim.has(n)),
+    onlyInTotal: [...totalNames].filter((n) => !matchedTotal.has(n)),
+  };
+}
+
+function findFuzzyKey(
+  map: Map<string, unknown>,
+  key: string,
+): string | null {
+  if (map.has(key)) return key;
+  for (const existingKey of map.keys()) {
+    if (levenshteinDistance(key, existingKey) <= 1) return existingKey;
+  }
+  return null;
+}
+
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('club-push')
@@ -88,8 +140,7 @@ module.exports = {
       const allMemberNames = new Set([...simNames, ...totalNames]);
 
       if (!force && simRows.length > 0 && totalRows.length > 0) {
-        const onlyInSim = [...simNames].filter((n) => !totalNames.has(n));
-        const onlyInTotal = [...totalNames].filter((n) => !simNames.has(n));
+        const { onlyInSim, onlyInTotal } = fuzzyMatchSets(simNames, totalNames);
 
         if (onlyInSim.length > 0 || onlyInTotal.length > 0) {
           const embed = new EmbedBuilder()
@@ -201,16 +252,17 @@ async function pushStagingToLatest(
     const allNames = new Map<string, { sim_power: string | null; total_power: string | null; display_name: string }>();
     for (const r of simRows) {
       const key = canonicalizeAmbiguous(r.member_name);
-      const existing = allNames.get(key);
-      if (existing) {
-        existing.sim_power = r.power_value;
+      const fuzzyKey = findFuzzyKey(allNames, key);
+      if (fuzzyKey) {
+        allNames.get(fuzzyKey)!.sim_power = r.power_value;
       } else {
         allNames.set(key, { sim_power: r.power_value, total_power: null, display_name: r.member_name });
       }
     }
     for (const r of totalRows) {
       const key = canonicalizeAmbiguous(r.member_name);
-      const existing = allNames.get(key);
+      const fuzzyKey = findFuzzyKey(allNames, key);
+      const existing = fuzzyKey ? allNames.get(fuzzyKey)! : null;
       if (existing) {
         existing.total_power = r.power_value;
         if (!existing.display_name) existing.display_name = r.member_name;

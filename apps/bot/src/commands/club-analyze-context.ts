@@ -55,7 +55,7 @@ module.exports = {
   // ─── Execute ──────────────────────────────────────────────────────────────
 
   async execute(interaction: MessageContextMenuCommandInteraction): Promise<void> {
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply();
     cleanExpiredSessions();
 
     const targetMessage = interaction.targetMessage;

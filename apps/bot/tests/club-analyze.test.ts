@@ -221,3 +221,47 @@ describe('handleSave interaction lifecycle', () => {
     expect(interaction.followUp).toHaveBeenCalled();
   });
 });
+
+describe('club-analyze visibility', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockExtractRoster.mockResolvedValue([
+      {
+        imageIndex: 0,
+        rows: [
+          { name: 'Alice', power: BigInt(1000) },
+        ],
+      },
+    ]);
+    mockDedupeRosterRows.mockImplementation((rows) => rows);
+  });
+
+  it('defers reply as PUBLIC (not ephemeral)', async () => {
+    const interaction = createMockExecuteInteraction();
+    await cmd.execute(interaction);
+
+    const deferCall = (interaction.deferReply as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(deferCall).toHaveLength(0);
+  });
+
+  it('editReply sends PUBLIC review pages (no ephemeral flag)', async () => {
+    const interaction = createMockExecuteInteraction();
+    await cmd.execute(interaction);
+
+    const editCalls = (interaction.editReply as ReturnType<typeof vi.fn>).mock.calls;
+    const pageCall = editCalls.find((c: Array<Record<string, unknown>>) => c[0]?.embeds);
+    expect(pageCall).toBeDefined();
+    expect(pageCall![0].flags).toBeUndefined();
+  });
+
+  it('save followUp is PUBLIC (no ephemeral flag)', async () => {
+    const interaction = createMockExecuteInteraction();
+    await cmd.execute(interaction);
+
+    const saveInteraction = createMockButtonInteraction('save');
+    await cmd.handleButton(saveInteraction);
+
+    const followUpCall = (saveInteraction.followUp as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(followUpCall[0].flags).toBeUndefined();
+  });
+});
