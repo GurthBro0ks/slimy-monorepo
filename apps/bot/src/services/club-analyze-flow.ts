@@ -1,63 +1,65 @@
 /**
  * Club Analyze — Shared Flow Service
  *
- * Exposes session management, parsing, and commit logic used by both
+ * Shared session management, OCR pipeline, and UI helpers used by both
  * the slash command (/club-analyze) and the context menu command
  * ("Analyze Club Roster").
  */
 
-import { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
+import {
+  EmbedBuilder,
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+} from 'discord.js';
 import { v4 as uuidv4 } from 'uuid';
-import {
-  parseManageMembersImage,
-  parseManageMembersImageEnsemble,
-} from '../lib/club-vision.js';
-import {
-  canonicalize,
-  upsertMembers,
-  createSnapshot,
-  insertMetrics,
-  recomputeLatestForGuild,
-  getLatestForGuild,
-} from '../lib/club-store.js';
-import { getSheetConfig } from '../lib/guild-settings.js';
+import { extractRoster, dedupeRosterRows } from './roster-ocr.js';
+import type { RawRosterRow } from './roster-ocr.js';
 
-export const BUTTON_PREFIX = "club-analyze";
-const _LOW_CONFIDENCE_THRESHOLD = 0.7;
-const MIN_ROWS_FOR_COMMIT = 3;
-const SESSION_TTL_MS = 15 * 60 * 1000;
-const USE_ENSEMBLE = process.env.CLUB_USE_ENSEMBLE === "1";
+export const BUTTON_PREFIX = 'club-analyze';
+export const CONTEXT_BUTTON_PREFIX = 'Analyze Club Roster';
+export const MAX_IMAGES = 10;
+const SESSION_TTL_MS = 60 * 60 * 1000;
 
-export interface MetricEntry {
-  canonical: string;
-  display: string;
-  value: number | null;
-  confidence: number;
-  sources?: Set<string>;
+// ─── Types ────────────────────────────────────────────────────────────────
+
+export interface PageRow {
+  name: string;
+  power: bigint;
+  edited: boolean;
 }
 
-export interface Session {
+export interface Page {
+  screenshotFilename: string;
+  rows: PageRow[];
+}
+
+export interface ScanSession {
+  interactionId: string;
+  guildId: string;
+  userId: string;
+  username: string;
+  metric: 'sim' | 'total';
+  currentPage: number;
+  pages: Page[];
+  canonicalMerged: Array<{ name: string; power: bigint }>;
+  dirty: boolean;
+  createdAt: number;
+}
+
+export interface PendingContextSession {
   id: string;
   guildId: string;
   userId: string;
-  channelId: string;
-  type: "quick" | "full" | "both";
-  attachments: { url: string; name: string }[];
-  metrics: { sim: Map<string, MetricEntry>; total: Map<string, MetricEntry> };
-  displayNames: Map<string, string>;
-  previousByCanonical: Map<string, { memberId: number; display: string; totalPower: number | null; simPower: number | null }>;
-  lastWeekSet: Set<string>;
-  ensembleMetadata: Record<string, number> | null;
-  sheetConfig: { url: string | null; sheetId: string | null };
-  qa: Record<string, unknown> | null;
-  approvals: Set<string>;
-  forceCommit: boolean;
-  strictRuns: number;
+  username: string;
+  attachments: Array<{ url: string; name: string }>;
   createdAt: number;
-  useEnsemble: boolean;
 }
 
-export const sessions = new Map<string, Session>();
+// ─── Session Store ────────────────────────────────────────────────────────
+
+export const sessions = new Map<string, ScanSession>();
+const pendingContextSessions = new Map<string, PendingContextSession>();
 
 export function cleanExpiredSessions(): void {
   const now = Date.now();
@@ -66,255 +68,176 @@ export function cleanExpiredSessions(): void {
       sessions.delete(id);
     }
   }
-}
-
-export function ensureDatabase(): void {
-  const { database } = require('../lib/database.js');
-  if (!database.isConfigured()) {
-    throw new Error("Database not configured for club analyze.");
-  }
-}
-
-function toNumber(value: unknown): number | null {
-  if (value === null || typeof value === "undefined") return null;
-  const num = Number(value);
-  return Number.isFinite(num) ? num : null;
-}
-
-export function mergeRows(session: Session, metric: string, rows: { canonical: string; display: string; value: number | null; confidence: number }[], _url: string): void {
-  const map = metric === "sim" ? session.metrics.sim : session.metrics.total;
-  for (const row of rows) {
-    const canonical = row.canonical || canonicalize(row.display);
-    if (!canonical) continue;
-
-    if (row.display) session.displayNames.set(canonical, row.display);
-
-    const existing = map.get(canonical);
-    if (!existing) {
-      map.set(canonical, { canonical, display: row.display || canonical, value: row.value, confidence: row.confidence });
-    } else if (row.value !== null && (existing.value === null || row.confidence > existing.confidence)) {
-      existing.value = row.value;
-      existing.display = row.display || existing.display;
-      existing.confidence = row.confidence;
+  for (const [id, pending] of pendingContextSessions.entries()) {
+    if (now - pending.createdAt > SESSION_TTL_MS) {
+      pendingContextSessions.delete(id);
     }
   }
 }
 
-export async function parseAttachments(session: Session, strict = false): Promise<void> {
-  const forcedMetric: string | null = null;
-  const useEnsemble = session.useEnsemble && !strict;
+export function getSession(interactionId: string): ScanSession | null {
+  const session = sessions.get(interactionId);
+  if (!session) return null;
+  if (Date.now() - session.createdAt > SESSION_TTL_MS) {
+    sessions.delete(interactionId);
+    return null;
+  }
+  return session;
+}
 
-  for (const attachment of session.attachments) {
-    try {
-      let result;
-      if (useEnsemble) {
-        result = await parseManageMembersImageEnsemble(attachment.url, forcedMetric);
-        if (result.ensembleMetadata) {
-          session.ensembleMetadata = result.ensembleMetadata as Record<string, number>;
-        }
-      } else {
-        result = await parseManageMembersImage(attachment.url, forcedMetric, { strict });
-      }
-      mergeRows(session, result.metric, result.rows, attachment.url);
-    } catch (err) {
-      console.error("[club-analyze] Vision parse failed", { url: attachment.url, error: (err as Error).message });
-      throw err;
+// ─── Pending Context Sessions ─────────────────────────────────────────────
+
+export function storePendingContext(pending: PendingContextSession): void {
+  pendingContextSessions.set(pending.id, pending);
+}
+
+export function getPendingContextSession(id: string): PendingContextSession | null {
+  const pending = pendingContextSessions.get(id);
+  if (!pending) return null;
+  if (Date.now() - pending.createdAt > SESSION_TTL_MS) {
+    pendingContextSessions.delete(id);
+    return null;
+  }
+  return pending;
+}
+
+export function deletePendingContextSession(id: string): void {
+  pendingContextSessions.delete(id);
+}
+
+// ─── Shared OCR Pipeline ──────────────────────────────────────────────────
+
+export interface ClubAnalyzeOptions {
+  metric: 'sim' | 'total';
+  attachments: Array<{ url: string; name: string }>;
+  guildId: string;
+  userId: string;
+  username: string;
+  onProgress?: (completed: number, total: number, imageName: string) => void;
+}
+
+export async function runClubAnalyze(options: ClubAnalyzeOptions): Promise<string> {
+  const { metric, attachments, guildId, userId, username } = options;
+
+  const ocrResults = await extractRoster(
+    attachments.map((att) => ({ url: att.url, name: att.name || 'image' })),
+    {
+      metric,
+      skipLiveOcr: process.env.SKIP_LIVE_OCR === '1',
+      onProgress: options.onProgress,
+    },
+  );
+
+  const pages: Page[] = ocrResults.map((result) => ({
+    screenshotFilename: attachments[result.imageIndex]?.name || `screenshot_${result.imageIndex + 1}`,
+    rows: result.rows.map((row) => ({
+      name: row.name,
+      power: row.power,
+      edited: false,
+    })),
+  }));
+
+  const allRawRows: RawRosterRow[] = [];
+  for (let i = 0; i < ocrResults.length; i++) {
+    for (const row of ocrResults[i].rows) {
+      allRawRows.push({ name: row.name, power: row.power, source_screenshot: i });
     }
   }
+
+  const canonicalMerged = dedupeRosterRows(allRawRows);
+
+  const sessionId = uuidv4();
+  const session: ScanSession = {
+    interactionId: sessionId,
+    guildId,
+    userId,
+    username,
+    metric,
+    currentPage: 0,
+    pages,
+    canonicalMerged,
+    dirty: false,
+    createdAt: Date.now(),
+  };
+  sessions.set(sessionId, session);
+
+  return sessionId;
 }
 
-export async function loadPreviousState(session: Session): Promise<void> {
-  const latest = await getLatestForGuild(session.guildId);
-  for (const row of latest) {
-    session.previousByCanonical.set(row.name_canonical, {
-      memberId: row.member_id,
-      display: row.name_display,
-      totalPower: toNumber(row.total_power),
-      simPower: toNumber(row.sim_power),
-    });
-  }
-  session.lastWeekSet = new Set(session.previousByCanonical.keys());
-}
+// ─── UI Helpers ───────────────────────────────────────────────────────────
 
-export function buildPreviewEmbed(session: Session): EmbedBuilder {
-  const qa = session.qa as { coverageGuardTriggered?: boolean; missingGuardTriggered?: boolean; coveragePct?: number; missing?: string[]; newNames?: string[]; suspicious?: { display: string; pct: number }[]; lowConfidence?: { display: string; metric: string; confidence: number }[]; requiresSecondApprover?: boolean; totalRows?: number } | null;
-  const coverageColor = qa?.coverageGuardTriggered ? 0xff3366 : qa?.missingGuardTriggered ? 0xffa500 : 0x3b82f6;
-
-  const totalSim = session.metrics.sim.size;
-  const totalTotal = session.metrics.total.size;
+export function buildPageEmbed(session: ScanSession): EmbedBuilder {
+  const page = session.pages[session.currentPage];
+  const metricLabel = session.metric === 'sim' ? 'SIM' : 'TOTAL';
+  const totalPages = session.pages.length;
+  const currentPageNum = session.currentPage + 1;
 
   const embed = new EmbedBuilder()
-    .setTitle("Club Analyze — Preview")
-    .setColor(coverageColor)
-    .setDescription([
-      `• Parsed **${totalSim + totalTotal}** rows`,
-      `  • Sim: ${totalSim}`,
-      `  • Total: ${totalTotal}`,
-    ].join("\n"));
+    .setTitle(`Club Analyze — ${metricLabel} Power — Screenshot ${currentPageNum}/${totalPages}`)
+    .setDescription(`\`${page.screenshotFilename}\``)
+    .setColor(0x3b82f6);
 
-  if (qa) {
-    if (qa.missing?.length) {
-      embed.addFields({
-        name: `Missing vs last week (${qa.missing.length})`,
-        value: qa.missing.slice(0, 5).join("\n") || "—",
-      });
-    }
-    if (qa.suspicious?.length) {
-      embed.addFields({
-        name: `Suspicious changes (${qa.suspicious.length})`,
-        value: qa.suspicious.slice(0, 3).map((r) => `${r.pct > 0 ? "+" : ""}${r.pct}% • ${r.display}`).join("\n") || "—",
-      });
-    }
-    if (qa.requiresSecondApprover) {
-      embed.addFields({
-        name: "🔐 Second Approval Required",
-        value: "Awaiting approval from 2 admins",
-      });
-    }
-    if (qa.totalRows !== undefined && qa.totalRows < MIN_ROWS_FOR_COMMIT) {
-      embed.addFields({
-        name: "⚠️ Not enough rows",
-        value: `Need ${MIN_ROWS_FOR_COMMIT}, got ${qa.totalRows}`,
-      });
-    }
+  for (let i = 0; i < page.rows.length; i++) {
+    const row = page.rows[i];
+    const editedFlag = row.edited ? ' ✏️' : '';
+    embed.addFields({
+      name: `${i + 1}. ${row.name}${editedFlag}`,
+      value: `Power: **${row.power.toLocaleString()}**`,
+      inline: false,
+    });
   }
+
+  const dirtyCount = session.pages.reduce(
+    (sum, p) => sum + p.rows.filter((r) => r.edited).length,
+    0,
+  );
+  const dirtyText = dirtyCount > 0 ? ` • ${dirtyCount} unsaved edit${dirtyCount === 1 ? '' : 's'}` : ' • no pending edits';
+
+  embed.setFooter({
+    text: `Page ${currentPageNum} of ${totalPages}${dirtyText}`,
+  });
 
   return embed;
 }
 
-export function buildPreviewComponents(session: Session): ActionRowBuilder<ButtonBuilder>[] {
-  const qa = session.qa as { totalRows?: number; requiresSecondApprover?: boolean; coverageGuardTriggered?: boolean; missingGuardTriggered?: boolean } | null;
-  const notEnoughRows = (qa?.totalRows ?? 0) < MIN_ROWS_FOR_COMMIT;
-  let approveDisabled = notEnoughRows;
+export function buildNavigationRow(
+  session: ScanSession,
+  sessionId: string,
+): ActionRowBuilder<ButtonBuilder>[] {
+  const isFirstPage = session.currentPage === 0;
+  const isLastPage = session.currentPage === session.pages.length - 1;
+  const dirtyCount = session.pages.reduce(
+    (sum, p) => sum + p.rows.filter((r) => r.edited).length,
+    0,
+  );
 
   const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
     new ButtonBuilder()
-      .setCustomId(`${BUTTON_PREFIX}:approve:${session.id}`)
-      .setEmoji("✅")
-      .setLabel("Approve & Commit")
-      .setStyle(ButtonStyle.Success)
-      .setDisabled(approveDisabled),
+      .setCustomId(`${BUTTON_PREFIX}:prev:${sessionId}`)
+      .setLabel('⬅ Prev')
+      .setStyle(ButtonStyle.Secondary)
+      .setDisabled(isFirstPage),
     new ButtonBuilder()
-      .setCustomId(`${BUTTON_PREFIX}:cancel:${session.id}`)
-      .setEmoji("🛑")
-      .setLabel("Cancel")
+      .setCustomId(`${BUTTON_PREFIX}:edit:${sessionId}`)
+      .setLabel('✏️ Edit Row')
+      .setStyle(ButtonStyle.Primary),
+    new ButtonBuilder()
+      .setCustomId(`${BUTTON_PREFIX}:save:${sessionId}`)
+      .setLabel(dirtyCount > 0 ? `💾 Save All (${dirtyCount})` : '💾 Save All')
+      .setStyle(ButtonStyle.Success),
+    new ButtonBuilder()
+      .setCustomId(`${BUTTON_PREFIX}:next:${sessionId}`)
+      .setLabel('Next ➡')
+      .setStyle(ButtonStyle.Secondary)
+      .setDisabled(isLastPage),
+  );
+
+  const cancelRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
+    new ButtonBuilder()
+      .setCustomId(`${BUTTON_PREFIX}:cancel:${sessionId}`)
+      .setLabel('❌ Cancel')
       .setStyle(ButtonStyle.Danger),
   );
 
-  return [row];
-}
-
-export async function commitSession(session: Session, _source: string): Promise<void> {
-  const qa = session.qa as { totalRows?: number; coverageGuardTriggered?: boolean; missingGuardTriggered?: boolean; coveragePct?: number; missing?: string[] } | null;
-  if ((qa?.totalRows ?? 0) < MIN_ROWS_FOR_COMMIT) {
-    throw new Error(`Need at least ${MIN_ROWS_FOR_COMMIT} rows to commit (currently ${qa?.totalRows ?? 0}).`);
-  }
-
-  const canonicalSet = new Set<string>();
-  for (const [canonical] of session.metrics.sim) canonicalSet.add(canonical);
-  for (const [canonical] of session.metrics.total) canonicalSet.add(canonical);
-
-  const members = Array.from(canonicalSet).map(canonical => ({
-    canonical,
-    display: session.displayNames.get(canonical) || canonical,
-  }));
-
-  const memberMap = await upsertMembers(session.guildId, members);
-
-  const snapshot = await createSnapshot(session.guildId, session.userId, null, new Date());
-
-  const metricEntries: { memberId: number; metric: string; value: number | null }[] = [];
-  for (const [canonical, entry] of session.metrics.sim) {
-    const memberId = memberMap.get(canonical);
-    if (memberId) metricEntries.push({ memberId, metric: "sim", value: entry.value });
-  }
-  for (const [canonical, entry] of session.metrics.total) {
-    const memberId = memberMap.get(canonical);
-    if (memberId) metricEntries.push({ memberId, metric: "total", value: entry.value });
-  }
-
-  await insertMetrics(snapshot.snapshotId, metricEntries as { memberId: number; metric: string; value: number | null }[]);
-  await recomputeLatestForGuild(session.guildId, snapshot.snapshotAt);
-
-  sessions.delete(session.id);
-}
-
-/**
- * Creates a new club analyze session from a list of attachments.
- */
-export async function createSession(
-  guildId: string,
-  userId: string,
-  channelId: string,
-  attachments: { url: string; name: string }[]
-): Promise<Session> {
-  const sessionId = uuidv4();
-  const session: Session = {
-    id: sessionId,
-    guildId,
-    userId,
-    channelId,
-    type: "both",
-    attachments,
-    metrics: { sim: new Map(), total: new Map() },
-    displayNames: new Map(),
-    previousByCanonical: new Map(),
-    lastWeekSet: new Set(),
-    ensembleMetadata: null,
-    sheetConfig: await getSheetConfig(guildId),
-    qa: null,
-    approvals: new Set(),
-    forceCommit: false,
-    strictRuns: 0,
-    createdAt: Date.now(),
-    useEnsemble: USE_ENSEMBLE,
-  };
-  return session;
-}
-
-/**
- * Runs the full analysis pipeline: parse attachments → load previous state → compute QA.
- * Returns the session ready for preview rendering.
- */
-export async function runAnalysis(session: Session): Promise<void> {
-  await parseAttachments(session);
-  await loadPreviousState(session);
-
-  const totalRows = session.metrics.sim.size + session.metrics.total.size;
-  session.qa = { totalRows, missing: [], suspicious: [], lowConfidence: [], requiresSecondApprover: false };
-}
-
-/**
- * Handles approve/cancel button interactions for club analyze sessions.
- * Returns true if this button was handled, false otherwise.
- */
-export async function handleButton(interaction: { customId: string; deferUpdate: () => Promise<unknown>; reply: (opts: { content: string; ephemeral?: boolean }) => Promise<unknown> }): Promise<boolean> {
-  const parts = String(interaction.customId || "").split(":");
-  if (parts[0] !== BUTTON_PREFIX || parts.length < 3) return false;
-
-  const [, action, sessionId] = parts;
-  const session = sessions.get(sessionId);
-
-  if (!session) {
-    await interaction.reply({ content: "❌ Session expired. Run `/club-analyze quick` again.", ephemeral: true });
-    return true;
-  }
-
-  if (action === "approve") {
-    try {
-      await commitSession(session, "button");
-      await interaction.reply({ content: "✅ Committed successfully!" });
-    } catch (err) {
-      await interaction.reply({ content: `❌ Commit failed: ${(err as Error).message}`, ephemeral: true });
-    }
-    return true;
-  }
-
-  if (action === "cancel") {
-    sessions.delete(sessionId);
-    await interaction.reply({ content: "🛑 Analysis cancelled." });
-    return true;
-  }
-
-  return false;
+  return [row, cancelRow];
 }

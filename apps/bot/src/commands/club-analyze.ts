@@ -2,9 +2,9 @@
  * Club Analyze — Paginated edit UI for roster OCR with staging persistence.
  *
  * Architecture:
- *   /club-analyze → extractRoster() → dedupeRosterRows() → saveStagingRows()
+ *   /club-analyze → runClubAnalyze() → sendPage()
  *   Edit UI (paginated) → updateStagingRow() → saveStagingRows()
- *   /club-push (future) → reads staging → writes club_latest
+ *   /club-push → reads staging → writes club_latest
  *
  * Command: /club-analyze metric:<sim|total> image1:... image2:... ... image10:...
  * Flow: Scan → Paginated Edit → Save to Staging
@@ -12,7 +12,6 @@
 
 import {
   SlashCommandBuilder,
-  EmbedBuilder,
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
@@ -25,68 +24,23 @@ import {
   ModalSubmitInteraction,
   MessageFlags,
 } from 'discord.js';
-import { v4 as uuidv4 } from 'uuid';
-import { extractRoster } from '../services/roster-ocr.js';
-import { dedupeRosterRows, RawRosterRow } from '../services/roster-ocr.js';
+import {
+  sessions,
+  cleanExpiredSessions,
+  getSession,
+  runClubAnalyze,
+  buildPageEmbed,
+  buildNavigationRow,
+  BUTTON_PREFIX,
+  MAX_IMAGES,
+} from '../services/club-analyze-flow.js';
+import type { ScanSession } from '../services/club-analyze-flow.js';
+import { dedupeRosterRows } from '../services/roster-ocr.js';
+import type { RawRosterRow } from '../services/roster-ocr.js';
 import {
   clearStaging,
   saveStagingRows,
 } from '../services/club-staging.js';
-
-// ─── Constants ────────────────────────────────────────────────────────────────
-
-const MAX_IMAGES = 10;
-const BUTTON_PREFIX = 'club-analyze';
-const SESSION_TTL_MS = 60 * 60 * 1000; // 1 hour
-
-// ─── Types ───────────────────────────────────────────────────────────────────
-
-interface PageRow {
-  name: string;
-  power: bigint;
-  edited: boolean;
-}
-
-interface Page {
-  screenshotFilename: string;
-  rows: PageRow[];
-}
-
-interface ScanSession {
-  interactionId: string;
-  guildId: string;
-  userId: string;
-  username: string;
-  metric: 'sim' | 'total';
-  currentPage: number;
-  pages: Page[];
-  canonicalMerged: Array<{ name: string; power: bigint }>;
-  dirty: boolean;
-  createdAt: number;
-}
-
-// ─── Session Store ───────────────────────────────────────────────────────────
-
-const sessions = new Map<string, ScanSession>();
-
-function cleanExpiredSessions(): void {
-  const now = Date.now();
-  for (const [id, session] of sessions.entries()) {
-    if (now - session.createdAt > SESSION_TTL_MS) {
-      sessions.delete(id);
-    }
-  }
-}
-
-function getSession(interactionId: string): ScanSession | null {
-  const session = sessions.get(interactionId);
-  if (!session) return null;
-  if (Date.now() - session.createdAt > SESSION_TTL_MS) {
-    sessions.delete(interactionId);
-    return null;
-  }
-  return session;
-}
 
 // ─── Slash Command Definition ────────────────────────────────────────────────
 
@@ -174,64 +128,31 @@ module.exports = {
 
     try {
       let lastProgressUpdate = 0;
-      const ocrResults = await extractRoster(
-        imageAttachments.map((att) => ({ url: att.url, name: att.name || 'image' })),
-        {
-          metric,
-          skipLiveOcr: process.env.SKIP_LIVE_OCR === '1',
-          onProgress: (completed, total, imageName) => {
-            const now = Date.now();
-            if (now - lastProgressUpdate >= 8_000 || completed === total) {
-              lastProgressUpdate = now;
-              const pct = Math.round((completed / total) * 100);
-              interaction
-                .editReply({
-                  content: `⏳ Processing screenshot ${completed}/${total} (${pct}%) — ${imageName}...`,
-                })
-                .catch(() => {
-                  /* ignore edit failures */
-                });
-            }
-          },
-        },
-      );
-
-      // Build pages from OCR results
-      const pages: Page[] = ocrResults.map((result) => ({
-        screenshotFilename: imageAttachments[result.imageIndex]?.name || `screenshot_${result.imageIndex + 1}`,
-        rows: result.rows.map((row) => ({
-          name: row.name,
-          power: row.power,
-          edited: false,
-        })),
-      }));
-
-      // Compute canonical merged result
-      const allRawRows: RawRosterRow[] = [];
-      for (let i = 0; i < ocrResults.length; i++) {
-        for (const row of ocrResults[i].rows) {
-          allRawRows.push({ name: row.name, power: row.power, source_screenshot: i });
-        }
-      }
-      const canonicalMerged = dedupeRosterRows(allRawRows);
-
-      const sessionId = uuidv4();
-      const session: ScanSession = {
-        interactionId: sessionId,
+      const sessionId = await runClubAnalyze({
+        metric,
+        attachments: imageAttachments.map((att) => ({ url: att.url, name: att.name || 'image' })),
         guildId,
         userId,
         username: interaction.user.username,
-        metric,
-        currentPage: 0,
-        pages,
-        canonicalMerged,
-        dirty: false,
-        createdAt: Date.now(),
-      };
-      sessions.set(sessionId, session);
+        onProgress: (completed, total, imageName) => {
+          const now = Date.now();
+          if (now - lastProgressUpdate >= 8_000 || completed === total) {
+            lastProgressUpdate = now;
+            const pct = Math.round((completed / total) * 100);
+            interaction
+              .editReply({
+                content: `⏳ Processing screenshot ${completed}/${total} (${pct}%) — ${imageName}...`,
+              })
+              .catch(() => {
+                /* ignore edit failures */
+              });
+          }
+        },
+      });
 
+      const session = getSession(sessionId);
       await interaction.editReply({
-        content: `✅ Scanned ${imageAttachments.length} screenshot(s), found ${canonicalMerged.length} members. Review below:`,
+        content: `✅ Scanned ${imageAttachments.length} screenshot(s), found ${session!.canonicalMerged.length} members. Review below:`,
       });
 
       await sendPage(interaction, sessionId);
@@ -394,83 +315,21 @@ async function sendPage(
   const session = getSession(sessionId);
   if (!session) return;
 
-  const replyFn = async (content: string, embeds?: EmbedBuilder[], components?: ActionRowBuilder<ButtonBuilder>[]) => {
-    if (interaction.isButton() || interaction.isModalSubmit()) {
-      await interaction.update({ content, embeds, components } as Record<string, unknown>);
-    } else {
-      await interaction.editReply({ content, embeds, components });
-    }
-  };
-
-  const page = session.pages[session.currentPage];
-  const metricLabel = session.metric === 'sim' ? 'SIM' : 'TOTAL';
-  const totalPages = session.pages.length;
-  const currentPageNum = session.currentPage + 1;
-
-  const embed = new EmbedBuilder()
-    .setTitle(`Club Analyze — ${metricLabel} Power — Screenshot ${currentPageNum}/${totalPages}`)
-    .setDescription(`\`${page.screenshotFilename}\``)
-    .setColor(0x3b82f6);
-
-  for (let i = 0; i < page.rows.length; i++) {
-    const row = page.rows[i];
-    const editedFlag = row.edited ? ' ✏️' : '';
-    embed.addFields({
-      name: `${i + 1}. ${row.name}${editedFlag}`,
-      value: `Power: **${row.power.toLocaleString()}**`,
-      inline: false,
-    });
-  }
-
-  const dirtyCount = session.pages.reduce(
-    (sum, p) => sum + p.rows.filter((r) => r.edited).length,
-    0,
-  );
-  const dirtyText = dirtyCount > 0 ? ` • ${dirtyCount} unsaved edit${dirtyCount === 1 ? '' : 's'}` : ' • no pending edits';
-
-  embed.setFooter({
-    text: `Page ${currentPageNum} of ${totalPages}${dirtyText}`,
-  });
-
+  const embed = buildPageEmbed(session);
   const components = buildNavigationRow(session, sessionId);
 
-  await replyFn('', [embed], components);
+  if (interaction.isButton() || interaction.isModalSubmit()) {
+    await interaction.update({ content: '', embeds: [embed], components } as Record<string, unknown>);
+  } else {
+    await interaction.editReply({ content: '', embeds: [embed], components });
+  }
 }
 
 async function renderPage(
   interaction: ButtonInteraction,
   session: ScanSession,
 ): Promise<void> {
-  const page = session.pages[session.currentPage];
-  const metricLabel = session.metric === 'sim' ? 'SIM' : 'TOTAL';
-  const totalPages = session.pages.length;
-  const currentPageNum = session.currentPage + 1;
-
-  const embed = new EmbedBuilder()
-    .setTitle(`Club Analyze — ${metricLabel} Power — Screenshot ${currentPageNum}/${totalPages}`)
-    .setDescription(`\`${page.screenshotFilename}\``)
-    .setColor(0x3b82f6);
-
-  for (let i = 0; i < page.rows.length; i++) {
-    const row = page.rows[i];
-    const editedFlag = row.edited ? ' ✏️' : '';
-    embed.addFields({
-      name: `${i + 1}. ${row.name}${editedFlag}`,
-      value: `Power: **${row.power.toLocaleString()}**`,
-      inline: false,
-    });
-  }
-
-  const dirtyCount = session.pages.reduce(
-    (sum, p) => sum + p.rows.filter((r) => r.edited).length,
-    0,
-  );
-  const dirtyText = dirtyCount > 0 ? ` • ${dirtyCount} unsaved edit${dirtyCount === 1 ? '' : 's'}` : ' • no pending edits';
-
-  embed.setFooter({
-    text: `Page ${currentPageNum} of ${totalPages}${dirtyText}`,
-  });
-
+  const embed = buildPageEmbed(session);
   const components = buildNavigationRow(session, session.interactionId);
 
   await interaction.update({
@@ -478,48 +337,6 @@ async function renderPage(
     embeds: [embed],
     components,
   } as Record<string, unknown>);
-}
-
-function buildNavigationRow(
-  session: ScanSession,
-  sessionId: string,
-): ActionRowBuilder<ButtonBuilder>[] {
-  const isFirstPage = session.currentPage === 0;
-  const isLastPage = session.currentPage === session.pages.length - 1;
-  const dirtyCount = session.pages.reduce(
-    (sum, p) => sum + p.rows.filter((r) => r.edited).length,
-    0,
-  );
-
-  const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
-    new ButtonBuilder()
-      .setCustomId(`${BUTTON_PREFIX}:prev:${sessionId}`)
-      .setLabel('⬅ Prev')
-      .setStyle(ButtonStyle.Secondary)
-      .setDisabled(isFirstPage),
-    new ButtonBuilder()
-      .setCustomId(`${BUTTON_PREFIX}:edit:${sessionId}`)
-      .setLabel('✏️ Edit Row')
-      .setStyle(ButtonStyle.Primary),
-    new ButtonBuilder()
-      .setCustomId(`${BUTTON_PREFIX}:save:${sessionId}`)
-      .setLabel(dirtyCount > 0 ? `💾 Save All (${dirtyCount})` : '💾 Save All')
-      .setStyle(ButtonStyle.Success),
-    new ButtonBuilder()
-      .setCustomId(`${BUTTON_PREFIX}:next:${sessionId}`)
-      .setLabel('Next ➡')
-      .setStyle(ButtonStyle.Secondary)
-      .setDisabled(isLastPage),
-  );
-
-  const cancelRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
-    new ButtonBuilder()
-      .setCustomId(`${BUTTON_PREFIX}:cancel:${sessionId}`)
-      .setLabel('❌ Cancel')
-      .setStyle(ButtonStyle.Danger),
-  );
-
-  return [row, cancelRow];
 }
 
 // ─── Edit Modal ─────────────────────────────────────────────────────────────
@@ -531,7 +348,6 @@ async function sendEditModal(
   const sessionId = session.interactionId;
   const page = session.pages[session.currentPage];
 
-  // Show a modal with row number (1-indexed), name, and power
   const modal = new ModalBuilder()
     .setCustomId(`${BUTTON_PREFIX}:edit_row:${sessionId}`)
     .setTitle(`Edit Row — ${session.metric.toUpperCase()} Power`);
