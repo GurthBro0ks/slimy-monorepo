@@ -128,15 +128,6 @@ export async function runClubAnalyze(options: ClubAnalyzeOptions): Promise<strin
     },
   );
 
-  const pages: Page[] = ocrResults.map((result) => ({
-    screenshotFilename: attachments[result.imageIndex]?.name || `screenshot_${result.imageIndex + 1}`,
-    rows: result.rows.map((row) => ({
-      name: row.name,
-      power: row.power,
-      edited: false,
-    })),
-  }));
-
   const allRawRows: RawRosterRow[] = [];
   for (let i = 0; i < ocrResults.length; i++) {
     for (const row of ocrResults[i].rows) {
@@ -145,6 +136,30 @@ export async function runClubAnalyze(options: ClubAnalyzeOptions): Promise<strin
   }
 
   const canonicalMerged = dedupeRosterRows(allRawRows);
+
+  const pages: Page[] = ocrResults.map((result) => {
+    const screenshotRows = result.rows.map((row) => {
+      const deduped = canonicalMerged.find(
+        (c) => c.name.toLowerCase().replace(/\s+/g, '') === row.name.toLowerCase().replace(/\s+/g, ''),
+      );
+      return {
+        name: deduped?.name ?? row.name,
+        power: row.power,
+        edited: false,
+      };
+    });
+    const seenKeys = new Set<string>();
+    const dedupedRows = screenshotRows.filter((r) => {
+      const key = r.name.toLowerCase().replace(/\s+/g, '');
+      if (seenKeys.has(key)) return false;
+      seenKeys.add(key);
+      return true;
+    });
+    return {
+      screenshotFilename: attachments[result.imageIndex]?.name || `screenshot_${result.imageIndex + 1}`,
+      rows: dedupedRows,
+    };
+  });
 
   const sessionId = uuidv4();
   const session: ScanSession = {

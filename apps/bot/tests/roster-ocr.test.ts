@@ -185,3 +185,70 @@ describe('dedupeRosterRows with 200M+ power values', () => {
     expect(result[0].power).toBe(500000000n);
   });
 });
+
+describe('diffResults fuzzy Lev-1 merge', () => {
+  it('merges "ill" and "lill" into single entry with longer name', () => {
+    const gemini: RosterRow[] = [
+      row('ill', 241597316),
+      row('Stinky', 234947634),
+    ];
+    const glm: RosterRow[] = [
+      row('lill', 241597316),
+      row('Stinky', 234947634),
+    ];
+
+    const result = diffResults(gemini, glm);
+
+    expect(result).toHaveLength(2);
+    const illEntry = result.find((e) => e.name === 'lill' || e.name === 'ill');
+    expect(illEntry).toBeDefined();
+    expect(illEntry!.name).toBe('lill');
+    expect(illEntry!.confidence).toBe('high');
+    expect(illEntry!.source).toBe('agreed');
+  });
+
+  it('does not merge names with Lev distance > 1', () => {
+    const gemini: RosterRow[] = [row('abc', 1000)];
+    const glm: RosterRow[] = [row('xyz', 1000)];
+
+    const result = diffResults(gemini, glm);
+
+    expect(result).toHaveLength(2);
+  });
+
+  it('fuzzy merge with conflicting powers creates separate entries', () => {
+    const gemini: RosterRow[] = [row('ill', 1000)];
+    const glm: RosterRow[] = [row('lill', 2000)];
+
+    const result = diffResults(gemini, glm);
+
+    const named = result.filter((e) => e.name.toLowerCase().includes('lill') || e.name.toLowerCase() === 'ill');
+    expect(named).toHaveLength(2);
+  });
+});
+
+describe('pickCanonicalName prefers longer name', () => {
+  it('picks "lill" over "ill" when merged into same cluster', () => {
+    const rawRows: RawRosterRow[] = [
+      { name: 'ill', power: 241597316n, source_screenshot: 0 },
+      { name: 'lill', power: 241597316n, source_screenshot: 0 },
+    ];
+
+    const result = dedupeRosterRows(rawRows);
+
+    expect(result).toHaveLength(1);
+    expect(result[0].name).toBe('lill');
+  });
+
+  it('picks longer name when one is a superstring of another', () => {
+    const rawRows: RawRosterRow[] = [
+      { name: 'Stev', power: 100n, source_screenshot: 0 },
+      { name: 'Steve', power: 100n, source_screenshot: 0 },
+    ];
+
+    const result = dedupeRosterRows(rawRows);
+
+    expect(result).toHaveLength(1);
+    expect(result[0].name).toBe('Steve');
+  });
+});

@@ -302,6 +302,41 @@ export function diffResults(geminiRows: RosterRow[], glmRows: RosterRow[]): Diff
   const geminiMap = new Map(geminiRows.map((r) => [r.name.toLowerCase(), r]));
   const glmMap = new Map(glmRows.map((r) => [r.name.toLowerCase(), r]));
 
+  // Fuzzy-merge: if a name in one map is Lev-1 from a name in the other
+  // with matching power, treat them as the same member (prefer longer name).
+  const geminiSeen = new Set<string>();
+  const glmSeen = new Set<string>();
+
+  for (const gKey of geminiMap.keys()) {
+    for (const pKey of glmMap.keys()) {
+      if (geminiSeen.has(gKey) || glmSeen.has(pKey)) continue;
+      const d = levenshteinDistance(gKey, pKey);
+      if (d === 1 && gKey !== pKey) {
+        const gRow = geminiMap.get(gKey)!;
+        const pRow = glmMap.get(pKey)!;
+        if (gRow.power !== pRow.power) continue;
+        const preferLongerKey = gKey.length >= pKey.length ? gKey : pKey;
+        const preferLongerName = gKey.length >= pKey.length ? gRow.name : pRow.name;
+
+        geminiMap.delete(gKey);
+        glmMap.delete(pKey);
+        geminiMap.set(preferLongerKey, {
+          name: preferLongerName,
+          power: gRow.power,
+          last_seen: gRow.last_seen || pRow.last_seen,
+        });
+        glmMap.set(preferLongerKey, {
+          name: preferLongerName,
+          power: pRow.power,
+          last_seen: pRow.last_seen || gRow.last_seen,
+        });
+        geminiSeen.add(preferLongerKey);
+        glmSeen.add(preferLongerKey);
+        break;
+      }
+    }
+  }
+
   const allNames = new Set([...geminiMap.keys(), ...glmMap.keys()]);
   const entries: DiffEntry[] = [];
 
@@ -561,13 +596,14 @@ function pickCanonicalName(cluster: { variants: ClusterVariant[] }): string {
     return cluster.variants.find(v => v.key === mostWitnessed[0])!.name;
   }
 
-  // Rule 2: shortest variant that is a substring of another variant in the cluster
+  // Rule 2: longest variant that is a substring-of or superstring-of another variant
+  // (prefer longer name: OCR drops characters more often than it hallucinates them)
   const variantKeys = cluster.variants.map(v => v.key);
   const substringCandidates = cluster.variants.filter(v =>
-    variantKeys.some(other => other !== v.key && other.includes(v.key))
+    variantKeys.some(other => other !== v.key && (other.includes(v.key) || v.key.includes(other)))
   );
   if (substringCandidates.length > 0) {
-    substringCandidates.sort((a, b) => a.key.length - b.key.length);
+    substringCandidates.sort((a, b) => b.key.length - a.key.length);
     return substringCandidates[0].name;
   }
 
