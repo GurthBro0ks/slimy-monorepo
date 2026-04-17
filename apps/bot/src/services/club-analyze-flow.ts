@@ -16,6 +16,36 @@ import { v4 as uuidv4 } from 'uuid';
 import { extractRoster, dedupeRosterRows } from './roster-ocr.js';
 import type { RawRosterRow } from './roster-ocr.js';
 
+function dedupeRows<T extends { name: string; power: bigint }>(rows: T[]): T[] {
+  const kept: T[] = [];
+  for (const row of rows) {
+    const key = row.name.toLowerCase().replace(/\s+/g, '');
+    const dup = kept.findIndex((k) => {
+      const kKey = k.name.toLowerCase().replace(/\s+/g, '');
+      return k.power === row.power && (kKey === key || simpleLev1(kKey, key));
+    });
+    if (dup === -1) {
+      kept.push(row);
+    } else if (row.name.length > kept[dup].name.length) {
+      kept[dup] = row;
+    }
+  }
+  return kept;
+}
+
+function simpleLev1(a: string, b: string): boolean {
+  if (a === b) return false;
+  if (Math.abs(a.length - b.length) > 1) return false;
+  let diff = 0;
+  const [short, long] = a.length <= b.length ? [a, b] : [b, a];
+  let si = 0, li = 0;
+  while (si < short.length && li < long.length) {
+    if (short[si] === long[li]) { si++; li++; }
+    else { diff++; if (diff > 1) return false; li++; }
+  }
+  return diff <= 1;
+}
+
 export const BUTTON_PREFIX = 'club-analyze';
 export const CONTEXT_BUTTON_PREFIX = 'Analyze Club Roster';
 export const MAX_IMAGES = 10;
@@ -138,26 +168,14 @@ export async function runClubAnalyze(options: ClubAnalyzeOptions): Promise<strin
   const canonicalMerged = dedupeRosterRows(allRawRows);
 
   const pages: Page[] = ocrResults.map((result) => {
-    const screenshotRows = result.rows.map((row) => {
-      const deduped = canonicalMerged.find(
-        (c) => c.name.toLowerCase().replace(/\s+/g, '') === row.name.toLowerCase().replace(/\s+/g, ''),
-      );
-      return {
-        name: deduped?.name ?? row.name,
-        power: row.power,
-        edited: false,
-      };
-    });
-    const seenKeys = new Set<string>();
-    const dedupedRows = screenshotRows.filter((r) => {
-      const key = r.name.toLowerCase().replace(/\s+/g, '');
-      if (seenKeys.has(key)) return false;
-      seenKeys.add(key);
-      return true;
-    });
+    const raw = result.rows.map((row) => ({
+      name: row.name,
+      power: row.power,
+      edited: false,
+    }));
     return {
       screenshotFilename: attachments[result.imageIndex]?.name || `screenshot_${result.imageIndex + 1}`,
-      rows: dedupedRows,
+      rows: dedupeRows(raw),
     };
   });
 
