@@ -27,6 +27,7 @@ interface CodeEntry {
   tags: string[];
   expires: string | null;
   region: string;
+  category?: string;
 }
 
 interface CodesResponse {
@@ -37,10 +38,11 @@ interface CodesResponse {
 interface CodesSession {
   allCodes: CodeEntry[];
   filtered: CodeEntry[];
-  filter: 'active' | 'recent' | 'all';
+  filter: 'latest' | 'older';
   page: number;
   totalPages: number;
   expiresAt: number;
+  hasCategories: boolean;
 }
 
 const codesSessions = new Map<string, CodesSession>();
@@ -52,38 +54,23 @@ function cleanExpiredSessions(): void {
   }
 }
 
-function filterCodes(codes: CodeEntry[], filter: 'active' | 'recent' | 'all'): CodeEntry[] {
-  if (filter === 'all') return codes;
-  if (filter === 'active') {
-    const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
-    return codes.filter((c) => {
-      if (!c.tags.includes('active')) return false;
-      const t = new Date(c.ts).getTime();
-      return Number.isFinite(t) && t >= cutoff;
-    });
-  }
-  if (filter === 'recent') {
-    const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
-    return codes.filter((c) => {
-      const t = new Date(c.ts).getTime();
-      return Number.isFinite(t) && t >= cutoff;
-    });
-  }
-  return codes;
+function filterCodes(codes: CodeEntry[], filter: 'latest' | 'older'): CodeEntry[] {
+  return codes.filter((c) => c.category === filter);
 }
 
 function buildCodesEmbed(session: CodesSession): EmbedBuilder {
   const start = session.page * CODES_PER_PAGE;
   const pageCodes = session.filtered.slice(start, start + CODES_PER_PAGE);
-  const filterLabel = session.filter === 'active' ? 'Active' : session.filter === 'recent' ? 'Recent 7 Days' : 'All Archive';
+  const filterLabel = session.filter === 'latest' ? 'Latest' : 'Older';
 
   const lines = pageCodes.map((c) => {
     const dateStr = (() => {
       const t = new Date(c.ts).getTime();
-      if (!Number.isFinite(t)) return 'Unknown date';
-      return `<t:${Math.floor(t / 1000)}:d>`;
+      if (!Number.isFinite(t)) return '';
+      const d = new Date(t);
+      return ` ${d.getMonth() + 1}/${d.getDate()}/${String(d.getFullYear()).slice(2)}`;
     })();
-    return `\`${c.code}\` — ${c.source} ${dateStr}`;
+    return `\`${c.code}\` — ${c.source}${dateStr}`;
   });
 
   return new EmbedBuilder()
@@ -96,19 +83,22 @@ function buildCodesEmbed(session: CodesSession): EmbedBuilder {
 function buildCodesButtons(session: CodesSession, sessionId: string): ActionRowBuilder<ButtonBuilder>[] {
   const rows: ActionRowBuilder<ButtonBuilder>[] = [];
 
-  const filterRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
-    new ButtonBuilder()
-      .setCustomId(`${BUTTON_PREFIX}:codes:active:${sessionId}`)
-      .setLabel('Active')
-      .setStyle(session.filter === 'active' ? ButtonStyle.Primary : ButtonStyle.Secondary),
-    new ButtonBuilder()
-      .setCustomId(`${BUTTON_PREFIX}:codes:recent:${sessionId}`)
-      .setLabel('Recent 7 Days')
-      .setStyle(session.filter === 'recent' ? ButtonStyle.Primary : ButtonStyle.Secondary),
-    new ButtonBuilder()
-      .setCustomId(`${BUTTON_PREFIX}:codes:all:${sessionId}`)
-      .setLabel('All Archive')
-      .setStyle(session.filter === 'all' ? ButtonStyle.Primary : ButtonStyle.Secondary),
+  const actionButtons: ButtonBuilder[] = [];
+
+  if (session.hasCategories) {
+    actionButtons.push(
+      new ButtonBuilder()
+        .setCustomId(`${BUTTON_PREFIX}:codes:latest:${sessionId}`)
+        .setLabel('Latest Codes')
+        .setStyle(session.filter === 'latest' ? ButtonStyle.Primary : ButtonStyle.Secondary),
+      new ButtonBuilder()
+        .setCustomId(`${BUTTON_PREFIX}:codes:older:${sessionId}`)
+        .setLabel('Older Codes')
+        .setStyle(session.filter === 'older' ? ButtonStyle.Primary : ButtonStyle.Secondary),
+    );
+  }
+
+  actionButtons.push(
     new ButtonBuilder()
       .setCustomId(`${BUTTON_PREFIX}:codes:copy:${sessionId}`)
       .setLabel('Copy All')
@@ -118,7 +108,8 @@ function buildCodesButtons(session: CodesSession, sessionId: string): ActionRowB
       .setLabel('Copy Page')
       .setStyle(ButtonStyle.Success),
   );
-  rows.push(filterRow);
+
+  rows.push(new ActionRowBuilder<ButtonBuilder>().addComponents(...actionButtons));
 
   if (session.totalPages > 1) {
     const navRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
@@ -159,17 +150,26 @@ async function handleCodes(interaction: {
       return interaction.editReply({ content: '🐌 No codes available right now.' });
     }
 
-    const filtered = filterCodes(allCodes, 'active');
+    const hasCategories = allCodes.some((c) => c.category != null);
+
+    let filtered: CodeEntry[];
+    if (hasCategories) {
+      filtered = filterCodes(allCodes, 'latest');
+    } else {
+      filtered = allCodes;
+    }
+
     const totalPages = Math.max(1, Math.ceil(filtered.length / CODES_PER_PAGE));
     const sessionId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
     const session: CodesSession = {
       allCodes,
       filtered,
-      filter: 'active',
+      filter: 'latest',
       page: 0,
       totalPages,
       expiresAt: Date.now() + 15 * 60 * 1000,
+      hasCategories,
     };
     codesSessions.set(sessionId, session);
 
@@ -410,7 +410,7 @@ module.exports = {
       session.page = Math.max(0, session.page - 1);
     } else if (param === 'next') {
       session.page = Math.min(session.totalPages - 1, session.page + 1);
-    } else if (param === 'active' || param === 'recent' || param === 'all') {
+    } else if (param === 'latest' || param === 'older') {
       session.filter = param;
       session.filtered = filterCodes(session.allCodes, param);
       session.totalPages = Math.max(1, Math.ceil(session.filtered.length / CODES_PER_PAGE));

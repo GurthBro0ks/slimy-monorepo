@@ -464,32 +464,48 @@ class Database {
     await this.execute(`UPDATE snail_stats SET saved_to_sheet = 1 WHERE id = ?`, [statId]);
   }
 
-  async getSnailLeaderboard(guildId: string, limit = 10): Promise<RowDataPacket[]> {
+  async getClubLeaderboard(guildId: string, limit = 10): Promise<{
+    topSim: RowDataPacket[];
+    topTotal: RowDataPacket[];
+    memberCount: number;
+    latestAt: string | null;
+  }> {
     const safeLimit = Number.isFinite(Number(limit))
       ? Math.max(1, Math.min(50, Number(limit)))
       : 10;
 
-    const snailRows = await this.query<RowDataPacket[]>(
-      `SELECT user_id AS userId, COUNT(*) AS analysis_count, MAX(created_at) AS last_analysis
-       FROM snail_stats
+    const topSim = await this.query<RowDataPacket[]>(
+      `SELECT name_display, sim_power
+       FROM club_latest
        WHERE guild_id = ?
-       GROUP BY user_id
-       ORDER BY analysis_count DESC
+       ORDER BY sim_power DESC
        LIMIT ${safeLimit}`,
       [guildId],
     );
 
-    if (snailRows.length > 0) return snailRows;
-
-    return this.query<RowDataPacket[]>(
-      `SELECT user_id AS userId, COUNT(*) AS analysis_count, MAX(created_at) AS last_analysis
-       FROM image_generation_log
+    const topTotal = await this.query<RowDataPacket[]>(
+      `SELECT name_display, total_power
+       FROM club_latest
        WHERE guild_id = ?
-       GROUP BY user_id
-       ORDER BY analysis_count DESC
+       ORDER BY total_power DESC
        LIMIT ${safeLimit}`,
       [guildId],
     );
+
+    const metaRows = await this.query<RowDataPacket[]>(
+      `SELECT COUNT(*) AS member_count, MAX(latest_at) AS latest_at
+       FROM club_latest
+       WHERE guild_id = ?`,
+      [guildId],
+    );
+
+    const meta = metaRows[0] || {};
+    return {
+      topSim,
+      topTotal,
+      memberCount: Number(meta.member_count) || 0,
+      latestAt: meta.latest_at ? String(meta.latest_at) : null,
+    };
   }
 
   // ─── Personality ───────────────────────────────────────────────────────────
