@@ -59,7 +59,7 @@ describe('leaderboard command', () => {
     await cmd.execute(interaction);
 
     const call = (interaction.editReply as ReturnType<typeof vi.fn>).mock.calls[0][0];
-    expect(call.content).toContain('No leaderboard data');
+    expect(call.content).toContain('No activity data');
   });
 
   it('handles leaderboard null response', async () => {
@@ -69,7 +69,7 @@ describe('leaderboard command', () => {
     await cmd.execute(interaction);
 
     const call = (interaction.editReply as ReturnType<typeof vi.fn>).mock.calls[0][0];
-    expect(call.content).toContain('No leaderboard data');
+    expect(call.content).toContain('No activity data');
   });
 
   it('passes custom limit option', async () => {

@@ -46,7 +46,7 @@ module.exports = {
       if (!rows || rows.length === 0) {
         await interaction.editReply({
           content:
-            "📊 No leaderboard data available yet. Start analyzing screenshots with `/snail analyze`!",
+            "📊 No activity data available yet. Use bot commands like `/dream`, `/snail analyze`, or `/chat` to get on the board!",
         });
         return;
       }
@@ -62,7 +62,6 @@ module.exports = {
             const user = await interaction.client.users.fetch(userId);
             username = user.username;
           } catch {
-            // User not found or left server
           }
 
           const count = Number(entry.analysis_count) || 0;
@@ -70,16 +69,16 @@ module.exports = {
             ? `<t:${Math.floor(new Date(String(entry.last_analysis)).getTime() / 1000)}:R>`
             : "Never";
 
-          return `${medal} **${index + 1}.** ${username} - ${count} ${count === 1 ? "analysis" : "analyses"} (Last: ${lastAnalysis})`;
+          return `${medal} **${index + 1}.** ${username} - ${count} ${count === 1 ? "action" : "actions"} (Last: ${lastAnalysis})`;
         }),
       );
 
       const embed = new EmbedBuilder()
         .setColor(0xffd700)
-        .setTitle("🏆 Super Snail Leaderboard")
+        .setTitle("🏆 Server Leaderboard")
         .setDescription(leaderboardText.join("\n"))
         .setFooter({
-          text: `Top ${limit} players in ${interaction.guild.name}`,
+          text: `Top ${limit} users in ${interaction.guild.name}`,
         })
         .setTimestamp();
 

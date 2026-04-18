@@ -54,7 +54,14 @@ function cleanExpiredSessions(): void {
 
 function filterCodes(codes: CodeEntry[], filter: 'active' | 'recent' | 'all'): CodeEntry[] {
   if (filter === 'all') return codes;
-  if (filter === 'active') return codes.filter((c) => c.tags.includes('active'));
+  if (filter === 'active') {
+    const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
+    return codes.filter((c) => {
+      if (!c.tags.includes('active')) return false;
+      const t = new Date(c.ts).getTime();
+      return Number.isFinite(t) && t >= cutoff;
+    });
+  }
   if (filter === 'recent') {
     const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
     return codes.filter((c) => {
@@ -105,6 +112,10 @@ function buildCodesButtons(session: CodesSession, sessionId: string): ActionRowB
     new ButtonBuilder()
       .setCustomId(`${BUTTON_PREFIX}:codes:copy:${sessionId}`)
       .setLabel('Copy All')
+      .setStyle(ButtonStyle.Success),
+    new ButtonBuilder()
+      .setCustomId(`${BUTTON_PREFIX}:codes:copypage:${sessionId}`)
+      .setLabel('Copy Page')
       .setStyle(ButtonStyle.Success),
   );
   rows.push(filterRow);
@@ -384,6 +395,14 @@ module.exports = {
     if (param === 'copy') {
       const text = session.filtered.map((c) => c.code).join('\n');
       await interaction.reply({ content: `📋 **Codes (${session.filtered.length}):**\n\`\`\`\n${text.slice(0, 1900)}\n\`\`\``, flags: MessageFlags.Ephemeral });
+      return;
+    }
+
+    if (param === 'copypage') {
+      const start = session.page * CODES_PER_PAGE;
+      const pageCodes = session.filtered.slice(start, start + CODES_PER_PAGE);
+      const text = pageCodes.map((c) => c.code).join('\n');
+      await interaction.reply({ content: `📋 **Page ${session.page + 1} Codes (${pageCodes.length}):**\n\`\`\`\n${text.slice(0, 1900)}\n\`\`\``, flags: MessageFlags.Ephemeral });
       return;
     }
 
