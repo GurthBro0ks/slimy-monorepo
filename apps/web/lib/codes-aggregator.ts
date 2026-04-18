@@ -5,8 +5,6 @@
  */
 
 import { createSnelpSource } from "./codes/sources/snelp";
-import { createRedditSource } from "./codes/sources/reddit";
-import { createWikiSource } from "./codes/sources/wiki";
 import { SourceResult, CodeSource, AggregatorConfig } from "./codes/sources/types";
 import { getCache, CacheKeys } from "./codes/cache";
 import { getDeduplicator } from "./codes/deduplication";
@@ -21,6 +19,7 @@ export interface Code {
   expires: string | null;
   region: string;
   description?: string;
+  category?: "latest" | "older";
 }
 
 export interface CodesResponse {
@@ -64,20 +63,6 @@ const DEFAULT_CONFIG: AggregatorConfig = {
       cacheTtl: 300,
       enabled: true,
     },
-    reddit: {
-      timeout: 15000,
-      retries: 2,
-      retryDelay: 2000,
-      cacheTtl: 600,
-      enabled: true,
-    },
-    wiki: {
-      timeout: 10000,
-      retries: 2,
-      retryDelay: 1000,
-      cacheTtl: 300,
-      enabled: true,
-    },
   },
   cache: {
     enabled: true,
@@ -88,7 +73,7 @@ const DEFAULT_CONFIG: AggregatorConfig = {
   deduplication: {
     enabled: true,
     strategy: "newest",
-    priorityOrder: ["snelp", "wiki", "reddit"],
+    priorityOrder: ["snelp"],
   },
   refresh: {
     enabled: true,
@@ -117,14 +102,9 @@ export class CodesAggregator {
    * Initialize source adapters
    */
   private initializeSources(): void {
-    // Create source adapters
     const snelpSource = createSnelpSource(this.config.sources.snelp);
-    const redditSource = createRedditSource(this.config.sources.reddit);
-    const wikiSource = createWikiSource(this.config.sources.wiki);
 
     this.sources.set("snelp", snelpSource);
-    this.sources.set("reddit", redditSource);
-    this.sources.set("wiki", wikiSource);
 
     // Configure deduplicator
     this.deduplicator = getDeduplicator(this.config.deduplication);

@@ -22,7 +22,7 @@ export interface DeduplicationConfig {
 const DEFAULT_CONFIG: DeduplicationConfig = {
   enabled: true,
   strategy: "newest",
-  priorityOrder: ["snelp", "reddit"], // Higher priority sources first
+  priorityOrder: ["snelp"],
   mergeTags: true,
   mergeDescriptions: false,
 };

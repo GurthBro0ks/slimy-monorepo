@@ -174,8 +174,10 @@ export class SnelpSource implements CodeSource {
    * Transform Snelp API response to our Code format
    */
   private transformCodes(apiCodes: any[]): Code[] {
+    const LATEST_COUNT = 10;
+
     return apiCodes
-      .filter(code => {
+      .filter((code) => {
         if (!code) {
           return false;
         }
@@ -184,7 +186,9 @@ export class SnelpSource implements CodeSource {
         }
         return !!(code.code || code.text);
       })
-      .map(raw => {
+      .map((raw, index) => {
+        const category = index < LATEST_COUNT ? "latest" as const : "older" as const;
+
         if (typeof raw === "string") {
           const normalized = raw.trim();
           return {
@@ -195,6 +199,7 @@ export class SnelpSource implements CodeSource {
             expires: null,
             region: "global",
             description: undefined,
+            category,
           };
         }
 
@@ -206,18 +211,15 @@ export class SnelpSource implements CodeSource {
           expires: raw.expiresAt || raw.expiry || null,
           region: raw.region || "global",
           description: raw.description || raw.notes || undefined,
+          category,
         };
       })
       .filter(code => {
-        // Basic validation
-        if (code.code.length < 4 || code.code.length > 20) {
-          console.warn(`Filtering out invalid code: ${code.code} (length: ${code.code.length})`);
+        if (code.code.length < 4 || code.code.length > 50) {
           return false;
         }
 
-        // Check if it's a reasonable code format (alphanumeric, some letters)
-        if (!/[A-Z]/.test(code.code) || !/[0-9]/.test(code.code)) {
-          console.warn(`Filtering out non-alphanumeric code: ${code.code}`);
+        if (!/[A-Z]/.test(code.code)) {
           return false;
         }
 
