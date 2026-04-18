@@ -22,7 +22,7 @@ async function generateImage({
   const isGLM = isGLMImageModel(model);
 
   // For image generation, we use a direct API approach
-  const apiKey = process.env.AI_API_KEY || process.env.OPENAI_API_KEY;
+  const apiKey = process.env.OPENAI_API_KEY;
   const imageUrl = `https://api.openai.com/v1/images/generations`;
 
   const response = await fetch(imageUrl, {

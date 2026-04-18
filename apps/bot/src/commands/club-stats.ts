@@ -116,11 +116,10 @@ module.exports = {
         return;
       }
 
-      const { embed, components } = buildClubStatsEmbed(interaction.guildId!, statsData, { metric });
+      const { embed } = buildClubStatsEmbed(interaction.guildId!, statsData, { metric });
 
       await interaction.editReply({
         embeds: [embed],
-        components,
       });
 
       trackCommand("club-stats", Date.now() - startTime, true);

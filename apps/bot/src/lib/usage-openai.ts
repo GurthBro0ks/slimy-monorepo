@@ -54,7 +54,7 @@ async function fetchOpenAIUsage(
   if (!openai.isConfigured()) return null;
   try {
     const url = `https://api.openai.com/v1/usage?start_date=${startDate}&end_date=${endDate}`;
-    const apiKey = process.env.OPENAI_API_KEY || process.env.AI_API_KEY;
+    const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) return null;
     const response = await fetch(url, {
       headers: { Authorization: `Bearer ${apiKey}` },

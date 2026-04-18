@@ -146,7 +146,7 @@ export async function classifyPage(
     if (filename.includes("sim-") || filename.includes("sim_")) return "sim";
   }
 
-  if (!process.env.OPENAI_API_KEY && !process.env.AI_API_KEY) {
+  if (!process.env.OPENAI_API_KEY) {
     throw new Error("OPENAI_API_KEY is not configured for page classification");
   }
 
@@ -190,7 +190,7 @@ export async function parseManageMembersImage(
   forced: string | null = null,
   options: Record<string, unknown> = {},
 ): Promise<ParseResult> {
-  if (!process.env.OPENAI_API_KEY && !process.env.AI_API_KEY) {
+  if (!process.env.OPENAI_API_KEY) {
     throw new Error("OPENAI_API_KEY is not configured for vision parsing");
   }
   if (!imageUrl) throw new Error("imageUrl is required");
@@ -336,7 +336,7 @@ export async function parseManageMembersImageEnsemble(
   imageUrl: string,
   forced: string | null = null,
 ): Promise<ParseResult> {
-  if (!process.env.OPENAI_API_KEY && !process.env.AI_API_KEY) {
+  if (!process.env.OPENAI_API_KEY) {
     throw new Error("OPENAI_API_KEY is not configured for vision parsing");
   }
   if (!imageUrl) throw new Error("imageUrl is required");

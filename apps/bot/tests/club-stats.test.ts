@@ -57,7 +57,6 @@ describe('club-stats command', () => {
     });
     mockBuildClubStatsEmbed.mockReturnValue({
       embed: { data: { title: 'test' } },
-      components: [],
     });
     mockBuildCsv.mockReturnValue('Name,Power\nAlice,1000000');
   });

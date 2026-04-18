@@ -128,7 +128,7 @@ module.exports = {
       return;
     }
 
-    if (!process.env.OPENAI_API_KEY && !process.env.AI_API_KEY) {
+    if (!process.env.OPENAI_API_KEY) {
       metrics.trackCommand("dream", Date.now() - startTime, false);
       await interaction.reply({
         content: "❌ OPENAI_API_KEY is not configured. Ask an admin to set it first.",

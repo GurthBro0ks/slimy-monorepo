@@ -3,9 +3,8 @@
  * Ported from /opt/slimy/app/lib/club-stats-service.js
  */
 
-import { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
+import { EmbedBuilder } from 'discord.js';
 import { getAggregates, getLatestForGuild, getTopMovers, LatestMemberRow } from './club-store.js';
-import { getSheetConfig } from './guild-settings.js';
 import { formatAnchorDisplay } from './week-anchor.js';
 
 export const DEFAULT_TOP = 10;
@@ -159,7 +158,6 @@ function normalizeTop(top: unknown): number {
 export interface ClubStatsData {
   aggregates: { members: number; membersWithTotals: number; totalPower: number | null; averagePower: number | null };
   latest: LatestMemberRow[];
-  sheetConfig: { url: string | null; sheetId: string | null };
   totalMovers: { gainers: TableRow[]; losers: TableRow[] } | null;
   simMovers: { gainers: TableRow[]; losers: TableRow[] } | null;
   cohorts: { newMembers: LatestMemberRow[]; veterans: LatestMemberRow[]; mostVolatile: LatestMemberRow[]; newCount: number; veteranCount: number };
@@ -169,14 +167,13 @@ export async function fetchClubStats(guildId: string, options: { metric?: string
   const metric = options.metric || "both";
   const top = normalizeTop(options.top);
 
-  const [aggregates, latest, sheetConfig] = await Promise.all([
+  const [aggregates, latest] = await Promise.all([
     getAggregates(guildId),
     getLatestForGuild(guildId),
-    getSheetConfig(guildId),
   ]);
 
   if (!latest.length) {
-    return { aggregates, latest, sheetConfig, totalMovers: null, simMovers: null, cohorts: { newMembers: [], veterans: [], mostVolatile: [], newCount: 0, veteranCount: 0 } };
+    return { aggregates, latest, totalMovers: null, simMovers: null, cohorts: { newMembers: [], veterans: [], mostVolatile: [], newCount: 0, veteranCount: 0 } };
   }
 
   const [totalMovers, simMovers, cohorts] = await Promise.all([
@@ -185,15 +182,15 @@ export async function fetchClubStats(guildId: string, options: { metric?: string
     computeCohorts(latest),
   ]);
 
-  return { aggregates, latest, sheetConfig, totalMovers, simMovers, cohorts };
+  return { aggregates, latest, totalMovers, simMovers, cohorts };
 }
 
 export function buildClubStatsEmbed(
   _guildId: string,
   data: ClubStatsData,
   options: { metric?: string } = {},
-): { embed: EmbedBuilder; components: ActionRowBuilder<ButtonBuilder>[] } {
-  const { aggregates, latest: _latest, sheetConfig, totalMovers, simMovers, cohorts } = data;
+): { embed: EmbedBuilder } {
+  const { aggregates, latest: _latest, totalMovers, simMovers, cohorts } = data;
 
   const anchorDisplay = formatAnchorDisplay(_guildId);
 
@@ -236,16 +233,7 @@ export function buildClubStatsEmbed(
     embed.addFields({ name: "🔥 Most Volatile (Total Power)", value: volatileLines.join("\n"), inline: false });
   }
 
-  const components: ActionRowBuilder<ButtonBuilder>[] = [];
-  if (sheetConfig?.url) {
-    const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
-      new ButtonBuilder().setLabel("Open Sheet").setStyle(ButtonStyle.Link).setURL(sheetConfig.url),
-    );
-    components.push(row);
-    embed.setFooter({ text: `Weekly window: ${anchorDisplay} • Open Sheet → button below` });
-  } else {
-    embed.setFooter({ text: `Weekly window: ${anchorDisplay} • Sheet link not configured` });
-  }
+  embed.setFooter({ text: `Weekly window: ${anchorDisplay}` });
 
-  return { embed, components };
+  return { embed };
 }

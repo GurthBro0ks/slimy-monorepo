@@ -3,7 +3,7 @@
  * Ported from /opt/slimy/app/lib/image-intent.js
  */
 
-const OPENAI_KEY_MISSING = !process.env.OPENAI_API_KEY && !process.env.AI_API_KEY;
+const OPENAI_KEY_MISSING = !process.env.OPENAI_API_KEY;
 
 const IMAGE_TRIGGERS = [
   /\bcreate (an? )?(image|picture|photo|art|poster|logo|banner|icon)\b/i,

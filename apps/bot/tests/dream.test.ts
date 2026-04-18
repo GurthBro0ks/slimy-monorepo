@@ -62,7 +62,6 @@ describe('dream command', () => {
       buffer: Buffer.from('fake-image-data'),
     });
     delete process.env.OPENAI_API_KEY;
-    delete process.env.AI_API_KEY;
   });
 
   it('rejects when rate limited', async () => {

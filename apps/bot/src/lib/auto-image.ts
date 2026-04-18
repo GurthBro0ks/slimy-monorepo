@@ -26,10 +26,8 @@ async function maybeReplyWithImage({
 }): Promise<boolean> {
   const isInteraction = Boolean(interaction);
   if (!prompt || !detectImageIntent(prompt)) return false;
-  if (!process.env.OPENAI_API_KEY && !process.env.AI_API_KEY) {
-    console.warn(
-      "[auto-image] OPENAI_API_KEY / AI_API_KEY missing - image generation skipped",
-    );
+  if (!process.env.OPENAI_API_KEY) {
+    console.warn("[auto-image] OPENAI_API_KEY missing - image generation skipped");
     return false;
   }
 

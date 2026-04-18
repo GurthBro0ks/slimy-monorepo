@@ -1,7 +1,7 @@
 import { detectImageIntent } from '../../src/lib/image-intent';
 
 describe('detectImageIntent', () => {
-  const hasKey = Boolean(process.env.OPENAI_API_KEY || process.env.AI_API_KEY);
+  const hasKey = Boolean(process.env.OPENAI_API_KEY);
 
   it('should detect "draw" intent', () => {
     if (!hasKey) return;

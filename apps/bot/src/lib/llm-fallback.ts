@@ -85,7 +85,7 @@ async function callOpenAI(payload: {
   max_tokens?: number;
   timeoutMs?: number;
 }): Promise<{ text: string; model: string }> {
-  const apiKey = process.env.OPENAI_API_KEY || process.env.AI_API_KEY;
+  const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) throw new Error("OPENAI_API_KEY is not configured");
 
   const model = payload.model || process.env.OPENAI_MODEL || "gpt-4o";
@@ -260,7 +260,7 @@ async function callWithFallback(payload: {
   const providers = [
     {
       name: "openai",
-      isConfigured: () => Boolean(process.env.OPENAI_API_KEY || process.env.AI_API_KEY),
+      isConfigured: () => Boolean(process.env.OPENAI_API_KEY),
       call: callOpenAI,
     },
     {

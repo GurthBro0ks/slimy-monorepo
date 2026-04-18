@@ -15,9 +15,7 @@ describe('openai client', () => {
   });
 
   it('should throw when API key not configured', async () => {
-    const originalKey = process.env.AI_API_KEY;
     const originalOpenai = process.env.OPENAI_API_KEY;
-    delete process.env.AI_API_KEY;
     delete process.env.OPENAI_API_KEY;
 
     try {
@@ -26,7 +24,6 @@ describe('openai client', () => {
         messages: [{ role: 'user', content: 'test' }],
       })).rejects.toThrow('not configured');
     } finally {
-      process.env.AI_API_KEY = originalKey;
       process.env.OPENAI_API_KEY = originalOpenai;
     }
   });

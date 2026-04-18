@@ -4,17 +4,16 @@
  */
 
 const baseURL = process.env.AI_BASE_URL || "https://api.z.ai/api/paas/v4";
-const apiKey = process.env.AI_API_KEY || process.env.OPENAI_API_KEY;
+const apiKey = process.env.OPENAI_API_KEY;
 
 const isConfigured = Boolean(apiKey);
 
 if (!isConfigured) {
-  console.warn("[openai] Missing AI_API_KEY / OPENAI_API_KEY — AI features will refuse.");
+  console.warn("[openai] Missing OPENAI_API_KEY — AI features will refuse.");
 }
 
-// Simple fetch-based client for AI API calls
 async function makeRequest<T = unknown>(path: string, body: Record<string, unknown>): Promise<T> {
-  if (!apiKey) throw new Error("AI_API_KEY is not configured");
+  if (!apiKey) throw new Error("OPENAI_API_KEY is not configured");
 
   const response = await fetch(`${baseURL}${path}`, {
     method: "POST",

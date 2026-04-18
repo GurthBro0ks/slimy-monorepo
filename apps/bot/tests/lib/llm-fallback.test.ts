@@ -65,11 +65,9 @@ describe('llm-fallback — hasConfiguredProvider', () => {
 describe('llm-fallback — callWithFallback', () => {
   it('should throw when no providers configured', async () => {
     const originalOpenai = process.env.OPENAI_API_KEY;
-    const originalAi = process.env.AI_API_KEY;
     const originalGemini = process.env.GEMINI_API_KEY;
     const originalAnthropic = process.env.ANTHROPIC_API_KEY;
     delete process.env.OPENAI_API_KEY;
-    delete process.env.AI_API_KEY;
     delete process.env.GEMINI_API_KEY;
     delete process.env.ANTHROPIC_API_KEY;
 
@@ -79,7 +77,6 @@ describe('llm-fallback — callWithFallback', () => {
       })).rejects.toThrow('No LLM providers configured');
     } finally {
       process.env.OPENAI_API_KEY = originalOpenai;
-      process.env.AI_API_KEY = originalAi;
       process.env.GEMINI_API_KEY = originalGemini;
       process.env.ANTHROPIC_API_KEY = originalAnthropic;
     }
