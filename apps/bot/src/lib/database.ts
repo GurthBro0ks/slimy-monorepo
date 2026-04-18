@@ -475,8 +475,8 @@ class Database {
        WHERE guild_id = ?
        GROUP BY user_id
        ORDER BY analysis_count DESC
-       LIMIT ?`,
-      [guildId, safeLimit],
+       LIMIT ${safeLimit}`,
+      [guildId],
     );
   }
 
