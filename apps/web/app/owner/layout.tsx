@@ -60,6 +60,12 @@ export default async function OwnerLayout({ children }: OwnerLayoutProps) {
                 Snail
               </Link>
               <Link
+                href="/snail-codes"
+                className="px-3 py-2 text-xs font-['VT323'] text-green-400 border border-green-500/50 rounded hover:bg-green-500/20 hover:border-green-400 transition-all"
+              >
+                Snail Codes
+              </Link>
+              <Link
                 href="/owner/invites"
                 className="px-3 py-2 text-xs font-['VT323'] text-purple-300 border border-purple-500/50 rounded hover:bg-purple-500/20 hover:border-purple-400 transition-all"
               >
