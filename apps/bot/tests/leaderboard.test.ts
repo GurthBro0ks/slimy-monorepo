@@ -4,8 +4,8 @@ const { mockGetSnailLeaderboard } = vi.hoisted(() => ({
   mockGetSnailLeaderboard: vi.fn(),
 }));
 
-vi.mock('../src/lib/mcp-client.js', () => ({
-  mcpClient: { getSnailLeaderboard: mockGetSnailLeaderboard },
+vi.mock('../src/lib/database.js', () => ({
+  database: { getSnailLeaderboard: mockGetSnailLeaderboard },
 }));
 
 import cmd from '../src/commands/leaderboard.js';
@@ -40,12 +40,10 @@ describe('leaderboard command', () => {
   });
 
   it('shows leaderboard with data', async () => {
-    mockGetSnailLeaderboard.mockResolvedValue({
-      leaderboard: [
-        { userId: 'u1', analysis_count: 15, last_analysis: '2026-04-14T10:00:00Z' },
-        { userId: 'u2', analysis_count: 10, last_analysis: '2026-04-13T08:00:00Z' },
-      ],
-    });
+    mockGetSnailLeaderboard.mockResolvedValue([
+      { userId: 'u1', analysis_count: 15, last_analysis: '2026-04-14T10:00:00Z' },
+      { userId: 'u2', analysis_count: 10, last_analysis: '2026-04-13T08:00:00Z' },
+    ]);
 
     const interaction = createInteraction();
     await cmd.execute(interaction);
@@ -55,7 +53,7 @@ describe('leaderboard command', () => {
   });
 
   it('shows empty message when no data', async () => {
-    mockGetSnailLeaderboard.mockResolvedValue({ leaderboard: [] });
+    mockGetSnailLeaderboard.mockResolvedValue([]);
 
     const interaction = createInteraction();
     await cmd.execute(interaction);
@@ -65,7 +63,7 @@ describe('leaderboard command', () => {
   });
 
   it('handles leaderboard null response', async () => {
-    mockGetSnailLeaderboard.mockResolvedValue({});
+    mockGetSnailLeaderboard.mockResolvedValue(null);
 
     const interaction = createInteraction();
     await cmd.execute(interaction);
@@ -75,7 +73,7 @@ describe('leaderboard command', () => {
   });
 
   it('passes custom limit option', async () => {
-    mockGetSnailLeaderboard.mockResolvedValue({ leaderboard: [] });
+    mockGetSnailLeaderboard.mockResolvedValue([]);
 
     const interaction = createInteraction({
       options: { getInteger: vi.fn().mockReturnValue(25) },
@@ -96,11 +94,9 @@ describe('leaderboard command', () => {
   });
 
   it('handles user fetch failure gracefully', async () => {
-    mockGetSnailLeaderboard.mockResolvedValue({
-      leaderboard: [
-        { userId: 'u1', analysis_count: 5, last_analysis: '2026-04-14T10:00:00Z' },
-      ],
-    });
+    mockGetSnailLeaderboard.mockResolvedValue([
+      { userId: 'u1', analysis_count: 5, last_analysis: '2026-04-14T10:00:00Z' },
+    ]);
 
     const interaction = createInteraction({
       client: {

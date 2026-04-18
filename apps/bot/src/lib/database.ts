@@ -464,6 +464,22 @@ class Database {
     await this.execute(`UPDATE snail_stats SET saved_to_sheet = 1 WHERE id = ?`, [statId]);
   }
 
+  async getSnailLeaderboard(guildId: string, limit = 10): Promise<RowDataPacket[]> {
+    const safeLimit = Number.isFinite(Number(limit))
+      ? Math.max(1, Math.min(50, Number(limit)))
+      : 10;
+
+    return this.query<RowDataPacket[]>(
+      `SELECT user_id AS userId, COUNT(*) AS analysis_count, MAX(created_at) AS last_analysis
+       FROM snail_stats
+       WHERE guild_id = ?
+       GROUP BY user_id
+       ORDER BY analysis_count DESC
+       LIMIT ?`,
+      [guildId, safeLimit],
+    );
+  }
+
   // ─── Personality ───────────────────────────────────────────────────────────
 
   async recordPersonalityMetric({

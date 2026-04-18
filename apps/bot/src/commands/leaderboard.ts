@@ -4,7 +4,7 @@
  */
 
 import { SlashCommandBuilder, EmbedBuilder } from "discord.js";
-import { mcpClient } from "../lib/mcp-client.js";
+import { database } from "../lib/database.js";
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -41,18 +41,9 @@ module.exports = {
 
       const limit = interaction.options.getInteger("limit") || 10;
 
-      const result = await mcpClient.getSnailLeaderboard(interaction.guildId, limit) as {
-        leaderboard?: Array<{
-          userId: string;
-          analysis_count?: number;
-          last_analysis?: string;
-        }>;
-      };
+      const rows = await database.getSnailLeaderboard(interaction.guildId, limit);
 
-      if (
-        !result.leaderboard ||
-        result.leaderboard.length === 0
-      ) {
+      if (!rows || rows.length === 0) {
         await interaction.editReply({
           content:
             "📊 No leaderboard data available yet. Start analyzing screenshots with `/snail analyze`!",
@@ -61,21 +52,22 @@ module.exports = {
       }
 
       const leaderboardText = await Promise.all(
-        result.leaderboard.map(async (entry, index) => {
+        rows.map(async (entry: Record<string, unknown>, index: number) => {
           const medal =
             index === 0 ? "🥇" : index === 1 ? "🥈" : index === 2 ? "🥉" : "  ";
 
-          let username = `User ${entry.userId}`;
+          const userId = String(entry.userId ?? '');
+          let username = `User ${userId}`;
           try {
-            const user = await interaction.client.users.fetch(entry.userId);
+            const user = await interaction.client.users.fetch(userId);
             username = user.username;
           } catch {
             // User not found or left server
           }
 
-          const count = entry.analysis_count || 0;
+          const count = Number(entry.analysis_count) || 0;
           const lastAnalysis = entry.last_analysis
-            ? `<t:${Math.floor(new Date(entry.last_analysis).getTime() / 1000)}:R>`
+            ? `<t:${Math.floor(new Date(String(entry.last_analysis)).getTime() / 1000)}:R>`
             : "Never";
 
           return `${medal} **${index + 1}.** ${username} - ${count} ${count === 1 ? "analysis" : "analyses"} (Last: ${lastAnalysis})`;
@@ -94,19 +86,7 @@ module.exports = {
       await interaction.editReply({ embeds: [embed] });
     } catch (error) {
       console.error("[leaderboard] Error:", error);
-
-      let errorMessage = "❌ Failed to fetch leaderboard. ";
-      const msg = (error as Error).message || "";
-
-      if (msg.includes("ECONNREFUSED")) {
-        errorMessage += "Analytics service is currently unavailable.";
-      } else if (msg.includes("Authentication")) {
-        errorMessage += "Authentication error with analytics service.";
-      } else {
-        errorMessage += "Please try again later.";
-      }
-
-      await interaction.editReply({ content: errorMessage });
+      await interaction.editReply({ content: "❌ Failed to fetch leaderboard. Please try again later." });
     }
   },
 };

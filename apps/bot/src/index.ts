@@ -370,6 +370,30 @@ try {
   console.warn('[WARN] Snail auto-detect handler not loaded:', (err as Error).message);
 }
 
+// ─── Health Text Command Handler (graceful) ──────────────────────────────────
+
+try {
+  const healthPath = path.join(__dirname, 'commands', 'health.js');
+  if (fs.existsSync(healthPath)) {
+    const { handleHealthCommand, isHealthCommand } = require('./commands/health.js');
+    if (typeof isHealthCommand === 'function' && typeof handleHealthCommand === 'function') {
+      client.on(Events.MessageCreate, async (message) => {
+        try {
+          if (message.author.bot) return;
+          if (isHealthCommand(message)) {
+            await handleHealthCommand(message, client);
+          }
+        } catch (err) {
+          console.error('[health] Error:', (err as Error).message);
+        }
+      });
+      console.log('✅ Health text command handler attached');
+    }
+  }
+} catch (err) {
+  console.warn('[WARN] Health text command handler not loaded:', (err as Error).message);
+}
+
 // ─── Global Error Handlers ────────────────────────────────────────────────────
 
 process.on('unhandledRejection', (reason) => {
