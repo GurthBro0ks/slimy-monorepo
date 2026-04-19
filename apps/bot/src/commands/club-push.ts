@@ -17,6 +17,7 @@ import {
   SlashCommandBuilder,
   EmbedBuilder,
   MessageFlags,
+  AttachmentBuilder,
   ChatInputCommandInteraction,
 } from 'discord.js';
 import { database } from '../lib/database.js';
@@ -211,6 +212,60 @@ module.exports = {
       await interaction.editReply({
         content: `✅ Pushed **${pushedCount}** members to club_latest.${removedMsg} ${metricsPushed.join(' + ')} updated. Staging cleared.`,
       });
+
+      try {
+        const XLSX = await import('xlsx');
+        const rows = await database.query<Array<{
+          name_display: string;
+          sim_power: number | null;
+          total_power: number | null;
+          sim_prev: number | null;
+          total_prev: number | null;
+          latest_at: string;
+        }>>(
+          `SELECT name_display, sim_power, total_power, sim_prev, total_prev, latest_at
+           FROM club_latest WHERE guild_id = ?
+           ORDER BY sim_power IS NULL, sim_power DESC`,
+          [guildId],
+        );
+
+        const worksheetData = rows.map((m, i) => ({
+          'Rank': i + 1,
+          'Name': m.name_display,
+          'SIM Power': m.sim_power != null ? Number(m.sim_power) : '',
+          'Total Power': m.total_power != null ? Number(m.total_power) : '',
+          'Previous SIM': m.sim_prev != null ? Number(m.sim_prev) : '',
+          'WoW Change': m.sim_prev != null && m.sim_power != null ? Number(m.sim_power) - Number(m.sim_prev) : '',
+          'Last Seen': m.latest_at,
+        }));
+
+        if (worksheetData.length > 0) {
+          const wb = XLSX.utils.book_new();
+          const ws = XLSX.utils.json_to_sheet(worksheetData);
+
+          const colWidths = Object.keys(worksheetData[0]).map((key) => ({
+            wch: Math.max(
+              key.length,
+              ...worksheetData.map((r) => String(r[key as keyof typeof r]).length),
+            ) + 2,
+          }));
+          ws['!cols'] = colWidths;
+
+          XLSX.utils.book_append_sheet(wb, ws, 'Club Roster');
+          const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+
+          const timestamp = new Date().toISOString().split('T')[0];
+          const filename = `club-roster-${timestamp}.xlsx`;
+          const attachment = new AttachmentBuilder(Buffer.from(buffer), { name: filename });
+
+          await interaction.followUp({
+            content: `Club roster exported (${worksheetData.length} members)`,
+            files: [attachment],
+          });
+        }
+      } catch (xlsxErr) {
+        console.error('[club-push] XLSX export failed (push succeeded):', xlsxErr);
+      }
     } catch (err) {
       console.error('[club-push] Failed:', err);
       await interaction.editReply({
