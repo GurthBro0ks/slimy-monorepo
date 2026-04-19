@@ -63,15 +63,7 @@ function buildCodesEmbed(session: CodesSession): EmbedBuilder {
   const pageCodes = session.filtered.slice(start, start + CODES_PER_PAGE);
   const filterLabel = session.filter === 'latest' ? 'Latest' : 'Older';
 
-  const lines = pageCodes.map((c) => {
-    const dateStr = (() => {
-      const t = new Date(c.ts).getTime();
-      if (!Number.isFinite(t)) return '';
-      const d = new Date(t);
-      return ` ${d.getMonth() + 1}/${d.getDate()}/${String(d.getFullYear()).slice(2)}`;
-    })();
-    return `\`${c.code}\` — ${c.source}${dateStr}`;
-  });
+  const lines = pageCodes.map((c) => `\`${c.code}\``);
 
   return new EmbedBuilder()
     .setTitle(`🐌 Super Snail Codes (${filterLabel})`)
