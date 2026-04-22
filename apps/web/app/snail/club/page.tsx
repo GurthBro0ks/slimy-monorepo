@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useCallback, useRef } from "react";
+import React, { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import * as XLSX from "xlsx";
 import {
   Users,
@@ -14,15 +14,22 @@ import {
   FileSpreadsheet,
   CheckCircle2,
   Loader2,
+  Search,
+  ChevronDown,
+  ChevronUp,
+  Minus,
+  Filter,
 } from "lucide-react";
-
-// ─── MySQL Dashboard types ───────────────────────────────────────────────────
 
 interface ClubMember {
   name: string;
   sim_power: number;
   total_power: number;
-  change_pct: number;
+  sim_prev: number;
+  total_prev: number;
+  sim_pct_change: number;
+  total_pct_change: number;
+  latest_at: string;
 }
 
 interface ClubApiResponse {
@@ -32,8 +39,6 @@ interface ClubApiResponse {
   avgTotalPower: number;
   error?: string;
 }
-
-// ─── Sheet Import types ────────────────────────────────────────────────────────
 
 interface ParsedMember {
   name: string;
@@ -51,12 +56,9 @@ interface ImportResult {
   mode?: string;
 }
 
-// ─── Shared types ─────────────────────────────────────────────────────────────
-
-type SortKey = "rank" | "name" | "sim_power" | "total_power" | "change_pct";
+type SortKey = "rank" | "name" | "sim_power" | "total_power" | "sim_pct_change" | "total_pct_change";
 type SortDir = "asc" | "desc";
-
-// ─── Helpers ─────────────────────────────────────────────────────────────────
+type PowerFilter = "all" | "10M+" | "5M+" | "1M+";
 
 function abbreviateNumber(num: number): string {
   const abs = Math.abs(num);
@@ -64,6 +66,10 @@ function abbreviateNumber(num: number): string {
   if (abs >= 1_000_000_000) return sign + (abs / 1_000_000_000).toFixed(1) + "B";
   if (abs >= 1_000_000) return sign + (abs / 1_000_000).toFixed(1) + "M";
   if (abs >= 1_000) return sign + Math.round(abs / 1_000) + "K";
+  return num.toLocaleString("en-US");
+}
+
+function formatFullNumber(num: number): string {
   return num.toLocaleString("en-US");
 }
 
@@ -81,17 +87,38 @@ function formatRelativeTime(dateStr: string): string {
   return `${diffDays} day${diffDays > 1 ? "s" : ""} ago`;
 }
 
-// ─── Component ────────────────────────────────────────────────────────────────
+function formatDateTime(dateStr: string): string {
+  const d = new Date(dateStr);
+  return d.toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+const MEDALS = ["🥇", "🥈", "🥉"];
+
+const POWER_FILTERS: { label: PowerFilter; min: number }[] = [
+  { label: "All", min: 0 },
+  { label: "10M+", min: 10_000_000 },
+  { label: "5M+", min: 5_000_000 },
+  { label: "1M+", min: 1_000_000 },
+];
 
 export default function ClubDashboardPage() {
-  // MySQL dashboard state
   const [data, setData] = useState<ClubApiResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [sortKey, setSortKey] = useState<SortKey>("rank");
+  const [sortKey, setSortKey] = useState<SortKey>("sim_power");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
 
-  // Sheet import state
+  const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [powerFilter, setPowerFilter] = useState<PowerFilter>("all");
+  const [expandedRow, setExpandedRow] = useState<string | null>(null);
+
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [parsedData, setParsedData] = useState<ParsedMember[]>([]);
@@ -102,8 +129,7 @@ export default function ClubDashboardPage() {
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  // ─── MySQL data fetching ───────────────────────────────────────────────────
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fetchData = useCallback(async () => {
     setIsLoading(true);
@@ -127,32 +153,52 @@ export default function ClubDashboardPage() {
     fetchData();
   }, [fetchData]);
 
-  // ─── Sorting ─────────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+    }, 300);
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, [searchQuery]);
 
   const handleSort = (key: SortKey) => {
     if (sortKey === key) {
       setSortDir((d) => (d === "asc" ? "desc" : "asc"));
     } else {
       setSortKey(key);
-      setSortDir(key === "rank" ? "asc" : "desc");
+      setSortDir(key === "rank" || key === "name" ? "asc" : "desc");
     }
   };
 
-  const sortedMembers = React.useMemo(() => {
+  const filteredAndSorted = useMemo(() => {
     if (!data?.members) return [];
-    const members = [...data.members];
+    let members = [...data.members];
+
+    if (debouncedSearch) {
+      const q = debouncedSearch.toLowerCase();
+      members = members.filter((m) => m.name.toLowerCase().includes(q));
+    }
+
+    const filterCfg = POWER_FILTERS.find((f) => f.label === powerFilter);
+    if (filterCfg && filterCfg.min > 0) {
+      members = members.filter((m) => m.sim_power >= filterCfg!.min);
+    }
+
     return members.sort((a, b) => {
       let cmp = 0;
       switch (sortKey) {
-        case "rank": cmp = b.total_power - a.total_power; break;
+        case "rank": cmp = b.sim_power - a.sim_power; break;
         case "name": cmp = a.name.localeCompare(b.name); break;
         case "sim_power": cmp = a.sim_power - b.sim_power; break;
         case "total_power": cmp = a.total_power - b.total_power; break;
-        case "change_pct": cmp = a.change_pct - b.change_pct; break;
+        case "sim_pct_change": cmp = a.sim_pct_change - b.sim_pct_change; break;
+        case "total_pct_change": cmp = a.total_pct_change - b.total_pct_change; break;
       }
       return sortDir === "asc" ? cmp : -cmp;
     });
-  }, [data?.members, sortKey, sortDir]);
+  }, [data?.members, sortKey, sortDir, debouncedSearch, powerFilter]);
 
   const SortIcon = ({ col }: { col: SortKey }) => {
     if (sortKey !== col) return <span className="text-[#8a4baf]/40 ml-1">↕</span>;
@@ -161,15 +207,13 @@ export default function ClubDashboardPage() {
 
   const Th = ({ col, children }: { col: SortKey; children: React.ReactNode }) => (
     <th
-      className="px-4 py-4 text-left cursor-pointer select-none hover:bg-[#1a0b2e] transition-colors"
+      className="px-4 py-4 text-left cursor-pointer select-none hover:bg-[#1a0b2e] transition-colors whitespace-nowrap"
       onClick={() => handleSort(col)}
     >
       <span className="font-['VT323'] text-xl tracking-wider text-[#d6b4fc]">{children}</span>
       <SortIcon col={col} />
     </th>
   );
-
-  // ─── Sheet Import handlers ───────────────────────────────────────────────
 
   const handleFileSelect = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -272,7 +316,7 @@ export default function ClubDashboardPage() {
       });
 
       const result: ImportResult = await response.json();
-      if (!response.ok) throw new Error(result.message || "Import failed");
+      if (!response.ok) throw new Error((result as any).message || "Import failed");
 
       setImportResult(result);
       if (result.ok) {
@@ -298,6 +342,31 @@ export default function ClubDashboardPage() {
 
   const validCount = parsedData.filter((m) => m.issues.length === 0).length;
   const issueCount = parsedData.filter((m) => m.issues.length > 0).length;
+
+  const isFiltered = debouncedSearch !== "" || powerFilter !== "all";
+
+  const toggleExpand = (name: string) => {
+    setExpandedRow((prev) => (prev === name ? null : name));
+  };
+
+  const WoWCell = ({ value }: { value: number }) => {
+    if (value === 0 || value === null || isNaN(value)) {
+      return (
+        <span className="font-bold flex items-center gap-1 text-[#8a4baf]">
+          <Minus size={14} /> —
+        </span>
+      );
+    }
+    const isPositive = value > 0;
+    const color = isPositive ? "#39ff14" : "#ff4444";
+    return (
+      <span className="font-bold flex items-center gap-1" style={{ color }}>
+        {isPositive ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
+        {isPositive ? "+" : ""}
+        {value.toFixed(1)}%
+      </span>
+    );
+  };
 
   return (
     <div className="space-y-8 font-mono">
@@ -350,7 +419,7 @@ export default function ClubDashboardPage() {
         </div>
       )}
 
-      {/* Stats Bar */}
+      {/* Stats Bar + Table */}
       {data && !error && (
         <>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -385,16 +454,63 @@ export default function ClubDashboardPage() {
             </div>
           </div>
 
-          {/* Refresh Button */}
-          <div className="flex justify-end">
-            <button
-              onClick={fetchData}
-              disabled={isLoading}
-              className="px-6 py-3 bg-[#2d0b4e] border-2 border-[#39ff14] text-[#39ff14] font-bold hover:bg-[#39ff14] hover:text-black transition-all flex items-center gap-2 disabled:opacity-50"
-            >
-              <RefreshCw size={20} className={isLoading ? "animate-spin" : ""} />
-              REFRESH
-            </button>
+          {/* Search, Filters, Refresh */}
+          <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
+            <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+              {/* Search Input */}
+              <div className="relative flex-1 min-w-0 sm:min-w-[280px]">
+                <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#8a4baf]" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search members..."
+                  className="w-full pl-10 pr-9 py-3 bg-[#0a0412] border-2 border-[#8a4baf]/50 text-[#d6b4fc] font-mono placeholder:text-[#8a4baf]/50 focus:border-[#39ff14] focus:outline-none transition-colors"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery("")}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1 hover:bg-[#8a4baf]/20 transition-colors"
+                  >
+                    <X size={16} className="text-[#8a4baf]" />
+                  </button>
+                )}
+              </div>
+
+              {/* Power Range Filters */}
+              <div className="flex items-center gap-1">
+                <Filter size={16} className="text-[#8a4baf] mr-1" />
+                {POWER_FILTERS.map((f) => (
+                  <button
+                    key={f.label}
+                    onClick={() => setPowerFilter(f.label)}
+                    className={`px-3 py-2 border-2 text-sm font-bold tracking-wider transition-all ${
+                      powerFilter === f.label
+                        ? "border-[#39ff14] text-[#39ff14] bg-[#39ff14]/10"
+                        : "border-[#8a4baf]/30 text-[#8a4baf] hover:border-[#8a4baf] hover:text-[#d6b4fc]"
+                    }`}
+                  >
+                    {f.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex items-center gap-4">
+              {isFiltered && (
+                <span className="text-sm text-[#8a4baf]">
+                  {filteredAndSorted.length} of {data.members.length} members
+                </span>
+              )}
+              <button
+                onClick={fetchData}
+                disabled={isLoading}
+                className="px-6 py-3 bg-[#2d0b4e] border-2 border-[#39ff14] text-[#39ff14] font-bold hover:bg-[#39ff14] hover:text-black transition-all flex items-center gap-2 disabled:opacity-50 shrink-0"
+              >
+                <RefreshCw size={20} className={isLoading ? "animate-spin" : ""} />
+                REFRESH
+              </button>
+            </div>
           </div>
 
           {/* Table */}
@@ -406,44 +522,100 @@ export default function ClubDashboardPage() {
                   <Th col="name">Name</Th>
                   <Th col="sim_power">SIM Power</Th>
                   <Th col="total_power">Total Power</Th>
-                  <Th col="change_pct">WoW Change %</Th>
+                  <Th col="sim_pct_change">SIM WoW%</Th>
+                  <Th col="total_pct_change">Total WoW%</Th>
                 </tr>
               </thead>
               <tbody>
-                {sortedMembers.map((member, idx) => {
-                  const rank = sortKey === "rank" && sortDir === "asc" ? idx + 1 : sortedMembers.length - idx;
-                  const isPositive = member.change_pct > 0;
-                  const isNegative = member.change_pct < 0;
-                  const changeColor = isPositive ? "#39ff14" : isNegative ? "#ff4444" : "#8a4baf";
+                {filteredAndSorted.map((member, idx) => {
+                  const rank = idx + 1;
+                  const isExpanded = expandedRow === member.name;
 
                   return (
-                    <tr
-                      key={member.name}
-                      className="border-b border-[#8a4baf]/20 hover:bg-[#1a0b2e]/50 transition-colors"
-                    >
-                      <td className="px-4 py-4 text-[#8a4baf] font-bold">
-                        {sortKey === "rank" ? rank : idx + 1}
-                      </td>
-                      <td className="px-4 py-4 text-[#d6b4fc] font-bold text-lg">{member.name}</td>
-                      <td className="px-4 py-4 text-[#d6b4fc]">{abbreviateNumber(member.sim_power)}</td>
-                      <td className="px-4 py-4 text-[#39ff14] font-bold">{abbreviateNumber(member.total_power)}</td>
-                      <td className="px-4 py-4">
-                        <span className="font-bold flex items-center gap-1" style={{ color: changeColor }}>
-                          {isPositive ? <TrendingUp size={16} /> : isNegative ? <TrendingDown size={16} /> : null}
-                          {member.change_pct > 0 ? "+" : ""}
-                          {member.change_pct.toFixed(1)}%
-                        </span>
-                      </td>
-                    </tr>
+                    <React.Fragment key={member.name}>
+                      <tr
+                        className={`border-b border-[#8a4baf]/20 hover:bg-[#1a0b2e]/50 transition-colors cursor-pointer ${
+                          isExpanded ? "bg-[#1a0b2e]/30" : ""
+                        }`}
+                        onClick={() => toggleExpand(member.name)}
+                      >
+                        <td className="px-4 py-4 text-[#8a4baf] font-bold">
+                          {rank <= 3 ? (
+                            <span className="text-xl">{MEDALS[rank - 1]}</span>
+                          ) : (
+                            rank
+                          )}
+                        </td>
+                        <td className="px-4 py-4">
+                          <div className="flex items-center gap-2">
+                            <span className="text-[#d6b4fc] font-bold text-lg">{member.name}</span>
+                            {isExpanded ? (
+                              <ChevronUp size={14} className="text-[#8a4baf]" />
+                            ) : (
+                              <ChevronDown size={14} className="text-[#8a4baf]/50" />
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-4 py-4 text-[#d6b4fc]">{abbreviateNumber(member.sim_power)}</td>
+                        <td className="px-4 py-4 text-[#39ff14] font-bold">{abbreviateNumber(member.total_power)}</td>
+                        <td className="px-4 py-4"><WoWCell value={member.sim_pct_change} /></td>
+                        <td className="px-4 py-4"><WoWCell value={member.total_pct_change} /></td>
+                      </tr>
+
+                      {isExpanded && (
+                        <tr className="bg-[#0d0618] border-b border-[#8a4baf]/10">
+                          <td colSpan={6} className="px-6 py-5">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-3 text-sm">
+                              <div>
+                                <span className="text-[#8a4baf] tracking-wider uppercase text-xs">SIM Power</span>
+                                <p className="text-[#d6b4fc] font-bold">{formatFullNumber(member.sim_power)}</p>
+                              </div>
+                              <div>
+                                <span className="text-[#8a4baf] tracking-wider uppercase text-xs">Total Power</span>
+                                <p className="text-[#39ff14] font-bold">{formatFullNumber(member.total_power)}</p>
+                              </div>
+                              <div>
+                                <span className="text-[#8a4baf] tracking-wider uppercase text-xs">Previous SIM</span>
+                                <p className="text-[#d6b4fc]">{member.sim_prev > 0 ? formatFullNumber(member.sim_prev) : "—"}</p>
+                              </div>
+                              <div>
+                                <span className="text-[#8a4baf] tracking-wider uppercase text-xs">Previous Total</span>
+                                <p className="text-[#d6b4fc]">{member.total_prev > 0 ? formatFullNumber(member.total_prev) : "—"}</p>
+                              </div>
+                              <div>
+                                <span className="text-[#8a4baf] tracking-wider uppercase text-xs">SIM Change %</span>
+                                <p><WoWCell value={member.sim_pct_change} /></p>
+                              </div>
+                              <div>
+                                <span className="text-[#8a4baf] tracking-wider uppercase text-xs">Total Change %</span>
+                                <p><WoWCell value={member.total_pct_change} /></p>
+                              </div>
+                              <div className="sm:col-span-2 lg:col-span-3">
+                                <span className="text-[#8a4baf] tracking-wider uppercase text-xs">Last Updated</span>
+                                <p className="text-[#d6b4fc]">{formatDateTime(member.latest_at)}</p>
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
                   );
                 })}
               </tbody>
             </table>
           </div>
 
-          {sortedMembers.length === 0 && !isLoading && (
+          {filteredAndSorted.length === 0 && !isLoading && (
             <div className="p-20 text-center border-2 border-dashed border-[#8a4baf]/30 bg-[#0a0412]">
               <p className="text-[#8a4baf] text-2xl font-bold italic">NO_MEMBERS_FOUND</p>
+              {isFiltered && (
+                <button
+                  onClick={() => { setSearchQuery(""); setPowerFilter("all"); }}
+                  className="mt-4 px-6 py-2 border-2 border-[#39ff14] text-[#39ff14] hover:bg-[#39ff14] hover:text-black transition-all font-bold"
+                >
+                  CLEAR FILTERS
+                </button>
+              )}
             </div>
           )}
         </>
@@ -456,11 +628,10 @@ export default function ClubDashboardPage() {
         </p>
       </div>
 
-      {/* ─── Upload Sheet Modal ──────────────────────────────────────────── */}
+      {/* Upload Sheet Modal */}
       {showUploadModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-[#0a0412] border-2 border-[#39ff14] w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
-            {/* Modal Header */}
             <div className="flex items-center justify-between p-6 border-b border-[#39ff14]/30">
               <div className="flex items-center gap-4">
                 <FileSpreadsheet className="w-8 h-8 text-[#39ff14]" />
@@ -473,9 +644,7 @@ export default function ClubDashboardPage() {
               </button>
             </div>
 
-            {/* Modal Content */}
             <div className="p-6 overflow-y-auto flex-1 space-y-6">
-              {/* File Input */}
               <div className="space-y-4">
                 <label className="block text-[#d6b4fc] font-bold">
                   SELECT_FILE (.xlsx, .csv, .tsv)
@@ -489,7 +658,6 @@ export default function ClubDashboardPage() {
                 />
               </div>
 
-              {/* Sheet Selector */}
               {sheetNames.length > 1 && (
                 <div className="space-y-4">
                   <label className="block text-[#d6b4fc] font-bold">SELECT_SHEET</label>
@@ -505,7 +673,6 @@ export default function ClubDashboardPage() {
                 </div>
               )}
 
-              {/* Parse Button */}
               {selectedFile && selectedSheet && (
                 <button
                   onClick={parseSheet}
@@ -520,7 +687,6 @@ export default function ClubDashboardPage() {
                 </button>
               )}
 
-              {/* Error Display */}
               {uploadError && (
                 <div className="flex items-center gap-2 p-4 bg-red-500/10 border border-red-500 text-red-500">
                   <AlertCircle size={20} />
@@ -528,7 +694,6 @@ export default function ClubDashboardPage() {
                 </div>
               )}
 
-              {/* Import Result */}
               {importResult && importResult.ok && (
                 <div className="flex items-center gap-2 p-4 bg-green-500/10 border border-green-500 text-green-500">
                   <CheckCircle2 size={20} />
@@ -539,7 +704,6 @@ export default function ClubDashboardPage() {
                 </div>
               )}
 
-              {/* Preview Table */}
               {parsedData.length > 0 && (
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
@@ -601,7 +765,6 @@ export default function ClubDashboardPage() {
               )}
             </div>
 
-            {/* Modal Footer */}
             <div className="flex items-center justify-end gap-4 p-6 border-t border-[#39ff14]/30">
               <button
                 onClick={closeModal}

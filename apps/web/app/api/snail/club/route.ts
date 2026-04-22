@@ -8,7 +8,11 @@ interface ClubMember {
   name: string;
   sim_power: number;
   total_power: number;
-  change_pct: number;
+  sim_prev: number;
+  total_prev: number;
+  sim_pct_change: number;
+  total_pct_change: number;
+  latest_at: string;
 }
 
 interface ClubApiResponse {
@@ -59,14 +63,13 @@ export async function GET(request: NextRequest) {
       const p = getPool();
       connection = await p.getConnection();
 
-      // Get club data sorted by total_power DESC
       const [rows] = await connection.query<mysql.RowDataPacket[]>(`
-        SELECT name_display, sim_power, total_power, total_pct_change
+        SELECT name_display, sim_power, total_power, sim_prev, total_prev,
+               sim_pct_change, total_pct_change, latest_at
         FROM club_latest
         ORDER BY total_power DESC
       `);
 
-      // Get last updated timestamp
       const [tsRows] = await connection.query<mysql.RowDataPacket[]>(`
         SELECT MAX(latest_at) as last_updated
         FROM club_latest
@@ -80,7 +83,11 @@ export async function GET(request: NextRequest) {
         name: row.name_display ?? "",
         sim_power: Number(row.sim_power) || 0,
         total_power: Number(row.total_power) || 0,
-        change_pct: Number(row.total_pct_change) || 0,
+        sim_prev: Number(row.sim_prev) || 0,
+        total_prev: Number(row.total_prev) || 0,
+        sim_pct_change: Number(row.sim_pct_change) || 0,
+        total_pct_change: Number(row.total_pct_change) || 0,
+        latest_at: row.latest_at ? new Date(row.latest_at).toISOString() : lastUpdated,
       }));
 
       const totalPower = members.reduce((sum, m) => sum + m.total_power, 0);
