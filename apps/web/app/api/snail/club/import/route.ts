@@ -1,61 +1,127 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { requireOwner } from "@/lib/auth/owner";
+import * as XLSX from "xlsx";
+import mysql from "mysql2/promise";
 
 export const runtime = "nodejs";
 
-interface ClubMemberInput {
+const GUILD_ID = process.env.DEFAULT_GUILD_ID || "1176605506912141444";
+
+interface MemberRow {
   name: string;
-  sim_power?: number | null;
-  total_power?: number | null;
+  member_id: number;
+  sim_power: number;
+  total_power: number;
 }
 
-interface ImportBody {
-  members: ClubMemberInput[];
-  sheetName?: string;
+interface ImportResult {
+  ok: boolean;
+  imported: number;
+  errors: string[];
+  mode?: string;
 }
 
-/**
- * POST /api/snail/club/import
- * Owner-only endpoint to import club sheet data.
- * Validates members, upserts to club_latest.
- */
-export async function POST(request: Request) {
+function parseXlsxBuffer(buffer: Buffer): { members: MemberRow[]; errors: string[] } {
+  const workbook = XLSX.read(buffer, { type: "buffer" });
+  const sheetName = workbook.SheetNames[0];
+  if (!sheetName) return { members: [], errors: ["No sheets found in workbook"] };
+
+  const worksheet = workbook.Sheets[sheetName];
+  const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(worksheet);
+
+  const members: MemberRow[] = [];
+  const errors: string[] = [];
+
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+    const name = String(row["Name"] ?? row["name"] ?? "").trim();
+    const rawMemberId = row["Member ID"] ?? row["member_id"] ?? row["MemberID"] ?? "";
+    const rawSimPower = row["SIM Power"] ?? row["sim_power"] ?? row["SimPower"] ?? 0;
+    const rawTotalPower = row["Total Power"] ?? row["total_power"] ?? row["TotalPower"] ?? 0;
+
+    if (!name) {
+      errors.push(`Row ${i + 2}: missing Name`);
+      continue;
+    }
+
+    const memberId = parseInt(String(rawMemberId), 10);
+    if (isNaN(memberId) || memberId <= 0) {
+      errors.push(`Row ${i + 2} (${name}): invalid Member ID`);
+      continue;
+    }
+
+    const simPower = parseFloat(String(rawSimPower)) || 0;
+    const totalPower = parseFloat(String(rawTotalPower)) || 0;
+
+    members.push({ name, member_id: memberId, sim_power: simPower, total_power: totalPower });
+  }
+
+  return { members, errors };
+}
+
+export async function POST(request: NextRequest) {
   try {
     try {
       await requireOwner(request);
-    } catch (authError: any) {
-      const status = authError?.status || 401;
-      const body = authError?.body || { error: "unauthorized" };
-      return NextResponse.json(body, { status });
-    }
-
-    const body: ImportBody = await request.json();
-
-    if (!body.members || !Array.isArray(body.members)) {
+    } catch (authError: unknown) {
+      if (authError instanceof NextResponse) return authError;
       return NextResponse.json(
-        { code: "VALIDATION_ERROR", message: "members array is required" },
-        { status: 400 }
+        { error: "unauthorized" },
+        { status: 401 }
       );
     }
 
-    const validMembers: ClubMemberInput[] = [];
-    for (const member of body.members) {
-      if (!member.name || typeof member.name !== "string" || member.name.trim() === "") {
-        continue;
+    const contentType = request.headers.get("content-type") || "";
+    let members: MemberRow[] = [];
+    let errors: string[] = [];
+
+    if (contentType.includes("multipart/form-data")) {
+      const formData = await request.formData();
+      const file = formData.get("file");
+
+      if (!file || !(file instanceof File)) {
+        return NextResponse.json(
+          { error: "No .xlsx file provided" },
+          { status: 400 }
+        );
       }
-      if (member.sim_power == null && member.total_power == null) {
-        continue;
+
+      if (!file.name.endsWith(".xlsx")) {
+        return NextResponse.json(
+          { error: "Only .xlsx files are accepted" },
+          { status: 400 }
+        );
       }
-      validMembers.push({
-        name: member.name.trim(),
-        sim_power: member.sim_power ?? null,
-        total_power: member.total_power ?? null,
-      });
+
+      const arrayBuffer = await file.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+      const parsed = parseXlsxBuffer(buffer);
+      members = parsed.members;
+      errors = parsed.errors;
+    } else {
+      const body = await request.json();
+      if (!body.members || !Array.isArray(body.members)) {
+        return NextResponse.json(
+          { error: "members array is required" },
+          { status: 400 }
+        );
+      }
+
+      for (const m of body.members) {
+        if (!m.name || typeof m.name !== "string" || !m.name.trim()) continue;
+        if (m.sim_power == null && m.total_power == null) continue;
+        members.push({
+          name: m.name.trim(),
+          member_id: parseInt(String(m.member_id ?? 0), 10) || 0,
+          sim_power: parseFloat(String(m.sim_power ?? 0)) || 0,
+          total_power: parseFloat(String(m.total_power ?? 0)) || 0,
+        });
+      }
     }
 
-    if (validMembers.length === 0) {
+    if (members.length === 0) {
       return NextResponse.json(
-        { code: "VALIDATION_ERROR", message: "No valid members with name and at least one power value" },
+        { error: "No valid members to import", errors },
         { status: 400 }
       );
     }
@@ -64,86 +130,93 @@ export async function POST(request: Request) {
     if (!mysqlHost) {
       return NextResponse.json({
         ok: true,
-        imported: validMembers.length,
-        updated: 0,
-        new: validMembers.length,
+        imported: members.length,
+        errors,
         mode: "sandbox",
-        message: "MySQL not configured - running in sandbox mode",
-      });
+      } satisfies ImportResult);
     }
 
-    const mysql = await import("mysql2/promise");
-
     const pool = mysql.createPool({
-      host: process.env.CLUB_MYSQL_HOST,
+      host: mysqlHost,
       port: parseInt(process.env.CLUB_MYSQL_PORT || "3306", 10),
       user: process.env.CLUB_MYSQL_USER,
       password: process.env.CLUB_MYSQL_PASSWORD,
-      database: process.env.CLUB_MYSQL_DATABASE || "slimy_bot",
+      database: process.env.CLUB_MYSQL_DATABASE || "slimy",
       waitForConnections: true,
       connectionLimit: 10,
       queueLimit: 0,
     });
 
     try {
-      const memberKeys = validMembers.map((m) => m.name.toLowerCase().replace(/\s+/g, "_"));
-      const placeholders = memberKeys.map(() => "?").join(",");
-      const [existingRows] = await pool.query(
-        `SELECT name, sim_power, total_power FROM club_latest WHERE name IN (${placeholders})`,
-        memberKeys
-      ) as [any[], any];
+      let imported = 0;
+      const dbErrors: string[] = [];
 
-      const existingMap = new Map<string, { sim_power: number | null; total_power: number | null }>();
-      for (const row of existingRows) {
-        existingMap.set(row.name.toLowerCase().replace(/\s+/g, "_"), {
-          sim_power: row.sim_power,
-          total_power: row.total_power,
-        });
-      }
-
-      let updated = 0;
-      let inserted = 0;
-      const now = new Date();
-
-      for (const member of validMembers) {
-        const memberKey = member.name.toLowerCase().replace(/\s+/g, "_");
-        const existing = existingMap.get(memberKey);
-
-        if (existing) {
-          await pool.query(
-            `UPDATE club_latest SET name = ?, sim_power = ?, total_power = ?, last_seen_at = ?, updated_at = ? WHERE name = ?`,
-            [member.name, member.sim_power, member.total_power, now, now, member.name]
-          );
-          updated++;
-        } else {
-          await pool.query(
-            `INSERT INTO club_latest (name, sim_power, total_power, last_seen_at, updated_at) VALUES (?, ?, ?, ?, ?)`,
-            [member.name, member.sim_power, member.total_power, now, now]
-          );
-          inserted++;
+      for (const member of members) {
+        try {
+          if (member.member_id > 0) {
+            await pool.query(
+              `INSERT INTO club_latest (guild_id, member_id, name_display, sim_power, total_power, sim_prev, total_prev, sim_pct_change, total_pct_change, latest_at)
+               VALUES (?, ?, ?, ?, ?, 0, 0, 0, 0, NOW())
+               ON DUPLICATE KEY UPDATE
+                 sim_prev = sim_power,
+                 total_prev = total_power,
+                 sim_power = ?,
+                 total_power = ?,
+                 name_display = ?,
+                 sim_pct_change = CASE WHEN sim_prev > 0 THEN ROUND((? - sim_prev) / sim_prev * 100, 2) ELSE 0 END,
+                 total_pct_change = CASE WHEN total_prev > 0 THEN ROUND((? - total_prev) / total_prev * 100, 2) ELSE 0 END,
+                 latest_at = NOW()`,
+              [
+                GUILD_ID, member.member_id, member.name, member.sim_power, member.total_power,
+                member.sim_power, member.total_power, member.name,
+                member.sim_power, member.total_power,
+              ]
+            );
+          } else {
+            await pool.query(
+              `INSERT INTO club_latest (guild_id, member_id, name_display, sim_power, total_power, sim_prev, total_prev, sim_pct_change, total_pct_change, latest_at)
+               VALUES (?, 0, ?, ?, ?, 0, 0, 0, 0, NOW())
+               ON DUPLICATE KEY UPDATE
+                 sim_prev = sim_power,
+                 total_prev = total_power,
+                 sim_power = ?,
+                 total_power = ?,
+                 name_display = ?,
+                 sim_pct_change = CASE WHEN sim_prev > 0 THEN ROUND((? - sim_prev) / sim_prev * 100, 2) ELSE 0 END,
+                 total_pct_change = CASE WHEN total_prev > 0 THEN ROUND((? - total_prev) / total_prev * 100, 2) ELSE 0 END,
+                 latest_at = NOW()`,
+              [
+                GUILD_ID, member.name, member.sim_power, member.total_power,
+                member.sim_power, member.total_power, member.name,
+                member.sim_power, member.total_power,
+              ]
+            );
+          }
+          imported++;
+        } catch (rowErr) {
+          dbErrors.push(`${member.name}: ${rowErr instanceof Error ? rowErr.message : String(rowErr)}`);
         }
       }
 
-      await pool.query(
-        `INSERT INTO club_snapshots (snapshot_time, member_count, sheet_name) VALUES (?, ?, ?)`,
-        [now, validMembers.length, body.sheetName || null]
-      );
-
       await pool.end();
 
-      return NextResponse.json({ ok: true, imported: validMembers.length, updated, new: inserted });
+      return NextResponse.json({
+        ok: true,
+        imported,
+        errors: [...errors, ...dbErrors],
+      } satisfies ImportResult);
     } catch (dbError) {
-      console.error("[API /snail/club/import] Database error:", dbError);
-      await pool.end();
+      console.error("[/api/snail/club/import] DB error:", dbError);
+      try { await pool.end(); } catch {}
       return NextResponse.json(
-        { code: "DATABASE_ERROR", message: "Failed to import data" },
+        { error: "Database error", details: String(dbError) },
         { status: 500 }
       );
     }
   } catch (error) {
-    console.error("[API /snail/club/import] Error:", error);
+    console.error("[/api/snail/club/import] Error:", error);
     return NextResponse.json(
-      { code: "INTERNAL_ERROR", message: "Internal server error" },
+      { error: "Internal server error" },
       { status: 500 }
     );
   }

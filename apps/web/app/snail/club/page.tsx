@@ -1,7 +1,9 @@
 "use client";
 
 import React, { useEffect, useState, useCallback, useRef, useMemo } from "react";
+import Link from "next/link";
 import * as XLSX from "xlsx";
+import { useAuth } from "@/lib/auth/context";
 import {
   Users,
   TrendingUp,
@@ -19,6 +21,7 @@ import {
   ChevronUp,
   Minus,
   Filter,
+  FileUp,
 } from "lucide-react";
 
 interface ClubMember {
@@ -108,6 +111,8 @@ const POWER_FILTERS: { label: PowerFilter; min: number }[] = [
 ];
 
 export default function ClubDashboardPage() {
+  const { user } = useAuth();
+  const isOwner = user?.role === "owner" || (process.env.NEXT_PUBLIC_OWNER_USER_ID && user?.id === process.env.NEXT_PUBLIC_OWNER_USER_ID);
   const [data, setData] = useState<ClubApiResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -382,13 +387,24 @@ export default function ClubDashboardPage() {
           <p className="text-[#8a4baf] text-xl mt-3">Club member power rankings &amp; trends</p>
         </div>
 
-        <button
-          onClick={() => setShowUploadModal(true)}
-          className="flex items-center gap-2 px-6 py-3 bg-[#2d0b4e] border-2 border-[#39ff14] text-[#39ff14] hover:bg-[#39ff14] hover:text-black transition-all font-bold tracking-widest shrink-0"
-        >
-          <Upload size={20} />
-          UPLOAD SHEET
-        </button>
+        <div className="flex items-center gap-3">
+          {isOwner && (
+            <Link
+              href="/snail/club/import"
+              className="flex items-center gap-2 px-6 py-3 bg-[#2d0b4e] border-2 border-[#00ffff] text-[#00ffff] hover:bg-[#00ffff] hover:text-black transition-all font-bold tracking-widest shrink-0"
+            >
+              <FileUp size={20} />
+              IMPORT DATA
+            </Link>
+          )}
+          <button
+            onClick={() => setShowUploadModal(true)}
+            className="flex items-center gap-2 px-6 py-3 bg-[#2d0b4e] border-2 border-[#39ff14] text-[#39ff14] hover:bg-[#39ff14] hover:text-black transition-all font-bold tracking-widest shrink-0"
+          >
+            <Upload size={20} />
+            UPLOAD SHEET
+          </button>
+        </div>
       </div>
 
       {/* Loading State */}
