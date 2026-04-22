@@ -56,14 +56,14 @@ export async function GET(request: NextRequest) {
       `);
 
       const [topSimRows] = await connection.query<mysql.RowDataPacket[]>(`
-        SELECT name_display as name, sim_power, total_power, sim_prev
+        SELECT name_display as name, sim_power, total_power, sim_prev, sim_pct_change
         FROM club_latest
         ORDER BY sim_power DESC
         LIMIT 10
       `);
 
       const [topTotalRows] = await connection.query<mysql.RowDataPacket[]>(`
-        SELECT name_display as name, sim_power, total_power
+        SELECT name_display as name, sim_power, total_power, total_prev, total_pct_change
         FROM club_latest
         ORDER BY total_power DESC
         LIMIT 10
@@ -72,7 +72,7 @@ export async function GET(request: NextRequest) {
       const [moversRows] = await connection.query<mysql.RowDataPacket[]>(`
         SELECT name_display as name, sim_power, sim_prev,
           (sim_power - sim_prev) as wow_change,
-          CASE WHEN sim_prev > 0 THEN ((sim_power - sim_prev) / sim_prev * 100) ELSE NULL END as wow_pct
+          sim_pct_change as wow_pct
         FROM club_latest
         WHERE sim_prev IS NOT NULL AND sim_prev != sim_power
         ORDER BY (sim_power - sim_prev) DESC
@@ -82,7 +82,7 @@ export async function GET(request: NextRequest) {
       const [declinersRows] = await connection.query<mysql.RowDataPacket[]>(`
         SELECT name_display as name, sim_power, sim_prev,
           (sim_power - sim_prev) as wow_change,
-          CASE WHEN sim_prev > 0 THEN ((sim_power - sim_prev) / sim_prev * 100) ELSE NULL END as wow_pct
+          sim_pct_change as wow_pct
         FROM club_latest
         WHERE sim_prev IS NOT NULL AND sim_prev != sim_power
         ORDER BY (sim_power - sim_prev) ASC
@@ -103,35 +103,32 @@ export async function GET(request: NextRequest) {
             : new Date().toISOString(),
         },
         topSim: topSimRows.map((r) => ({
-          name: String(r.name ?? ""),
+          nameDisplay: String(r.name ?? ""),
           simPower: Number(r.sim_power) || 0,
           totalPower: Number(r.total_power) || 0,
           simPrev: r.sim_prev != null ? Number(r.sim_prev) : null,
+          simPctChange: r.sim_pct_change != null ? Number(r.sim_pct_change) : null,
         })),
         topTotal: topTotalRows.map((r) => ({
-          name: String(r.name ?? ""),
+          nameDisplay: String(r.name ?? ""),
           simPower: Number(r.sim_power) || 0,
           totalPower: Number(r.total_power) || 0,
+          totalPrev: r.total_prev != null ? Number(r.total_prev) : null,
+          totalPctChange: r.total_pct_change != null ? Number(r.total_pct_change) : null,
         })),
         movers: moversRows.map((r) => ({
-          name: String(r.name ?? ""),
+          nameDisplay: String(r.name ?? ""),
           simPower: Number(r.sim_power) || 0,
           simPrev: Number(r.sim_prev) || 0,
           wowChange: Number(r.wow_change) || 0,
-          wowPct:
-            r.wow_pct != null
-              ? Math.round(Number(r.wow_pct) * 10) / 10
-              : null,
+          wowPct: r.wow_pct != null ? Number(r.wow_pct) : null,
         })),
         decliners: declinersRows.map((r) => ({
-          name: String(r.name ?? ""),
+          nameDisplay: String(r.name ?? ""),
           simPower: Number(r.sim_power) || 0,
           simPrev: Number(r.sim_prev) || 0,
           wowChange: Number(r.wow_change) || 0,
-          wowPct:
-            r.wow_pct != null
-              ? Math.round(Number(r.wow_pct) * 10) / 10
-              : null,
+          wowPct: r.wow_pct != null ? Number(r.wow_pct) : null,
         })),
       });
     } finally {
