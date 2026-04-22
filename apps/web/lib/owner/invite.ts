@@ -6,21 +6,14 @@
 import { createHash, randomBytes } from "crypto";
 import { db } from "@/lib/db";
 
-/**
- * Generate a random invite token
- * @param bytes - Number of random bytes (default 32 = 256-bit security)
- * @returns hex-encoded token
- */
-export function generateInviteToken(bytes: number = 32): string {
-  return randomBytes(bytes).toString("hex");
+export function generateInviteToken(): string {
+  const raw = randomBytes(8).toString("hex").toUpperCase();
+  return raw.replace(/(.{4})/g, "$1-").slice(0, 19);
 }
 
-/**
- * Hash an invite token using SHA256
- * Returns hex-encoded hash (always 64 chars)
- */
 export function hashInviteToken(token: string): string {
-  return createHash("sha256").update(token).digest("hex");
+  const normalized = token.toUpperCase().replace(/[-\s]/g, "");
+  return createHash("sha256").update(normalized).digest("hex");
 }
 
 export interface CreateOwnerInviteOptions {
