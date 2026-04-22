@@ -1,27 +1,36 @@
-// DEPRECATED — slimyai-web is now supervised by systemd user service
-// (slimy-web.service) instead of PM2.
-// Systemd service: systemctl --user [start|stop|restart|status] slimy-web
-// PM2 crash-loop removed 2026-03-23: live app moved from orphaned next-server
-// (PID 2007305, killed) to systemd-supervised instance.
+// PM2 Ecosystem — SlimyAI NUC1
 //
-// If you need to re-PM2-manage the web app:
-// 1. sudo systemctl --user stop slimy-web
-// 2. sudo systemctl --user disable slimy-web
-// 3. pm2 start ecosystem.config.js  (uncomment app entry below)
-// 4. pm2 save
+// Bot env vars are loaded via dotenv/config at runtime from apps/bot/.env.
+// No env_file directive needed — the TS entrypoint handles it.
 //
-// module.exports = {
-//   apps: [
-//     {
-//       name: "web",
-//       cwd: "/opt/slimy/slimy-monorepo/apps/web",
-//       script: "node",
-//       args: ".next/standalone/apps/web/server.js",
-//       env: {
-//         NODE_ENV: "production",
-//         PORT: 3000,
-//         HOSTNAME: "0.0.0.0",
-//       },
-//     },
-//   ],
-// };
+// Usage:
+//   pm2 start ecosystem.config.js
+//   pm2 save
+//
+// After reboot (if pm2 startup is configured):
+//   pm2 resurrect
+
+module.exports = {
+  apps: [
+    {
+      name: 'slimy-bot-v2',
+      script: 'apps/bot/dist/index.js',
+      cwd: '/opt/slimy/slimy-monorepo',
+      exec_mode: 'fork',
+      instances: 1,
+      autorestart: true,
+      watch: false,
+      max_memory_restart: '512M',
+      env: {
+        NODE_ENV: 'production',
+      },
+      error_file: '/home/slimy/.pm2/logs/slimy-bot-v2-error.log',
+      out_file: '/home/slimy/.pm2/logs/slimy-bot-v2-out.log',
+      log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
+      merge_logs: true,
+      min_uptime: '10s',
+      max_restarts: 10,
+      restart_delay: 5000,
+    },
+  ],
+};
