@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import mysql from "mysql2/promise";
-import { requireOwner } from "@/lib/auth/owner";
+import { requireLeaderOrAbove } from "@/lib/auth/owner";
 
 export const dynamic = "force-dynamic";
 
@@ -51,8 +51,7 @@ function getPool(): mysql.Pool {
 // Returns club member data from NUC1 MySQL
 export async function GET(request: NextRequest) {
   try {
-    // Require owner authentication
-    await requireOwner(request);
+    await requireLeaderOrAbove(request);
 
     let connection: mysql.PoolConnection | null = null;
 

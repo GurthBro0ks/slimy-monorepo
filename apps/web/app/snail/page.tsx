@@ -7,7 +7,7 @@ import { useAuth } from "@/lib/auth/context";
 
 export default function SnailLanding() {
   const { user } = useAuth();
-  const isOwner = user?.role === "owner";
+  const isOwner = user?.role === "owner" || user?.role === "leader";
 
   return (
     <div className="space-y-12">
@@ -69,7 +69,7 @@ export default function SnailLanding() {
               CLUB DASHBOARD
             </h2>
             <p className="text-[#d6b4fc] text-center opacity-70">
-              Owner-only — club stats &amp; member management
+              Leader or owner — club stats &amp; member management
             </p>
             <span className="text-xs text-[#39ff14] font-mono tracking-widest mt-2 opacity-60">RESTRICTED</span>
           </div>

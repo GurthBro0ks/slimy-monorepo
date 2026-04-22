@@ -15,6 +15,43 @@ interface OwnerContext {
   userAgent: string;
 }
 
+export type { OwnerContext };
+
+export async function requireLeaderOrAbove(request?: any): Promise<OwnerContext> {
+  const user = await requireAuth();
+
+  if (!user) {
+    throw NextResponse.json(
+      { error: "unauthorized" },
+      { status: 401 }
+    );
+  }
+
+  const isAllowed =
+    user.role === "owner" ||
+    user.role === "leader" ||
+    (OWNER_USER_ID ? user.id === OWNER_USER_ID : false);
+
+  if (!isAllowed) {
+    throw NextResponse.json(
+      { error: "forbidden", message: "Leader or owner access required" },
+      { status: 403 }
+    );
+  }
+
+  let ipAddress = "unknown";
+  let userAgent = "unknown";
+
+  if (request?.headers) {
+    if (typeof request.headers.get === "function") {
+      ipAddress = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+      userAgent = request.headers.get("user-agent") || "unknown";
+    }
+  }
+
+  return { owner: user, ipAddress, userAgent };
+}
+
 export async function requireOwner(request?: any): Promise<OwnerContext> {
   const user = await requireAuth();
 
