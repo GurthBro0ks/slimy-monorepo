@@ -22,6 +22,7 @@ import {
   Minus,
   Filter,
   FileUp,
+  Camera,
 } from "lucide-react";
 
 interface ClubMember {
@@ -389,13 +390,22 @@ export default function ClubDashboardPage() {
 
         <div className="flex items-center gap-3">
           {isOwner && (
-            <Link
-              href="/snail/club/import"
-              className="flex items-center gap-2 px-6 py-3 bg-[#2d0b4e] border-2 border-[#00ffff] text-[#00ffff] hover:bg-[#00ffff] hover:text-black transition-all font-bold tracking-widest shrink-0"
-            >
-              <FileUp size={20} />
-              IMPORT DATA
-            </Link>
+            <>
+              <Link
+                href="/snail/club/screenshots"
+                className="flex items-center gap-2 px-6 py-3 bg-[#2d0b4e] border-2 border-[#ff6b00] text-[#ff6b00] hover:bg-[#ff6b00] hover:text-black transition-all font-bold tracking-widest shrink-0"
+              >
+                <Camera size={20} />
+                SCAN SCREENSHOTS
+              </Link>
+              <Link
+                href="/snail/club/import"
+                className="flex items-center gap-2 px-6 py-3 bg-[#2d0b4e] border-2 border-[#00ffff] text-[#00ffff] hover:bg-[#00ffff] hover:text-black transition-all font-bold tracking-widest shrink-0"
+              >
+                <FileUp size={20} />
+                IMPORT DATA
+              </Link>
+            </>
           )}
           <button
             onClick={() => setShowUploadModal(true)}
