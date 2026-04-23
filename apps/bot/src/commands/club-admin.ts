@@ -216,13 +216,27 @@ async function handleExport(interaction: ChatInputCommandInteraction): Promise<u
   ensureDatabase();
   await interaction.deferReply({ ephemeral: true });
 
-  const latest = await getLatestForGuild(interaction.guildId!);
+  interface ExportRow {
+    name_display: string;
+    sim_power: number | null;
+    total_power: number | null;
+    sim_prev: number | null;
+    total_prev: number | null;
+    sim_pct_change: number | null;
+    total_pct_change: number | null;
+  }
+  const latest = await database.query<ExportRow[]>(
+    `SELECT name_display, sim_power, total_power, sim_prev, total_prev,
+            sim_pct_change, total_pct_change
+     FROM club_latest WHERE guild_id = ?
+     ORDER BY total_power IS NULL ASC, total_power DESC, name_display ASC`,
+    [interaction.guildId],
+  );
   if (!latest.length) return interaction.editReply({ content: "❌ No data to export." });
 
-  const header = "Name,Canonical,SimPower,TotalPower,SimPrev,TotalPrev,SimChange%,TotalChange%";
+  const header = "Name,SimPower,TotalPower,SimPrev,TotalPrev,SimChange%,TotalChange%";
   const rows = latest.map((row) => [
     `"${row.name_display.replace(/"/g, '""')}"`,
-    `"${row.name_canonical.replace(/"/g, '""')}"`,
     row.sim_power ?? "",
     row.total_power ?? "",
     row.sim_prev ?? "",
@@ -233,7 +247,7 @@ async function handleExport(interaction: ChatInputCommandInteraction): Promise<u
 
   const csv = [header, ...rows].join("\n");
   const attachment = new AttachmentBuilder(Buffer.from(csv, "utf8"), {
-    name: `club-data-${interaction.guildId}-${Date.now()}.csv`,
+    name: `club-data-${new Date().toISOString().split("T")[0]}.csv`,
   });
 
   return interaction.editReply({ content: `Exported ${latest.length} member(s) to CSV.`, files: [attachment] });
