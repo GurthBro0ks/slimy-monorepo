@@ -275,8 +275,8 @@ class Database {
        FROM memories
        WHERE user_id = ? AND guild_id = ?
        ORDER BY created_at DESC
-       LIMIT ?`,
-      [userId, guildId, safeLimit],
+       LIMIT ${safeLimit}`,
+      [userId, guildId],
     );
 
     return rows.map((row) => ({
@@ -455,8 +455,8 @@ class Database {
       `SELECT * FROM snail_stats
        WHERE user_id = ? AND (? IS NULL OR guild_id = ?)
        ORDER BY created_at DESC
-       LIMIT ?`,
-      [userId, guildId, guildId, safeLimit],
+       LIMIT ${safeLimit}`,
+      [userId, guildId, guildId],
     );
   }
 
