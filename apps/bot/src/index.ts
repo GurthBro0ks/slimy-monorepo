@@ -31,6 +31,7 @@ import {
 import { database } from './lib/database.js';
 import { logInfo, logWarn, logError } from './lib/logger.js';
 import { startHealthServer, recordBotError } from './lib/health-server.js';
+import { checkCooldown } from './utils/cooldown.js';
 
 // ─── Global Bot Stats ────────────────────────────────────────────────────────
 
@@ -287,6 +288,16 @@ client.on(Events.InteractionCreate, async (interaction) => {
           .catch(() => {});
         return;
       }
+      const ctxRemaining = checkCooldown(ctxInteraction.commandName, ctxInteraction.user.id);
+      if (ctxRemaining > 0) {
+        await ctxInteraction
+          .reply({
+            content: `Command on cooldown. Try again in ${ctxRemaining} seconds.`,
+            flags: MessageFlags.Ephemeral,
+          })
+          .catch(() => {});
+        return;
+      }
       await command.execute!(ctxInteraction);
       return;
     }
@@ -308,6 +319,17 @@ client.on(Events.InteractionCreate, async (interaction) => {
       });
       await chatInteraction
         .reply({ content: '❌ Unknown command.', flags: MessageFlags.Ephemeral })
+        .catch(() => {});
+      return;
+    }
+
+    const remaining = checkCooldown(chatInteraction.commandName, chatInteraction.user.id);
+    if (remaining > 0) {
+      await chatInteraction
+        .reply({
+          content: `Command on cooldown. Try again in ${remaining} seconds.`,
+          flags: MessageFlags.Ephemeral,
+        })
         .catch(() => {});
       return;
     }
