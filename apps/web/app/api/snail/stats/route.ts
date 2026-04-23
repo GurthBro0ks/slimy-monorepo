@@ -1,48 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import mysql from "mysql2/promise";
 import { requireLeaderOrAbove } from "@/lib/auth/owner";
+import { getClubPool } from "@/lib/club-db";
 
 export const dynamic = "force-dynamic";
-
-let pool: mysql.Pool | null = null;
-
-function getPool(): mysql.Pool {
-  if (!pool) {
-    const host = process.env.CLUB_MYSQL_HOST;
-    const port = parseInt(process.env.CLUB_MYSQL_PORT || "3306", 10);
-    const user = process.env.CLUB_MYSQL_USER;
-    const password = process.env.CLUB_MYSQL_PASSWORD;
-    const database = process.env.CLUB_MYSQL_DATABASE || "slimy_bot";
-
-    if (!host || !user || !password) {
-      throw new Error(
-        "CLUB_MYSQL_HOST, CLUB_MYSQL_USER, and CLUB_MYSQL_PASSWORD must be configured"
-      );
-    }
-
-    pool = mysql.createPool({
-      host,
-      port,
-      user,
-      password,
-      database,
-      waitForConnections: true,
-      connectionLimit: 5,
-      queueLimit: 0,
-    });
-  }
-  return pool;
-}
 
 export async function GET(request: NextRequest) {
   try {
     await requireLeaderOrAbove(request);
 
-    let connection: mysql.PoolConnection | null = null;
+    const p = getClubPool();
+    const connection = await p.getConnection();
 
     try {
-      const p = getPool();
-      connection = await p.getConnection();
 
       const [summaryRows] = await connection.query<mysql.RowDataPacket[]>(`
         SELECT
@@ -132,9 +102,7 @@ export async function GET(request: NextRequest) {
         })),
       });
     } finally {
-      if (connection) {
-        connection.release();
-      }
+      connection.release();
     }
   } catch (error) {
     if (error instanceof NextResponse) {

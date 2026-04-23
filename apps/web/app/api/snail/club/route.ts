@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import mysql from "mysql2/promise";
 import { requireLeaderOrAbove } from "@/lib/auth/owner";
+import { getClubPool } from "@/lib/club-db";
 
 export const dynamic = "force-dynamic";
 
@@ -22,47 +23,14 @@ interface ClubApiResponse {
   avgTotalPower: number;
 }
 
-// Connection pool for MySQL
-let pool: mysql.Pool | null = null;
-
-function getPool(): mysql.Pool {
-  if (!pool) {
-    const host = process.env.CLUB_MYSQL_HOST;
-    const port = parseInt(process.env.CLUB_MYSQL_PORT || "3306", 10);
-    const user = process.env.CLUB_MYSQL_USER;
-    const password = process.env.CLUB_MYSQL_PASSWORD;
-    const database = process.env.CLUB_MYSQL_DATABASE || "slimy_bot";
-
-    if (!host || !user || !password) {
-      throw new Error("CLUB_MYSQL_HOST, CLUB_MYSQL_USER, and CLUB_MYSQL_PASSWORD must be configured");
-    }
-
-    pool = mysql.createPool({
-      host,
-      port,
-      user,
-      password,
-      database,
-      waitForConnections: true,
-      connectionLimit: 5,
-      queueLimit: 0,
-    });
-  }
-  return pool;
-}
-
-// GET /api/snail/club
-// Returns club member data from NUC1 MySQL
 export async function GET(request: NextRequest) {
   try {
     await requireLeaderOrAbove(request);
 
-    let connection: mysql.PoolConnection | null = null;
+    const p = getClubPool();
+    const connection = await p.getConnection();
 
     try {
-      const p = getPool();
-      connection = await p.getConnection();
-
       const [rows] = await connection.query<mysql.RowDataPacket[]>(`
         SELECT name_display, sim_power, total_power, sim_prev, total_prev,
                sim_pct_change, total_pct_change, latest_at
@@ -102,9 +70,7 @@ export async function GET(request: NextRequest) {
 
       return NextResponse.json(response);
     } finally {
-      if (connection) {
-        connection.release();
-      }
+      connection.release();
     }
   } catch (error) {
     if (error instanceof NextResponse) {
@@ -114,7 +80,6 @@ export async function GET(request: NextRequest) {
     const message = error instanceof Error ? error.message : "internal_server_error";
     console.error("[/api/snail/club GET] Error:", message);
 
-    // Return 503 if database is not configured
     if (message.includes("must be configured") || message.includes("ECONNREFUSED")) {
       return NextResponse.json(
         { error: "database_not_configured", message: "Club MySQL not configured on this server" },

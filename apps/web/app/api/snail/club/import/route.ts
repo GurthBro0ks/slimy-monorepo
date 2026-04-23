@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireOwner } from "@/lib/auth/owner";
 import { insertImportLog } from "@/lib/club/import-log";
 import * as XLSX from "xlsx";
-import mysql from "mysql2/promise";
+import { getClubPool } from "@/lib/club-db";
 
 export const runtime = "nodejs";
 
@@ -143,16 +143,7 @@ export async function POST(request: NextRequest) {
       } satisfies ImportResult);
     }
 
-    const pool = mysql.createPool({
-      host: mysqlHost,
-      port: parseInt(process.env.CLUB_MYSQL_PORT || "3306", 10),
-      user: process.env.CLUB_MYSQL_USER,
-      password: process.env.CLUB_MYSQL_PASSWORD,
-      database: process.env.CLUB_MYSQL_DATABASE || "slimy",
-      waitForConnections: true,
-      connectionLimit: 10,
-      queueLimit: 0,
-    });
+    const pool = getClubPool();
 
     try {
       let imported = 0;
@@ -205,8 +196,6 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      await pool.end();
-
       const memberNames = members.map((m) => m.name);
       await insertImportLog({
         guild_id: GUILD_ID,
@@ -227,7 +216,6 @@ export async function POST(request: NextRequest) {
       } satisfies ImportResult);
     } catch (dbError) {
       console.error("[/api/snail/club/import] DB error:", dbError);
-      try { await pool.end(); } catch {}
       return NextResponse.json(
         { error: "Database error", details: String(dbError) },
         { status: 500 }
