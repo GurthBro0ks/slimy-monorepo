@@ -4,7 +4,10 @@ import { getOpenAIClient } from "@/lib/openai-client";
 
 export const runtime = "nodejs";
 
-const VISION_MODEL = "gpt-4o";
+const GEMINI_BASE_URL =
+  "https://generativelanguage.googleapis.com/v1beta/openai/";
+const GEMINI_MODEL = "gemini-2.5-flash-preview-05-20";
+const OPENAI_MODEL = "gpt-4o";
 
 const SYSTEM_PROMPT = `You are a precise Super Snail game data extractor. Your job is to read Manage Members screenshots and extract member rows with exact power numbers.
 
@@ -37,6 +40,7 @@ interface ExtractedMember {
 interface OcrResult {
   members: ExtractedMember[];
   imageIndex: number;
+  provider: string;
   error?: string;
 }
 
@@ -101,20 +105,26 @@ function parseMemberJson(raw: string): ExtractedMember[] {
   return members;
 }
 
-async function ocrImage(
+async function tryGeminiOCR(
   base64Data: string,
-  mimeType: string,
-  imageIndex: number
-): Promise<OcrResult> {
-  const openai = getOpenAIClient();
+  mimeType: string
+): Promise<ExtractedMember[]> {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    throw new Error("GEMINI_API_KEY not configured");
+  }
 
   const dataUrl = `data:${mimeType};base64,${base64Data}`;
 
-  try {
-    const response = await openai.chat.completions.create({
-      model: VISION_MODEL,
+  const response = await fetch(`${GEMINI_BASE_URL}chat/completions`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model: GEMINI_MODEL,
       temperature: 0,
-      max_tokens: 4000,
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
         {
@@ -131,21 +141,110 @@ async function ocrImage(
           ],
         },
       ],
-    });
+    }),
+  });
 
-    const content = response.choices[0]?.message?.content;
-    if (!content) {
-      return { members: [], imageIndex, error: "Empty response from vision model" };
+  if (!response.ok) {
+    const text = await response.text().catch(() => "");
+    throw new Error(`Gemini API error ${response.status}: ${text}`);
+  }
+
+  const data = (await response.json()) as {
+    choices?: Array<{ message?: { content?: string } }>;
+  };
+
+  const content = data.choices?.[0]?.message?.content;
+  if (!content) {
+    throw new Error("Empty response from Gemini");
+  }
+
+  return parseMemberJson(content);
+}
+
+async function tryOpenAIOCR(
+  base64Data: string,
+  mimeType: string
+): Promise<ExtractedMember[]> {
+  const openai = getOpenAIClient();
+
+  const dataUrl = `data:${mimeType};base64,${base64Data}`;
+
+  const response = await openai.chat.completions.create({
+    model: OPENAI_MODEL,
+    temperature: 0,
+    max_tokens: 4000,
+    messages: [
+      { role: "system", content: SYSTEM_PROMPT },
+      {
+        role: "user",
+        content: [
+          {
+            type: "text",
+            text: "Extract all visible member rows from this Super Snail Manage Members screenshot. Return the JSON array.",
+          },
+          {
+            type: "image_url",
+            image_url: { url: dataUrl, detail: "high" },
+          },
+        ],
+      },
+    ],
+  });
+
+  const content = response.choices[0]?.message?.content;
+  if (!content) {
+    throw new Error("Empty response from OpenAI");
+  }
+
+  return parseMemberJson(content);
+}
+
+async function ocrImage(
+  base64Data: string,
+  mimeType: string,
+  imageIndex: number
+): Promise<OcrResult> {
+  const geminiKey = process.env.GEMINI_API_KEY;
+
+  if (geminiKey) {
+    try {
+      const members = await tryGeminiOCR(base64Data, mimeType);
+      console.info(
+        `[screenshots OCR] Image ${imageIndex}: Gemini ${GEMINI_MODEL} succeeded (${members.length} members)`
+      );
+      return { members, imageIndex, provider: `Gemini ${GEMINI_MODEL}` };
+    } catch (geminiErr) {
+      console.warn(
+        `[screenshots OCR] Image ${imageIndex}: Gemini failed: ${
+          geminiErr instanceof Error ? geminiErr.message : geminiErr
+        } — falling back to OpenAI`
+      );
     }
+  } else {
+    console.info(
+      "[screenshots OCR] GEMINI_API_KEY not set, using OpenAI directly"
+    );
+  }
 
-    const members = parseMemberJson(content);
-    return { members, imageIndex };
-  } catch (err) {
-    console.error(`[screenshots OCR] Image ${imageIndex} failed:`, err);
+  try {
+    const members = await tryOpenAIOCR(base64Data, mimeType);
+    const providerLabel = geminiKey
+      ? `GPT-4o (Gemini fallback)`
+      : `GPT-4o`;
+    console.info(
+      `[screenshots OCR] Image ${imageIndex}: ${providerLabel} succeeded (${members.length} members)`
+    );
+    return { members, imageIndex, provider: providerLabel };
+  } catch (openaiErr) {
+    console.error(
+      `[screenshots OCR] Image ${imageIndex}: Both providers failed. OpenAI error:`,
+      openaiErr
+    );
     return {
       members: [],
       imageIndex,
-      error: err instanceof Error ? err.message : "Unknown OCR error",
+      provider: "none",
+      error: openaiErr instanceof Error ? openaiErr.message : "Unknown OCR error",
     };
   }
 }
@@ -212,11 +311,13 @@ export async function POST(request: NextRequest) {
 
     const allMembers: ExtractedMember[] = [];
     const errors: string[] = [];
+    const providers: string[] = [];
 
     for (const result of results) {
       if (result.error) {
         errors.push(`Image ${result.imageIndex + 1}: ${result.error}`);
       }
+      providers.push(`Image ${result.imageIndex + 1}: ${result.provider}`);
       allMembers.push(...result.members);
     }
 
@@ -227,6 +328,7 @@ export async function POST(request: NextRequest) {
       totalExtracted: allMembers.length,
       duplicatesRemoved: allMembers.length - deduped.length,
       imagesProcessed: files.length,
+      providers,
       errors: errors.length > 0 ? errors : undefined,
     });
   } catch (error) {

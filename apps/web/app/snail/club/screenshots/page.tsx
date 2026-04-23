@@ -30,6 +30,7 @@ interface ScanResponse {
   totalExtracted: number;
   duplicatesRemoved: number;
   imagesProcessed: number;
+  providers?: string[];
   errors?: string[];
 }
 
@@ -72,6 +73,7 @@ export default function ScreenshotScanPage() {
   const [pushResult, setPushResult] = useState<PushResponse | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const [scanProgress, setScanProgress] = useState("");
+  const [scanProviders, setScanProviders] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -127,6 +129,7 @@ export default function ScreenshotScanPage() {
     setThumbnails([]);
     setMembers([]);
     setScanErrors([]);
+    setScanProviders([]);
     setPushResult(null);
     setStep("upload");
     setScanProgress("");
@@ -138,6 +141,7 @@ export default function ScreenshotScanPage() {
     setStep("scanning");
     setScanErrors([]);
     setMembers([]);
+    setScanProviders([]);
     setScanProgress(`Processing ${files.length} screenshot(s)...`);
 
     try {
@@ -164,6 +168,7 @@ export default function ScreenshotScanPage() {
         data.members.map((m) => ({ ...m, _removed: false }))
       );
       setScanErrors(data.errors || []);
+      setScanProviders(data.providers || []);
       setStep("preview");
     } catch (err) {
       setScanErrors([err instanceof Error ? err.message : "Scan failed"]);
@@ -421,7 +426,7 @@ export default function ScreenshotScanPage() {
                 <li>Push confirmed data to the club database</li>
               </ol>
               <p className="text-[#8a4baf]/70 text-xs mt-2">
-                Uses GPT-4o Vision for OCR extraction. Best results with clear, uncropped screenshots.
+                Uses Gemini 2.5 Flash for OCR extraction, falls back to GPT-4o if unavailable. Best results with clear, uncropped screenshots.
               </p>
             </div>
           )}
@@ -436,13 +441,19 @@ export default function ScreenshotScanPage() {
           </h2>
           <p className="text-[#d6b4fc] text-lg">{scanProgress}</p>
           <p className="text-[#8a4baf] text-sm">
-            Each image takes ~5-10 seconds to process with GPT-4o Vision
+            Each image takes ~5-10 seconds to process with AI vision
           </p>
         </div>
       )}
 
       {step === "preview" && (
         <div className="space-y-6">
+          {scanProviders.length > 0 && (
+            <div className="bg-[#0a0412] border-2 border-[#00ffff]/20 p-3 flex items-center gap-3 text-xs">
+              <span className="text-[#00ffff] font-bold uppercase tracking-widest">OCR Provider:</span>
+              <span className="text-[#d6b4fc]">{scanProviders.join(" | ")}</span>
+            </div>
+          )}
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-2xl text-[#39ff14] font-bold" style={{ fontFamily: '"VT323", monospace' }}>
@@ -616,7 +627,7 @@ export default function ScreenshotScanPage() {
 
       <div className="mt-12 p-6 bg-[#0a0412] border-2 border-[#8a4baf]/20 text-center opacity-60 hover:opacity-100 transition-opacity">
         <p className="text-xs tracking-[0.2em] uppercase">
-          SCREENSHOT_SCAN // GPT-4O_VISION // SNAIL_OS_V2.4.0
+          SCREENSHOT_SCAN // GEMINI_FLASH + GPT-4O // SNAIL_OS_V2.5.0
         </p>
       </div>
     </div>
