@@ -21,6 +21,7 @@ import {
   ChatInputCommandInteraction,
 } from 'discord.js';
 import { database } from '../lib/database.js';
+import { canonicalize } from '../lib/club-store.js';
 
 export function canonicalizeAmbiguous(name: string): string {
   const lower = name.toLowerCase();
@@ -305,6 +306,19 @@ async function pushStagingToLatest(
   try {
     await connection.beginTransaction();
 
+    const [aliasRows] = await connection.execute(
+      `SELECT ca.alias_canonical, cm.name_display AS canonical_display
+       FROM club_aliases ca
+       JOIN club_members cm ON cm.id = ca.member_id
+       WHERE ca.guild_id = ?`,
+      [guildId],
+    ) as [Array<{ alias_canonical: string; canonical_display: string }>, unknown];
+
+    const aliasMap = new Map<string, string>();
+    for (const row of aliasRows) {
+      aliasMap.set(row.alias_canonical, row.canonical_display);
+    }
+
     const allNames = new Map<string, { sim_power: string | null; total_power: string | null; display_name: string }>();
     for (const r of simRows) {
       const key = canonicalizeAmbiguous(r.member_name);
@@ -331,6 +345,13 @@ async function pushStagingToLatest(
     const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
 
     for (const [, entry] of allNames) {
+      const canonicalName = canonicalize(entry.display_name);
+      if (aliasMap.has(canonicalName)) {
+        const resolvedName = aliasMap.get(canonicalName)!;
+        console.log(`[club-push] Alias resolved: "${entry.display_name}" → "${resolvedName}"`);
+        entry.display_name = resolvedName;
+      }
+
       pushedDisplayNames.push(entry.display_name);
 
       const [existing] = await connection.execute(
