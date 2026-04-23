@@ -63,12 +63,62 @@ export async function POST(request: NextRequest) {
       let imported = 0;
       const errors: string[] = [];
 
+      const [existingRows] = await pool.query(
+        `SELECT member_id, name_display FROM club_latest WHERE guild_id = ?`,
+        [GUILD_ID]
+      ) as [Array<{ member_id: number; name_display: string }>, unknown];
+
+      const existingByName = new Map<string, number>();
+      const existingIds = new Set<number>();
+      for (const row of existingRows) {
+        existingByName.set(row.name_display.toLowerCase(), row.member_id);
+        existingIds.add(row.member_id);
+      }
+
+      const nameToId = new Map<string, number>();
+      const assignedIds = new Set<number>(existingIds);
+
       for (const member of members) {
         if (!member.name || typeof member.name !== "string" || !member.name.trim()) continue;
         if (member.sim_power == null && member.total_power == null) continue;
 
-        const memberId = parseInt(String(member.member_id ?? 0), 10) || 0;
         const name = member.name.trim();
+        const nameKey = name.toLowerCase();
+
+        const rawId = parseInt(String(member.member_id ?? 0), 10) || 0;
+        if (rawId > 0) {
+          nameToId.set(nameKey, rawId);
+          assignedIds.add(rawId);
+          continue;
+        }
+
+        if (nameToId.has(nameKey)) continue;
+
+        const existingId = existingByName.get(nameKey);
+        if (existingId !== undefined) {
+          nameToId.set(nameKey, existingId);
+          continue;
+        }
+
+        let hash = 0;
+        for (let i = 0; i < nameKey.length; i++) {
+          hash = ((hash << 5) - hash + nameKey.charCodeAt(i)) | 0;
+        }
+        let negativeId = -Math.abs(hash || 1);
+        while (assignedIds.has(negativeId)) {
+          negativeId--;
+        }
+        nameToId.set(nameKey, negativeId);
+        assignedIds.add(negativeId);
+      }
+
+      for (const member of members) {
+        if (!member.name || typeof member.name !== "string" || !member.name.trim()) continue;
+        if (member.sim_power == null && member.total_power == null) continue;
+
+        const name = member.name.trim();
+        const nameKey = name.toLowerCase();
+        const memberId = nameToId.get(nameKey) ?? 0;
         const simPower = parseInt(String(member.sim_power ?? 0), 10) || 0;
         const totalPower = parseInt(String(member.total_power ?? 0), 10) || 0;
 
@@ -78,17 +128,15 @@ export async function POST(request: NextRequest) {
              VALUES (?, ?, ?, ?, ?, 0, 0, 0, 0, NOW())
              ON DUPLICATE KEY UPDATE
                sim_prev = sim_power,
-               total_prev = total_power,
-               sim_power = ?,
-               total_power = ?,
-               name_display = ?,
-               sim_pct_change = CASE WHEN sim_prev > 0 THEN ROUND((? - sim_prev) / sim_prev * 100, 2) ELSE 0 END,
-               total_pct_change = CASE WHEN total_prev > 0 THEN ROUND((? - total_prev) / total_prev * 100, 2) ELSE 0 END,
+               total_prev = IF(VALUES(total_power) = 0, total_prev, total_power),
+               sim_power = VALUES(sim_power),
+               total_power = IF(VALUES(total_power) = 0 AND total_power > 0, total_power, VALUES(total_power)),
+               name_display = VALUES(name_display),
+               sim_pct_change = CASE WHEN sim_prev > 0 THEN ROUND((sim_power - sim_prev) / sim_prev * 100, 2) ELSE 0 END,
+               total_pct_change = CASE WHEN total_prev > 0 THEN ROUND((total_power - total_prev) / total_prev * 100, 2) ELSE 0 END,
                latest_at = NOW()`,
             [
               GUILD_ID, memberId, name, simPower, totalPower,
-              simPower, totalPower, name,
-              simPower, totalPower,
             ]
           );
           imported++;
