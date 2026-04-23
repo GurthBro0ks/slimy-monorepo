@@ -34,11 +34,28 @@ interface ScanResponse {
   errors?: string[];
 }
 
+interface PushDetail {
+  name: string;
+  sim_power: number;
+  total_power: number;
+  status: "matched" | "new" | "error";
+  error?: string;
+}
+
 interface PushResponse {
   ok: boolean;
   imported: number;
   errors: string[];
   mode?: string;
+  details?: PushDetail[];
+  matchedCount?: number;
+  newCount?: number;
+}
+
+interface ScanSummary {
+  totalExtracted: number;
+  duplicatesRemoved: number;
+  imagesProcessed: number;
 }
 
 type Step = "upload" | "scanning" | "preview" | "pushing" | "done";
@@ -74,6 +91,8 @@ export default function ScreenshotScanPage() {
   const [isDragOver, setIsDragOver] = useState(false);
   const [scanProgress, setScanProgress] = useState("");
   const [scanProviders, setScanProviders] = useState<string[]>([]);
+  const [scanSummary, setScanSummary] = useState<ScanSummary | null>(null);
+  const [pushTimestamp, setPushTimestamp] = useState<string>("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -130,7 +149,9 @@ export default function ScreenshotScanPage() {
     setMembers([]);
     setScanErrors([]);
     setScanProviders([]);
+    setScanSummary(null);
     setPushResult(null);
+    setPushTimestamp("");
     setStep("upload");
     setScanProgress("");
     if (fileInputRef.current) fileInputRef.current.value = "";
@@ -169,6 +190,11 @@ export default function ScreenshotScanPage() {
       );
       setScanErrors(data.errors || []);
       setScanProviders(data.providers || []);
+      setScanSummary({
+        totalExtracted: data.totalExtracted,
+        duplicatesRemoved: data.duplicatesRemoved,
+        imagesProcessed: data.imagesProcessed,
+      });
       setStep("preview");
     } catch (err) {
       setScanErrors([err instanceof Error ? err.message : "Scan failed"]);
@@ -183,15 +209,24 @@ export default function ScreenshotScanPage() {
     setStep("pushing");
 
     try {
+      const providerSummary = scanProviders
+        .map((p) => p.split(": ").pop() || p)
+        .filter((v, i, a) => a.indexOf(v) === i)
+        .join(", ");
+
       const res = await fetch("/api/snail/club/screenshots/push", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ members: activeMembers }),
+        body: JSON.stringify({
+          members: activeMembers,
+          provider: providerSummary || "unknown",
+        }),
         credentials: "include",
       });
 
       const result: PushResponse = await res.json();
       setPushResult(result);
+      setPushTimestamp(new Date().toISOString());
       setStep("done");
     } catch (err) {
       setPushResult({
@@ -448,6 +483,56 @@ export default function ScreenshotScanPage() {
 
       {step === "preview" && (
         <div className="space-y-6">
+          <div className="bg-[#0a0412] border-2 border-[#00ffff]/30 p-6 space-y-4">
+            <h3 className="text-lg text-[#00ffff] font-bold" style={{ fontFamily: '"VT323", monospace' }}>
+              SCAN SUMMARY
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div>
+                <span className="text-[#8a4baf] text-xs tracking-widest uppercase">Screenshots</span>
+                <p className="text-2xl text-[#39ff14] font-bold">{scanSummary?.imagesProcessed ?? files.length}</p>
+              </div>
+              <div>
+                <span className="text-[#8a4baf] text-xs tracking-widest uppercase">Unique Members</span>
+                <p className="text-2xl text-[#39ff14] font-bold">{activeMembers.length}</p>
+              </div>
+              <div>
+                <span className="text-[#8a4baf] text-xs tracking-widest uppercase">Duplicates Removed</span>
+                <p className="text-2xl text-[#ff6b00] font-bold">{scanSummary?.duplicatesRemoved ?? 0}</p>
+              </div>
+            </div>
+            {scanProviders.length > 0 && (
+              <div className="flex items-center gap-2 text-xs">
+                <span className="text-[#00ffff] font-bold uppercase tracking-widest">Provider:</span>
+                <span className="text-[#d6b4fc]">
+                  {scanProviders.map((p) => p.split(": ").pop() || p).filter((v, i, a) => a.indexOf(v) === i).join(", ")}
+                </span>
+              </div>
+            )}
+            <div className="flex flex-wrap gap-2 pt-2">
+              {activeMembers.slice(0, 30).map((m, i) => (
+                <span key={i} className="px-2 py-1 bg-[#1a0b2e] border border-[#8a4baf]/30 text-[#d6b4fc] text-xs">
+                  {m.name}
+                </span>
+              ))}
+              {activeMembers.length > 30 && (
+                <span className="px-2 py-1 text-[#8a4baf] text-xs">
+                  +{activeMembers.length - 30} more...
+                </span>
+              )}
+            </div>
+            {scanErrors.length > 0 && (
+              <div className="pt-2">
+                <span className="text-[#ff6b00] text-xs font-bold">Warnings:</span>
+                <ul className="text-[#8a4baf] text-xs space-y-1 mt-1">
+                  {scanErrors.map((err, i) => (
+                    <li key={i}>&bull; {err}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+
           {scanProviders.length > 0 && (
             <div className="bg-[#0a0412] border-2 border-[#00ffff]/20 p-3 flex items-center gap-3 text-xs">
               <span className="text-[#00ffff] font-bold uppercase tracking-widest">OCR Provider:</span>
@@ -557,7 +642,7 @@ export default function ScreenshotScanPage() {
       {step === "done" && pushResult && (
         <div className="space-y-6">
           {pushResult.ok ? (
-            <div className="border-2 border-[#39ff14] bg-[#39ff14]/5 p-8 text-center space-y-4">
+            <div className="border-2 border-[#39ff14] bg-[#39ff14]/5 p-8 text-center space-y-6">
               <CheckCircle2 size={48} className="mx-auto text-[#39ff14]" />
               <h2 className="text-3xl font-bold text-[#39ff14]" style={{ fontFamily: '"VT323", monospace' }}>
                 IMPORT SUCCESSFUL
@@ -568,7 +653,88 @@ export default function ScreenshotScanPage() {
                   <span className="text-[#ff6b00] ml-2">(SANDBOX &mdash; no DB configured)</span>
                 )}
               </p>
-              {pushResult.errors.length > 0 && (
+
+              {pushResult.details && pushResult.details.length > 0 && (
+                <div className="max-w-3xl mx-auto text-left space-y-4">
+                  <div className="grid grid-cols-3 gap-4 text-center">
+                    <div className="bg-[#0a0412] border border-[#39ff14]/30 p-4">
+                      <span className="text-[#8a4baf] text-xs tracking-widest uppercase block mb-1">Matched Existing</span>
+                      <p className="text-2xl text-[#39ff14] font-bold">{pushResult.matchedCount ?? 0}</p>
+                    </div>
+                    <div className="bg-[#0a0412] border border-[#00ffff]/30 p-4">
+                      <span className="text-[#8a4baf] text-xs tracking-widest uppercase block mb-1">New Members</span>
+                      <p className="text-2xl text-[#00ffff] font-bold">{pushResult.newCount ?? 0}</p>
+                    </div>
+                    <div className="bg-[#0a0412] border border-[#8a4baf]/30 p-4">
+                      <span className="text-[#8a4baf] text-xs tracking-widest uppercase block mb-1">Errors</span>
+                      <p className="text-2xl text-[#ff6b00] font-bold">{pushResult.errors.length}</p>
+                    </div>
+                  </div>
+
+                  <div className="overflow-x-auto max-h-[300px] overflow-y-auto border border-[#8a4baf]/30">
+                    <table className="w-full text-left">
+                      <thead className="bg-[#1a0b2e] sticky top-0 z-10">
+                        <tr className="border-b border-[#8a4baf]/30 text-[#8a4baf]">
+                          <th className="p-3 font-bold">#</th>
+                          <th className="p-3 font-bold">NAME</th>
+                          <th className="p-3 font-bold">SIM POWER</th>
+                          <th className="p-3 font-bold">TOTAL POWER</th>
+                          <th className="p-3 font-bold">STATUS</th>
+                        </tr>
+                      </thead>
+                      <tbody className="text-[#d6b4fc]">
+                        {pushResult.details.map((d, i) => (
+                          <tr
+                            key={i}
+                            className={`border-b border-[#8a4baf]/10 ${
+                              d.status === "error" ? "bg-red-500/5" : "hover:bg-[#1a0b2e]"
+                            }`}
+                          >
+                            <td className="p-3 text-[#8a4baf]">{i + 1}</td>
+                            <td className="p-3 font-bold">{d.name}</td>
+                            <td className="p-3">{formatNumber(d.sim_power)}</td>
+                            <td className="p-3">{formatNumber(d.total_power)}</td>
+                            <td className="p-3">
+                              {d.status === "matched" && (
+                                <span className="px-2 py-0.5 bg-green-500/10 border border-green-500 text-green-500 text-xs font-bold">
+                                  MATCHED
+                                </span>
+                              )}
+                              {d.status === "new" && (
+                                <span className="px-2 py-0.5 bg-cyan-500/10 border border-cyan-500 text-cyan-500 text-xs font-bold">
+                                  NEW
+                                </span>
+                              )}
+                              {d.status === "error" && (
+                                <span className="px-2 py-0.5 bg-red-500/10 border border-red-500 text-red-500 text-xs font-bold" title={d.error}>
+                                  ERROR
+                                </span>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row gap-4 text-xs text-[#8a4baf]">
+                    {scanProviders.length > 0 && (
+                      <div>
+                        <span className="text-[#00ffff] font-bold uppercase">Provider:</span>{" "}
+                        {scanProviders.map((p) => p.split(": ").pop() || p).filter((v, i, a) => a.indexOf(v) === i).join(", ")}
+                      </div>
+                    )}
+                    {pushTimestamp && (
+                      <div>
+                        <span className="text-[#00ffff] font-bold uppercase">Timestamp:</span>{" "}
+                        {new Date(pushTimestamp).toLocaleString()}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {(!pushResult.details || pushResult.details.length === 0) && pushResult.errors.length > 0 && (
                 <div className="mt-4 text-left max-w-lg mx-auto">
                   <p className="text-[#ff6b00] text-sm font-bold mb-2">WARNINGS:</p>
                   <ul className="text-[#8a4baf] text-sm space-y-1">

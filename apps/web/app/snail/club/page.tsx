@@ -21,8 +21,8 @@ import {
   ChevronUp,
   Minus,
   Filter,
-  FileUp,
   Camera,
+  History,
 } from "lucide-react";
 
 interface ClubMember {
@@ -399,11 +399,11 @@ export default function ClubDashboardPage() {
                 SCAN SCREENSHOTS
               </Link>
               <Link
-                href="/snail/club/import"
-                className="flex items-center gap-2 px-6 py-3 bg-[#2d0b4e] border-2 border-[#00ffff] text-[#00ffff] hover:bg-[#00ffff] hover:text-black transition-all font-bold tracking-widest shrink-0"
+                href="/snail/club/history"
+                className="flex items-center gap-2 px-6 py-3 bg-[#2d0b4e] border-2 border-[#8a4baf] text-[#8a4baf] hover:bg-[#8a4baf] hover:text-black transition-all font-bold tracking-widest shrink-0"
               >
-                <FileUp size={20} />
-                IMPORT DATA
+                <History size={20} />
+                HISTORY
               </Link>
             </>
           )}

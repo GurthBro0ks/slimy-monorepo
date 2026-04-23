@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireOwner } from "@/lib/auth/owner";
+import { insertImportLog } from "@/lib/club/import-log";
 import * as XLSX from "xlsx";
 import mysql from "mysql2/promise";
 
@@ -60,9 +61,14 @@ function parseXlsxBuffer(buffer: Buffer): { members: MemberRow[]; errors: string
 }
 
 export async function POST(request: NextRequest) {
+  let ownerEmail = "unknown";
+  let ownerRole = "unknown";
+  let sourceFilename = "unknown";
   try {
     try {
-      await requireOwner(request);
+      const ownerCtx = await requireOwner(request);
+      ownerEmail = ownerCtx.owner.email;
+      ownerRole = ownerCtx.owner.role;
     } catch (authError: unknown) {
       if (authError instanceof NextResponse) return authError;
       return NextResponse.json(
@@ -98,6 +104,7 @@ export async function POST(request: NextRequest) {
       const parsed = parseXlsxBuffer(buffer);
       members = parsed.members;
       errors = parsed.errors;
+      sourceFilename = file.name;
     } else {
       const body = await request.json();
       if (!body.members || !Array.isArray(body.members)) {
@@ -199,6 +206,19 @@ export async function POST(request: NextRequest) {
       }
 
       await pool.end();
+
+      const memberNames = members.map((m) => m.name);
+      await insertImportLog({
+        guild_id: GUILD_ID,
+        action_type: "xlsx_import",
+        user_email: ownerEmail,
+        user_role: ownerRole,
+        member_count: imported,
+        members_json: JSON.stringify(memberNames),
+        provider: "xlsx",
+        source_info: sourceFilename,
+        errors_json: JSON.stringify([...errors, ...dbErrors]),
+      });
 
       return NextResponse.json({
         ok: true,

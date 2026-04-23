@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireOwner } from "@/lib/auth/owner";
+import { insertImportLog } from "@/lib/club/import-log";
 import mysql from "mysql2/promise";
 
 export const runtime = "nodejs";
@@ -13,10 +14,23 @@ interface PushMember {
   member_id?: number;
 }
 
+interface PushDetail {
+  name: string;
+  sim_power: number;
+  total_power: number;
+  status: "matched" | "new" | "error";
+  error?: string;
+}
+
 export async function POST(request: NextRequest) {
+  let ownerEmail = "unknown";
+  let ownerRole = "unknown";
   try {
+    let ownerCtx: { owner: { email: string; role: string } } | null = null;
     try {
-      await requireOwner(request);
+      ownerCtx = await requireOwner(request);
+      ownerEmail = ownerCtx.owner.email;
+      ownerRole = ownerCtx.owner.role;
     } catch (authError: unknown) {
       if (authError instanceof NextResponse) return authError;
       return NextResponse.json({ error: "unauthorized" }, { status: 401 });
@@ -31,6 +45,7 @@ export async function POST(request: NextRequest) {
     }
 
     const members: PushMember[] = body.members;
+    const provider = body.provider || "unknown";
     if (members.length === 0) {
       return NextResponse.json(
         { error: "No members to push" },
@@ -40,11 +55,20 @@ export async function POST(request: NextRequest) {
 
     const mysqlHost = process.env.CLUB_MYSQL_HOST;
     if (!mysqlHost) {
+      const details: PushDetail[] = members.map((m) => ({
+        name: m.name,
+        sim_power: m.sim_power ?? 0,
+        total_power: m.total_power ?? 0,
+        status: "new" as const,
+      }));
       return NextResponse.json({
         ok: true,
         imported: members.length,
         errors: [],
         mode: "sandbox",
+        details,
+        matchedCount: 0,
+        newCount: members.length,
       });
     }
 
@@ -62,6 +86,9 @@ export async function POST(request: NextRequest) {
     try {
       let imported = 0;
       const errors: string[] = [];
+      const details: PushDetail[] = [];
+      let matchedCount = 0;
+      let newCount = 0;
 
       const [existingRows] = await pool.query(
         `SELECT member_id, name_display FROM club_latest WHERE guild_id = ?`,
@@ -76,6 +103,7 @@ export async function POST(request: NextRequest) {
       }
 
       const nameToId = new Map<string, number>();
+      const nameToStatus = new Map<string, "matched" | "new">();
       const assignedIds = new Set<number>(existingIds);
 
       for (const member of members) {
@@ -88,6 +116,7 @@ export async function POST(request: NextRequest) {
         const rawId = parseInt(String(member.member_id ?? 0), 10) || 0;
         if (rawId > 0) {
           nameToId.set(nameKey, rawId);
+          nameToStatus.set(nameKey, "matched");
           assignedIds.add(rawId);
           continue;
         }
@@ -97,6 +126,7 @@ export async function POST(request: NextRequest) {
         const existingId = existingByName.get(nameKey);
         if (existingId !== undefined) {
           nameToId.set(nameKey, existingId);
+          nameToStatus.set(nameKey, "matched");
           continue;
         }
 
@@ -109,6 +139,7 @@ export async function POST(request: NextRequest) {
           negativeId--;
         }
         nameToId.set(nameKey, negativeId);
+        nameToStatus.set(nameKey, "new");
         assignedIds.add(negativeId);
       }
 
@@ -121,6 +152,7 @@ export async function POST(request: NextRequest) {
         const memberId = nameToId.get(nameKey) ?? 0;
         const simPower = parseInt(String(member.sim_power ?? 0), 10) || 0;
         const totalPower = parseInt(String(member.total_power ?? 0), 10) || 0;
+        const status = nameToStatus.get(nameKey) || "new";
 
         try {
           await pool.query(
@@ -140,17 +172,38 @@ export async function POST(request: NextRequest) {
             ]
           );
           imported++;
+          if (status === "matched") matchedCount++;
+          else newCount++;
+          details.push({ name, sim_power: simPower, total_power: totalPower, status });
         } catch (rowErr) {
-          errors.push(`${name}: ${rowErr instanceof Error ? rowErr.message : String(rowErr)}`);
+          const errMsg = rowErr instanceof Error ? rowErr.message : String(rowErr);
+          errors.push(`${name}: ${errMsg}`);
+          details.push({ name, sim_power: simPower, total_power: totalPower, status: "error", error: errMsg });
         }
       }
 
       await pool.end();
 
+      const memberNames = details.filter((d) => d.status !== "error").map((d) => d.name);
+      await insertImportLog({
+        guild_id: GUILD_ID,
+        action_type: "screenshot_push",
+        user_email: ownerEmail,
+        user_role: ownerRole,
+        member_count: imported,
+        members_json: JSON.stringify(memberNames),
+        provider,
+        source_info: "screenshot upload",
+        errors_json: JSON.stringify(errors),
+      });
+
       return NextResponse.json({
         ok: true,
         imported,
         errors,
+        details,
+        matchedCount,
+        newCount,
       });
     } catch (dbError) {
       console.error("[/api/snail/club/screenshots/push] DB error:", dbError);

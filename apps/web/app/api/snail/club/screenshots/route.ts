@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireOwner } from "@/lib/auth/owner";
 import { getOpenAIClient } from "@/lib/openai-client";
+import { insertImportLog } from "@/lib/club/import-log";
 
 export const runtime = "nodejs";
 
@@ -8,6 +9,8 @@ const GEMINI_BASE_URL =
   "https://generativelanguage.googleapis.com/v1beta/openai/";
 const GEMINI_MODEL = "gemini-2.5-flash-preview-05-20";
 const OPENAI_MODEL = "gpt-4o";
+
+const GUILD_ID = process.env.DEFAULT_GUILD_ID || "1176605506912141444";
 
 const SYSTEM_PROMPT = `You are a precise Super Snail game data extractor. Your job is to read Manage Members screenshots and extract member rows with exact power numbers.
 
@@ -250,9 +253,13 @@ async function ocrImage(
 }
 
 export async function POST(request: NextRequest) {
+  let ownerEmail = "unknown";
+  let ownerRole = "unknown";
   try {
     try {
-      await requireOwner(request);
+      const ownerCtx = await requireOwner(request);
+      ownerEmail = ownerCtx.owner.email;
+      ownerRole = ownerCtx.owner.role;
     } catch (authError: unknown) {
       if (authError instanceof NextResponse) return authError;
       return NextResponse.json({ error: "unauthorized" }, { status: 401 });
@@ -322,6 +329,21 @@ export async function POST(request: NextRequest) {
     }
 
     const deduped = deduplicateMembers(allMembers);
+
+    const uniqueProviderSet = new Set(providers.map((p) => p.split(": ").pop() || p));
+    const providerSummary = Array.from(uniqueProviderSet).join(", ");
+
+    await insertImportLog({
+      guild_id: GUILD_ID,
+      action_type: "screenshot_scan",
+      user_email: ownerEmail,
+      user_role: ownerRole,
+      member_count: deduped.length,
+      members_json: JSON.stringify(deduped.map((m) => m.name)),
+      provider: providerSummary,
+      source_info: `${files.length} screenshots processed`,
+      errors_json: JSON.stringify(errors),
+    });
 
     return NextResponse.json({
       members: deduped,
