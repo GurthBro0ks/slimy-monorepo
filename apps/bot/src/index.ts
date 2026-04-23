@@ -247,6 +247,23 @@ client.once(Events.ClientReady, async (c) => {
   } catch {
     // farming module not available yet
   }
+
+  // Start club alerts scheduler (monitors member changes in club_latest)
+  try {
+    const { startAlertScheduler } = require('./utils/club-alerts.js');
+    const guildId = process.env.DISCORD_TEST_GUILD_ID || c.guilds.cache.first()?.id;
+    const alertChannelId = process.env.CLUB_ALERT_CHANNEL_ID;
+    if (guildId) {
+      if (alertChannelId) {
+        startAlertScheduler(guildId, alertChannelId);
+        console.log(`[club-alerts] Scheduler started for guild ${guildId}`);
+      } else {
+        console.warn('[club-alerts] CLUB_ALERT_CHANNEL_ID not set — alerts disabled. Set it in .env to enable.');
+      }
+    }
+  } catch (err) {
+    console.warn('[club-alerts] Failed to start scheduler:', (err as Error).message);
+  }
 });
 
 // ─── Interaction Handler ──────────────────────────────────────────────────────
