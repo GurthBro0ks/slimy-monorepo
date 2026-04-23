@@ -5,9 +5,7 @@ import { insertImportLog } from "@/lib/club/import-log";
 
 export const runtime = "nodejs";
 
-const GEMINI_BASE_URL =
-  "https://generativelanguage.googleapis.com/v1beta/openai/";
-const GEMINI_MODEL = "gemini-2.5-flash-preview-05-20";
+const GEMINI_MODEL = "gemini-2.5-flash";
 const OPENAI_MODEL = "gpt-4o";
 
 const GUILD_ID = process.env.DEFAULT_GUILD_ID || "1176605506912141444";
@@ -117,33 +115,38 @@ async function tryGeminiOCR(
     throw new Error("GEMINI_API_KEY not configured");
   }
 
-  const dataUrl = `data:${mimeType};base64,${base64Data}`;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 
-  const response = await fetch(`${GEMINI_BASE_URL}chat/completions`, {
+  const response = await fetch(url, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
+      "x-goog-api-key": apiKey,
     },
     body: JSON.stringify({
-      model: GEMINI_MODEL,
-      temperature: 0,
-      messages: [
-        { role: "system", content: SYSTEM_PROMPT },
+      systemInstruction: {
+        parts: [{ text: SYSTEM_PROMPT }],
+      },
+      contents: [
         {
           role: "user",
-          content: [
+          parts: [
             {
-              type: "text",
-              text: "Extract all visible member rows from this Super Snail Manage Members screenshot. Return the JSON array.",
+              inlineData: {
+                mimeType,
+                data: base64Data,
+              },
             },
             {
-              type: "image_url",
-              image_url: { url: dataUrl, detail: "high" },
+              text: "Extract all visible member rows from this Super Snail Manage Members screenshot. Return the JSON array.",
             },
           ],
         },
       ],
+      generationConfig: {
+        temperature: 0,
+        maxOutputTokens: 4000,
+      },
     }),
   });
 
@@ -153,10 +156,12 @@ async function tryGeminiOCR(
   }
 
   const data = (await response.json()) as {
-    choices?: Array<{ message?: { content?: string } }>;
+    candidates?: Array<{
+      content?: { parts?: Array<{ text?: string }> };
+    }>;
   };
 
-  const content = data.choices?.[0]?.message?.content;
+  const content = data.candidates?.[0]?.content?.parts?.[0]?.text;
   if (!content) {
     throw new Error("Empty response from Gemini");
   }
