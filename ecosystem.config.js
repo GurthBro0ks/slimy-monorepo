@@ -24,8 +24,9 @@ module.exports = {
       env: {
         NODE_ENV: 'production',
       },
-      error_file: '/home/slimy/.pm2/logs/slimy-bot-v2-error.log',
-      out_file: '/home/slimy/.pm2/logs/slimy-bot-v2-out.log',
+      error_file: '/home/slimy/logs/bot-error.log',
+      out_file: '/home/slimy/logs/bot-out.log',
+      log_file: '/home/slimy/logs/bot-combined.log',
       log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
       merge_logs: true,
       min_uptime: '10s',
