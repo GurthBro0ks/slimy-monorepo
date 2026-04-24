@@ -11,11 +11,14 @@
  *   GEMINI_API_KEY          — Gemini API key (for Flash and Pro)
  */
 
+import { createLogger } from "../lib/logger.js";
+const logger = createLogger({ context: "roster-ocr" });
+
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai/";
 
-const GEMINI_MODEL_PRIMARY = "gemini-2.5-flash-preview-05-20";
+const GEMINI_MODEL_PRIMARY = "gemini-2.5-flash";
 const GEMINI_MODEL_TIEBREAKER = "gemini-2.5-pro";
 
 // TODO(roster-ocr): Total power support is wired but not yet validated.
@@ -288,9 +291,7 @@ function parseMarkdownRoster(text: string, model: string): RosterRow[] {
   }
 
   if (rows.length === 0) {
-    console.warn(`[roster-ocr] ${model} returned unparseable format, skipping`, {
-      snippet: text.slice(0, 300),
-    });
+    logger.warn(`${model} returned unparseable format, skipping`, { snippet: text.slice(0, 300) });
   }
 
   return rows;
@@ -462,7 +463,7 @@ export async function extractRoster(
 
   for (let i = 0; i < imageAttachments.length; i++) {
     const attachment = imageAttachments[i];
-    console.info(`[roster-ocr] Processing image ${i + 1}/${imageAttachments.length}: ${attachment.name || attachment.url}`);
+    logger.info(`Processing image ${i + 1}/${imageAttachments.length}`, { image: attachment.name || attachment.url });
 
     let geminiResult: ModelResult;
 
@@ -485,12 +486,18 @@ export async function extractRoster(
     // Pro is used instead of GLM because GLM-4.6V vision takes ~40s/image vs Pro's ~10s.
     // Image resizing (max 1568px / JPEG q85) further reduces per-image latency to ~5-10s.
     const [gem, pro] = await Promise.all([
-      callGemini(imageDataUrl, geminiKey, GEMINI_MODEL_PRIMARY, metric).catch((err) => {
-        console.error(`[roster-ocr] Flash failed for image ${i}: ${err.message}`);
+      callGemini(imageDataUrl, geminiKey, GEMINI_MODEL_PRIMARY, metric).then((r) => {
+        logger.info(`Flash OCR complete`, { model: GEMINI_MODEL_PRIMARY, imageIndex: i, rowCount: r.rows.length });
+        return r;
+      }).catch((err) => {
+        logger.error(`Flash OCR failed`, err, { model: GEMINI_MODEL_PRIMARY, imageIndex: i });
         return { rows: [], raw: '', model: GEMINI_MODEL_PRIMARY } as ModelResult;
       }),
-      callGemini(imageDataUrl, geminiKey, GEMINI_MODEL_TIEBREAKER, metric).catch((err) => {
-        console.error(`[roster-ocr] Pro failed for image ${i}: ${err.message}`);
+      callGemini(imageDataUrl, geminiKey, GEMINI_MODEL_TIEBREAKER, metric).then((r) => {
+        logger.info(`Pro OCR complete`, { model: GEMINI_MODEL_TIEBREAKER, imageIndex: i, rowCount: r.rows.length });
+        return r;
+      }).catch((err) => {
+        logger.error(`Pro OCR failed`, err, { model: GEMINI_MODEL_TIEBREAKER, imageIndex: i });
         return { rows: [], raw: '', model: GEMINI_MODEL_TIEBREAKER } as ModelResult;
       }),
     ]);
@@ -504,7 +511,7 @@ export async function extractRoster(
     // Resolve conflicts with tiebreaker
     const conflicts = diffed.filter((e) => e.source === 'conflict');
     for (const conflict of conflicts) {
-      console.info(`[roster-ocr] Resolving conflict for "${conflict.name}" via Gemini 2.5 Pro tiebreaker`);
+      logger.info(`Resolving conflict via tiebreaker`, { model: GEMINI_MODEL_TIEBREAKER, name: conflict.name, imageIndex: i });
       const tiebreakerValue = await runTiebreaker(imageDataUrl, geminiKey, conflict.name);
       conflict.power = tiebreakerValue;
       conflict.source = 'gemini'; // tiebreaker is gemini-pro
@@ -521,6 +528,21 @@ export async function extractRoster(
 
     const conflictCount = diffed.filter((e) => e.source === 'conflict').length;
     const highConfidenceCount = diffed.filter((e) => e.confidence === 'high').length;
+    const agreedCount = diffed.filter((e) => e.source === 'agreed').length;
+    const geminiOnlyCount = diffed.filter((e) => e.source === 'gemini').length;
+    const glmOnlyCount = diffed.filter((e) => e.source === 'glm').length;
+
+    logger.info(`Image OCR diff breakdown`, {
+      imageIndex: i,
+      totalMembers: diffed.length,
+      agreed: agreedCount,
+      geminiOnly: geminiOnlyCount,
+      glmOnly: glmOnlyCount,
+      conflicts: conflictCount,
+      highConfidence: highConfidenceCount,
+      flashModel: GEMINI_MODEL_PRIMARY,
+      proModel: GEMINI_MODEL_TIEBREAKER,
+    });
 
     results.push({
       imageIndex: i,
