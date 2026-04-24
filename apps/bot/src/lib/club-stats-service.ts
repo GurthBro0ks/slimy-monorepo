@@ -1,15 +1,14 @@
 /**
- * Club stats service — aggregates and leaderboard data.
- * Ported from /opt/slimy/app/lib/club-stats-service.js
+ * Club stats service — paginated roster + CSV export.
  */
 
 import { EmbedBuilder } from 'discord.js';
 import { getAggregates, getLatestForGuild, getTopMovers, LatestMemberRow } from './club-store.js';
-import { formatAnchorDisplay } from './week-anchor.js';
 
 export const DEFAULT_TOP = 10;
 export const MIN_TOP = 3;
 export const MAX_TOP = 25;
+export const MEMBERS_PER_PAGE = 10;
 
 function toNumber(value: unknown): number | null {
   if (value === null || typeof value === "undefined") return null;
@@ -43,19 +42,6 @@ export function formatDelta(current: unknown, previous: unknown): string {
   return `${sign}${delta.toLocaleString("en-US")}`;
 }
 
-function buildBar(pctValue: unknown): string {
-  const pct = toNumber(pctValue);
-  if (pct === null) return "   ";
-  const capped = Math.max(Math.min(pct, 50), -50);
-  const magnitude = Math.abs(capped);
-  const levels = ["", "▏", "▎", "▍", "▌", "▋", "▊", "▉"];
-  const index = Math.min(7, Math.max(1, Math.round((magnitude / 50) * 7)));
-  const block = levels[index];
-  if (!block) return "   ";
-  const prefix = pct >= 0 ? "+" : "−";
-  return `${prefix}${block} `;
-}
-
 function pad(value: string, length: number, align: "left" | "right" = "left"): string {
   const str = String(value);
   if (str.length >= length) return str;
@@ -63,59 +49,66 @@ function pad(value: string, length: number, align: "left" | "right" = "left"): s
   return align === "right" ? padding + str : str + padding;
 }
 
-function formatTableSide(rows: { name_display: string; pct_change: number | null; current_value: number | null; previous_value: number | null }[], metricLabel: string, direction: "up" | "down"): string {
-  if (!rows.length) return `${direction === "up" ? "Top ↑" : "Top ↓"} (${metricLabel})\n(no data)`;
-
-  const nameWidth = Math.max(10, ...rows.map(r => r.name_display.length)) + 1;
-  const lines: string[] = [];
-  lines.push(`${direction === "up" ? "Top ↑" : "Top ↓"} (${metricLabel})`);
-  lines.push(`${pad("", 3)} ${pad("Name", nameWidth)} ${pad("Δ%", 8)} ${pad("ΔAbs", 12, "right")} ${pad("Now", 12, "right")} Bar`);
-
-  rows.forEach((row, index) => {
-    const pct = toNumber(row.pct_change);
-    const pctStr = pct === null ? "—" : `${pct >= 0 ? "▲" : "▼"} ${Math.abs(pct).toFixed(1)}%`;
-    const delta = formatDelta(row.current_value, row.previous_value);
-    const now = formatNumber(row.current_value);
-    const bar = buildBar(pct);
-    lines.push(`${pad(`${index + 1})`, 3)} ${pad(row.name_display, nameWidth)} ${pad(pctStr, 8)} ${pad(delta, 12, "right")} ${pad(now, 12, "right")} ${bar}`);
-  });
-
-  return lines.join("\n");
+export function sortMembers(members: LatestMemberRow[], metric: string): LatestMemberRow[] {
+  const sorted = [...members];
+  if (metric === "sim") {
+    sorted.sort((a, b) => {
+      const av = toNumber(a.sim_power) ?? -1;
+      const bv = toNumber(b.sim_power) ?? -1;
+      if (bv !== av) return bv - av;
+      return a.name_display.localeCompare(b.name_display);
+    });
+  } else {
+    sorted.sort((a, b) => {
+      const av = toNumber(a.total_power) ?? -1;
+      const bv = toNumber(b.total_power) ?? -1;
+      if (bv !== av) return bv - av;
+      return a.name_display.localeCompare(b.name_display);
+    });
+  }
+  return sorted;
 }
 
-interface TableRow {
-  name_display: string;
-  pct_change: number | null;
-  current_value: number | null;
-  previous_value: number | null;
+function formatPct(pct: number | null): string {
+  if (pct === null) return "  —";
+  const sign = pct >= 0 ? "+" : "";
+  return `${sign}${pct.toFixed(1)}%`;
 }
 
-const MAX_FIELD_VALUE = 1024;
+export function buildRosterPage(
+  members: LatestMemberRow[],
+  page: number,
+  totalPages: number,
+  metric: string,
+  totalMembers: number,
+): EmbedBuilder {
+  const start = page * MEMBERS_PER_PAGE;
+  const pageMembers = members.slice(start, start + MEMBERS_PER_PAGE);
+  const metricLabel = metric === "sim" ? "Sim Power" : "Total Power";
+  const showSim = metric === "sim";
 
-function buildMoversSection(movers: { gainers: TableRow[]; losers: TableRow[] } | null, metricLabel: string): string {
-  if (!movers) return "";
-  const gainers: TableRow[] = Array.isArray(movers?.gainers) ? movers.gainers : [];
-  const losers: TableRow[] = Array.isArray(movers?.losers) ? movers.losers : [];
-  if (!gainers.length && !losers.length) return "No prior week yet.";
+  const nameWidth = Math.max(14, ...pageMembers.map(m => m.name_display.length)) + 1;
+  const powerWidth = 13;
 
-  let gKeep = gainers.length;
-  let lKeep = losers.length;
+  const header = `${pad("#", 3)} ${pad("Name", nameWidth)} ${pad("Sim Power", powerWidth, "right")} ${pad("Total Power", powerWidth + 2, "right")} ${pad("WoW", 7, "right")}`;
 
-  for (;;) {
-    const gSide = formatTableSide(gainers.slice(0, gKeep), metricLabel, "up");
-    const lSide = formatTableSide(losers.slice(0, lKeep), metricLabel, "down");
-    const truncNote = (gKeep < gainers.length || lKeep < losers.length)
-      ? `\nShowing ${gKeep}/${gainers.length} gainers, ${lKeep}/${losers.length} losers`
-      : "";
-    const result = `\`\`\`\n${gSide}\n\n${lSide}${truncNote}\n\`\`\``;
-    if (result.length <= MAX_FIELD_VALUE) return result;
-    if (gKeep > lKeep && gKeep > 0) { gKeep--; }
-    else if (lKeep > 0) { lKeep--; }
-    else if (gKeep > 0) { gKeep--; }
-    else break;
+  const lines: string[] = [header];
+  for (let i = 0; i < pageMembers.length; i++) {
+    const m = pageMembers[i];
+    const rank = start + i + 1;
+    const sim = formatNumber(m.sim_power);
+    const total = formatNumber(m.total_power);
+    const wow = showSim ? formatPct(m.sim_pct_change) : formatPct(m.total_pct_change);
+    lines.push(`${pad(`${rank}`, 3)} ${pad(m.name_display, nameWidth)} ${pad(sim, powerWidth, "right")} ${pad(total, powerWidth + 2, "right")} ${pad(wow, 7, "right")}`);
   }
 
-  return "```\nNo movers data available.\n```";
+  const table = "```\n" + lines.join("\n") + "\n```";
+
+  return new EmbedBuilder()
+    .setTitle(`Club Roster — Page ${page + 1}/${totalPages}`)
+    .setColor(0x00ff88)
+    .setDescription(table)
+    .setFooter({ text: `${totalMembers} members | Sorted by ${metricLabel} | Page ${page + 1}/${totalPages}` });
 }
 
 export function buildCsv(latest: LatestMemberRow[]): string {
@@ -134,32 +127,11 @@ export function buildCsv(latest: LatestMemberRow[]): string {
   return [header, ...rows].join("\n");
 }
 
-async function computeCohorts(latest: LatestMemberRow[]) {
-  const newMembers: LatestMemberRow[] = [];
-  const veterans: LatestMemberRow[] = [];
-  const mostVolatile: (LatestMemberRow & { volatility: number })[] = [];
-
-  for (const member of latest) {
-    if (!member.total_prev && !member.sim_prev) {
-      newMembers.push(member);
-    } else {
-      veterans.push(member);
-    }
-    const volatility = Math.abs(toNumber(member.total_pct_change) || 0);
-    if (volatility > 0) {
-      mostVolatile.push({ ...member, volatility });
-    }
-  }
-
-  mostVolatile.sort((a, b) => b.volatility - a.volatility);
-
-  return {
-    newMembers,
-    veterans,
-    mostVolatile: mostVolatile.slice(0, 5),
-    newCount: newMembers.length,
-    veteranCount: veterans.length,
-  };
+interface TableRow {
+  name_display: string;
+  pct_change: number | null;
+  current_value: number | null;
+  previous_value: number | null;
 }
 
 function normalizeTop(top: unknown): number {
@@ -173,7 +145,6 @@ export interface ClubStatsData {
   latest: LatestMemberRow[];
   totalMovers: { gainers: TableRow[]; losers: TableRow[] } | null;
   simMovers: { gainers: TableRow[]; losers: TableRow[] } | null;
-  cohorts: { newMembers: LatestMemberRow[]; veterans: LatestMemberRow[]; mostVolatile: LatestMemberRow[]; newCount: number; veteranCount: number };
 }
 
 export async function fetchClubStats(guildId: string, options: { metric?: string; top?: unknown } = {}): Promise<ClubStatsData> {
@@ -186,67 +157,13 @@ export async function fetchClubStats(guildId: string, options: { metric?: string
   ]);
 
   if (!latest.length) {
-    return { aggregates, latest, totalMovers: null, simMovers: null, cohorts: { newMembers: [], veterans: [], mostVolatile: [], newCount: 0, veteranCount: 0 } };
+    return { aggregates, latest, totalMovers: null, simMovers: null };
   }
 
-  const [totalMovers, simMovers, cohorts] = await Promise.all([
+  const [totalMovers, simMovers] = await Promise.all([
     metric === "sim" ? Promise.resolve(null) : getTopMovers(guildId, "total", top),
     metric === "total" ? Promise.resolve(null) : getTopMovers(guildId, "sim", top),
-    computeCohorts(latest),
   ]);
 
-  return { aggregates, latest, totalMovers, simMovers, cohorts };
-}
-
-export function buildClubStatsEmbed(
-  _guildId: string,
-  data: ClubStatsData,
-  options: { metric?: string } = {},
-): { embed: EmbedBuilder } {
-  const { aggregates, latest: _latest, totalMovers, simMovers, cohorts } = data;
-
-  const anchorDisplay = formatAnchorDisplay(_guildId);
-
-  const totalPowerDisplay = aggregates.totalPower === null
-    ? "—"
-    : formatNumber(aggregates.totalPower, { notation: "compact", maximumFractionDigits: 2 });
-  const averagePowerDisplay = aggregates.averagePower === null
-    ? "—"
-    : Number(aggregates.averagePower).toLocaleString("en-US", { maximumFractionDigits: 0 });
-
-  const embed = new EmbedBuilder()
-    .setTitle("Club Weekly Stats")
-    .setColor(0x6366f1)
-    .setDescription([
-      `**Members:** ${aggregates.members} (${cohorts.newCount} new, ${cohorts.veteranCount} returning)`,
-      `**Total Power:** ${totalPowerDisplay}`,
-      `**Average Power:** ${averagePowerDisplay}`,
-    ].join("\n"));
-
-  if (options.metric !== "sim" && totalMovers) {
-    embed.addFields({
-      name: "Total Power (WoW)",
-      value: buildMoversSection(totalMovers, "Total"),
-    });
-  }
-
-  if (options.metric !== "total" && simMovers) {
-    embed.addFields({
-      name: "Sim Power (WoW)",
-      value: buildMoversSection(simMovers, "Sim"),
-    });
-  }
-
-  if (cohorts.mostVolatile.length > 0) {
-    const volatileLines = cohorts.mostVolatile.map((member, index) => {
-      const pct = member.total_pct_change !== null && member.total_pct_change !== undefined ? member.total_pct_change : 0;
-      const sign = pct >= 0 ? "▲" : "▼";
-      return `${index + 1}. **${member.name_display}** ${sign} ${Math.abs(pct).toFixed(1)}%`;
-    });
-    embed.addFields({ name: "🔥 Most Volatile (Total Power)", value: volatileLines.join("\n"), inline: false });
-  }
-
-  embed.setFooter({ text: `Weekly window: ${anchorDisplay}` });
-
-  return { embed };
+  return { aggregates, latest, totalMovers, simMovers };
 }
