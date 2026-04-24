@@ -7,10 +7,14 @@ import {
   SlashCommandBuilder,
   PermissionFlagsBits,
   ChatInputCommandInteraction,
+  MessageFlags,
 } from 'discord.js';
 import { fetchClubStats, buildClubStatsEmbed, buildCsv } from '../lib/club-stats-service.js';
 import { database } from '../lib/database.js';
 import { trackCommand } from '../lib/metrics.js';
+import { createLogger } from '../lib/logger.js';
+
+const logger = createLogger({ context: 'club-stats' });
 
 const DEFAULT_TOP = 10;
 const MIN_TOP = 3;
@@ -76,7 +80,7 @@ module.exports = {
       if (!hasStatsPermission(interaction)) {
         await interaction.reply({
           content: "You need administrator permissions or the configured club role to run this command.",
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
         });
         return;
       }
@@ -125,12 +129,12 @@ module.exports = {
       trackCommand("club-stats", Date.now() - startTime, true);
     } catch (err) {
       const error = err as Error;
-      console.error("[club-stats] Failed", { error: error.message });
+      logger.error("Command failed", error);
       trackCommand("club-stats", Date.now() - startTime, false);
       if (interaction.deferred) {
         await interaction.editReply({ content: `❌ ${error.message}` });
       } else {
-        await interaction.reply({ content: `❌ ${error.message}`, ephemeral: true });
+        await interaction.reply({ content: `❌ ${error.message}`, flags: MessageFlags.Ephemeral });
       }
     }
   },

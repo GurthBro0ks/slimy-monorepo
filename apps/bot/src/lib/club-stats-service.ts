@@ -90,19 +90,32 @@ interface TableRow {
   previous_value: number | null;
 }
 
+const MAX_FIELD_VALUE = 1024;
+
 function buildMoversSection(movers: { gainers: TableRow[]; losers: TableRow[] } | null, metricLabel: string): string {
   if (!movers) return "";
   const gainers: TableRow[] = Array.isArray(movers?.gainers) ? movers.gainers : [];
   const losers: TableRow[] = Array.isArray(movers?.losers) ? movers.losers : [];
   if (!gainers.length && !losers.length) return "No prior week yet.";
 
-  const parts: string[] = [];
-  parts.push("```");
-  parts.push(formatTableSide(gainers, metricLabel, "up"));
-  parts.push("");
-  parts.push(formatTableSide(losers, metricLabel, "down"));
-  parts.push("```");
-  return parts.join("\n");
+  let gKeep = gainers.length;
+  let lKeep = losers.length;
+
+  for (;;) {
+    const gSide = formatTableSide(gainers.slice(0, gKeep), metricLabel, "up");
+    const lSide = formatTableSide(losers.slice(0, lKeep), metricLabel, "down");
+    const truncNote = (gKeep < gainers.length || lKeep < losers.length)
+      ? `\nShowing ${gKeep}/${gainers.length} gainers, ${lKeep}/${losers.length} losers`
+      : "";
+    const result = `\`\`\`\n${gSide}\n\n${lSide}${truncNote}\n\`\`\``;
+    if (result.length <= MAX_FIELD_VALUE) return result;
+    if (gKeep > lKeep && gKeep > 0) { gKeep--; }
+    else if (lKeep > 0) { lKeep--; }
+    else if (gKeep > 0) { gKeep--; }
+    else break;
+  }
+
+  return "```\nNo movers data available.\n```";
 }
 
 export function buildCsv(latest: LatestMemberRow[]): string {
