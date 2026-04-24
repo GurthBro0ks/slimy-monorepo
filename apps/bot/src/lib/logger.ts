@@ -1,7 +1,31 @@
-/**
- * Centralized logging utility for the Discord bot
- * Wraps console methods with structured logging capabilities
- */
+import pino from 'pino';
+import { hostname } from 'os';
+import { mkdirSync, existsSync } from 'fs';
+
+const LOG_DIR = '/home/slimy/logs';
+const LOG_FILE = `${LOG_DIR}/bot.log`;
+const IS_PROD = process.env.NODE_ENV === 'production';
+
+if (!existsSync(LOG_DIR)) {
+  mkdirSync(LOG_DIR, { recursive: true });
+}
+
+const fileDest = pino.destination({ dest: LOG_FILE, sync: false, mkdir: true });
+
+const baseOpts: pino.LoggerOptions = {
+  level: IS_PROD ? 'info' : 'debug',
+  base: { service: 'slimy-bot', pid: process.pid, hostname: hostname() },
+  timestamp: pino.stdTimeFunctions.isoTime,
+  formatters: {
+    level(label) {
+      return { level: label };
+    },
+  },
+};
+
+const pinoInstance = IS_PROD
+  ? pino(baseOpts, fileDest)
+  : pino(baseOpts, pino.transport({ target: 'pino-pretty', options: { colorize: true } }));
 
 export interface LogContext {
   context?: string;
@@ -11,73 +35,26 @@ export interface LogContext {
   [key: string]: string | number | boolean | undefined;
 }
 
-type LogLevel = 'INFO' | 'WARN' | 'ERROR' | 'DEBUG';
-
-/**
- * Formats a log message with timestamp, level, and optional context
- */
-function formatLog(level: LogLevel, message: string, context?: LogContext): string {
-  const timestamp = new Date().toISOString();
-  const parts = [`[${timestamp}]`, `[${level}]`, message];
-
-  if (context) {
-    const contextStr = Object.entries(context)
-      .filter(([_, value]) => value !== undefined)
-      .map(([key, value]) => `${key}=${value}`)
-      .join(' ');
-
-    if (contextStr) {
-      parts.push(`{${contextStr}}`);
-    }
-  }
-
-  return parts.join(' ');
-}
-
-/**
- * Log an informational message
- */
 export function logInfo(message: string, context?: LogContext): void {
-  console.log(formatLog('INFO', message, context));
+  pinoInstance.info({ msg: message, ...context });
 }
 
-/**
- * Log a warning message
- */
 export function logWarn(message: string, context?: LogContext): void {
-  console.warn(formatLog('WARN', message, context));
+  pinoInstance.warn({ msg: message, ...context });
 }
 
-/**
- * Log an error message
- */
 export function logError(message: string, error?: Error, context?: LogContext): void {
-  const errorContext = error ? {
-    ...context,
-    error: error.message,
-    stack: error.stack?.split('\n')[0] || 'N/A',
-  } : context;
-
-  console.error(formatLog('ERROR', message, errorContext));
-
-  // Log full stack trace separately for easier debugging
-  if (error?.stack) {
-    console.error(error.stack);
+  const merged: Record<string, unknown> = { ...context };
+  if (error) {
+    merged.err = { message: error.message, stack: error.stack };
   }
+  pinoInstance.error({ msg: message, ...merged });
 }
 
-/**
- * Log a debug message (only in development)
- */
 export function logDebug(message: string, context?: LogContext): void {
-  if (process.env.NODE_ENV !== 'production') {
-    console.debug(formatLog('DEBUG', message, context));
-  }
+  pinoInstance.debug({ msg: message, ...context });
 }
 
-/**
- * Create a child logger with default context
- */
 export function createLogger(defaultContext: LogContext) {
   return {
     info: (message: string, context?: LogContext) =>
@@ -90,3 +67,5 @@ export function createLogger(defaultContext: LogContext) {
       logDebug(message, { ...defaultContext, ...context }),
   };
 }
+
+export default pinoInstance;
