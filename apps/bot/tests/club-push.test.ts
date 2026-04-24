@@ -57,6 +57,7 @@ function createMockInteraction(options: { force?: boolean; dry_run?: boolean } =
   return {
     deferReply: vi.fn().mockResolvedValue(undefined),
     editReply: vi.fn().mockResolvedValue(undefined),
+    followUp: vi.fn().mockResolvedValue(undefined),
     guildId: 'guild-123',
     user: { id: 'user-456' },
     options: {
@@ -164,9 +165,12 @@ describe('club-push command', () => {
 
     setupConnectionMock();
     mockConnExecute
+      .mockResolvedValueOnce([[]])
       .mockResolvedValueOnce([[{ member_id: 1 }]])
       .mockResolvedValueOnce({ affectedRows: 1 })
       .mockResolvedValueOnce([{ affectedRows: 0 }]);
+
+    mockDbQuery.mockResolvedValueOnce([]);
 
     const interaction = createMockInteraction();
     await cmd.execute(interaction);
@@ -213,9 +217,12 @@ describe('club-push command', () => {
 
     setupConnectionMock();
     mockConnExecute
+      .mockResolvedValueOnce([[]])
       .mockResolvedValueOnce([[{ member_id: 1 }]])
       .mockResolvedValueOnce({ affectedRows: 1 })
       .mockResolvedValueOnce([{ affectedRows: 0 }]);
+
+    mockDbQuery.mockResolvedValueOnce([]);
 
     const interaction = createMockInteraction({ force: true });
     await cmd.execute(interaction);
@@ -249,11 +256,14 @@ describe('club-push command', () => {
 
     setupConnectionMock();
     mockConnExecute
+      .mockResolvedValueOnce([[]])
       .mockResolvedValueOnce([[{ member_id: 1 }]])
       .mockResolvedValueOnce({ affectedRows: 1 })
       .mockResolvedValueOnce([[{ member_id: 2 }]])
       .mockResolvedValueOnce({ affectedRows: 1 })
       .mockResolvedValueOnce([{ affectedRows: 14 }]);
+
+    mockDbQuery.mockResolvedValueOnce([]);
 
     const interaction = createMockInteraction();
     await cmd.execute(interaction);
@@ -283,9 +293,12 @@ describe('club-push command', () => {
 
     setupConnectionMock();
     mockConnExecute
+      .mockResolvedValueOnce([[]])
       .mockResolvedValueOnce([[{ member_id: 1 }]])
       .mockResolvedValueOnce({ affectedRows: 1 })
       .mockResolvedValueOnce([{ affectedRows: 0 }]);
+
+    mockDbQuery.mockResolvedValueOnce([]);
 
     const interaction = createMockInteraction();
     await cmd.execute(interaction);
@@ -306,9 +319,12 @@ describe('club-push command', () => {
 
     setupConnectionMock();
     mockConnExecute
+      .mockResolvedValueOnce([[]])
       .mockResolvedValueOnce([[{ member_id: 1 }]])
       .mockResolvedValueOnce({ affectedRows: 1 })
       .mockResolvedValueOnce([{ affectedRows: 5 }]);
+
+    mockDbQuery.mockResolvedValueOnce([]);
 
     const interaction = createMockInteraction();
     await cmd.execute(interaction);
@@ -355,9 +371,12 @@ describe('club-push command', () => {
 
     setupConnectionMock();
     mockConnExecute
+      .mockResolvedValueOnce([[]])
       .mockResolvedValueOnce([[{ member_id: 1 }]])
       .mockResolvedValueOnce({ affectedRows: 1 })
       .mockResolvedValueOnce([{ affectedRows: 0 }]);
+
+    mockDbQuery.mockResolvedValueOnce([]);
 
     const interaction = createMockInteraction();
     await cmd.execute(interaction);
