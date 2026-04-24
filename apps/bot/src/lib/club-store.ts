@@ -240,10 +240,10 @@ export async function getLatestForGuild(guildId: string): Promise<LatestMemberRo
     `SELECT cl.member_id, cm.name_canonical, cl.name_display,
             cl.sim_power, cl.total_power, cl.sim_prev, cl.total_prev,
             cl.sim_pct_change, cl.total_pct_change, cl.latest_at
-     FROM club_latest cl
-     JOIN club_members cm ON cm.id = cl.member_id
-     WHERE cl.guild_id = ?
-     ORDER BY (cl.total_power IS NULL) ASC, cl.total_power DESC, cl.name_display ASC`,
+      FROM club_latest cl
+      LEFT JOIN club_members cm ON cm.id = cl.member_id
+      WHERE cl.guild_id = ?
+      ORDER BY (cl.total_power IS NULL) ASC, cl.total_power DESC, cl.name_display ASC`,
     [guildId],
   );
 }
@@ -319,7 +319,7 @@ export async function getLastWeekCanonicalNames(guildId: string): Promise<Set<st
   if (!guildId) throw new Error("guildId is required");
   interface NameRow { name_canonical: string; }
   const rows = await database.query<NameRow[]>(
-    `SELECT cm.name_canonical FROM club_latest cl JOIN club_members cm ON cm.id = cl.member_id WHERE cl.guild_id = ?`,
+    `SELECT COALESCE(cm.name_canonical, LOWER(cl.name_display)) AS name_canonical FROM club_latest cl LEFT JOIN club_members cm ON cm.id = cl.member_id WHERE cl.guild_id = ?`,
     [guildId],
   );
   return new Set(rows.map(r => r.name_canonical));
