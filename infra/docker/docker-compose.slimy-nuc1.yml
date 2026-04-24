@@ -31,7 +31,7 @@ services:
         export MYSQL_ROOT_PASSWORD="$${MYSQL_ROOT_PASSWORD:-$${MYSQL_PASSWORD}}"
         exec /usr/local/bin/docker-entrypoint.sh "$$@"
     env_file:
-      - /opt/slimy/app/admin-api/.env.admin.production
+      - /opt/slimy/secrets/.env.mysql
     ports:
       - "3306:3306"
     volumes:
