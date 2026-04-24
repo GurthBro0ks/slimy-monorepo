@@ -69,10 +69,11 @@ export function sortMembers(members: LatestMemberRow[], metric: string): LatestM
   return sorted;
 }
 
-function formatPct(pct: number | null): string {
-  if (pct === null) return "  —";
-  const sign = pct >= 0 ? "+" : "";
-  return `${sign}${pct.toFixed(1)}%`;
+function formatPct(pct: unknown): string {
+  const num = toNumber(pct);
+  if (num === null) return "  —";
+  const sign = num >= 0 ? "+" : "";
+  return `${sign}${num.toFixed(1)}%`;
 }
 
 export function buildRosterPage(
