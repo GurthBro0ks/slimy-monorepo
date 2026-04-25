@@ -743,6 +743,44 @@ class Database {
         KEY idx_expires (expires_at)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     `);
+
+    await pool.execute(`
+      CREATE TABLE IF NOT EXISTS sim_wars_troop_latest (
+        guild_id VARCHAR(20) NOT NULL,
+        player_name VARCHAR(120) NOT NULL,
+        player_name_canonical VARCHAR(120) NOT NULL,
+        troop_power BIGINT NULL,
+        troop_hp BIGINT NULL,
+        troop_attack BIGINT NULL,
+        troop_defense BIGINT NULL,
+        troop_rush BIGINT NULL,
+        troop_leadership_current INT NULL,
+        troop_leadership_max INT NULL,
+        troop_crit_dmg_reduc_pct DECIMAL(7,2) NULL,
+        troop_fire_dmg BIGINT NULL,
+        troop_water_dmg BIGINT NULL,
+        troop_earth_dmg BIGINT NULL,
+        troop_wind_dmg BIGINT NULL,
+        troop_poison_dmg BIGINT NULL,
+        details JSON NULL,
+        latest_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (guild_id, player_name_canonical)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    `);
+
+    await pool.execute(`
+      CREATE TABLE IF NOT EXISTS sim_wars_troop_import_log (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        guild_id VARCHAR(20) NOT NULL,
+        player_name VARCHAR(120) NOT NULL,
+        action VARCHAR(50) NOT NULL,
+        details JSON NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        KEY idx_sim_wars_import_guild (guild_id),
+        KEY idx_sim_wars_import_player (guild_id, player_name),
+        KEY idx_sim_wars_import_created (created_at)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    `);
   }
 
   // Alias for backward compatibility with test suite
