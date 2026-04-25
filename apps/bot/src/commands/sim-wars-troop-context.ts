@@ -298,8 +298,18 @@ module.exports = {
           .setStyle(ButtonStyle.Secondary),
       );
 
+      // player_name is manually entered via modal — only count OCR-extracted fields
+      const OCR_STAT_FIELD_KEYS = [
+        'troop_power', 'troop_hp', 'troop_attack', 'troop_defense', 'troop_rush',
+        'troop_leadership_current', 'troop_leadership_max',
+        'troop_crit_dmg_reduc_pct',
+        'troop_fire_dmg', 'troop_water_dmg', 'troop_earth_dmg', 'troop_wind_dmg', 'troop_poison_dmg',
+      ] as const;
+      const ocrTotal = OCR_STAT_FIELD_KEYS.length;
+      const ocrExtracted = OCR_STAT_FIELD_KEYS.filter(k => (result.stats as unknown as Record<string, unknown>)[k] !== null).length;
+
       await interaction.editReply({
-        content: `Analysis complete for **${playerName}**. ${Object.values(result.stats).filter(v => v !== null).length}/14 fields extracted.`,
+        content: `Analysis complete for **${playerName}**. ${ocrExtracted}/${ocrTotal} OCR fields extracted.`,
         embeds: [embed],
         components: [exportButton],
       });

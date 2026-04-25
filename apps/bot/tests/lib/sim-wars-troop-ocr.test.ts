@@ -1,6 +1,39 @@
 import { describe, it, expect } from 'vitest';
 import { normalizeTroopValue, normalizeTroopInteger, parseLeadershipPair } from '../../src/lib/sim-wars-troop-ocr';
 
+// player_name is manual (modal input), not OCR — only these 13 fields are OCR-extracted
+const OCR_STAT_FIELD_KEYS = [
+  'troop_power', 'troop_hp', 'troop_attack', 'troop_defense', 'troop_rush',
+  'troop_leadership_current', 'troop_leadership_max',
+  'troop_crit_dmg_reduc_pct',
+  'troop_fire_dmg', 'troop_water_dmg', 'troop_earth_dmg', 'troop_wind_dmg', 'troop_poison_dmg',
+] as const;
+
+describe('OCR field count', () => {
+  it('should have exactly 13 OCR-extracted stat fields (player_name is manual)', () => {
+    expect(OCR_STAT_FIELD_KEYS).toHaveLength(13);
+  });
+
+  it('should count extracted fields correctly when all 13 are present', () => {
+    const stats = Object.fromEntries(OCR_STAT_FIELD_KEYS.map(k => [k, 1]));
+    const ocrExtracted = OCR_STAT_FIELD_KEYS.filter(k => (stats as Record<string, unknown>)[k] !== null).length;
+    expect(ocrExtracted).toBe(13);
+    expect(`${ocrExtracted}/${OCR_STAT_FIELD_KEYS.length}`).toBe('13/13');
+  });
+
+  it('should count extracted fields correctly when some are null', () => {
+    const stats: Record<string, unknown> = {
+      troop_power: 100, troop_hp: 200, troop_attack: null, troop_defense: null,
+      troop_rush: null, troop_leadership_current: null, troop_leadership_max: null,
+      troop_crit_dmg_reduc_pct: null, troop_fire_dmg: null, troop_water_dmg: null,
+      troop_earth_dmg: null, troop_wind_dmg: null, troop_poison_dmg: null,
+    };
+    const ocrExtracted = OCR_STAT_FIELD_KEYS.filter(k => stats[k] !== null).length;
+    expect(ocrExtracted).toBe(2);
+    expect(`${ocrExtracted}/${OCR_STAT_FIELD_KEYS.length}`).toBe('2/13');
+  });
+});
+
 describe('normalizeTroopValue', () => {
   it('should return null for null input', () => {
     expect(normalizeTroopValue(null)).toBeNull();
