@@ -170,10 +170,49 @@ export function buildTroopCsv(
       const v = row[h];
       if (v === null || v === undefined) return '';
       const s = String(v);
-      return s.includes(',') ? `"${s}"` : s;
+      return s.includes(',') || s.includes('"') || s.includes('\n')
+        ? `"${s.replace(/"/g, '""')}"`
+        : s;
     });
     lines.push(vals.join(','));
   }
 
   return lines.join('\n');
+}
+
+export type TroopSortField =
+  | 'power' | 'hp' | 'attack' | 'defense' | 'rush'
+  | 'leadership' | 'crit' | 'fire' | 'water' | 'earth' | 'wind' | 'poison'
+  | 'updated';
+
+const SORT_COLUMN_MAP: Record<TroopSortField, string> = {
+  power: 'troop_power',
+  hp: 'troop_hp',
+  attack: 'troop_attack',
+  defense: 'troop_defense',
+  rush: 'troop_rush',
+  leadership: 'troop_leadership_current',
+  crit: 'troop_crit_dmg_reduc_pct',
+  fire: 'troop_fire_dmg',
+  water: 'troop_water_dmg',
+  earth: 'troop_earth_dmg',
+  wind: 'troop_wind_dmg',
+  poison: 'troop_poison_dmg',
+  updated: 'latest_at',
+};
+
+export async function listTroopsSorted(
+  guildId: string,
+  sortField: TroopSortField = 'power',
+  limit?: number,
+): Promise<Array<Record<string, unknown>>> {
+  if (!database.isConfigured()) return [];
+
+  const column = SORT_COLUMN_MAP[sortField] ?? 'troop_power';
+  const limitClause = limit && limit > 0 ? `LIMIT ${Math.min(limit, 100)}` : '';
+
+  return database.query<Array<Record<string, unknown>>>(
+    `SELECT * FROM sim_wars_troop_latest WHERE guild_id = ? ORDER BY ${column} DESC ${limitClause}`,
+    [guildId],
+  );
 }

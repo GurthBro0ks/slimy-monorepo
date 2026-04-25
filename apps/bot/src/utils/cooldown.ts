@@ -2,6 +2,7 @@ const COMMAND_COOLDOWNS: Record<string, number> = {
   "club-analyze": 60,
   "club-push": 60,
   "club-export": 30,
+  "war-push": 15,
 };
 
 const DEFAULT_COOLDOWN_SECONDS = 10;
