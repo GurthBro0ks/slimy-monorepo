@@ -1,5 +1,5 @@
 /**
- * Club Stats — Paginated roster of all club members.
+ * Club Stats — Paginated roster of all club members with metric toggle.
  */
 
 import {
@@ -26,13 +26,14 @@ import { createLogger } from '../lib/logger.js';
 
 const logger = createLogger({ context: 'club-stats' });
 const BUTTON_PREFIX = 'club-stats';
-const COLLECTOR_TIMEOUT = 120_000;
+const COLLECTOR_TIMEOUT = 300_000;
+type Metric = 'sim' | 'total' | 'both';
 
 interface RosterSession {
-  members: ReturnType<typeof sortMembers>;
+  allMembers: ReturnType<typeof sortMembers>;
   page: number;
   totalPages: number;
-  metric: string;
+  metric: Metric;
   totalMembers: number;
   expiresAt: number;
   messageId: string | null;
@@ -47,7 +48,30 @@ function cleanExpiredSessions(): void {
   }
 }
 
-function buildButtons(session: RosterSession, sessionId: string): ActionRowBuilder<ButtonBuilder> {
+function resolveMetric(raw: string | null): Metric {
+  if (raw === 'sim') return 'sim';
+  if (raw === 'total') return 'total';
+  return 'total';
+}
+
+function getSortMetric(m: Metric): string {
+  return m === 'sim' ? 'sim' : 'total';
+}
+
+function buildMetricButtons(session: RosterSession, sessionId: string): ActionRowBuilder<ButtonBuilder> {
+  const metrics: Metric[] = ['sim', 'total', 'both'];
+  const labels: Record<Metric, string> = { sim: 'Sim Power', total: 'Total Power', both: 'Both' };
+  return new ActionRowBuilder<ButtonBuilder>().addComponents(
+    ...metrics.map(m =>
+      new ButtonBuilder()
+        .setCustomId(`${BUTTON_PREFIX}:metric-${m}:${sessionId}`)
+        .setLabel(labels[m])
+        .setStyle(session.metric === m ? ButtonStyle.Primary : ButtonStyle.Secondary),
+    ),
+  );
+}
+
+function buildNavButtons(session: RosterSession, sessionId: string): ActionRowBuilder<ButtonBuilder> {
   return new ActionRowBuilder<ButtonBuilder>().addComponents(
     new ButtonBuilder()
       .setCustomId(`${BUTTON_PREFIX}:prev:${sessionId}`)
@@ -60,6 +84,17 @@ function buildButtons(session: RosterSession, sessionId: string): ActionRowBuild
       .setStyle(ButtonStyle.Secondary)
       .setDisabled(session.page >= session.totalPages - 1),
   );
+}
+
+function buildAllButtons(session: RosterSession, sessionId: string): ActionRowBuilder<ButtonBuilder>[] {
+  return [buildMetricButtons(session, sessionId), buildNavButtons(session, sessionId)];
+}
+
+function recomputeSession(session: RosterSession): void {
+  const sorted = sortMembers(session.allMembers, getSortMetric(session.metric));
+  session.allMembers = sorted;
+  session.totalPages = Math.max(1, Math.ceil(sorted.length / MEMBERS_PER_PAGE));
+  session.page = 0;
 }
 
 function ensureDatabase(): void {
@@ -78,11 +113,6 @@ function hasStatsPermission(interaction: ChatInputCommandInteraction): boolean {
     if (rolesManager.cache.has(roleId)) return true;
   }
   return false;
-}
-
-function resolveMetric(raw: string | null): string {
-  if (raw === "sim" || raw === "total") return raw;
-  return "total";
 }
 
 module.exports = {
@@ -150,12 +180,12 @@ module.exports = {
 
       cleanExpiredSessions();
 
-      const sorted = sortMembers(statsData.latest, metric);
+      const sorted = sortMembers(statsData.latest, getSortMetric(metric));
       const totalPages = Math.max(1, Math.ceil(sorted.length / MEMBERS_PER_PAGE));
       const sessionId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
       const session: RosterSession = {
-        members: sorted,
+        allMembers: sorted,
         page: 0,
         totalPages,
         metric,
@@ -165,9 +195,9 @@ module.exports = {
       };
       sessions.set(sessionId, session);
 
-      const embed = buildRosterPage(sorted, 0, totalPages, metric, sorted.length);
-      const buttons = buildButtons(session, sessionId);
-      const reply = await interaction.editReply({ embeds: [embed], components: [buttons] });
+      const embed = buildRosterPage(sorted, 0, totalPages, getSortMetric(metric), sorted.length);
+      const buttons = buildAllButtons(session, sessionId);
+      const reply = await interaction.editReply({ embeds: [embed], components: buttons });
       session.messageId = reply.id;
 
       const collector = reply.createMessageComponentCollector({
@@ -187,18 +217,27 @@ module.exports = {
           return;
         }
 
-        if (action === 'prev' && sess.page > 0) sess.page--;
-        else if (action === 'next' && sess.page < sess.totalPages - 1) sess.page++;
+        if (action.startsWith('metric-')) {
+          const newMetric = action.replace('metric-', '') as Metric;
+          if (newMetric !== sess.metric) {
+            sess.metric = newMetric;
+            recomputeSession(sess);
+          }
+        } else if (action === 'prev' && sess.page > 0) {
+          sess.page--;
+        } else if (action === 'next' && sess.page < sess.totalPages - 1) {
+          sess.page++;
+        }
 
-        const updatedEmbed = buildRosterPage(sess.members, sess.page, sess.totalPages, sess.metric, sess.totalMembers);
-        const updatedButtons = buildButtons(sess, sid);
-        await btn.update({ embeds: [updatedEmbed], components: [updatedButtons] });
+        const updatedEmbed = buildRosterPage(sess.allMembers, sess.page, sess.totalPages, getSortMetric(sess.metric), sess.totalMembers);
+        const updatedButtons = buildAllButtons(sess, sid);
+        await btn.update({ embeds: [updatedEmbed], components: updatedButtons });
       });
 
       collector.on('end', async () => {
         sessions.delete(sessionId);
         try {
-          const finalEmbed = buildRosterPage(session.members, session.page, session.totalPages, session.metric, session.totalMembers);
+          const finalEmbed = buildRosterPage(session.allMembers, session.page, session.totalPages, getSortMetric(session.metric), session.totalMembers);
           await interaction.editReply({ embeds: [finalEmbed], components: [] });
         } catch {
           // message may have been deleted
@@ -208,7 +247,7 @@ module.exports = {
       trackCommand("club-stats", Date.now() - startTime, true);
     } catch (err) {
       const error = err as Error;
-      logger.error("Command failed", error);
+      logger.error('Command failed', error);
       trackCommand("club-stats", Date.now() - startTime, false);
       if (interaction.deferred) {
         await interaction.editReply({ content: `❌ ${error.message}` });
@@ -231,11 +270,21 @@ module.exports = {
     }
 
     const action = parts[1];
-    if (action === 'prev' && session.page > 0) session.page--;
-    else if (action === 'next' && session.page < session.totalPages - 1) session.page++;
 
-    const embed = buildRosterPage(session.members, session.page, session.totalPages, session.metric, session.totalMembers);
-    const buttons = buildButtons(session, sid);
-    await interaction.update({ embeds: [embed], components: [buttons] });
+    if (action.startsWith('metric-')) {
+      const newMetric = action.replace('metric-', '') as Metric;
+      if (newMetric !== session.metric) {
+        session.metric = newMetric;
+        recomputeSession(session);
+      }
+    } else if (action === 'prev' && session.page > 0) {
+      session.page--;
+    } else if (action === 'next' && session.page < session.totalPages - 1) {
+      session.page++;
+    }
+
+    const embed = buildRosterPage(session.allMembers, session.page, session.totalPages, getSortMetric(session.metric), session.totalMembers);
+    const buttons = buildAllButtons(session, sid);
+    await interaction.update({ embeds: [embed], components: buttons });
   },
 };
