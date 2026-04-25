@@ -52,7 +52,7 @@ export interface TroopOcrResult {
 
 export function normalizeTroopValue(raw: unknown): number | null {
   if (raw === null || raw === undefined) return null;
-  if (typeof raw === 'number') return Number.isFinite(raw) ? Math.floor(raw) : null;
+  if (typeof raw === 'number') return Number.isFinite(raw) ? raw : null;
 
   let text = String(raw).trim();
   if (!text || text === '-' || text.toLowerCase() === 'null' || text.toLowerCase() === 'n/a') return null;
@@ -88,6 +88,12 @@ export function normalizeTroopValue(raw: unknown): number | null {
   }
 
   return null;
+}
+
+export function normalizeTroopInteger(raw: unknown): number | null {
+  const val = normalizeTroopValue(raw);
+  if (val === null) return null;
+  return Math.floor(val);
 }
 
 export function parseLeadershipPair(raw: unknown): { current: number | null; max: number | null } {
@@ -188,7 +194,7 @@ Return ONLY valid JSON with this exact schema:
 
 Rules:
 - Strip commas, spaces, and suffixes from numbers. "12,345" → 12345. "12.0M" → 12000000.
-- Leadership is shown as "1979/1979" — split into current and max.
+- Leadership is shown as a gauge like "1979/1979" on the bottom left. Split it into current and max as EXACT integers. "1979/1979" → current: 1979, max: 1979. NEVER abbreviate or round leadership values.
 - If a value is not visible or unclear, return null for that field.
 - Do NOT guess values.
 - Return ONLY the JSON object, no commentary.`;
@@ -210,7 +216,7 @@ Return ONLY valid JSON with this exact schema:
 }
 
 Rules:
-- CRIT DMG REDUC is a percentage like "20.8%" → 20.8 (strip the % sign).
+- CRIT DMG REDUC is a percentage. Preserve the exact decimal value. "20.8%" → 20.8 (NOT 20 or 21). "15%" → 15. Strip the % sign.
 - ELMT DMG values are integers. Strip commas and suffixes. "12.0M" → 12000000.
 - If a value is not visible or unclear, return null for that field.
 - Do NOT guess values.
@@ -409,19 +415,19 @@ export async function extractTroopStats(
   const leadershipPair = parseLeadershipPair(leadershipRaw);
 
   const stats: TroopStats = {
-    troop_power: normalizeTroopValue(mergedDeploy['troop_power']),
-    troop_hp: normalizeTroopValue(mergedDeploy['troop_hp']),
-    troop_attack: normalizeTroopValue(mergedDeploy['troop_attack']),
-    troop_defense: normalizeTroopValue(mergedDeploy['troop_defense']),
-    troop_rush: normalizeTroopValue(mergedDeploy['troop_rush']),
-    troop_leadership_current: leadershipPair.current ?? normalizeTroopValue(mergedDeploy['troop_leadership_current']) as number | null,
-    troop_leadership_max: leadershipPair.max ?? normalizeTroopValue(mergedDeploy['troop_leadership_max']) as number | null,
+    troop_power: normalizeTroopInteger(mergedDeploy['troop_power']),
+    troop_hp: normalizeTroopInteger(mergedDeploy['troop_hp']),
+    troop_attack: normalizeTroopInteger(mergedDeploy['troop_attack']),
+    troop_defense: normalizeTroopInteger(mergedDeploy['troop_defense']),
+    troop_rush: normalizeTroopInteger(mergedDeploy['troop_rush']),
+    troop_leadership_current: leadershipPair.current ?? normalizeTroopInteger(mergedDeploy['troop_leadership_current']),
+    troop_leadership_max: leadershipPair.max ?? normalizeTroopInteger(mergedDeploy['troop_leadership_max']),
     troop_crit_dmg_reduc_pct: normalizeTroopValue(mergedPopup['troop_crit_dmg_reduc_pct']),
-    troop_fire_dmg: normalizeTroopValue(mergedPopup['troop_fire_dmg']),
-    troop_water_dmg: normalizeTroopValue(mergedPopup['troop_water_dmg']),
-    troop_earth_dmg: normalizeTroopValue(mergedPopup['troop_earth_dmg']),
-    troop_wind_dmg: normalizeTroopValue(mergedPopup['troop_wind_dmg']),
-    troop_poison_dmg: normalizeTroopValue(mergedPopup['troop_poison_dmg']),
+    troop_fire_dmg: normalizeTroopInteger(mergedPopup['troop_fire_dmg']),
+    troop_water_dmg: normalizeTroopInteger(mergedPopup['troop_water_dmg']),
+    troop_earth_dmg: normalizeTroopInteger(mergedPopup['troop_earth_dmg']),
+    troop_wind_dmg: normalizeTroopInteger(mergedPopup['troop_wind_dmg']),
+    troop_poison_dmg: normalizeTroopInteger(mergedPopup['troop_poison_dmg']),
   };
 
   const notes: string[] = [];

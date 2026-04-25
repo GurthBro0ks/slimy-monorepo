@@ -75,6 +75,25 @@ function formatNumber(value: unknown): string {
   return num.toFixed(2);
 }
 
+function formatPercent(value: unknown): string {
+  if (value === null || value === undefined) return '*(missing)*';
+  const num = Number(value);
+  if (!Number.isFinite(num)) return '*(missing)*';
+  if (Number.isInteger(num)) return `${num}%`;
+  return `${num.toFixed(1)}%`;
+}
+
+function formatLeadership(current: unknown, max: unknown): string {
+  const cur = current !== null && current !== undefined ? Number(current) : null;
+  const mx = max !== null && max !== undefined ? Number(max) : null;
+  const curOk = cur !== null && Number.isFinite(cur);
+  const mxOk = mx !== null && Number.isFinite(mx);
+  if (curOk && mxOk) return `${Math.floor(cur).toLocaleString()}/${Math.floor(mx).toLocaleString()}`;
+  if (curOk) return `${Math.floor(cur).toLocaleString()}/—`;
+  if (mxOk) return `—/${Math.floor(mx).toLocaleString()}`;
+  return '*(missing)*';
+}
+
 function buildTroopEmbed(playerName: string, stats: Record<string, unknown>, confidence: Record<string, string>, notes: string[]): EmbedBuilder {
   const embed = new EmbedBuilder()
     .setTitle(`Sim Wars Troop Analysis — ${playerName}`)
@@ -100,7 +119,7 @@ function buildTroopEmbed(playerName: string, stats: Record<string, unknown>, con
     inline: true,
   });
 
-  const leadership = `**Current:** ${formatNumber(stats.troop_leadership_current)}\n**Max:** ${formatNumber(stats.troop_leadership_max)}`;
+  const leadership = formatLeadership(stats.troop_leadership_current, stats.troop_leadership_max);
   embed.addFields({
     name: 'Leadership',
     value: leadership,
@@ -129,7 +148,7 @@ function buildTroopEmbed(playerName: string, stats: Record<string, unknown>, con
   const critValue = stats.troop_crit_dmg_reduc_pct;
   embed.addFields({
     name: 'CRIT DMG REDUC',
-    value: critValue !== null && critValue !== undefined ? `${critValue}%` : '*(missing)*',
+    value: formatPercent(critValue),
     inline: true,
   });
 

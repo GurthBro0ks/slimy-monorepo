@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { normalizeTroopValue, parseLeadershipPair } from '../../src/lib/sim-wars-troop-ocr';
+import { normalizeTroopValue, normalizeTroopInteger, parseLeadershipPair } from '../../src/lib/sim-wars-troop-ocr';
 
 describe('normalizeTroopValue', () => {
   it('should return null for null input', () => {
@@ -52,11 +52,16 @@ describe('normalizeTroopValue', () => {
     expect(normalizeTroopValue('2.5B')).toBe(2500000000);
   });
 
-  it('should parse percentage values stripping % sign', () => {
+  it('should parse percentage values preserving decimal precision', () => {
     expect(normalizeTroopValue('20.8%')).toBe(20.8);
     expect(normalizeTroopValue('100%')).toBe(100);
     expect(normalizeTroopValue('0%')).toBe(0);
     expect(normalizeTroopValue('15.25%')).toBe(15.25);
+  });
+
+  it('should preserve numeric percent from model as decimal', () => {
+    expect(normalizeTroopValue(20.8)).toBe(20.8);
+    expect(normalizeTroopValue(15)).toBe(15);
   });
 
   it('should parse leadership slash format as current value', () => {
@@ -74,9 +79,41 @@ describe('normalizeTroopValue', () => {
     expect(normalizeTroopValue('hello world')).toBeNull();
   });
 
-  it('should handle numeric input with decimals', () => {
-    expect(normalizeTroopValue(42.5)).toBe(42);
-    expect(normalizeTroopValue(0.001)).toBe(0);
+  it('should preserve decimal numbers from numeric input', () => {
+    expect(normalizeTroopValue(42.5)).toBe(42.5);
+    expect(normalizeTroopValue(0.001)).toBe(0.001);
+  });
+
+  it('should floor integer strings', () => {
+    expect(normalizeTroopValue('1979')).toBe(1979);
+  });
+});
+
+describe('normalizeTroopInteger', () => {
+  it('should floor numeric input with decimals', () => {
+    expect(normalizeTroopInteger(42.5)).toBe(42);
+    expect(normalizeTroopInteger(0.9)).toBe(0);
+  });
+
+  it('should preserve exact integers', () => {
+    expect(normalizeTroopInteger(1979)).toBe(1979);
+    expect(normalizeTroopInteger(0)).toBe(0);
+  });
+
+  it('should return null for null input', () => {
+    expect(normalizeTroopInteger(null)).toBeNull();
+  });
+
+  it('should parse string integers', () => {
+    expect(normalizeTroopInteger('1,979')).toBe(1979);
+  });
+
+  it('should floor M suffix values', () => {
+    expect(normalizeTroopInteger('12.0M')).toBe(12000000);
+  });
+
+  it('should floor percentage values to integer', () => {
+    expect(normalizeTroopInteger('20.8%')).toBe(20);
   });
 });
 
