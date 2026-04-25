@@ -32,7 +32,7 @@ const SORT_CHOICES: Array<{ name: string; value: TroopSortField }> = [
   { name: 'Last Updated', value: 'updated' },
 ];
 
-const PREVIEW_LIMIT = 10;
+const PREVIEW_LIMIT = 5;
 
 function compactNumber(value: unknown): string {
   if (value === null || value === undefined) return '—';
@@ -68,72 +68,44 @@ function sortLabel(field: TroopSortField): string {
   return choice ? choice.name : field;
 }
 
-function sortColumnKey(field: TroopSortField): string | null {
-  const map: Record<string, string> = {
-    power: 'troop_power',
-    hp: 'troop_hp',
-    attack: 'troop_attack',
-    defense: 'troop_defense',
-    rush: 'troop_rush',
-    leadership: 'troop_leadership_current',
-    crit: 'troop_crit_dmg_reduc_pct',
-    fire: 'troop_fire_dmg',
-    water: 'troop_water_dmg',
-    earth: 'troop_earth_dmg',
-    wind: 'troop_wind_dmg',
-    poison: 'troop_poison_dmg',
-  };
-  return map[field] ?? null;
-}
-
-function formatSortField(row: Record<string, unknown>, field: TroopSortField): string {
-  if (field === 'leadership') {
-    return compactLeadership(row.troop_leadership_current, row.troop_leadership_max);
-  }
-  const col = sortColumnKey(field);
-  if (!col) return '';
-  const val = row[col];
-  if (field === 'crit') return compactPercent(val);
-  return compactNumber(val);
-}
-
-function buildPreviewTable(
-  rows: Array<Record<string, unknown>>,
-  sortField: TroopSortField,
+function buildPlayerBlock(
+  rank: number,
+  row: Record<string, unknown>,
 ): string {
-  const lines: string[] = [];
-  const showSortCol = !['power', 'hp', 'attack', 'defense', 'rush', 'leadership'].includes(sortField);
+  const name = String(row.player_name ?? '???');
+  const pwr = compactNumber(row.troop_power);
+  const hp = compactNumber(row.troop_hp);
+  const atk = compactNumber(row.troop_attack);
+  const def = compactNumber(row.troop_defense);
+  const rush = compactNumber(row.troop_rush);
+  const lead = compactLeadership(row.troop_leadership_current, row.troop_leadership_max);
+  const crit = compactPercent(row.troop_crit_dmg_reduc_pct);
+  const fire = compactNumber(row.troop_fire_dmg);
+  const water = compactNumber(row.troop_water_dmg);
+  const earth = compactNumber(row.troop_earth_dmg);
+  const wind = compactNumber(row.troop_wind_dmg);
+  const poison = compactNumber(row.troop_poison_dmg);
 
-  lines.push('#  Name              Power      HP       ATK       DEF      Rush    Lead');
+  return [
+    `#${rank} ${name}`,
+    `Pwr ${pwr} | HP ${hp} | ATK ${atk} | DEF ${def}`,
+    `Rush ${rush} | Lead ${lead} | Crit ${crit}`,
+    `Fire ${fire} | Water ${water} | Earth ${earth}`,
+    `Wind ${wind} | Poison ${poison}`,
+  ].join('\n');
+}
 
-  if (showSortCol) {
-    const label = sortLabel(sortField).padEnd(8);
-    lines[0] += `  ${label}`;
-  }
-
+function buildPreviewBlocks(
+  rows: Array<Record<string, unknown>>,
+  totalCount: number,
+): string {
   const preview = rows.slice(0, PREVIEW_LIMIT);
-
-  for (let i = 0; i < preview.length; i++) {
-    const row = preview[i];
-    const name = String(row.player_name ?? '???').slice(0, 18).padEnd(18);
-    const power = compactNumber(row.troop_power).padStart(8);
-    const hp = compactNumber(row.troop_hp).padStart(8);
-    const atk = compactNumber(row.troop_attack).padStart(8);
-    const def = compactNumber(row.troop_defense).padStart(8);
-    const rush = compactNumber(row.troop_rush).padStart(8);
-    const lead = compactLeadership(row.troop_leadership_current, row.troop_leadership_max).padStart(8);
-
-    let line = `${String(i + 1).padStart(2)} ${name}${power}${hp}${atk}${def}${rush}${lead}`;
-
-    if (showSortCol) {
-      const sortVal = formatSortField(row, sortField).padStart(8);
-      line += sortVal;
-    }
-
-    lines.push(line);
+  const blocks = preview.map((row, i) => buildPlayerBlock(i + 1, row));
+  let text = blocks.join('\n\n');
+  if (totalCount > PREVIEW_LIMIT) {
+    text += `\n\nPreview shows top ${PREVIEW_LIMIT}. CSV includes all ${totalCount} players.`;
   }
-
-  return lines.join('\n');
+  return text;
 }
 
 module.exports = {
@@ -183,20 +155,21 @@ module.exports = {
         return;
       }
 
-      const previewTable = buildPreviewTable(rows, sortField);
+      const previewBlocks = buildPreviewBlocks(rows, rows.length);
       const latestAt = rows[0]?.latest_at ? new Date(String(rows[0].latest_at)).toISOString().replace('T', ' ').slice(0, 19) + ' UTC' : null;
+
+      const desc = [
+        `**${rows.length}** scanned player${rows.length !== 1 ? 's' : ''} | Sorted by **${sortLabel(sortField)}** | CSV attached`,
+        '',
+        '```',
+        previewBlocks,
+        '```',
+      ].join('\n');
 
       const embed = new EmbedBuilder()
         .setTitle('Sim Wars Troop Sheet')
         .setColor(0x00ff88)
-        .setDescription(
-          `**${rows.length}** scanned player${rows.length !== 1 ? 's' : ''} | Sorted by **${sortLabel(sortField)}** | CSV attached`,
-        )
-        .addFields({
-          name: 'Top Players',
-          value: '```\n' + previewTable + '\n```',
-          inline: false,
-        });
+        .setDescription(desc);
 
       const footerParts = [`Sorted by ${sortLabel(sortField)}`];
       if (limit) footerParts.push(`Limit: ${limit}`);
