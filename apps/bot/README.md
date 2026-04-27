@@ -46,14 +46,19 @@ Options:
 - `limit` - optional max message count. `0` means all available history up to `10000`.
 - `include_attachments` - optional, defaults to `true`.
 - `include_embeds` - optional, defaults to `true`.
+- `include_threads` - optional, defaults to `false`. When `true`, also exports
+  all active and archived threads as separate files. The parent file receives
+  `threads_exported: true` frontmatter and a `## Threads` table with Obsidian
+  `[[wikilinks]]` to each thread file.
 
 Access is limited to members with **Manage Channels** or the role configured by
 `READ_CHANNEL_ROLE_ID`. After writing the local Markdown file, the command runs
 `bash /home/slimy/kb/tools/kb-sync.sh push` and reports whether the KB sync
 succeeded.
 
-Parent channel exports do not recurse into threads. Select a specific thread to
-export thread history.
+Thread exports are capped at 50 threads with a 500ms throttle between each to
+stay within API limits. If a thread fails (permissions, deleted), it is skipped
+and noted in the reply.
 
 ### `/read-thread`
 

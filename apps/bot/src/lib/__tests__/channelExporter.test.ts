@@ -159,4 +159,52 @@ describe('channelExporter', () => {
     expect(md).toContain('thread/bug-reports');
     expect(md).toContain('user/alice-1234');
   });
+
+  it('renders thread summary metadata when threadsExported=true', () => {
+    const threadOpts: ExportOptions = {
+      ...baseOpts,
+      threadsExported: true,
+      threadCount: 3,
+      threadFiles: ['guild-thread-alpha.md', 'guild-thread-beta.md', 'guild-thread-gamma.md'],
+    };
+
+    const md = buildChannelExportMarkdown([message({ id: 'p1', content: 'parent' })], threadOpts);
+
+    expect(md).toContain('threads_exported: true');
+    expect(md).toContain('thread_count: 3');
+    expect(md).toContain('thread_files:');
+    expect(md).toContain('  - "guild-thread-alpha.md"');
+    expect(md).toContain('  - "guild-thread-beta.md"');
+    expect(md).toContain('  - "guild-thread-gamma.md"');
+    expect(md).toContain('## Threads');
+    expect(md).toContain('| Thread | File |');
+    expect(md).toContain('|--------|------|');
+    expect(md).toContain('[[guild-thread-alpha.md]]');
+    expect(md).toContain('[[guild-thread-beta.md]]');
+    expect(md).toContain('[[guild-thread-gamma.md]]');
+  });
+
+  it('does not render thread metadata when threadsExported is absent', () => {
+    const md = buildChannelExportMarkdown([message({ id: 'p1', content: 'parent' })], baseOpts);
+
+    expect(md).not.toContain('threads_exported');
+    expect(md).not.toContain('thread_count');
+    expect(md).not.toContain('thread_files');
+    expect(md).not.toContain('## Threads');
+  });
+
+  it('does not render thread section when threadFiles is empty', () => {
+    const threadOpts: ExportOptions = {
+      ...baseOpts,
+      threadsExported: true,
+      threadCount: 0,
+      threadFiles: [],
+    };
+
+    const md = buildChannelExportMarkdown([message({ id: 'p1', content: 'parent' })], threadOpts);
+
+    expect(md).toContain('threads_exported: true');
+    expect(md).toContain('thread_count: 0');
+    expect(md).not.toContain('## Threads');
+  });
 });

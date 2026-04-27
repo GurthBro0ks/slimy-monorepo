@@ -45,6 +45,11 @@ export interface ExportOptions {
   // User filter metadata
   filterUserId?: string;
   filterUserTag?: string;
+
+  // Thread summary metadata (when parent channel exported with include_threads)
+  threadsExported?: boolean;
+  threadCount?: number;
+  threadFiles?: string[];
 }
 
 // Backward-compatible alias
@@ -164,6 +169,17 @@ function buildFrontmatterLines(opts: ExportOptions, sorted: ExportMessage[]): st
     lines.push(`total_scanned: ${sorted.length}`); // Will be overridden by caller if they tracked scanned count
   }
 
+  if (opts.threadsExported) {
+    lines.push(`threads_exported: true`);
+    lines.push(`thread_count: ${opts.threadCount ?? 0}`);
+    if (opts.threadFiles && opts.threadFiles.length > 0) {
+      lines.push(`thread_files:`);
+      for (const file of opts.threadFiles) {
+        lines.push(`  - ${yamlString(file)}`);
+      }
+    }
+  }
+
   lines.push(`tags: [${buildTags(opts)}]`);
   lines.push('---');
 
@@ -211,6 +227,17 @@ export function buildChannelExportMarkdown(
     }
 
     lines.push(`^msg-${message.id}`, '');
+  }
+
+  if (opts.threadsExported && opts.threadFiles && opts.threadFiles.length > 0) {
+    lines.push('---', '## Threads', '');
+    lines.push('| Thread | File |');
+    lines.push('|--------|------|');
+    for (const file of opts.threadFiles) {
+      const threadSlug = file.replace(/\.md$/, '').split('-').pop() || file;
+      lines.push(`| ${escapeInlineMarkdown(threadSlug)} | [[${file}]] |`);
+    }
+    lines.push('');
   }
 
   return `${lines.join('\n').replace(/\n+$/, '')}\n`;

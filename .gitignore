@@ -22,3 +22,4 @@ bun.lockb
 !apps/web/.env.test.example
 apps/web/.env.test.local
 __pycache__/
+data_store.json
