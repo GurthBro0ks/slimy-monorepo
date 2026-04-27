@@ -10,6 +10,8 @@ export default [
   {
     ignores: [
       "apps/bot/tests/**",
+      "apps/bot/src/**/__tests__/**",
+      "apps/bot/src/**/*.test.ts",
       "apps/bot/dist/**",
     ],
   },

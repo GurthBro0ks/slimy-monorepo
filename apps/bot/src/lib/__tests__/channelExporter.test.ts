@@ -2,11 +2,11 @@ import { describe, expect, it } from 'vitest';
 import {
   buildChannelExportMarkdown,
   slugify,
-  type ChannelExportOptions,
+  type ExportOptions,
   type ExportMessage,
 } from '../channelExporter.js';
 
-const baseOpts: ChannelExportOptions = {
+const baseOpts: ExportOptions = {
   guildName: 'Snail Guild',
   guildId: 'guild-1',
   guildSlug: 'snail-guild',
@@ -90,7 +90,7 @@ describe('channelExporter', () => {
     ], baseOpts);
 
     expect(md).toContain('> \\# heading');
-    expect(md).toContain('> \\> quote');
+    expect(md).toContain('> \\\u003e quote');
     expect(md).toContain('> \\`code\\` \\| \\*bold\\* \\_em\\_ \\~strike\\~');
   });
 
@@ -104,5 +104,59 @@ describe('channelExporter', () => {
     expect(md).toContain('## 2026-04-28');
     expect(md.indexOf('## 2026-04-27')).toBeLessThan(md.indexOf('## 2026-04-28'));
     expect(md).toContain('date_range: "2026-04-27T23:59:59.000Z .. 2026-04-28T00:00:01.000Z"');
+  });
+
+  it('renders thread metadata when isThread=true', () => {
+    const threadOpts: ExportOptions = {
+      ...baseOpts,
+      channelName: 'Bug Reports',
+      channelSlug: 'bug-reports',
+      isThread: true,
+      parentChannelName: 'Support',
+      parentChannelId: 'parent-1',
+    };
+
+    const md = buildChannelExportMarkdown([message({ id: 't1', content: 'bug found' })], threadOpts);
+
+    expect(md).toContain('is_thread: true');
+    expect(md).toContain('parent_channel: "Support"');
+    expect(md).toContain('parent_channel_id: "parent-1"');
+    expect(md).toContain('thread/bug-reports');
+    expect(md).toContain('# Bug Reports (thread in #Support)');
+  });
+
+  it('renders user filter metadata when filterUserId is set', () => {
+    const filterOpts: ExportOptions = {
+      ...baseOpts,
+      filterUserId: '123456789',
+      filterUserTag: 'alice#1234',
+    };
+
+    const md = buildChannelExportMarkdown([message({ id: 'u1', content: 'hello' })], filterOpts);
+
+    expect(md).toContain('filtered_user: "alice#1234"');
+    expect(md).toContain('filtered_user_id: "123456789"');
+    expect(md).toContain('user/alice-1234');
+    expect(md).toContain('# General Chat — messages by alice#1234');
+  });
+
+  it('renders combined thread + user filter metadata', () => {
+    const combinedOpts: ExportOptions = {
+      ...baseOpts,
+      channelName: 'Bug Reports',
+      channelSlug: 'bug-reports',
+      isThread: true,
+      parentChannelName: 'Support',
+      parentChannelId: 'parent-1',
+      filterUserId: '123456789',
+      filterUserTag: 'alice#1234',
+    };
+
+    const md = buildChannelExportMarkdown([message({ id: 'c1', content: 'test' })], combinedOpts);
+
+    expect(md).toContain('is_thread: true');
+    expect(md).toContain('filtered_user: "alice#1234"');
+    expect(md).toContain('thread/bug-reports');
+    expect(md).toContain('user/alice-1234');
   });
 });

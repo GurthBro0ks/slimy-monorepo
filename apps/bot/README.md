@@ -55,6 +55,41 @@ succeeded.
 Parent channel exports do not recurse into threads. Select a specific thread to
 export thread history.
 
+### `/read-thread`
+
+Exports a Discord thread to an Obsidian-friendly Markdown file. Same options as
+`/read-channel` except:
+
+- `thread` - optional thread, defaults to the current thread.
+- If invoked outside a thread without specifying one, replies with an error.
+
+Thread exports include additional frontmatter:
+
+- `is_thread: true`
+- `parent_channel` and `parent_channel_id`
+- `thread/<slug>` tag
+
+### `/read-channel-who`
+
+Exports messages from a specific user in a channel to an Obsidian-friendly
+Markdown file.
+
+Options:
+
+- `user` (**required**) - the Discord user whose messages to export.
+- `channel` - optional channel, defaults to the current channel.
+- `limit` - optional max messages to **scan** (not filtered output). `0` means all.
+- `include_attachments` - optional, defaults to `true`.
+- `include_embeds` - optional, defaults to `true`.
+
+The command scans messages and filters in-memory because Discord API does not
+support per-user filtering. The reply reports both scanned and filtered counts.
+
+User-filtered exports include additional frontmatter:
+
+- `filtered_user` and `filtered_user_id`
+- `user/<slug>` tag
+
 ## Environment Variables
 
 - `DISCORD_TOKEN` - Discord bot token.

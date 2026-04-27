@@ -25,7 +25,7 @@ export interface ExportMessage {
   referencedMessageId?: string | null;
 }
 
-export interface ChannelExportOptions {
+export interface ExportOptions {
   guildName: string;
   guildId: string;
   guildSlug: string;
@@ -36,7 +36,19 @@ export interface ChannelExportOptions {
   exportedBy: string;
   includeAttachments: boolean;
   includeEmbeds: boolean;
+
+  // Thread metadata
+  isThread?: boolean;
+  parentChannelName?: string;
+  parentChannelId?: string;
+
+  // User filter metadata
+  filterUserId?: string;
+  filterUserTag?: string;
 }
+
+// Backward-compatible alias
+export type ChannelExportOptions = ExportOptions;
 
 const DATE_FORMAT = new Intl.DateTimeFormat('en-CA', {
   timeZone: 'UTC',
@@ -101,18 +113,35 @@ function timeKey(date: Date): string {
   return `${TIME_FORMAT.format(date)} UTC`;
 }
 
-export function buildChannelExportMarkdown(
-  messages: ExportMessage[],
-  opts: ChannelExportOptions,
-): string {
-  const sorted = [...messages].sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+function buildTags(opts: ExportOptions): string {
+  const tags: string[] = ['discord-export', `channel/${opts.channelSlug}`, `guild/${opts.guildSlug}`];
+  if (opts.isThread && opts.parentChannelName) {
+    tags.push(`thread/${slugify(opts.channelName)}`);
+  }
+  if (opts.filterUserId) {
+    tags.push(`user/${slugify(opts.filterUserTag || opts.filterUserId)}`);
+  }
+  return tags.join(', ');
+}
+
+function buildTitle(opts: ExportOptions): string {
+  if (opts.isThread) {
+    return `${opts.channelName} (thread in #${opts.parentChannelName || 'unknown'})`;
+  }
+  if (opts.filterUserId) {
+    return `${opts.channelName} — messages by ${opts.filterUserTag || opts.filterUserId}`;
+  }
+  return `#${opts.channelName}`;
+}
+
+function buildFrontmatterLines(opts: ExportOptions, sorted: ExportMessage[]): string[] {
   const first = sorted[0]?.createdAt.toISOString() ?? '';
   const last = sorted[sorted.length - 1]?.createdAt.toISOString() ?? '';
   const dateRange = sorted.length > 0 ? `${first} .. ${last}` : '';
 
   const lines: string[] = [
     '---',
-    `title: ${yamlString(`#${opts.channelName} export`)}`,
+    `title: ${yamlString(buildTitle(opts) + ' export')}`,
     `guild: ${yamlString(opts.guildName)}`,
     `guild_id: ${yamlString(opts.guildId)}`,
     `channel: ${yamlString(opts.channelName)}`,
@@ -121,12 +150,34 @@ export function buildChannelExportMarkdown(
     `exported_by: ${yamlString(opts.exportedBy)}`,
     `message_count: ${sorted.length}`,
     `date_range: ${yamlString(dateRange)}`,
-    `tags: [discord-export, channel/${opts.channelSlug}, guild/${opts.guildSlug}]`,
-    '---',
-    '',
-    `# #${escapeInlineMarkdown(opts.channelName)}`,
-    '',
   ];
+
+  if (opts.isThread) {
+    lines.push(`is_thread: true`);
+    lines.push(`parent_channel: ${yamlString(opts.parentChannelName || '')}`);
+    lines.push(`parent_channel_id: ${yamlString(opts.parentChannelId || '')}`);
+  }
+
+  if (opts.filterUserId) {
+    lines.push(`filtered_user: ${yamlString(opts.filterUserTag || opts.filterUserId)}`);
+    lines.push(`filtered_user_id: ${yamlString(opts.filterUserId)}`);
+    lines.push(`total_scanned: ${sorted.length}`); // Will be overridden by caller if they tracked scanned count
+  }
+
+  lines.push(`tags: [${buildTags(opts)}]`);
+  lines.push('---');
+
+  return lines;
+}
+
+export function buildChannelExportMarkdown(
+  messages: ExportMessage[],
+  opts: ExportOptions,
+): string {
+  const sorted = [...messages].sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+  const lines: string[] = [...buildFrontmatterLines(opts, sorted), ''];
+
+  lines.push(`# ${escapeInlineMarkdown(buildTitle(opts))}`, '');
 
   let currentDate = '';
   for (const message of sorted) {

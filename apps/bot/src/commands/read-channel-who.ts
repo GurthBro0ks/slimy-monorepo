@@ -17,7 +17,7 @@ import { safeHandler } from '../lib/errorHandler.js';
 import { createLogger } from '../lib/logger.js';
 
 const execFileAsync = promisify(execFile);
-const logger = createLogger({ context: 'read-channel' });
+const logger = createLogger({ context: 'read-channel-who' });
 
 const DEFAULT_EXPORT_ROOT = '/home/slimy/kb/raw/discord-exports';
 const MAX_LIMIT = 10000;
@@ -79,12 +79,18 @@ async function syncKb(): Promise<{ ok: boolean; stderr: string }> {
 
 module.exports = {
   data: new SlashCommandBuilder()
-    .setName('read-channel')
-    .setDescription('Export a Discord channel or thread to an Obsidian-ready Markdown file')
+    .setName('read-channel-who')
+    .setDescription('Export messages from a specific user in a channel to an Obsidian-ready Markdown file')
+    .addUserOption((opt) =>
+      opt
+        .setName('user')
+        .setDescription('The user whose messages to export')
+        .setRequired(true),
+    )
     .addChannelOption((opt) =>
       opt
         .setName('channel')
-        .setDescription('Channel or thread to export (defaults to current channel)')
+        .setDescription('Channel to export from (defaults to current channel)')
         .addChannelTypes(
           ChannelType.GuildText,
           ChannelType.PublicThread,
@@ -97,7 +103,7 @@ module.exports = {
     .addIntegerOption((opt) =>
       opt
         .setName('limit')
-        .setDescription('Max messages to export; 0 means all up to 10000')
+        .setDescription('Max messages to SCAN (not filtered output); 0 means all up to 10000')
         .setMinValue(0)
         .setMaxValue(MAX_LIMIT)
         .setRequired(false),
@@ -135,7 +141,9 @@ module.exports = {
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
     try {
+      const targetUser = interaction.options.getUser('user', true);
       const selected = interaction.options.getChannel('channel') ?? interaction.channel;
+      
       if (!isFetchableTextChannel(selected)) {
         await interaction.editReply('That channel does not expose fetchable message history.');
         return;
@@ -150,8 +158,9 @@ module.exports = {
       const channelSlug = slugify(channelName);
       const exportRoot = process.env.KB_EXPORT_ROOT || DEFAULT_EXPORT_ROOT;
 
-      const messages = await fetchAllMessages(selected, { limit });
-      const markdown = buildChannelExportMarkdown(messages, {
+      const allMessages = await fetchAllMessages(selected, { limit, filterUserId: targetUser.id });
+
+      const markdown = buildChannelExportMarkdown(allMessages, {
         guildName: interaction.guild.name,
         guildId: interaction.guild.id,
         guildSlug,
@@ -162,21 +171,24 @@ module.exports = {
         exportedBy: interaction.user.tag,
         includeAttachments,
         includeEmbeds,
+        filterUserId: targetUser.id,
+        filterUserTag: targetUser.tag,
       });
 
-      const filePath = await uniqueExportPath(exportRoot, `${guildSlug}-${channelSlug}`, exportedAt);
+      const userSlug = slugify(targetUser.username);
+      const filePath = await uniqueExportPath(
+        exportRoot,
+        `${guildSlug}-${channelSlug}-user-${userSlug}`,
+        exportedAt,
+      );
       await writeFile(filePath, markdown, 'utf8');
       const bytes = Buffer.byteLength(markdown, 'utf8');
       const sync = await syncKb();
 
-      const threadHint =
-        typeof (selected as any).isThread === 'function' && !(selected as any).isThread()
-          ? '\nThread export is available by selecting a specific thread; parent channel exports do not recurse into threads yet.'
-          : '';
-
       if (!sync.ok) {
-        logger.warn('KB sync failed after channel export', {
+        logger.warn('KB sync failed after user-filtered export', {
           channelId: selected.id,
+          userId: targetUser.id,
           filePath,
           stderr: sync.stderr.slice(0, 500),
         });
@@ -184,27 +196,28 @@ module.exports = {
 
       await interaction.editReply(
         [
-          `Exported ${messages.length} messages to ${filePath}`,
+          `Exported ${allMessages.length} messages from ${targetUser.tag} to ${filePath}`,
+          `Scanned up to ${limit > 0 ? limit : 'all'} messages, filtered to ${allMessages.length}`,
           `Byte size: ${bytes}`,
           sync.ok ? 'synced ✅' : 'local-only ⚠ retry with `bash /home/slimy/kb/tools/kb-sync.sh push`',
-          threadHint,
         ].filter(Boolean).join('\n'),
       );
 
-      logger.info('Channel export complete', {
+      logger.info('User-filtered export complete', {
         guildId: interaction.guild.id,
         channelId: selected.id,
-        messageCount: messages.length,
+        userId: targetUser.id,
+        messageCount: allMessages.length,
         bytes,
         synced: sync.ok,
       });
     } catch (err) {
-      logger.error('Channel export failed', err as Error, {
-        guildId: interaction.guild.id,
+      logger.error('User-filtered export failed', err as Error, {
+        guildId: interaction.guild?.id,
         userId: interaction.user.id,
         channelId: interaction.channelId,
       });
       await interaction.editReply(`Export failed: ${(err as Error).message}`);
     }
-  }, 'read-channel'),
+  }, 'read-channel-who'),
 };
