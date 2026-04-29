@@ -13,8 +13,8 @@ export interface StoatLoginResponse {
   result: "Success" | string;
 }
 
-// Use local auth instead of external chat API
-const LOCAL_AUTH_URL = "/api/local-auth";
+// Use session auth API
+const LOCAL_AUTH_URL = "/api/session";
 
 export async function slimeChatLogin(email: string, password: string): Promise<{ success: true; token: string; userId: string; } | { success: false; error: string; }> {
   try {
