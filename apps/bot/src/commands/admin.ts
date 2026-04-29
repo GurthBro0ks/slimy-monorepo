@@ -1,8 +1,8 @@
 import {
   ChatInputCommandInteraction,
-  PermissionFlagsBits,
   SlashCommandBuilder,
 } from "discord.js";
+import { requireAdminRole } from "../utils/admin-role.js";
 
 const diagCommand = require("./admin/diag.js");
 const statsCommand = require("./admin/stats.js");
@@ -35,7 +35,6 @@ module.exports = {
   data: new SlashCommandBuilder()
     .setName("admin")
     .setDescription("Bot administration — diagnostics, usage, stats, and personality")
-    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     .setDMPermission(false)
     .addSubcommand((sub) =>
       sub.setName("diag").setDescription("Run bot diagnostics"),
@@ -123,6 +122,8 @@ module.exports = {
     ),
 
   async execute(interaction: ChatInputCommandInteraction): Promise<void> {
+    if (!(await requireAdminRole(interaction, "/admin"))) return;
+
     const subcommand = interaction.options.getSubcommand(true);
 
     if (subcommand === "diag") {

@@ -10,10 +10,10 @@ import {
   EmbedBuilder,
   ChatInputCommandInteraction,
   MessageFlags,
-  PermissionFlagsBits,
 } from 'discord.js';
 import { listTroopsSorted, buildTroopCsv, type TroopSortField } from '../lib/sim-wars-troop-store.js';
 import { createLogger } from '../lib/logger.js';
+import { requireAdminRole } from '../utils/admin-role.js';
 
 const logger = createLogger({ context: 'war-push' });
 
@@ -113,7 +113,6 @@ module.exports = {
   data: new SlashCommandBuilder()
     .setName('war-push')
     .setDescription('Export Sim Wars troop war sheet for this server')
-    .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
     .addStringOption(opt =>
       opt
         .setName('sort')
@@ -141,6 +140,7 @@ module.exports = {
       await interaction.reply({ content: 'This command can only be used in a server.', flags: MessageFlags.Ephemeral });
       return;
     }
+    if (!(await requireAdminRole(interaction, '/war-push'))) return;
 
     const sortField = (interaction.options.getString('sort') ?? 'power') as TroopSortField;
     const limit = interaction.options.getInteger('limit') ?? undefined;

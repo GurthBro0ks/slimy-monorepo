@@ -1,9 +1,9 @@
 import {
   ButtonInteraction,
   ChatInputCommandInteraction,
-  PermissionFlagsBits,
   SlashCommandBuilder,
 } from "discord.js";
+import { requireAdminRole } from "../utils/admin-role.js";
 
 const adminCommand = require("./club/admin.js");
 const aliasCommand = require("./club/alias.js");
@@ -16,7 +16,6 @@ module.exports = {
   data: new SlashCommandBuilder()
     .setName("club")
     .setDescription("Club management — admin, aliases, alerts, and roster views")
-    .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
     .setDMPermission(false)
     .addSubcommandGroup((group) =>
       group
@@ -167,6 +166,15 @@ module.exports = {
   async execute(interaction: ChatInputCommandInteraction): Promise<void> {
     const group = interaction.options.getSubcommandGroup(true);
     const subcommand = interaction.options.getSubcommand(true);
+    const needsAdminRole =
+      group === "admin" ||
+      group === "alias" ||
+      group === "alerts" ||
+      (group === "view" && subcommand === "export");
+
+    if (needsAdminRole && !(await requireAdminRole(interaction, `/club ${group} ${subcommand}`))) {
+      return;
+    }
 
     if (group === "admin") {
       return adminCommand.execute(interaction);

@@ -22,6 +22,7 @@ import {
 } from 'discord.js';
 import { database } from '../lib/database.js';
 import { canonicalize } from '../lib/club-store.js';
+import { requireAdminRole } from '../utils/admin-role.js';
 
 export function canonicalizeAmbiguous(name: string): string {
   const lower = name.toLowerCase();
@@ -100,6 +101,8 @@ module.exports = {
     ),
 
   async execute(interaction: ChatInputCommandInteraction): Promise<void> {
+    if (!(await requireAdminRole(interaction, '/club-push'))) return;
+
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
     const guildId = interaction.guildId;
