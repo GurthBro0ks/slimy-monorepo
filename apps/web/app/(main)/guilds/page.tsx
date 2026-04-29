@@ -2,7 +2,6 @@
 
 import { Shield } from "lucide-react";
 import { ProtectedRoute } from "@/components/auth/protected-route";
-import { GuildList } from "@/components/dashboard/guild-list";
 
 export default function GuildsPage() {
   return (
@@ -17,10 +16,6 @@ export default function GuildsPage() {
                 Manage guilds and bot configuration
               </p>
             </div>
-          </div>
-
-          <div className="mb-8">
-            <GuildList />
           </div>
         </div>
       </div>
