@@ -110,16 +110,20 @@ module.exports = {
 
       await interaction.editReply({ embeds: [embed] });
     } catch (error) {
-      console.error("[stats] Error:", error);
-
       let errorMessage = "❌ Failed to fetch statistics. ";
       const msg = (error as Error).message || "";
 
       if (msg.includes("ECONNREFUSED")) {
+        console.warn("[stats] Analytics service unavailable:", msg);
         errorMessage += "Analytics service is currently unavailable.";
       } else if (msg.includes("Authentication")) {
+        console.warn("[stats] Analytics authentication unavailable:", msg);
+        errorMessage += "Authentication error with analytics service.";
+      } else if (msg.includes("No authentication token available")) {
+        console.warn("[stats] Analytics authentication unavailable:", msg);
         errorMessage += "Authentication error with analytics service.";
       } else {
+        console.error("[stats] Error:", error);
         errorMessage += "Please try again later.";
       }
 

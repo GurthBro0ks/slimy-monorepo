@@ -14,14 +14,21 @@ function withPersonalityOptions(
 ): ChatInputCommandInteraction {
   const action = interaction.options.getString("action", true);
   const originalOptions = interaction.options;
-
-  return {
-    ...interaction,
-    options: {
-      ...originalOptions,
-      getSubcommand: (): string => action,
+  const wrappedOptions = new Proxy(originalOptions, {
+    get(target, prop, receiver) {
+      if (prop === "getSubcommand") return (): string => action;
+      const value = Reflect.get(target, prop, receiver);
+      return typeof value === "function" ? value.bind(target) : value;
     },
-  } as ChatInputCommandInteraction;
+  });
+
+  return new Proxy(interaction, {
+    get(target, prop, receiver) {
+      if (prop === "options") return wrappedOptions;
+      const value = Reflect.get(target, prop, receiver);
+      return typeof value === "function" ? value.bind(target) : value;
+    },
+  }) as ChatInputCommandInteraction;
 }
 
 module.exports = {

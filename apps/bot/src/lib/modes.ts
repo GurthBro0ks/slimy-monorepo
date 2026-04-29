@@ -26,6 +26,10 @@ interface GuildModeEntry {
 
 const inMemoryStore: Map<string, GuildModeEntry[]> = new Map();
 
+interface ClientWithModeCache {
+  slimeModeCache?: Map<string, GuildModeEntry>;
+}
+
 function emptyState(): Record<string, boolean> {
   const state: Record<string, boolean> = {};
   for (const key of MODE_KEYS) state[key] = false;
@@ -73,6 +77,10 @@ function _saveStore(guildId: string, modes: GuildModeEntry[]): void {
   inMemoryStore.set(guildId, modes);
 }
 
+function cacheKey(guildId: string, targetType: string, targetId: string): string {
+  return `${guildId || "unknown"}:${targetType || "channel"}:${targetId || "unknown"}`;
+}
+
 function _findRecord(store: GuildModeEntry[], guildId: string, targetId: string, targetType: string): { index: number; record: GuildModeEntry | null } {
   const index = store.findIndex(
     (entry) => entry.guildId === guildId && entry.targetId === targetId && entry.targetType === targetType,
@@ -84,8 +92,21 @@ function combineModes(...states: Record<string, boolean>[]): Record<string, bool
   const combined = emptyState();
   for (const state of states) {
     if (!state) continue;
+    const normalized = { ...state };
+    if (normalized.no_personality) normalized.personality = false;
+    if (normalized.rating_unrated) normalized.rating_pg13 = false;
+
+    if (normalized.admin || normalized.chat || normalized.super_snail) {
+      for (const mode of PRIMARY_MODES) combined[mode] = false;
+    }
+    if (normalized.personality || normalized.no_personality) {
+      for (const mode of OPTIONAL_MODES) combined[mode] = false;
+    }
+    if (normalized.rating_unrated || normalized.rating_pg13) {
+      for (const mode of RATING_MODES) combined[mode] = false;
+    }
     for (const mode of MODE_KEYS) {
-      if (state[mode]) combined[mode] = true;
+      if (normalized[mode]) combined[mode] = true;
     }
   }
   return combined;
@@ -118,6 +139,17 @@ export function getEffectiveModesForChannel(guild: Guild | null, channel: GuildC
   if (!guild || !channel) return emptyState();
   const context = resolveModeContext(channel);
   if (!context) return emptyState();
+
+  const client = (globalThis as typeof globalThis & { client?: ClientWithModeCache }).client;
+  const cache = client?.slimeModeCache;
+  if (cache instanceof Map) {
+    const inherited = context.parents
+      .map((parent) => cache.get(cacheKey(guild.id, parent.targetType, parent.targetId))?.modes)
+      .filter(Boolean) as Record<string, boolean>[];
+    const direct = cache.get(cacheKey(guild.id, context.targetType, context.targetId))?.modes || emptyState();
+    return combineModes(...inherited, direct);
+  }
+
   const view = viewModes(guild.id, context.targetId, context.targetType, context.parents);
   return view.effective;
 }

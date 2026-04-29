@@ -10,20 +10,29 @@ function withConsentOptions(
 ): ChatInputCommandInteraction {
   const action = interaction.options.getString("action", true);
   const originalOptions = interaction.options;
-
-  return {
-    ...interaction,
-    options: {
-      ...originalOptions,
-      getSubcommand: (): string => (action === "status" ? "status" : "set"),
-      getBoolean: (name: string): boolean | null => {
-        if (name !== "allow") return originalOptions.getBoolean(name);
-        if (action === "grant") return true;
-        if (action === "revoke") return false;
-        return null;
-      },
+  const wrappedOptions = new Proxy(originalOptions, {
+    get(target, prop, receiver) {
+      if (prop === "getSubcommand") return (): string => (action === "status" ? "status" : "set");
+      if (prop === "getBoolean") {
+        return (name: string): boolean | null => {
+          if (name !== "allow") return originalOptions.getBoolean(name);
+          if (action === "grant") return true;
+          if (action === "revoke") return false;
+          return null;
+        };
+      }
+      const value = Reflect.get(target, prop, receiver);
+      return typeof value === "function" ? value.bind(target) : value;
     },
-  } as ChatInputCommandInteraction;
+  });
+
+  return new Proxy(interaction, {
+    get(target, prop, receiver) {
+      if (prop === "options") return wrappedOptions;
+      const value = Reflect.get(target, prop, receiver);
+      return typeof value === "function" ? value.bind(target) : value;
+    },
+  }) as ChatInputCommandInteraction;
 }
 
 module.exports = {

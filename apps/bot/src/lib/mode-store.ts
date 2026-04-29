@@ -256,10 +256,10 @@ export async function setModes({
   // Build current snapshot from disk/memory as base
   let snapshot = getMemoryStore() || { channelModes: [] };
 
-  const existingIdx = snapshot.channelModes.findIndex(
+  const existingEntries = snapshot.channelModes.filter(
     (e) => e.guildId === guildId && e.targetId === targetId && e.targetType === targetType,
   );
-  const existing = existingIdx >= 0 ? snapshot.channelModes[existingIdx] : null;
+  const existing = existingEntries[0] || null;
   const currentModes = existing ? { ...existing.modes } : { ...emptyState() };
 
   let newModes: Record<string, boolean>;
@@ -268,6 +268,9 @@ export async function setModes({
   } else if (operation === "remove") {
     newModes = { ...currentModes };
     for (const m of modeList) newModes[m] = false;
+  } else if (operation === "replace") {
+    newModes = { ...emptyState() };
+    for (const m of modeList) newModes[m] = true;
   } else {
     newModes = { ...currentModes };
     for (const m of modeList) newModes[m] = true;
@@ -281,11 +284,14 @@ export async function setModes({
     updatedAt: Date.now(),
   };
 
-  if (existingIdx >= 0) {
-    snapshot.channelModes[existingIdx] = updatedEntry;
-  } else {
-    snapshot.channelModes.push(updatedEntry);
-  }
+  snapshot = {
+    channelModes: [
+      ...snapshot.channelModes.filter(
+        (e) => !(e.guildId === guildId && e.targetId === targetId && e.targetType === targetType),
+      ),
+      updatedEntry,
+    ],
+  };
 
   await persistStore(snapshot);
 }
@@ -354,14 +360,29 @@ export async function viewModes({
   }
 
   const effective: Record<string, boolean> = { ...emptyState() };
-  for (const entry of inherited) {
-    for (const [k, v] of Object.entries(entry.modes)) {
+  const applyModes = (source: Record<string, boolean>) => {
+    const normalized = { ...source };
+    if (normalized.no_personality) normalized.personality = false;
+    if (normalized.rating_unrated) normalized.rating_pg13 = false;
+
+    if (normalized.admin || normalized.chat || normalized.super_snail) {
+      for (const mode of ["admin", "chat", "super_snail"]) effective[mode] = false;
+    }
+    if (normalized.personality || normalized.no_personality) {
+      for (const mode of ["personality", "no_personality"]) effective[mode] = false;
+    }
+    if (normalized.rating_pg13 || normalized.rating_unrated) {
+      for (const mode of ["rating_pg13", "rating_unrated"]) effective[mode] = false;
+    }
+    for (const [k, v] of Object.entries(normalized)) {
       if (v) effective[k] = true;
     }
+  };
+
+  for (const entry of inherited) {
+    applyModes(entry.modes);
   }
-  for (const [k, v] of Object.entries(direct)) {
-    if (v) effective[k] = true;
-  }
+  applyModes(direct);
 
   return { direct: { modes: direct }, inherited, effective: { modes: effective } };
 }
@@ -485,9 +506,9 @@ export async function persistStore(
         continue;
       }
       const key = cacheKey(entry.guildId, entry.targetType, entry.targetId);
-      if (!desiredMap.has(key)) {
-        toDelete.push(row.id);
-      }
+      // The table does not enforce uniqueness across target columns, so replace
+      // persisted rows with the collapsed desired snapshot to remove duplicates.
+      toDelete.push(row.id);
     }
 
     if (toDelete.length) {
