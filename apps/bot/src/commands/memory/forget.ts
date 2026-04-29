@@ -4,8 +4,8 @@
  */
 
 import { SlashCommandBuilder, EmbedBuilder, MessageFlags } from "discord.js";
-import { database } from "../lib/database.js";
-import { memoryStore } from "../lib/memory.js";
+import { database } from "../../lib/database.js";
+import { memoryStore } from "../../lib/memory.js";
 
 module.exports = {
   data: new SlashCommandBuilder()

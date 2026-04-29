@@ -4,9 +4,9 @@ import {
   ChatInputCommandInteraction,
   MessageFlags,
 } from 'discord.js';
-import { database } from '../lib/database.js';
-import { canonicalize, findLikelyMemberId, addAlias } from '../lib/club-store.js';
-import { trackCommand } from '../lib/metrics.js';
+import { database } from '../../lib/database.js';
+import { canonicalize, findLikelyMemberId, addAlias } from '../../lib/club-store.js';
+import { trackCommand } from '../../lib/metrics.js';
 
 function checkOwnerOrAdmin(interaction: ChatInputCommandInteraction): boolean {
   const ownerId = process.env.BOT_OWNER_ID;

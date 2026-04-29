@@ -4,8 +4,8 @@ import {
   PermissionFlagsBits,
   ChatInputCommandInteraction,
 } from 'discord.js';
-import { database } from '../lib/database.js';
-import { trackCommand } from '../lib/metrics.js';
+import { database } from '../../lib/database.js';
+import { trackCommand } from '../../lib/metrics.js';
 
 function checkPermission(member: unknown): boolean {
   if (!member) return false;

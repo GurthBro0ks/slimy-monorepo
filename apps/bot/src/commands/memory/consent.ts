@@ -4,8 +4,8 @@
  */
 
 import { SlashCommandBuilder } from "discord.js";
-import { database } from "../lib/database.js";
-import { memoryStore } from "../lib/memory.js";
+import { database } from "../../lib/database.js";
+import { memoryStore } from "../../lib/memory.js";
 
 async function getConsent({
   guildId,

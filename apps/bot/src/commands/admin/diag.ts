@@ -3,18 +3,19 @@
  * Ported from /opt/slimy/app/commands/diag.js
  */
 
-import { SlashCommandBuilder, EmbedBuilder } from "discord.js";
+import { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } from "discord.js";
 import { exec as execCallback } from "child_process";
 import { promisify } from "util";
-import { database } from "../lib/database.js";
-import { metrics } from "../lib/metrics.js";
+import { database } from "../../lib/database.js";
+import { metrics } from "../../lib/metrics.js";
 
 const execPromise = promisify(execCallback);
 
 module.exports = {
   data: new SlashCommandBuilder()
     .setName("diag")
-    .setDescription("Comprehensive health check and diagnostics"),
+    .setDescription("Comprehensive health check and diagnostics")
+    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
 
   async execute(interaction: {
     deferReply: (opts: { ephemeral: boolean }) => Promise<void>;

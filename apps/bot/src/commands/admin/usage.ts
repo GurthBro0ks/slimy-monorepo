@@ -14,14 +14,15 @@ import {
   fetchLocalImageStats,
   aggregateUsage,
   PRICING,
-} from "../lib/usage-openai.js";
-import { logError } from "../lib/logger.js";
-import { metrics } from "../lib/metrics.js";
+} from "../../lib/usage-openai.js";
+import { logError } from "../../lib/logger.js";
+import { metrics } from "../../lib/metrics.js";
 
 module.exports = {
   data: new SlashCommandBuilder()
     .setName("usage")
     .setDescription("View OpenAI API usage and costs (admin only)")
+    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     .addStringOption((option) =>
       option.setName("window").setDescription("Time window for usage stats").addChoices(
         { name: "Today", value: "today" },

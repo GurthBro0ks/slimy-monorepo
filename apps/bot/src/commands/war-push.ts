@@ -10,6 +10,7 @@ import {
   EmbedBuilder,
   ChatInputCommandInteraction,
   MessageFlags,
+  PermissionFlagsBits,
 } from 'discord.js';
 import { listTroopsSorted, buildTroopCsv, type TroopSortField } from '../lib/sim-wars-troop-store.js';
 import { createLogger } from '../lib/logger.js';
@@ -112,6 +113,7 @@ module.exports = {
   data: new SlashCommandBuilder()
     .setName('war-push')
     .setDescription('Export Sim Wars troop war sheet for this server')
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
     .addStringOption(opt =>
       opt
         .setName('sort')

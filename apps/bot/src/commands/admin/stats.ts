@@ -3,13 +3,14 @@
  * Ported from /opt/slimy/app/commands/stats.js
  */
 
-import { SlashCommandBuilder, EmbedBuilder, User } from "discord.js";
-import { mcpClient } from "../lib/mcp-client.js";
+import { SlashCommandBuilder, EmbedBuilder, User, PermissionFlagsBits } from "discord.js";
+import { mcpClient } from "../../lib/mcp-client.js";
 
 module.exports = {
   data: new SlashCommandBuilder()
     .setName("stats")
     .setDescription("View your Slimy.ai usage statistics")
+    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     .addUserOption((option) =>
       option.setName("user").setDescription("User to view stats for (admin/club only)").setRequired(false),
     )

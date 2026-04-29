@@ -1,5 +1,5 @@
 import { SlashCommandBuilder, EmbedBuilder } from "discord.js";
-import { database } from "../lib/database.js";
+import { database } from "../../lib/database.js";
 
 function abbreviatePower(value: number): string {
   if (value >= 1_000_000_000) return (value / 1_000_000_000).toFixed(2) + "B";
@@ -25,6 +25,7 @@ module.exports = {
   data: new SlashCommandBuilder()
     .setName("leaderboard")
     .setDescription("View club power rankings for this server")
+    .setDMPermission(false)
     .addIntegerOption((option) =>
       option
         .setName("limit")

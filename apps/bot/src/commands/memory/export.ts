@@ -10,8 +10,8 @@ import {
   MessageFlags,
   ChatInputCommandInteraction,
 } from "discord.js";
-import { database } from "../lib/database.js";
-import { memoryStore } from "../lib/memory.js";
+import { database } from "../../lib/database.js";
+import { memoryStore } from "../../lib/memory.js";
 
 function parseMaybeJson<T>(value: unknown, fallback: T): T {
   if (value === null || value === undefined) return fallback;
