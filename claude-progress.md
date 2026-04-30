@@ -49,7 +49,7 @@
 
 **What was done:**
 - Confirmed `apps/web/.env` had `DATABASE_URL=.../slimyai_prod`.
-- Updated to `DATABASE_URL=mysql://slimy:super-secret-app-password@127.0.0.1:3306/slimy`.
+- Updated to `DATABASE_URL=mysql://slimy:<redacted>@127.0.0.1:3306/slimy` (password redacted for secret hygiene).
 - Ran `pnpm --filter web build` successfully.
 - Restarted `slimy-web.service` using `systemctl --user` and verified active state.
 - Verified routes: `/snail`, `/snail/stats`, `/snail/club` all return 200.

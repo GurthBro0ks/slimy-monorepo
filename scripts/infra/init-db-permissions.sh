@@ -2,8 +2,13 @@
 set -euo pipefail
 
 CONTAINER_NAME="${DB_CONTAINER_NAME:-slimy-db}"
-APP_DB_PASSWORD="${APP_DB_PASSWORD:-${DATABASE_PASSWORD:-super-secret-app-password}}"
+APP_DB_PASSWORD="${APP_DB_PASSWORD:-${DATABASE_PASSWORD:-}}"
 ROOT_PASSWORD="${MYSQL_ROOT_PASSWORD:-${DB_ROOT_PASSWORD:-$APP_DB_PASSWORD}}"
+
+if [ -z "$APP_DB_PASSWORD" ]; then
+  echo "APP_DB_PASSWORD or DATABASE_PASSWORD must be set before applying permissions." >&2
+  exit 1
+fi
 
 if ! docker ps --format '{{.Names}}' | grep -qx "$CONTAINER_NAME"; then
   echo "Container $CONTAINER_NAME is not running; start it before applying permissions." >&2
