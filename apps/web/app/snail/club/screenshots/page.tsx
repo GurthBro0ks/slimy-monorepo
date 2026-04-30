@@ -460,7 +460,8 @@ export default function ScreenshotScanPage() {
               </h3>
               <ol className="text-[#8a4baf] text-sm space-y-2 list-decimal list-inside">
                 <li>Upload 1-10 Manage Members screenshots from Super Snail</li>
-                <li>Include both Power and Sim Power sort views when you want both values updated</li>
+                <li>Use one metric type per batch: all Power screenshots or all Sim Power screenshots</li>
+                <li>Run the other sort view as a second batch when you want both values updated</li>
                 <li>AI reads each screenshot and maps Power vs Sim Power into the correct fields</li>
                 <li>Review the extracted data and remove any bad rows</li>
                 <li>Push confirmed data to the club database</li>

@@ -9,6 +9,8 @@
 - Replaced `/snail/docs` placeholder with a real Snail operations manual covering club dashboard, screenshot OCR, codes, stats, access levels, and data trust rules.
 - Replaced `/snail/personal` placeholder with a personal command center that reflects auth state, lists the personal data contract, and links to live Snail workflows.
 - Updated the screenshot OCR prompt and UI guidance after reviewing sample Manage Members screenshots where regular total power is labeled `Power` and sim power is labeled `Sim Power`.
+- Corrected the upload guidance to one metric type per batch: all `Power` screenshots first, then a separate `Sim Power` batch.
+- Updated screenshot push SQL so a one-metric batch preserves the existing nonzero value for the other metric instead of overwriting it with zero.
 
 **Verification:**
 - `pnpm --filter @slimy/web lint` passed.
@@ -17,7 +19,7 @@
 - Smoke routes returned expected codes: `/snail/club/screenshots`, `/snail/docs`, `/snail/personal`, `/snail` all 200; unknown route returned 404.
 
 **Notes:**
-- Full API OCR QA with uploaded files is still pending because the sample screenshots were provided in chat, not as server-local files. Do not treat live provider extraction quality as manually verified yet.
+- Full API OCR QA with uploaded files is still pending behind owner authentication. The test image files are saved under `/home/slimy/slimy-monorepo/4-30` on NUC2 and should stay untracked.
 - Mission Control remains intentionally deferred.
 
 ---

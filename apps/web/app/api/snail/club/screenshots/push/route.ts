@@ -152,7 +152,7 @@ export async function POST(request: NextRequest) {
              ON DUPLICATE KEY UPDATE
                sim_prev = sim_power,
                total_prev = IF(VALUES(total_power) = 0, total_prev, total_power),
-               sim_power = VALUES(sim_power),
+               sim_power = IF(VALUES(sim_power) = 0 AND sim_power > 0, sim_power, VALUES(sim_power)),
                total_power = IF(VALUES(total_power) = 0 AND total_power > 0, total_power, VALUES(total_power)),
                name_display = VALUES(name_display),
                sim_pct_change = CASE WHEN sim_prev > 0 THEN ROUND((sim_power - sim_prev) / sim_prev * 100, 2) ELSE 0 END,

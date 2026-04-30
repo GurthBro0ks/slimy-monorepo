@@ -29,7 +29,7 @@ const guides = [
     summary: "Upload Manage Members screenshots, review extracted rows, then push confirmed data.",
     steps: [
       "Upload 1 to 10 clear PNG, JPG, or WEBP screenshots.",
-      "Capture both Power and Sim Power sorted views when you need both values.",
+      "Upload one metric type per batch: all Power screenshots, then a separate Sim Power batch.",
       "Review extracted names and powers before pushing.",
       "Remove questionable rows instead of pushing uncertain OCR output.",
     ],
@@ -153,7 +153,8 @@ export default function DocsPage() {
           </div>
           <ul className="space-y-3 text-sm leading-relaxed text-[#d6b4fc]/80">
             <li>Screenshot OCR is a draft extraction until a human reviews row names and power values.</li>
-            <li>Regular Power and Sim Power screenshots must stay distinguishable; do not merge those fields by guess.</li>
+            <li>Regular Power and Sim Power screenshots must stay in separate batches; do not merge those fields by guess.</li>
+            <li>A Power-only batch preserves existing Sim Power, and a Sim Power-only batch preserves existing regular Power.</li>
             <li>XLSX imports are preferred when the source sheet is current and structured.</li>
             <li>Pushes should be treated as live data changes. Confirm guild, roster count, and obvious OCR mistakes first.</li>
             <li>When OCR and sheet data disagree, keep the original import evidence and check import history before overwriting.</li>

@@ -181,6 +181,8 @@
       "steps": [
         "QA /snail/club/screenshots route and API auth gates",
         "Update OCR prompt for Power vs Sim Power sample screenshots",
+        "Document one metric type per upload batch",
+        "Preserve existing opposite metric when pushing one-metric screenshot batches",
         "Replace /snail/docs placeholder with operational documentation",
         "Replace /snail/personal placeholder with auth-aware personal command center",
         "Run pnpm --filter @slimy/web lint",
