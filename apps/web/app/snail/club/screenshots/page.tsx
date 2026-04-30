@@ -51,6 +51,11 @@ interface PushResponse {
   errors: string[];
   mode?: string;
   details?: PushDetail[];
+  suggestions?: Array<{
+    scannedName: string;
+    existingName: string;
+    distance: number;
+  }>;
   matchedCount?: number;
   newCount?: number;
 }
@@ -851,6 +856,27 @@ export default function ScreenshotScanPage() {
                   <li key={i}>&bull; {err}</li>
                 ))}
               </ul>
+              {pushResult.suggestions && pushResult.suggestions.length > 0 && (
+                <div className="mx-auto max-w-2xl border border-[#ff6b00]/50 bg-[#ff6b00]/10 p-4 text-left">
+                  <p className="mb-3 text-sm font-bold uppercase tracking-widest text-[#ff6b00]">
+                    Review Suggested Name Fixes
+                  </p>
+                  <div className="space-y-2 text-sm text-[#d6b4fc]">
+                    {pushResult.suggestions.map((suggestion, i) => (
+                      <div
+                        key={`${suggestion.scannedName}-${suggestion.existingName}-${i}`}
+                        className="grid gap-2 border-b border-[#ff6b00]/20 pb-2 last:border-b-0 last:pb-0 sm:grid-cols-[1fr_auto_1fr]"
+                      >
+                        <span>{suggestion.scannedName}</span>
+                        <span className="text-[#ff6b00]">&rarr;</span>
+                        <span className="font-bold text-[#39ff14]">
+                          {suggestion.existingName}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
               <div className="flex items-center justify-center gap-4 pt-4">
                 <button
                   onClick={() => { setStep("preview"); setPushResult(null); }}

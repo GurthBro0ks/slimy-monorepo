@@ -224,6 +224,24 @@
       ],
       "passes": true,
       "priority": "high"
+    },
+    {
+      "id": "web-screenshot-fuzzy-name-guard-001",
+      "category": "web-app",
+      "description": "Clean up OCR-created duplicate club rows and block future close-name typo imports",
+      "steps": [
+        "Merge RBFSHAtanic typo row into RBFSKAtanic and remove the synthetic row",
+        "Merge stale tallythefox duplicate into tallyhothefox to restore the club row count to 55",
+        "Add fuzzy close-name detection before screenshot push writes to club_latest",
+        "Return suggested existing names with HTTP 409 when a scanned new name likely matches an existing member",
+        "Render suggested name fixes on the screenshot push failure screen",
+        "Run pnpm --filter @slimy/web lint",
+        "Run pnpm --filter @slimy/web build",
+        "Restart slimy-web.service",
+        "Verify club_latest has 55 rows and 0 synthetic member IDs"
+      ],
+      "passes": true,
+      "priority": "high"
     }
   ]
 }

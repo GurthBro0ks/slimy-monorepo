@@ -22,6 +22,67 @@ interface PushDetail {
   error?: string;
 }
 
+interface NameSuggestion {
+  scannedName: string;
+  existingName: string;
+  distance: number;
+}
+
+function normalizeName(name: string): string {
+  return name.toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+function levenshteinDistance(a: string, b: string): number {
+  const rows = a.length + 1;
+  const cols = b.length + 1;
+  const dp = Array.from({ length: rows }, () => Array<number>(cols).fill(0));
+
+  for (let i = 0; i < rows; i++) dp[i][0] = i;
+  for (let j = 0; j < cols; j++) dp[0][j] = j;
+
+  for (let i = 1; i < rows; i++) {
+    for (let j = 1; j < cols; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      dp[i][j] = Math.min(
+        dp[i - 1][j] + 1,
+        dp[i][j - 1] + 1,
+        dp[i - 1][j - 1] + cost
+      );
+    }
+  }
+
+  return dp[a.length][b.length];
+}
+
+function findCloseName(
+  scannedName: string,
+  existingRows: Array<{ name_display: string }>
+): NameSuggestion | null {
+  const scanned = normalizeName(scannedName);
+  if (scanned.length < 4) return null;
+
+  let best: NameSuggestion | null = null;
+  for (const row of existingRows) {
+    const existing = normalizeName(row.name_display);
+    if (!existing || existing === scanned) continue;
+
+    const distance = levenshteinDistance(scanned, existing);
+    const ratio = distance / Math.max(scanned.length, existing.length);
+    const isLikelyTypo = distance <= 2 || ratio <= 0.2;
+    if (!isLikelyTypo) continue;
+
+    if (!best || distance < best.distance) {
+      best = {
+        scannedName,
+        existingName: row.name_display,
+        distance,
+      };
+    }
+  }
+
+  return best;
+}
+
 export async function POST(request: NextRequest) {
   let ownerEmail = "unknown";
   let ownerRole = "unknown";
@@ -91,6 +152,37 @@ export async function POST(request: NextRequest) {
       for (const row of existingRows) {
         existingByName.set(row.name_display.toLowerCase(), row.member_id);
         existingIds.add(row.member_id);
+      }
+
+      const nameSuggestions: NameSuggestion[] = [];
+      for (const member of members) {
+        if (!member.name || typeof member.name !== "string" || !member.name.trim()) continue;
+
+        const name = member.name.trim();
+        const nameKey = name.toLowerCase();
+        const rawId = parseInt(String(member.member_id ?? 0), 10) || 0;
+
+        if (rawId > 0 || existingByName.has(nameKey)) continue;
+
+        const suggestion = findCloseName(name, existingRows);
+        if (suggestion) nameSuggestions.push(suggestion);
+      }
+
+      if (nameSuggestions.length > 0) {
+        return NextResponse.json(
+          {
+            ok: false,
+            imported: 0,
+            errors: nameSuggestions.map(
+              (s) =>
+                `${s.scannedName} looks close to existing member ${s.existingName}. Correct the name in review before pushing.`
+            ),
+            suggestions: nameSuggestions,
+            matchedCount: 0,
+            newCount: 0,
+          },
+          { status: 409 }
+        );
       }
 
       const nameToId = new Map<string, number>();

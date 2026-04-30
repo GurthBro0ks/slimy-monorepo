@@ -1,3 +1,27 @@
+## Session: 2026-04-30 (Screenshot OCR fuzzy-name guard and DB cleanup)
+
+**Agent:** Codex
+**Features worked on:** web-screenshot-fuzzy-name-guard-001
+
+**What was done:**
+- Merged the OCR typo row `RBFSHAtanic` into the existing `RBFSKAtanic` member and deleted the synthetic generated row.
+- Found the club table still had 56 rows after that cleanup; identified a stale duplicate `tallythefox` from the prior import and merged it into the current `tallyhothefox` row.
+- Added close-name detection to `POST /api/snail/club/screenshots/push`: if a scanned row would create a new member but looks like an existing member, the push is blocked with HTTP `409` and a suggested correction.
+- Updated the screenshot push failure UI to show suggested name fixes so the operator can go back, edit the row, and retry.
+
+**Verification:**
+- `pnpm --filter @slimy/web lint` passed.
+- `pnpm --filter @slimy/web build` passed.
+- `systemctl --user restart slimy-web.service` succeeded; service active.
+- Smoke checks: `/snail/club/screenshots` returned `200`; unauthenticated `POST /api/snail/club/screenshots/push` returned `401`; unauthenticated `/api/snail/club` returned `401`.
+- DB proof after cleanup: `club_latest` has `55` rows and `0` synthetic negative member IDs; `RBFSKAtanic` remains with sim and total power, while `RBFSHAtanic` and `tallythefox` are absent.
+
+**Notes:**
+- The fuzzy guard intentionally fails closed for close-name new rows. If a genuinely new member has a very similar name to an existing member, the operator will need to adjust the reviewed row before pushing.
+- Raw test images under `/home/slimy/slimy-monorepo/4-30` remain untracked and must not be committed.
+
+---
+
 ## Session: 2026-04-30 (Screenshot OCR name correction)
 
 **Agent:** Codex
