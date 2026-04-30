@@ -460,12 +460,13 @@ export default function ScreenshotScanPage() {
               </h3>
               <ol className="text-[#8a4baf] text-sm space-y-2 list-decimal list-inside">
                 <li>Upload 1-10 Manage Members screenshots from Super Snail</li>
-                <li>AI reads each screenshot and extracts member names + power levels</li>
+                <li>Include both Power and Sim Power sort views when you want both values updated</li>
+                <li>AI reads each screenshot and maps Power vs Sim Power into the correct fields</li>
                 <li>Review the extracted data and remove any bad rows</li>
                 <li>Push confirmed data to the club database</li>
               </ol>
               <p className="text-[#8a4baf]/70 text-xs mt-2">
-                Uses Gemini 2.5 Flash for OCR extraction, falls back to GPT-4o if unavailable. Best results with clear, uncropped screenshots.
+                Uses Gemini 2.5 Flash for OCR extraction, falls back to GPT-4o if unavailable. Best results with clear, uncropped screenshots where the &quot;Power&quot; or &quot;Sim Power&quot; label is visible.
               </p>
             </div>
           )}

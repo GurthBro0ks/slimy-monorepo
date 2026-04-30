@@ -173,6 +173,23 @@
       ],
       "passes": true,
       "priority": "medium"
+    },
+    {
+      "id": "web-snail-docs-personal-001",
+      "category": "web-app",
+      "description": "Expand Snail docs and personal pages from placeholders into useful product surfaces",
+      "steps": [
+        "QA /snail/club/screenshots route and API auth gates",
+        "Update OCR prompt for Power vs Sim Power sample screenshots",
+        "Replace /snail/docs placeholder with operational documentation",
+        "Replace /snail/personal placeholder with auth-aware personal command center",
+        "Run pnpm --filter @slimy/web lint",
+        "Run pnpm --filter @slimy/web build",
+        "Restart slimy-web.service",
+        "Smoke test /snail/club/screenshots, /snail/docs, /snail/personal"
+      ],
+      "passes": true,
+      "priority": "high"
     }
   ]
 }

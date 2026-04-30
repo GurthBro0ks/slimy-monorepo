@@ -23,10 +23,14 @@ Output ONLY a JSON array. Each element must be an object with exactly these fiel
 {
   "name": "string — the player's display name exactly as shown",
   "sim_power": integer — the Sim Power number with no commas or formatting,
-  "total_power": integer — the Total Power number with no commas or formatting, or 0 if not visible
+  "total_power": integer — the regular Power number with no commas or formatting, or 0 if not visible
 }
 
 Rules:
+- Manage Members can be sorted by either "Power" or "Sim Power".
+- If the row label says "Power", put that value in total_power and set sim_power to 0 unless Sim Power is also visible.
+- If the row label says "Sim Power", put that value in sim_power and set total_power to 0 unless regular Power is also visible.
+- Do NOT copy a Power value into sim_power, and do NOT copy a Sim Power value into total_power.
 - SKIP any row where the power number is cut off or not fully visible.
 - SKIP header rows, footer rows, and any non-member rows.
 - power must be an integer with no commas.
