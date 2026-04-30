@@ -1,3 +1,30 @@
+## Session: 2026-04-30 (Web audit follow-up: push, 404, Next warnings)
+
+**Agent:** Codex
+**Features worked on:** web-next16-404-cleanup-001
+
+**What was done:**
+- Fetched and rebased the 5 local web audit/security commits on top of updated `origin/main`.
+- Pushed the rebased audit commits to `origin/main`.
+- Removed unsupported `eslint` config from `apps/web/next.config.js`.
+- Removed duplicate `apps/web/pnpm-lock.yaml` so Next no longer reports multiple lockfiles.
+- Migrated `apps/web/middleware.ts` to the Next 16 `apps/web/proxy.ts` convention.
+- Updated auth proxy logic so unknown paths reach the custom 404 instead of redirecting to login.
+- Marked `apps/web/app/owner/layout.tsx` as dynamic to stop owner cookie prerender noise.
+
+**Verification:**
+- `pnpm --filter @slimy/web build` passed.
+- `systemctl --user restart slimy-web.service` succeeded; service active.
+- Smoke routes returned expected codes: `/`, `/snail`, `/snail/club`, `/snail/stats`, `/snail/codes`, `/snail/personal`, `/snail/docs`, `/login` all 200.
+- `/dashboard` returns 307 without a session, as expected.
+- `/this-page-does-not-exist` returns 404, including `curl -I`.
+
+**Notes:**
+- The stale `baseline-browser-mapping` warning remains. A direct dependency update did not silence it, so dependency churn was not kept.
+- Mission Control remains intentionally deferred.
+
+---
+
 ## Session: 2026-04-04 (dream-command-dalle-chat-precall-fix)
 
 **Agent:** Codex

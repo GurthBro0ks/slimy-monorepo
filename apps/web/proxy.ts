@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 export const config = {
   matcher: [
-    "/((?!_next/|_static/|[\w-]+.\w+).*)",
+    "/((?!_next/|_static/|[\\w-]+\\.\\w+).*)",
     "/api/mission-control/:path*",
     "/api/owner/:path*",
     "/api/guilds/:path*",
@@ -10,16 +10,15 @@ export const config = {
   ],
 };
 
-export default async function middleware(req: NextRequest) {
+export async function proxy(req: NextRequest) {
   const url = req.nextUrl;
   const { pathname, searchParams } = url;
-  
-  // 1. Hands-off routes (Separate auth system)
+
+  // Hands-off routes use a separate auth system.
   if (pathname.startsWith("/trader")) {
     return NextResponse.next();
   }
 
-  // 2. Public Routes (Always allow)
   const publicRoutes = [
     "/",
     "/login",
@@ -35,7 +34,7 @@ export default async function middleware(req: NextRequest) {
     "/snail",
     "/snail-codes",
   ];
-  
+
   const isExactPublic = publicRoutes.includes(pathname);
   const isPublicPrefix = publicPrefixes.some(p => pathname.startsWith(p));
   const isPublicApi = pathname === "/api/codes" || pathname.startsWith("/api/codes/") || pathname.startsWith("/api/session/") || pathname.startsWith("/api/owner/invites") || pathname.startsWith("/api/webhook/") || pathname.startsWith("/api/owner/notifications/discord-push") || pathname.startsWith("/api/snail/") || pathname.startsWith("/api/snail-codes/");
@@ -44,17 +43,42 @@ export default async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  // 3. Protected Routes Check
+  // Unknown pages must reach Next's not-found route instead of auth redirecting.
+  const protectedPrefixes = [
+    "/admin",
+    "/analytics",
+    "/dashboard",
+    "/guilds",
+    "/mission-control",
+    "/office",
+    "/owner",
+    "/settings",
+    "/usage",
+  ];
+  const protectedApiPrefixes = [
+    "/api/admin",
+    "/api/guilds",
+    "/api/mission-control",
+    "/api/office",
+    "/api/owner",
+    "/api/screenshot",
+  ];
+  const isProtectedRoute = protectedPrefixes.some(p => pathname === p || pathname.startsWith(`${p}/`));
+  const isProtectedApi = protectedApiPrefixes.some(p => pathname === p || pathname.startsWith(`${p}/`));
+
+  if (!isProtectedRoute && !isProtectedApi) {
+    return NextResponse.next();
+  }
+
   const sessionToken = req.cookies.get("slimy_session")?.value;
 
   if (!sessionToken) {
     const loginUrl = new URL("/login", req.url);
-    const returnTo = pathname + (searchParams.toString() ? "?" + searchParams.toString() : "");
+    const returnTo = pathname + (searchParams.toString() ? `?${searchParams.toString()}` : "");
     loginUrl.searchParams.set("returnTo", returnTo);
     return NextResponse.redirect(loginUrl);
   }
 
-  // Pass pathname to server components via header
   const requestHeaders = new Headers(req.headers);
   requestHeaders.set("x-pathname", pathname);
 

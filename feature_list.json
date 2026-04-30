@@ -141,6 +141,23 @@
       ],
       "passes": true,
       "priority": "high"
+    },
+    {
+      "id": "web-next16-404-cleanup-001",
+      "category": "web-app",
+      "description": "Push web audit commits, clean Next 16 warnings, preserve protected auth redirects, and verify custom 404 status",
+      "steps": [
+        "Rebase local web audit commits on origin/main and push",
+        "Remove unsupported next.config eslint key",
+        "Remove duplicate apps/web pnpm lockfile",
+        "Migrate middleware.ts to proxy.ts",
+        "Mark owner layout dynamic",
+        "Run pnpm --filter @slimy/web build",
+        "Restart slimy-web.service",
+        "Verify public pages return 200, /dashboard redirects unauthenticated, and unknown routes return 404"
+      ],
+      "passes": true,
+      "priority": "high"
     }
   ]
 }

@@ -10,6 +10,8 @@ export const metadata = {
   description: "Owner control panel for Slimy AI",
 };
 
+export const dynamic = "force-dynamic";
+
 interface OwnerLayoutProps {
   children: React.ReactNode;
 }
