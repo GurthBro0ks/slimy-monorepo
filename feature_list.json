@@ -158,6 +158,21 @@
       ],
       "passes": true,
       "priority": "high"
+    },
+    {
+      "id": "web-screenshot-lint-cleanup-001",
+      "category": "web-app",
+      "description": "Clear lint warnings in the Snail club screenshot upload page without changing OCR workflow behavior",
+      "steps": [
+        "Add missing scanProviders dependency to the push callback",
+        "Replace raw screenshot thumbnail img tag with next/image",
+        "Run pnpm --filter @slimy/web lint",
+        "Run pnpm --filter @slimy/web build",
+        "Restart slimy-web.service",
+        "Smoke test /snail/club/screenshots"
+      ],
+      "passes": true,
+      "priority": "medium"
     }
   ]
 }

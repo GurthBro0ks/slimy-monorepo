@@ -1,3 +1,24 @@
+## Session: 2026-04-30 (Web screenshot page lint cleanup)
+
+**Agent:** Codex
+**Features worked on:** web-screenshot-lint-cleanup-001
+
+**What was done:**
+- Fixed the remaining web lint warnings in `apps/web/app/snail/club/screenshots/page.tsx`.
+- Added the missing `scanProviders` dependency to the push callback.
+- Replaced the upload thumbnail `<img>` with `next/image` using `unoptimized` for local object URLs.
+
+**Verification:**
+- `pnpm --filter @slimy/web lint` passed with 0 errors and 0 file warnings.
+- `pnpm --filter @slimy/web build` passed.
+- `systemctl --user restart slimy-web.service` succeeded; service active.
+- Smoke routes returned expected codes: `/`, `/snail`, `/snail/club`, `/snail/club/screenshots`, `/snail/stats`, `/snail/codes` all 200; unknown route returned 404.
+
+**Notes:**
+- The transitive `baseline-browser-mapping` warning still appears during lint/build and is not tied to this page.
+
+---
+
 ## Session: 2026-04-30 (Web audit follow-up: push, 404, Next warnings)
 
 **Agent:** Codex

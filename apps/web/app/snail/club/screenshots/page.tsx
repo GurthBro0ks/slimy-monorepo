@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useCallback, useRef, useEffect } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -236,7 +237,7 @@ export default function ScreenshotScanPage() {
       });
       setStep("done");
     }
-  }, [members]);
+  }, [members, scanProviders]);
 
   const toggleRemove = useCallback((index: number) => {
     setMembers((prev) =>
@@ -408,10 +409,13 @@ export default function ScreenshotScanPage() {
                     key={i}
                     className="relative group border-2 border-[#8a4baf]/30 bg-[#1a0b2e] overflow-hidden"
                   >
-                    <img
+                    <Image
                       src={thumbnails[i]}
                       alt={file.name}
-                      className="w-full h-32 object-cover"
+                      width={240}
+                      height={128}
+                      unoptimized
+                      className="h-32 w-full object-cover"
                     />
                     <div className="p-2">
                       <p className="text-[#d6b4fc] text-xs truncate">{file.name}</p>
