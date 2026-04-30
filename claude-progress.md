@@ -1,3 +1,26 @@
+## Session: 2026-04-30 (Screenshot upload 500 fix)
+
+**Agent:** Codex
+**Features worked on:** web-screenshot-upload-size-001
+
+**What was done:**
+- Investigated the browser-reported `HTTP 500` on `/snail/club/screenshots` after selecting a 9-image screenshot batch.
+- Confirmed live `slimy-web.service` logs showed `Request body exceeded 10MB for /api/snail/club/screenshots`, followed by `Failed to parse body as FormData`.
+- Raised the Next.js proxy upload body cap to `64mb` in `apps/web/next.config.js`, covering the current one-metric 9-image PNG batches plus multipart overhead.
+- Added explicit multipart parse handling in `apps/web/app/api/snail/club/screenshots/route.ts` so future parse failures return a clear `400` message instead of a generic `500`.
+
+**Verification:**
+- `pnpm --filter @slimy/web lint` passed.
+- `pnpm --filter @slimy/web build` passed and reported `proxyClientMaxBodySize: "64mb"`.
+- `systemctl --user restart slimy-web.service` succeeded; service active.
+- Smoke checks: `/snail/club/screenshots` returned `200`; unauthenticated `POST /api/snail/club/screenshots` returned `401`.
+
+**Notes:**
+- Full OCR scan still needs an owner-browser retry because the upload endpoint is owner-gated. The raw test images under `/home/slimy/slimy-monorepo/4-30` remain untracked and must not be committed.
+- The non-fatal `baseline-browser-mapping` warning remains during lint/build.
+
+---
+
 ## Session: 2026-04-30 (Snail docs and personal dashboard expansion)
 
 **Agent:** Codex

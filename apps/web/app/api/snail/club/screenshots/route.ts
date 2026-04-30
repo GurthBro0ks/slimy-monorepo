@@ -282,7 +282,22 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const formData = await request.formData();
+    let formData: FormData;
+    try {
+      formData = await request.formData();
+    } catch (parseError) {
+      console.warn(
+        "[/api/snail/club/screenshots] Failed to parse multipart upload:",
+        parseError
+      );
+      return NextResponse.json(
+        {
+          error:
+            "Could not read uploaded screenshots. Upload one metric type at a time, up to 10 images, and try again.",
+        },
+        { status: 400 }
+      );
+    }
     const files: File[] = [];
 
     for (const [, value] of formData.entries()) {

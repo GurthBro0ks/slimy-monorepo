@@ -192,6 +192,22 @@
       ],
       "passes": true,
       "priority": "high"
+    },
+    {
+      "id": "web-screenshot-upload-size-001",
+      "category": "web-app",
+      "description": "Allow 9-image Snail screenshot OCR batches without Next request body truncation",
+      "steps": [
+        "Confirm live logs show request body exceeded 10MB for /api/snail/club/screenshots",
+        "Set Next proxy client max body size to 64mb",
+        "Return a clear upload parse error instead of generic HTTP 500",
+        "Run pnpm --filter @slimy/web lint",
+        "Run pnpm --filter @slimy/web build",
+        "Restart slimy-web.service",
+        "Smoke test /snail/club/screenshots and API auth gate"
+      ],
+      "passes": true,
+      "priority": "high"
     }
   ]
 }

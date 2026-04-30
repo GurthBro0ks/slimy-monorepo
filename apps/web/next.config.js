@@ -2,6 +2,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: 'standalone',
+  experimental: {
+    proxyClientMaxBodySize: '64mb',
+  },
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: 'cdn.discordapp.com', pathname: '/**' },
