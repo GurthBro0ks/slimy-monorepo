@@ -1,3 +1,25 @@
+## Session: 2026-04-30 (Screenshot OCR name correction)
+
+**Agent:** Codex
+**Features worked on:** web-screenshot-review-edit-001
+
+**What was done:**
+- Added inline name editing to the `/snail/club/screenshots` review table so operators can correct OCR-misread member names before pushing to the database.
+- Added save/cancel controls with keyboard support: Enter saves the edited name and Escape cancels.
+- Updated upload workflow guidance from "remove bad rows" to "fix any misread names and remove bad rows."
+
+**Verification:**
+- `pnpm --filter @slimy/web lint` passed.
+- `pnpm --filter @slimy/web build` passed.
+- `systemctl --user restart slimy-web.service` succeeded; service active.
+- Smoke check: `/snail/club/screenshots` returned `200`.
+
+**Notes:**
+- This prevents future OCR typo rows like `RBFSHAtanic` from being pushed as new members when the correct existing name is known.
+- If a typo row was already pushed, it still needs a one-time data cleanup or merge into the correct member record.
+
+---
+
 ## Session: 2026-04-30 (Screenshot upload 500 fix)
 
 **Agent:** Codex

@@ -16,6 +16,8 @@ import {
   Database,
   Eye,
   RefreshCw,
+  Pencil,
+  Check,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth/context";
 
@@ -94,6 +96,8 @@ export default function ScreenshotScanPage() {
   const [scanProviders, setScanProviders] = useState<string[]>([]);
   const [scanSummary, setScanSummary] = useState<ScanSummary | null>(null);
   const [pushTimestamp, setPushTimestamp] = useState<string>("");
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const [editingName, setEditingName] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -153,6 +157,8 @@ export default function ScreenshotScanPage() {
     setScanSummary(null);
     setPushResult(null);
     setPushTimestamp("");
+    setEditingIndex(null);
+    setEditingName("");
     setStep("upload");
     setScanProgress("");
     if (fileInputRef.current) fileInputRef.current.value = "";
@@ -244,6 +250,29 @@ export default function ScreenshotScanPage() {
       prev.map((m, i) => (i === index ? { ...m, _removed: !m._removed } : m))
     );
   }, []);
+
+  const startEdit = useCallback((index: number, currentName: string) => {
+    setEditingIndex(index);
+    setEditingName(currentName);
+  }, []);
+
+  const cancelEdit = useCallback(() => {
+    setEditingIndex(null);
+    setEditingName("");
+  }, []);
+
+  const saveEdit = useCallback(() => {
+    if (editingIndex == null) return;
+
+    const nextName = editingName.trim();
+    if (!nextName) return;
+
+    setMembers((prev) =>
+      prev.map((m, i) => (i === editingIndex ? { ...m, name: nextName } : m))
+    );
+    setEditingIndex(null);
+    setEditingName("");
+  }, [editingIndex, editingName]);
 
   const activeMembers = members.filter((m) => !m._removed);
   const removedCount = members.filter((m) => m._removed).length;
@@ -463,7 +492,7 @@ export default function ScreenshotScanPage() {
                 <li>Use one metric type per batch: all Power screenshots or all Sim Power screenshots</li>
                 <li>Run the other sort view as a second batch when you want both values updated</li>
                 <li>AI reads each screenshot and maps Power vs Sim Power into the correct fields</li>
-                <li>Review the extracted data and remove any bad rows</li>
+                <li>Review the extracted data, fix any misread names, and remove any bad rows</li>
                 <li>Push confirmed data to the club database</li>
               </ol>
               <p className="text-[#8a4baf]/70 text-xs mt-2">
@@ -589,26 +618,70 @@ export default function ScreenshotScanPage() {
                   >
                     <td className="p-3 text-[#8a4baf]">{idx + 1}</td>
                     <td className={`p-3 font-bold ${member._removed ? "text-red-500" : ""}`}>
-                      {member.name || <span className="text-red-500 italic">MISSING</span>}
+                      {editingIndex === idx ? (
+                        <input
+                          value={editingName}
+                          onChange={(e) => setEditingName(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") saveEdit();
+                            if (e.key === "Escape") cancelEdit();
+                          }}
+                          className="w-full max-w-xs bg-black border border-[#00ffff] px-2 py-1 text-[#d6b4fc] outline-none focus:ring-2 focus:ring-[#00ffff]/40"
+                          autoFocus
+                        />
+                      ) : (
+                        member.name || <span className="text-red-500 italic">MISSING</span>
+                      )}
                     </td>
                     <td className="p-3">{formatNumber(member.sim_power)}</td>
                     <td className="p-3">{formatNumber(member.total_power)}</td>
                     <td className="p-3">
-                      <button
-                        onClick={() => toggleRemove(idx)}
-                        className={`p-1.5 border transition-colors ${
-                          member._removed
-                            ? "border-[#39ff14] text-[#39ff14] hover:bg-[#39ff14] hover:text-black"
-                            : "border-red-500/50 text-red-500/50 hover:bg-red-500 hover:text-black"
-                        }`}
-                        title={member._removed ? "Restore row" : "Remove row"}
-                      >
-                        {member._removed ? (
-                          <RefreshCw size={14} />
+                      <div className="flex items-center gap-2">
+                        {editingIndex === idx ? (
+                          <>
+                            <button
+                              onClick={saveEdit}
+                              className="p-1.5 border border-[#39ff14] text-[#39ff14] transition-colors hover:bg-[#39ff14] hover:text-black"
+                              title="Save name"
+                            >
+                              <Check size={14} />
+                            </button>
+                            <button
+                              onClick={cancelEdit}
+                              className="p-1.5 border border-[#8a4baf] text-[#8a4baf] transition-colors hover:bg-[#8a4baf] hover:text-black"
+                              title="Cancel edit"
+                            >
+                              <X size={14} />
+                            </button>
+                          </>
                         ) : (
-                          <Trash2 size={14} />
+                          <>
+                            <button
+                              onClick={() => startEdit(idx, member.name)}
+                              disabled={member._removed}
+                              className="p-1.5 border border-[#00ffff]/50 text-[#00ffff]/70 transition-colors hover:bg-[#00ffff] hover:text-black disabled:cursor-not-allowed disabled:opacity-30"
+                              title="Edit name"
+                            >
+                              <Pencil size={14} />
+                            </button>
+                            <button
+                              onClick={() => toggleRemove(idx)}
+                              className={`p-1.5 border transition-colors ${
+                                member._removed
+                                  ? "border-[#39ff14] text-[#39ff14] hover:bg-[#39ff14] hover:text-black"
+                                  : "border-red-500/50 text-red-500/50 hover:bg-red-500 hover:text-black"
+                              }`}
+                              title={member._removed ? "Restore row" : "Remove row"}
+                            >
+                              {member._removed ? (
+                                <RefreshCw size={14} />
+                              ) : (
+                                <Trash2 size={14} />
+                              )}
+                            </button>
+                          </>
                         )}
-                      </button>
+                      </div>
                     </td>
                   </tr>
                 ))}

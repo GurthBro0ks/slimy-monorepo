@@ -208,6 +208,22 @@
       ],
       "passes": true,
       "priority": "high"
+    },
+    {
+      "id": "web-screenshot-review-edit-001",
+      "category": "web-app",
+      "description": "Allow operators to correct OCR-misread member names before pushing screenshot scan results",
+      "steps": [
+        "Add inline name edit controls to the screenshot review table",
+        "Support Enter to save and Escape to cancel edited names",
+        "Update screenshot workflow guidance to mention fixing misread names",
+        "Run pnpm --filter @slimy/web lint",
+        "Run pnpm --filter @slimy/web build",
+        "Restart slimy-web.service",
+        "Smoke test /snail/club/screenshots"
+      ],
+      "passes": true,
+      "priority": "high"
     }
   ]
 }
