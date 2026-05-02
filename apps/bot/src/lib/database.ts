@@ -3,7 +3,8 @@
  * Ported from /opt/slimy/app/lib/database.js
  */
 
-import mysql, { Pool, RowDataPacket, ResultSetHeader } from 'mysql2/promise';
+import { getPool, destroyPool, RowDataPacket, ResultSetHeader } from '@slimy/db';
+import type { Pool } from 'mysql2/promise';
 import { v4 as uuidv4 } from 'uuid';
 
 // ─── Types ─────────────────────────────────────────────────────────────────
@@ -59,8 +60,6 @@ export interface PersonalityMetric {
 // ─── Database Class ───────────────────────────────────────────────────────────
 
 class Database {
-  private pool: Pool | null = null;
-
   // ─── Pool Management ────────────────────────────────────────────────────────
 
   isConfigured(): boolean {
@@ -73,30 +72,7 @@ class Database {
   }
 
   getPool(): Pool {
-    if (this.pool) return this.pool;
-    if (!this.isConfigured()) {
-      throw new Error(
-        'Database not configured. Set DB_HOST, DB_USER, DB_PASSWORD, DB_NAME',
-      );
-    }
-
-    this.pool = mysql.createPool({
-      host: process.env.DB_HOST!,
-      port: Number(process.env.DB_PORT || 3306),
-      user: process.env.DB_USER!,
-      password: process.env.DB_PASSWORD!,
-      database: process.env.DB_NAME!,
-      waitForConnections: true,
-      connectionLimit: Number(process.env.DB_CONNECTION_LIMIT || 10),
-      queueLimit: 0,
-      enableKeepAlive: true,
-      keepAliveInitialDelay: 0,
-      connectTimeout: 10000,
-      multipleStatements: false, // Security: prevent SQL injection
-    });
-
-    console.log('[database] Connection pool initialized');
-    return this.pool;
+    return getPool();
   }
 
   // ─── Lifecycle ──────────────────────────────────────────────────────────────
@@ -126,10 +102,7 @@ class Database {
   }
 
   async close(): Promise<void> {
-    if (this.pool) {
-      await this.pool.end();
-      this.pool = null;
-    }
+    await destroyPool();
   }
 
   // ─── Query Helpers ──────────────────────────────────────────────────────────
