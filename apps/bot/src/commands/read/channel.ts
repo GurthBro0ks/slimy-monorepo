@@ -11,10 +11,10 @@ import {
   PermissionFlagsBits,
   SlashCommandBuilder,
 } from 'discord.js';
-import { buildChannelExportMarkdown, slugify } from '../lib/channelExporter.js';
-import { fetchAllMessages, type FetchableChannel } from '../lib/discordFetcher.js';
-import { safeHandler } from '../lib/errorHandler.js';
-import { createLogger } from '../lib/logger.js';
+import { buildChannelExportMarkdown, slugify } from '../../lib/channelExporter.js';
+import { fetchAllMessages, type FetchableChannel } from '../../lib/discordFetcher.js';
+import { safeHandler } from '../../lib/errorHandler.js';
+import { createLogger } from '../../lib/logger.js';
 
 const execFileAsync = promisify(execFile);
 const logger = createLogger({ context: 'read-channel' });

@@ -223,31 +223,6 @@ client.once(Events.ClientReady, async (c) => {
     console.warn('[mode] cache not primed: module not available (Chunk 5)');
   }
 
-  // Schedule daily farming summary (requires commands/farming — Chunk 4)
-  try {
-    const farming = require('./commands/farming.js');
-    const farmingChannelId = process.env.FARMING_CHANNEL;
-    if (farming?.postDailySummary && farmingChannelId) {
-      setInterval(async () => {
-        const now = new Date();
-        if (now.getUTCHours() === 8 && now.getUTCMinutes() < 5) {
-          try {
-            const channel = await client.channels.fetch(farmingChannelId);
-            if (channel) {
-              await farming.postDailySummary(channel);
-              console.log('[farming] Daily summary posted');
-            }
-          } catch (e) {
-            console.error('[farming] Daily summary failed:', (e as Error).message);
-          }
-        }
-      }, 5 * 60 * 1000);
-      console.log('[farming] Daily summary scheduled for 8:00 AM UTC');
-    }
-  } catch {
-    // farming module not available yet
-  }
-
   // Start club alerts scheduler (monitors member changes in club_latest)
   try {
     const { startAlertScheduler } = require('./utils/club-alerts.js');
@@ -407,30 +382,6 @@ try {
   }
 } catch (err) {
   console.warn('[WARN] Snail auto-detect handler not loaded:', (err as Error).message);
-}
-
-// ─── Health Text Command Handler (graceful) ──────────────────────────────────
-
-try {
-  const healthPath = path.join(__dirname, 'commands', 'health.js');
-  if (fs.existsSync(healthPath)) {
-    const { handleHealthCommand, isHealthCommand } = require('./commands/health.js');
-    if (typeof isHealthCommand === 'function' && typeof handleHealthCommand === 'function') {
-      client.on(Events.MessageCreate, async (message) => {
-        try {
-          if (message.author.bot) return;
-          if (isHealthCommand(message)) {
-            await handleHealthCommand(message, client);
-          }
-        } catch (err) {
-          console.error('[health] Error:', (err as Error).message);
-        }
-      });
-      console.log('✅ Health text command handler attached');
-    }
-  }
-} catch (err) {
-  console.warn('[WARN] Health text command handler not loaded:', (err as Error).message);
 }
 
 // ─── Global Error Handlers ────────────────────────────────────────────────────

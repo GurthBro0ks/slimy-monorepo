@@ -5,12 +5,12 @@
 
 import {
   SlashCommandBuilder,
-  PermissionFlagsBits,
   ChannelType,
   ChatInputCommandInteraction,
   GuildChannel,
 } from "discord.js";
 import { setModes, viewModes, listModes, formatModeState } from "../lib/mode-store.js";
+import { requireAdminRole } from "../utils/admin-role.js";
 
 const MODE_PROFILES = [
   { key: "chat|personality|rating_pg13", label: "Chat · Personality · Rated PG-13" },
@@ -372,7 +372,6 @@ module.exports = {
   data: new SlashCommandBuilder()
     .setName("mode")
     .setDescription("[Admin] Manage slimy.ai modes")
-    .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
     .addSubcommand((sub) =>
       sub
         .setName("set")
@@ -424,6 +423,8 @@ module.exports = {
 
   async execute(interaction: ChatInputCommandInteraction): Promise<void> {
     try {
+      if (!(await requireAdminRole(interaction, "/mode"))) return;
+
       const sub = interaction.options.getSubcommand();
       if (sub === "set") return handleSet(interaction);
       if (sub === "view") return handleView(interaction);

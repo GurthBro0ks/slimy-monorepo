@@ -4,10 +4,10 @@
  */
 
 import { SlashCommandBuilder, EmbedBuilder, MessageFlags } from "discord.js";
-import { database } from "../lib/database.js";
-import { memoryStore } from "../lib/memory.js";
-import { rateLimiter } from "../lib/rate-limiter.js";
-import { metrics } from "../lib/metrics.js";
+import { database } from "../../lib/database.js";
+import { memoryStore } from "../../lib/memory.js";
+import { rateLimiter } from "../../lib/rate-limiter.js";
+import { metrics } from "../../lib/metrics.js";
 
 module.exports = {
   data: new SlashCommandBuilder()

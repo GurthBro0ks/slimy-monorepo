@@ -10,13 +10,14 @@ import {
   ChatInputCommandInteraction,
   GuildMember,
 } from "discord.js";
-import { personalityEngine } from "../lib/personality-engine.js";
-import { setAdjustment } from "../lib/personality-store.js";
+import { personalityEngine } from "../../lib/personality-engine.js";
+import { setAdjustment } from "../../lib/personality-store.js";
 
 module.exports = {
   data: new SlashCommandBuilder()
     .setName("personality-config")
     .setDescription("Configure bot personality (Admin only)")
+    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     .addSubcommand((sub) =>
       sub.setName("view").setDescription("View current personality configuration"),
     )

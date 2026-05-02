@@ -10,16 +10,16 @@ import {
   AttachmentBuilder,
   ChatInputCommandInteraction,
 } from 'discord.js';
-import { database } from '../lib/database.js';
-import { trackCommand } from '../lib/metrics.js';
-import { normalizeSheetInput } from '../lib/guild-settings.js';
+import { database } from '../../lib/database.js';
+import { trackCommand } from '../../lib/metrics.js';
+import { normalizeSheetInput } from '../../lib/guild-settings.js';
 import {
   getLatestForGuild,
   recomputeLatestForGuild,
   canonicalize,
-} from '../lib/club-store.js';
-import { addCorrection } from '../lib/club-corrections.js';
-import { getWeekId } from '../lib/week-anchor.js';
+} from '../../lib/club-store.js';
+import { addCorrection } from '../../lib/club-corrections.js';
+import { getWeekId } from '../../lib/week-anchor.js';
 
 function ensureDatabase(): void {
   if (!database.isConfigured()) {

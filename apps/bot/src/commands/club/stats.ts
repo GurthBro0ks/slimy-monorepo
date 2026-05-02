@@ -19,10 +19,10 @@ import {
   buildCsv,
   sortMembers,
   MEMBERS_PER_PAGE,
-} from '../lib/club-stats-service.js';
-import { database } from '../lib/database.js';
-import { trackCommand } from '../lib/metrics.js';
-import { createLogger } from '../lib/logger.js';
+} from '../../lib/club-stats-service.js';
+import { database } from '../../lib/database.js';
+import { trackCommand } from '../../lib/metrics.js';
+import { createLogger } from '../../lib/logger.js';
 
 const logger = createLogger({ context: 'club-stats' });
 const BUTTON_PREFIX = 'club-stats';
@@ -213,7 +213,7 @@ module.exports = {
         const sid = parts[2];
         const sess = sessions.get(sid);
         if (!sess) {
-          await btn.reply({ content: 'Session expired. Run `/club-stats` again.', flags: MessageFlags.Ephemeral });
+          await btn.reply({ content: 'Session expired. Run `/club view stats` again.', flags: MessageFlags.Ephemeral });
           return;
         }
 
@@ -265,7 +265,7 @@ module.exports = {
     const sid = parts[2];
     const session = sessions.get(sid);
     if (!session) {
-      await interaction.reply({ content: 'Session expired. Run `/club-stats` again.', flags: MessageFlags.Ephemeral });
+      await interaction.reply({ content: 'Session expired. Run `/club view stats` again.', flags: MessageFlags.Ephemeral });
       return;
     }
 

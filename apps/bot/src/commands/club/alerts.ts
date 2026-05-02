@@ -4,7 +4,7 @@ import {
   ChatInputCommandInteraction,
   MessageFlags,
 } from 'discord.js';
-import { getAlertStatus, runAlertCheck } from '../utils/club-alerts.js';
+import { getAlertStatus, runAlertCheck } from '../../utils/club-alerts.js';
 
 module.exports = {
   data: new SlashCommandBuilder()

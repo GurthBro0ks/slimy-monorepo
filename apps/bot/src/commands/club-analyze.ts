@@ -41,6 +41,7 @@ import {
   clearStaging,
   saveStagingRows,
 } from '../services/club-staging.js';
+import { requireAdminRole } from '../utils/admin-role.js';
 
 // ─── Slash Command Definition ────────────────────────────────────────────────
 
@@ -92,6 +93,8 @@ module.exports = {
   // ─── Main Execute ─────────────────────────────────────────────────────────
 
   async execute(interaction: ChatInputCommandInteraction): Promise<void> {
+    if (!(await requireAdminRole(interaction, '/club-analyze'))) return;
+
     await interaction.deferReply();
 
     cleanExpiredSessions();

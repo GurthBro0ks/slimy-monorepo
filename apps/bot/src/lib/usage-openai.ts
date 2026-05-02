@@ -63,7 +63,7 @@ async function fetchOpenAIUsage(
     if (response.status === 404 || response.status === 401) return null;
     throw new Error(`OpenAI usage API returned ${response.status}`);
   } catch (err) {
-    console.error("[usage-openai] Failed to fetch usage:", (err as Error).message);
+    console.warn("[usage-openai] Usage API unavailable:", (err as Error).message);
     return null;
   }
 }
@@ -88,8 +88,8 @@ async function fetchLocalImageStats(
     );
     return rows;
   } catch (err) {
-    console.error(
-      "[usage-openai] Failed to fetch local image stats:",
+    console.warn(
+      "[usage-openai] Local image stats unavailable:",
       (err as Error).message,
     );
     return null;
