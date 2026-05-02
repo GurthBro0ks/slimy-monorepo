@@ -128,11 +128,11 @@ export async function POST(request: NextRequest) {
     // 2. Get all tasks with botActionKey
     const tasks = await prisma.airdropTask.findMany({
       where: { botActionKey: { not: null } },
-      select: { id: true, botActionKey: true, airdropId: true, name: true, airdrop: { select: { name: true, token: true } } },
+      select: { id: true, botActionKey: true, airdropId: true, name: true, airdrop: { select: { protocol: true, token: true } } },
     });
 
     // Build a lookup: botActionKey → taskId
-    const keyToTasks: Record<string, { id: string; airdropId: string; name: string; airdrop: { name: string; token: string } }[]> = {};
+    const keyToTasks: Record<string, { id: string; airdropId: string; name: string; airdrop: { protocol: string; token: string } }[]> = {};
     for (const t of tasks) {
       if (t.botActionKey) {
         if (!keyToTasks[t.botActionKey]) {
@@ -182,7 +182,7 @@ export async function POST(request: NextRequest) {
       }
 
       // Find matching task(s)
-      const matchingTasks = keyToTasks[actionKey] || [];
+      const matchingTasks = actionKey ? keyToTasks[actionKey] || [] : [];
       if (matchingTasks.length === 0) {
         unmatched++;
         details.push({ action: actionType, protocol, status: "no_matching_task" });
@@ -237,7 +237,7 @@ export async function POST(request: NextRequest) {
 
         // Fire-and-forget TX verification
         if (txHash) {
-          const chain = detectChain(task.airdrop.name, task.airdrop.token);
+          const chain = detectChain(task.airdrop.protocol, task.airdrop.token) as "ethereum" | "base";
           verifyTx(txHash, chain)
             .then((result) => {
               prisma.airdropCompletion.update({

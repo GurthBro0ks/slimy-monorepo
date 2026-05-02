@@ -94,8 +94,8 @@ function CumulativePnLChart({ data }: { data: { timestamp: string; pnl: number; 
         <Tooltip
           contentStyle={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 8, fontFamily: C.mono, fontSize: 11 }}
           labelStyle={{ color: C.muted }}
-          formatter={(v: number) => [`$${v.toFixed(2)}`, "Cumulative PnL"]}
-          labelFormatter={(label: string) => `Date: ${label}`}
+          formatter={((v: number) => [`$${v.toFixed(2)}`, "Cumulative PnL"]) as any}
+          labelFormatter={((label: string) => `Date: ${label}`) as any}
         />
         {min < 0 && <ReferenceLine y={0} stroke={C.dim} strokeDasharray="4 4" strokeWidth={1} />}
         <Line
@@ -142,7 +142,7 @@ function PnLDistributionChart({ data }: { data: { bucket: string; count: number 
         <Tooltip
           contentStyle={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 8, fontFamily: C.mono, fontSize: 11 }}
           labelStyle={{ color: C.muted }}
-          formatter={(v: number, _name: string) => [v, "Trades"]}
+          formatter={((v: number, _name: string) => [v, "Trades"]) as any}
         />
         <Bar dataKey="count" radius={[3, 3, 0, 0]}>
           {chartData.map((entry, index) => (
@@ -178,7 +178,7 @@ function WeeklyRevenueChart({ data }: { data: { week: string; kalshi_optimize: n
         <Tooltip
           contentStyle={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 8, fontFamily: C.mono, fontSize: 11 }}
           labelStyle={{ color: C.muted }}
-          formatter={(v: number, name: string) => [`$${v.toFixed(2)}`, name]}
+          formatter={((v: number, name: string) => [`$${v.toFixed(2)}`, name]) as any}
         />
         <Legend
           wrapperStyle={{ fontFamily: C.mono, fontSize: 11, color: C.muted, paddingTop: 8 }}
@@ -240,10 +240,9 @@ export default function TradingTab({ isActive }: { isActive: boolean }) {
             onClick={() => setSection(s.id)}
             style={{
               padding: "8px 16px", borderRadius: 20, fontSize: 12, fontFamily: C.mono,
-              fontWeight: 600, border: "none", cursor: "pointer", transition: "all 0.2s",
+              fontWeight: 600, cursor: "pointer", transition: "all 0.2s",
               background: section === s.id ? `${C.green}18` : "rgba(255,255,255,0.04)",
               color: section === s.id ? C.green : C.muted,
-              borderColor: section === s.id ? `${C.green}44` : "transparent",
               border: section === s.id ? `1px solid ${C.green}44` : "1px solid transparent",
             }}>
             {s.label}

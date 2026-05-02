@@ -50,7 +50,7 @@ const GLOSSARY = [
   { term: "RPC Endpoint", def: "Blockchain API URL. Bot uses fallbacks for reliability." },
 ];
 
-const C = { bg: "#0a0612", card: "rgba(14,8,28,0.92)", border: "rgba(0,255,157,0.12)", green: "#00ff9d", pink: "#ff2d95", cyan: "#00e5ff", yellow: "#ffe700", red: "#ff3355", orange: "#ff8a2d", text: "#eee4ff", sub: "#c0b0e0", muted: "#9080b8", dim: "#5a4a7a", mono: "'JetBrains Mono',monospace", sans: "'Space Grotesk',sans-serif" };
+const C = { bg: "#0a0612", card: "rgba(14,8,28,0.92)", border: "rgba(0,255,157,0.12)", green: "#00ff9d", pink: "#ff2d95", cyan: "#00e5ff", yellow: "#ffe700", red: "#ff3355", orange: "#ff8a2d", blue: "#4dabf7", purple: "#be4bdb", text: "#eee4ff", sub: "#c0b0e0", muted: "#9080b8", dim: "#5a4a7a", mono: "'JetBrains Mono',monospace", sans: "'Space Grotesk',sans-serif" };
 
 // ─── CLIENT-SIDE TIMESTAMP ──────────────────────────────────
 function useClientTime(format: (d: Date) => string, dateStr: string | null | undefined, fallback: string) {
@@ -72,14 +72,14 @@ function ClientTimestamp({ dateStr, format = "string", fallback = "—" }: { dat
 }
 
 // ─── TOOLTIP — hover-persistent, positioned near trigger ─────
-const Tip = ({ term, text, children }) => {
+const Tip = ({ term, text, children }: { term?: string; text: string; children: React.ReactNode }) => {
   const [show, setShow] = useState(false);
   const [pos, setPos] = useState({ top: 0, left: 0, above: false });
-  const triggerRef = useRef(null);
-  const timerRef = useRef(null);
+  const triggerRef = useRef<HTMLSpanElement>(null);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const open = useCallback(() => {
-    clearTimeout(timerRef.current);
+    if (timerRef.current) clearTimeout(timerRef.current);
     if (triggerRef.current) {
       const r = triggerRef.current.getBoundingClientRect();
       const above = window.innerHeight - r.bottom < 240;
@@ -93,10 +93,10 @@ const Tip = ({ term, text, children }) => {
   }, []);
 
   const cancelClose = useCallback(() => {
-    clearTimeout(timerRef.current);
+    if (timerRef.current) clearTimeout(timerRef.current);
   }, []);
 
-  useEffect(() => () => clearTimeout(timerRef.current), []);
+  useEffect(() => () => { if (timerRef.current) clearTimeout(timerRef.current); }, []);
 
   return (
     <span ref={triggerRef} style={{ position: "relative", display: "inline-flex", alignItems: "center" }}
@@ -122,11 +122,11 @@ const Tip = ({ term, text, children }) => {
 };
 
 // ─── UI PRIMITIVES ───────────────────────────────────────────
-const Card = ({ children, s = {} }) => <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 12, overflow: "hidden", ...s }}>{children}</div>;
-const Head = ({ children, right }) => <div style={{ padding: "14px 20px", borderBottom: `1px solid ${C.border}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}><span style={{ fontSize: 14, fontWeight: 700, color: C.cyan, letterSpacing: 2.5, textTransform: "uppercase", fontFamily: C.mono }}>{children}</span>{right && <span suppressHydrationWarning style={{ fontSize: 12, color: C.green, fontFamily: C.mono }}>{right}</span>}</div>;
+const Card = ({ children, s = {} }: { children: React.ReactNode; s?: React.CSSProperties }) => <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 12, overflow: "hidden", ...s }}>{children}</div>;
+const Head = ({ children, right }: { children: React.ReactNode; right?: React.ReactNode }) => <div style={{ padding: "14px 20px", borderBottom: `1px solid ${C.border}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}><span style={{ fontSize: 14, fontWeight: 700, color: C.cyan, letterSpacing: 2.5, textTransform: "uppercase", fontFamily: C.mono }}>{children}</span>{right && <span suppressHydrationWarning style={{ fontSize: 12, color: C.green, fontFamily: C.mono }}>{right}</span>}</div>;
 
 // Head variant that formats timestamps client-side only to avoid hydration mismatches
-const HeadTime = ({ children, rightTimestamp }) => {
+const HeadTime = ({ children, rightTimestamp }: { children: React.ReactNode; rightTimestamp?: string | null }) => {
   const [timeStr, setTimeStr] = useState("");
   useEffect(() => {
     if (rightTimestamp) setTimeStr(new Date(rightTimestamp).toLocaleTimeString());
@@ -134,14 +134,14 @@ const HeadTime = ({ children, rightTimestamp }) => {
   return <Head right={timeStr}>{children}</Head>;
 };
 
-const Stat = ({ label, value, sub, color = C.green, desc }) => (
+const Stat = ({ label, value, sub, color = C.green, desc }: { label: string; value: React.ReactNode; sub?: React.ReactNode; color?: string; desc?: string }) => (
   <div style={{ background: C.card, border: `1px solid ${color}22`, borderRadius: 12, padding: "16px 20px" }}>
     <div style={{ fontSize: 13, color: C.green, letterSpacing: 1.5, textTransform: "uppercase", fontFamily: C.mono, marginBottom: 4, fontWeight: 600 }}>{desc ? <Tip term={label} text={desc}>{label}</Tip> : label}</div>
     <div style={{ fontSize: 28, fontWeight: 700, color, fontFamily: C.mono }}>{value}</div>
     {sub && <div style={{ fontSize: 12, color: C.sub, marginTop: 3 }}>{sub}</div>}
   </div>
 );
-const Bar = ({ label, val, max, unit = "", color = C.green, desc }) => {
+const Bar = ({ label, val, max, unit = "", color = C.green, desc }: { label: string; val: number; max: number; unit?: string; color?: string; desc?: string }) => {
   const p = Math.min(Math.max((val / max) * 100, 0), 100);
   return <div style={{ marginBottom: 14 }}>
     <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: C.sub, marginBottom: 4, fontFamily: C.mono }}><span>{desc ? <Tip term={label} text={desc}>{label}</Tip> : label}</span><span style={{ color: C.text }}>{typeof val === "number" ? (Number.isInteger(val) ? val : val.toFixed(1)) : val}{unit} / {max}{unit}</span></div>
@@ -159,8 +159,8 @@ export default function Dashboard() {
   const [, _setNewAddr] = useState(""); const [, _setNewLbl] = useState("");
   const [, _setWallets] = useState<any[]>([]); // Now from API
   const [, _setLogCat] = useState("trading");
-  const [edits, setEdits] = useState({});
-  const [gFilter, setGFilter] = useState(""); const [gHover, setGHover] = useState(null);
+  const [edits, setEdits] = useState<Record<string, string>>({});
+  const [gFilter, setGFilter] = useState(""); const [gHover, setGHover] = useState<string | null>(null);
 
   // Airdrop state — real data from API
   const [airdrops, setAirdrops] = useState<any[]>([]);
@@ -627,7 +627,7 @@ export default function Dashboard() {
   const _act = airdrops.filter(a => a.tier !== "F");
   const _evL = _act.reduce((s, a) => s + a.est_low * (a.probability / 100), 0);
   const _evH = _act.reduce((s, a) => s + a.est_high * (a.probability / 100), 0);
-  const scan = (p) => { _setScanSt(s => ({ ...s, [p]: "scanning" })); setTimeout(() => _setScanSt(s => ({ ...s, [p]: Math.random() > .3 ? "eligible" : "unknown" })), 1400); };
+  const scan = (p: string) => { _setScanSt((s: Record<string, string>) => ({ ...s, [p]: "scanning" })); setTimeout(() => _setScanSt((s: Record<string, string>) => ({ ...s, [p]: Math.random() > .3 ? "eligible" : "unknown" })), 1400); };
   const _scanAll = () => _act.forEach((a, i) => setTimeout(() => scan(a.protocol), i * 700));
   const tabs = [{ id: "overview", l: "Overview", i: "◈" }, { id: "airdrops", l: "Airdrops", i: "◎" }, { id: "risk", l: "Risk", i: "△" }, { id: "logs", l: "Logs", i: "▤" }, { id: "howto", l: "How-To", i: "📖" }, { id: "trading", l: "Trading", i: "📈" }, { id: "settings", l: "Settings", i: "⚙" }];
   const _chainColors = { Base: C.cyan, ETH: C.green, Linea: C.pink, Monad: C.orange, Optimism: C.red };
@@ -825,7 +825,7 @@ export default function Dashboard() {
 
           {/* Farming activity section - real data */}
           {farmingStats?.farming && (
-            <Card style={{ marginBottom: 14 }}>
+            <Card s={{ marginBottom: 14 }}>
               <Head right={`Streak: ${farmingStats.farming.streak} days`}>Farming Activity</Head>
               <div style={{ padding: "12px 20px" }}>
                 <div className="crypto-stat-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 10, marginBottom: 12 }}>
@@ -1106,7 +1106,6 @@ export default function Dashboard() {
                     padding: "8px 14px",
                     fontSize: 12,
                     fontWeight: 600,
-                    border: "none",
                     background: logsCategory === cat ? `${C.green}14` : "transparent",
                     color: logsCategory === cat ? C.green : C.muted,
                     borderRadius: 6,
@@ -1132,7 +1131,7 @@ export default function Dashboard() {
                       borderRadius: 4,
                       fontFamily: C.mono,
                       fontWeight: 600,
-                      whitespace: "nowrap",
+                      whiteSpace: "nowrap",
                       background: log.category === "airdrop" ? `${C.green}22` : log.category === "bot" ? `${C.pink}22` : `${C.blue}22`,
                       color: log.category === "airdrop" ? C.green : log.category === "bot" ? C.pink : C.blue,
                     }}>
@@ -1144,12 +1143,12 @@ export default function Dashboard() {
                         href={log.details.txLink}
                         target="_blank"
                         rel="noopener noreferrer"
-                        style={{ fontSize: 11, color: C.cyan, textDecoration: "none", whitespace: "nowrap" }}
+                        style={{ fontSize: 11, color: C.cyan, textDecoration: "none", whiteSpace: "nowrap" }}
                       >
                         TX ↗
                       </a>
                     )}
-                    <span style={{ fontSize: 11, color: C.dim, whitespace: "nowrap" }}>
+                    <span style={{ fontSize: 11, color: C.dim, whiteSpace: "nowrap" }}>
                       <ClientTimestamp dateStr={log.timestamp} />
                     </span>
                   </div>
@@ -1168,7 +1167,7 @@ export default function Dashboard() {
 
         {/* HOW-TO */}
         {tab === "howto" && <div style={{ animation: "fadeUp 0.3s" }}>
-          <Card s={{ marginBottom: 16 }}><Head>Quick Start Guide</Head><div style={{ padding: "18px 22px", fontSize: 14, color: C.text, lineHeight: 1.9 }}><div style={{ color: C.pink, fontWeight: 700, fontFamily: C.mono, marginBottom: 8, fontSize: 14 }}>YOUR BOT IN 30 SECONDS:</div>{["Bot runs every 10 min on cron.", `Scans ${((d.scanner?.kalshi_series) ?? 0).toLocaleString()} Kalshi + ${(d.scanner?.crypto_pairs) ?? '—'} crypto pairs.`, "5-gate Kelly pipeline on every trade.", "No edge ≥5%? Does nothing. Correct.", "Farms airdrops alongside trading.", `${(d.bot?.proofs ?? 0).toLocaleString()} JSON proofs generated.`].map((s, i) => <div key={i}><span style={{ color: C.green, fontWeight: 700 }}>{i + 1}.</span> {s}</div>)}<div style={{ marginTop: 12, color: C.yellow, fontWeight: 600 }}>SHADOW MODE — paper trading only.</div></div></Card>
+          <Card s={{ marginBottom: 16 }}><Head>Quick Start Guide</Head><div style={{ padding: "18px 22px", fontSize: 14, color: C.text, lineHeight: 1.9 }}><div style={{ color: C.pink, fontWeight: 700, fontFamily: C.mono, marginBottom: 8, fontSize: 14 }}>YOUR BOT IN 30 SECONDS:</div>{["Bot runs every 10 min on cron.", `Scans ${((d as any).scanner?.kalshi_series ?? 0).toLocaleString()} Kalshi + ${(d as any).scanner?.crypto_pairs ?? '—'} crypto pairs.`, "5-gate Kelly pipeline on every trade.", "No edge ≥5%? Does nothing. Correct.", "Farms airdrops alongside trading.", `${((d as any).bot?.proofs ?? 0).toLocaleString()} JSON proofs generated.`].map((s, i) => <div key={i}><span style={{ color: C.green, fontWeight: 700 }}>{i + 1}.</span> {s}</div>)}<div style={{ marginTop: 12, color: C.yellow, fontWeight: 600 }}>SHADOW MODE — paper trading only.</div></div></Card>
           <Card s={{ marginBottom: 16 }}><Head>Key Instructions</Head><div style={{ padding: "18px 22px", fontSize: 14, color: C.text, lineHeight: 1.9 }}>{[{ t: "Trigger farming", s: ["/farm in Discord", "Default: dry run", "/farm --live for real", "/farm-status"] }, { t: "Go LIVE", s: ["Settings → Farm Mode → live", "≥0.05 ETH on Base", "Watch Logs → Airdrops", "Capped $5/wk"] }, { t: "Add wallet", s: ["Overview → All Wallets", "Paste 0x + label", "+Add"] }, { t: "Circuit Breaker trips", s: ["Don't panic", "Settings → Reset", "Check Logs → Trading", "Reset if normal"] }, { t: "Read Risk tab", s: ["Green = OK", "Yellow = watch", "Red = tripped", "(?) for details"] }].map((sec, i) => <div key={i} style={{ marginBottom: 18 }}><div style={{ color: C.pink, fontWeight: 700, fontFamily: C.mono, fontSize: 13, marginBottom: 6 }}>{sec.t.toUpperCase()}</div>{sec.s.map((s, j) => <div key={j} style={{ paddingLeft: 18 }}><span style={{ color: C.cyan, fontWeight: 700 }}>{j + 1}.</span> {s}</div>)}</div>)}</div></Card>
           <Card><Head right={`${GLOSSARY.length} terms`}>Glossary</Head><div style={{ padding: "14px 20px" }}><input value={gFilter} onChange={e => setGFilter(e.target.value)} placeholder="Search..." style={{ width: "100%", marginBottom: 14 }} />{GLOSSARY.filter(g => !gFilter || g.term.toLowerCase().includes(gFilter.toLowerCase()) || g.def.toLowerCase().includes(gFilter.toLowerCase())).map((g, i) => <div key={i} onMouseEnter={() => setGHover(g.term)} onMouseLeave={() => setGHover(null)} onClick={() => setGHover(gHover === g.term ? null : g.term)} style={{ padding: gHover === g.term ? "14px 16px" : "10px 0", borderBottom: `1px solid ${C.border}`, transition: "all 0.2s", background: gHover === g.term ? `${C.cyan}0c` : "transparent", borderRadius: gHover === g.term ? 8 : 0, margin: gHover === g.term ? "4px 0" : 0, cursor: "pointer", transform: gHover === g.term ? "scale(1.015)" : "" }}><div style={{ fontSize: gHover === g.term ? 17 : 14, fontWeight: 700, color: gHover === g.term ? C.green : C.cyan, fontFamily: C.mono, transition: "all 0.2s" }}>{g.term}</div><div style={{ fontSize: gHover === g.term ? 14 : 13, color: C.text, lineHeight: 1.6, marginTop: 3 }}>{g.def}</div></div>)}</div></Card>
         </div>}
@@ -1179,8 +1178,8 @@ export default function Dashboard() {
             <div style={{ padding: 40, textAlign: "center", color: C.sub }}>Loading settings...</div>
           ) : (
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-            <Card><Head>Risk Management</Head><div style={{ padding: "16px 20px" }}>{[{ k: "kellyFraction", m: "kelly_fraction", l: "Kelly Fraction", d: RD["Kelly Fraction"] }, { k: "maxPositionPct", m: "max_position_pct", l: "Max Position %", d: RD["Max Position %"] }, { k: "minEdge", m: "min_edge", l: "Min Edge (EV)", d: RD["EV Threshold"] }, { k: "maxDrawdown", m: "max_drawdown", l: "Max Drawdown", d: RD["Circuit Breaker"] }, { k: "maxConcurrent", m: "max_concurrent", l: "Max Positions", d: RD["Max Concurrent"], t: "int" }, { k: "minPositionUsd", m: "min_position_usd", l: "Min Position $", d: RD["Min Position $"] }].map(({ k, m, l, d: desc, t }) => <div key={k} style={{ marginBottom: 16 }}><label style={{ display: "block", fontSize: 14, color: "#d1d5db", marginBottom: 6, fontFamily: C.mono, fontWeight: 600 }}><Tip term={l} text={desc}>{l}</Tip></label><input value={edits[k] ?? (dashSettings?.[k] ?? MOCK.settings[m])} onChange={e => { const v = t === "int" ? e.target.value : e.target.value; setEdits(p => ({ ...p, [k]: v })); saveDashSettings({ [k]: v }); }} style={{ width: "100%", background: "#374151", border: "1px solid #4b5563", borderRadius: 6, padding: "10px 14px", color: "white", fontSize: 14, outline: "none" }} /></div>)}</div></Card>
-            <Card><Head>Farming & Bot Config</Head><div style={{ padding: "16px 20px" }}>{[{ k: "farmingBudget", m: "farming_budget", l: "Weekly Budget ($)" }, { k: "farmingMode", m: "farming_mode", l: "Farm Mode", t: "select", o: ["dry_run", "live"] }, { k: "cronInterval", m: "cron_interval", l: "Cron Schedule" }, { k: "ethRpc", m: "eth_rpc", l: "ETH RPC" }].map(({ k, m, l, t, o }) => <div key={k} style={{ marginBottom: 16 }}><label style={{ display: "block", fontSize: 14, color: "#d1d5db", marginBottom: 6, fontFamily: C.mono, fontWeight: 600 }}>{l}</label>{t === "select" ? <select value={edits[k] ?? (dashSettings?.[k] ?? MOCK.settings[m])} onChange={e => { setEdits(p => ({ ...p, [k]: e.target.value })); saveDashSettings({ [k]: e.target.value }); }} style={{ width: "100%", background: "#374151", border: "1px solid #4b5563", borderRadius: 6, padding: "10px 14px", color: "white", fontSize: 14, outline: "none" }}>{o.map(v => <option key={v} value={v}>{v}</option>)}</select> : <input value={edits[k] ?? (dashSettings?.[k] ?? MOCK.settings[m])} onChange={e => { setEdits(p => ({ ...p, [k]: e.target.value })); saveDashSettings({ [k]: e.target.value }); }} style={{ width: "100%", background: "#374151", border: "1px solid #4b5563", borderRadius: 6, padding: "10px 14px", color: "white", fontSize: 14, outline: "none" }} />}</div>)}<div style={{ display: "flex", gap: 10, marginTop: 16 }}><button onClick={() => { setEdits({}); alert("Reset to saved values"); }} style={{ flex: 1, padding: "11px", fontSize: 13, fontWeight: 700, background: "transparent", color: C.sub, border: `1px solid ${C.dim}`, borderRadius: 6 }}>Reset</button><button disabled={settingsSaving} style={{ flex: 1, padding: "11px", fontSize: 13, fontWeight: 700, background: `${C.green}18`, color: C.green, border: `1px solid ${C.green}33`, borderRadius: 6, opacity: settingsSaving ? 0.6 : 1 }}>{settingsSaving ? "Saving..." : "Saved"}</button></div></div></Card>
+            <Card><Head>Risk Management</Head><div style={{ padding: "16px 20px" }}>{[{ k: "kellyFraction", m: "kelly_fraction", l: "Kelly Fraction", d: RD["Kelly Fraction"] }, { k: "maxPositionPct", m: "max_position_pct", l: "Max Position %", d: RD["Max Position %"] }, { k: "minEdge", m: "min_edge", l: "Min Edge (EV)", d: RD["EV Threshold"] }, { k: "maxDrawdown", m: "max_drawdown", l: "Max Drawdown", d: RD["Circuit Breaker"] }, { k: "maxConcurrent", m: "max_concurrent", l: "Max Positions", d: RD["Max Concurrent"], t: "int" }, { k: "minPositionUsd", m: "min_position_usd", l: "Min Position $", d: RD["Min Position $"] }].map(({ k, m, l, d: desc, t }) => <div key={k} style={{ marginBottom: 16 }}><label style={{ display: "block", fontSize: 14, color: "#d1d5db", marginBottom: 6, fontFamily: C.mono, fontWeight: 600 }}><Tip term={l} text={desc}>{l}</Tip></label><input value={edits[k] ?? (dashSettings?.[k] ?? (MOCK.settings as Record<string, string>)[m])} onChange={e => { const v = t === "int" ? e.target.value : e.target.value; setEdits(p => ({ ...p, [k]: v })); saveDashSettings({ [k]: v }); }} style={{ width: "100%", background: "#374151", border: "1px solid #4b5563", borderRadius: 6, padding: "10px 14px", color: "white", fontSize: 14, outline: "none" }} /></div>)}</div></Card>
+            <Card><Head>Farming & Bot Config</Head><div style={{ padding: "16px 20px" }}>{[{ k: "farmingBudget", m: "farming_budget", l: "Weekly Budget ($)" }, { k: "farmingMode", m: "farming_mode", l: "Farm Mode", t: "select", o: ["dry_run", "live"] }, { k: "cronInterval", m: "cron_interval", l: "Cron Schedule" }, { k: "ethRpc", m: "eth_rpc", l: "ETH RPC" }].map(({ k, m, l, t, o }) => <div key={k} style={{ marginBottom: 16 }}><label style={{ display: "block", fontSize: 14, color: "#d1d5db", marginBottom: 6, fontFamily: C.mono, fontWeight: 600 }}>{l}</label>{t === "select" ? <select value={edits[k] ?? (dashSettings?.[k] ?? (MOCK.settings as Record<string, string>)[m])} onChange={e => { setEdits(p => ({ ...p, [k]: e.target.value })); saveDashSettings({ [k]: e.target.value }); }} style={{ width: "100%", background: "#374151", border: "1px solid #4b5563", borderRadius: 6, padding: "10px 14px", color: "white", fontSize: 14, outline: "none" }}>{o.map(v => <option key={v} value={v}>{v}</option>)}</select> : <input value={edits[k] ?? (dashSettings?.[k] ?? (MOCK.settings as Record<string, string>)[m])} onChange={e => { setEdits(p => ({ ...p, [k]: e.target.value })); saveDashSettings({ [k]: e.target.value }); }} style={{ width: "100%", background: "#374151", border: "1px solid #4b5563", borderRadius: 6, padding: "10px 14px", color: "white", fontSize: 14, outline: "none" }} />}</div>)}<div style={{ display: "flex", gap: 10, marginTop: 16 }}><button onClick={() => { setEdits({}); alert("Reset to saved values"); }} style={{ flex: 1, padding: "11px", fontSize: 13, fontWeight: 700, background: "transparent", color: C.sub, border: `1px solid ${C.dim}`, borderRadius: 6 }}>Reset</button><button disabled={settingsSaving} style={{ flex: 1, padding: "11px", fontSize: 13, fontWeight: 700, background: `${C.green}18`, color: C.green, border: `1px solid ${C.green}33`, borderRadius: 6, opacity: settingsSaving ? 0.6 : 1 }}>{settingsSaving ? "Saving..." : "Saved"}</button></div></div></Card>
           </div>
           )}
           <Card s={{ marginTop: 14 }}><Head>Diagnostics</Head><div style={{ padding: "16px 20px", display: "flex", gap: 10, flexWrap: "wrap" }}>{[{ l: "🔧 Diagnostic", c: C.yellow }, { l: "▶ Bot Cycle", c: C.green }, { l: "⚡ Reset Breaker", c: C.red }, { l: "🔍 Scan Wallets", c: C.cyan }].map(b => <button key={b.l} onClick={() => alert(b.l)} style={{ padding: "12px 20px", fontSize: 14, fontWeight: 600, background: `${b.c}0c`, color: b.c, border: `1px solid ${b.c}33`, borderRadius: 6 }}>{b.l}</button>)}</div></Card>

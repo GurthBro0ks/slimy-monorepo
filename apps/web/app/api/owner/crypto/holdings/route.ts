@@ -90,7 +90,7 @@ async function getTokenPrices(): Promise<Record<string, number>> {
 }
 
 async function queryTokenBalance(
-  client: ReturnType<typeof createPublicClient>,
+  client: any,
   tokenAddress: `0x${string}`,
   walletAddress: `0x${string}`,
   decimals: number
