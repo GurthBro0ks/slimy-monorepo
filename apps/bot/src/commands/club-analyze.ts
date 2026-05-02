@@ -23,7 +23,7 @@ import {
   ButtonInteraction,
   ModalSubmitInteraction,
   MessageFlags,
-} from 'discord.js';
+} from "discord.js";
 import {
   sessions,
   cleanExpiredSessions,
@@ -33,74 +33,100 @@ import {
   buildNavigationRow,
   BUTTON_PREFIX,
   MAX_IMAGES,
-} from '../services/club-analyze-flow.js';
-import type { ScanSession } from '../services/club-analyze-flow.js';
-import { dedupeRosterRows } from '../services/roster-ocr.js';
-import type { RawRosterRow } from '../services/roster-ocr.js';
-import {
-  clearStaging,
-  saveStagingRows,
-} from '../services/club-staging.js';
-import { requireAdminRole } from '../utils/admin-role.js';
+} from "../services/club-analyze-flow.js";
+import type { ScanSession } from "../services/club-analyze-flow.js";
+import { dedupeRosterRows } from "../services/roster-ocr.js";
+import type { RawRosterRow } from "../services/roster-ocr.js";
+import { clearStaging, saveStagingRows } from "../services/club-staging.js";
+import { requireAdminRole } from "../utils/admin-role.js";
 
 // ─── Slash Command Definition ────────────────────────────────────────────────
 
 module.exports = {
   data: new SlashCommandBuilder()
-    .setName('club-analyze')
-    .setDescription('Scan Super Snail club roster screenshots and review extracted data before pushing to database')
+    .setName("club-analyze")
+    .setDescription(
+      "Scan Super Snail club roster screenshots and review extracted data before pushing to database"
+    )
     .addStringOption((option) =>
       option
-        .setName('metric')
-        .setDescription('Power metric to scan')
+        .setName("metric")
+        .setDescription("Power metric to scan")
         .setRequired(true)
-        .addChoices(
-          { name: 'Sim Power', value: 'sim' },
-          { name: 'Total Power', value: 'total' },
-        ),
+        .addChoices({ name: "Sim Power", value: "sim" }, { name: "Total Power", value: "total" })
     )
     .addAttachmentOption((option) =>
-      option.setName('image_1').setDescription('Manage Members screenshot (page 1)').setRequired(true),
+      option
+        .setName("image_1")
+        .setDescription("Manage Members screenshot (page 1)")
+        .setRequired(true)
     )
     .addAttachmentOption((option) =>
-      option.setName('image_2').setDescription('Manage Members screenshot (page 2)').setRequired(false),
+      option
+        .setName("image_2")
+        .setDescription("Manage Members screenshot (page 2)")
+        .setRequired(false)
     )
     .addAttachmentOption((option) =>
-      option.setName('image_3').setDescription('Manage Members screenshot (page 3)').setRequired(false),
+      option
+        .setName("image_3")
+        .setDescription("Manage Members screenshot (page 3)")
+        .setRequired(false)
     )
     .addAttachmentOption((option) =>
-      option.setName('image_4').setDescription('Manage Members screenshot (page 4)').setRequired(false),
+      option
+        .setName("image_4")
+        .setDescription("Manage Members screenshot (page 4)")
+        .setRequired(false)
     )
     .addAttachmentOption((option) =>
-      option.setName('image_5').setDescription('Manage Members screenshot (page 5)').setRequired(false),
+      option
+        .setName("image_5")
+        .setDescription("Manage Members screenshot (page 5)")
+        .setRequired(false)
     )
     .addAttachmentOption((option) =>
-      option.setName('image_6').setDescription('Manage Members screenshot (page 6)').setRequired(false),
+      option
+        .setName("image_6")
+        .setDescription("Manage Members screenshot (page 6)")
+        .setRequired(false)
     )
     .addAttachmentOption((option) =>
-      option.setName('image_7').setDescription('Manage Members screenshot (page 7)').setRequired(false),
+      option
+        .setName("image_7")
+        .setDescription("Manage Members screenshot (page 7)")
+        .setRequired(false)
     )
     .addAttachmentOption((option) =>
-      option.setName('image_8').setDescription('Manage Members screenshot (page 8)').setRequired(false),
+      option
+        .setName("image_8")
+        .setDescription("Manage Members screenshot (page 8)")
+        .setRequired(false)
     )
     .addAttachmentOption((option) =>
-      option.setName('image_9').setDescription('Manage Members screenshot (page 9)').setRequired(false),
+      option
+        .setName("image_9")
+        .setDescription("Manage Members screenshot (page 9)")
+        .setRequired(false)
     )
     .addAttachmentOption((option) =>
-      option.setName('image_10').setDescription('Manage Members screenshot (page 10)').setRequired(false),
+      option
+        .setName("image_10")
+        .setDescription("Manage Members screenshot (page 10)")
+        .setRequired(false)
     ),
 
   // ─── Main Execute ─────────────────────────────────────────────────────────
 
   async execute(interaction: ChatInputCommandInteraction): Promise<void> {
-    if (!(await requireAdminRole(interaction, '/club-analyze'))) return;
+    if (!(await requireAdminRole(interaction, "/club-analyze"))) return;
 
     await interaction.deferReply();
 
     cleanExpiredSessions();
 
-    const metric = (interaction.options.getString('metric') ?? 'sim') as 'sim' | 'total';
-    const guildId = interaction.guildId ?? 'dm';
+    const metric = (interaction.options.getString("metric") ?? "sim") as "sim" | "total";
+    const guildId = interaction.guildId ?? "dm";
     const userId = interaction.user.id;
 
     // Collect attachments
@@ -110,17 +136,19 @@ module.exports = {
       .filter((att): att is Attachment => att !== null);
 
     if (!attachments.length) {
-      await interaction.editReply({ content: '❌ No images attached. Provide 1-10 Manage Members screenshots.' });
+      await interaction.editReply({
+        content: "❌ No images attached. Provide 1-10 Manage Members screenshots.",
+      });
       return;
     }
 
     const imageAttachments = attachments.filter((att) => {
-      const mime = att.contentType || '';
-      return mime.startsWith('image/') || mime === '';
+      const mime = att.contentType || "";
+      return mime.startsWith("image/") || mime === "";
     });
 
     if (!imageAttachments.length) {
-      await interaction.editReply({ content: '❌ None of the attachments appear to be images.' });
+      await interaction.editReply({ content: "❌ None of the attachments appear to be images." });
       return;
     }
 
@@ -133,7 +161,7 @@ module.exports = {
       let lastProgressUpdate = 0;
       const sessionId = await runClubAnalyze({
         metric,
-        attachments: imageAttachments.map((att) => ({ url: att.url, name: att.name || 'image' })),
+        attachments: imageAttachments.map((att) => ({ url: att.url, name: att.name || "image" })),
         guildId,
         userId,
         username: interaction.user.username,
@@ -160,7 +188,7 @@ module.exports = {
 
       await sendPage(interaction, sessionId);
     } catch (err) {
-      console.error('[club-analyze] Scan failed:', err);
+      console.error("[club-analyze] Scan failed:", err);
       await interaction.editReply({
         content: `❌ Scan failed: ${(err as Error).message}`,
       });
@@ -170,7 +198,7 @@ module.exports = {
   // ─── Button Handler ────────────────────────────────────────────────────────
 
   async handleButton(interaction: ButtonInteraction): Promise<void> {
-    const parts = String(interaction.customId || '').split(':');
+    const parts = String(interaction.customId || "").split(":");
     if (parts[0] !== BUTTON_PREFIX || parts.length < 3) return;
 
     const [, action, sessionId] = parts;
@@ -178,7 +206,7 @@ module.exports = {
 
     if (!session) {
       await interaction.reply({
-        content: '❌ Session expired. Run /club-analyze again.',
+        content: "❌ Session expired. Run /club-analyze again.",
         flags: MessageFlags.Ephemeral,
       });
       return;
@@ -188,69 +216,69 @@ module.exports = {
     session.createdAt = Date.now();
 
     switch (action) {
-      case 'prev':
+      case "prev":
         session.currentPage = Math.max(0, session.currentPage - 1);
         await renderPage(interaction, session);
         break;
 
-      case 'next':
+      case "next":
         session.currentPage = Math.min(session.pages.length - 1, session.currentPage + 1);
         await renderPage(interaction, session);
         break;
 
-      case 'edit':
+      case "edit":
         await sendEditModal(interaction, session);
         break;
 
-      case 'save':
+      case "save":
         await handleSave(interaction, session);
         break;
 
-      case 'cancel_confirm':
+      case "cancel_confirm":
         await handleCancelConfirm(interaction, session);
         break;
 
-      case 'cancel':
+      case "cancel":
         await interaction.reply({
-          content: '⚠️ Discard all edits and unsaved data?',
+          content: "⚠️ Discard all edits and unsaved data?",
           components: [
             new ActionRowBuilder<ButtonBuilder>().addComponents(
               new ButtonBuilder()
                 .setCustomId(`${BUTTON_PREFIX}:cancel_confirm:${sessionId}`)
-                .setLabel('Yes, discard everything')
+                .setLabel("Yes, discard everything")
                 .setStyle(ButtonStyle.Danger),
               new ButtonBuilder()
                 .setCustomId(`${BUTTON_PREFIX}:page:${sessionId}`)
-                .setLabel('Keep editing')
-                .setStyle(ButtonStyle.Secondary),
+                .setLabel("Keep editing")
+                .setStyle(ButtonStyle.Secondary)
             ),
           ],
           flags: MessageFlags.Ephemeral,
         });
         break;
 
-      case 'page':
+      case "page":
         // Keep editing — just re-render current page
         await renderPage(interaction, session);
         break;
 
       default:
-        await interaction.reply({ content: 'Unknown action.', flags: MessageFlags.Ephemeral });
+        await interaction.reply({ content: "Unknown action.", flags: MessageFlags.Ephemeral });
     }
   },
 
   // ─── Modal Submit Handler ──────────────────────────────────────────────────
 
   async handleModal(interaction: ModalSubmitInteraction): Promise<void> {
-    const parts = String(interaction.customId || '').split(':');
-    if (parts[0] !== BUTTON_PREFIX || parts[2] !== 'edit_row') return;
+    const parts = String(interaction.customId || "").split(":");
+    if (parts[0] !== BUTTON_PREFIX || parts[2] !== "edit_row") return;
 
     const [, sessionId] = parts;
     const session = getSession(sessionId);
 
     if (!session) {
       await interaction.reply({
-        content: '❌ Session expired. Run /club-analyze again.',
+        content: "❌ Session expired. Run /club-analyze again.",
         flags: MessageFlags.Ephemeral,
       });
       return;
@@ -258,9 +286,9 @@ module.exports = {
 
     session.createdAt = Date.now();
 
-    const rowNumStr = interaction.fields.getTextInputValue('row_select');
-    const nameInput = interaction.fields.getTextInputValue('name_input');
-    const powerInput = interaction.fields.getTextInputValue('power_input');
+    const rowNumStr = interaction.fields.getTextInputValue("row_select");
+    const nameInput = interaction.fields.getTextInputValue("name_input");
+    const powerInput = interaction.fields.getTextInputValue("power_input");
 
     const rowIndex = parseInt(rowNumStr, 10) - 1; // Convert to 0-indexed
 
@@ -279,7 +307,7 @@ module.exports = {
     const powerNum = Number(powerInput);
     if (!Number.isFinite(powerNum) || powerNum < 0) {
       await interaction.reply({
-        content: '❌ Power must be a non-negative integer.',
+        content: "❌ Power must be a non-negative integer.",
         flags: MessageFlags.Ephemeral,
       });
       return;
@@ -288,7 +316,7 @@ module.exports = {
     const trimmedName = nameInput.trim().slice(0, 64);
     if (!trimmedName) {
       await interaction.reply({
-        content: '❌ Name cannot be empty.',
+        content: "❌ Name cannot be empty.",
         flags: MessageFlags.Ephemeral,
       });
       return;
@@ -313,7 +341,7 @@ module.exports = {
 
 async function sendPage(
   interaction: ChatInputCommandInteraction | ButtonInteraction,
-  sessionId: string,
+  sessionId: string
 ): Promise<void> {
   const session = getSession(sessionId);
   if (!session) return;
@@ -322,21 +350,21 @@ async function sendPage(
   const components = buildNavigationRow(session, sessionId);
 
   if (interaction.isButton() || interaction.isModalSubmit()) {
-    await interaction.update({ content: '', embeds: [embed], components } as Record<string, unknown>);
+    await interaction.update({ content: "", embeds: [embed], components } as Record<
+      string,
+      unknown
+    >);
   } else {
-    await interaction.editReply({ content: '', embeds: [embed], components });
+    await interaction.editReply({ content: "", embeds: [embed], components });
   }
 }
 
-async function renderPage(
-  interaction: ButtonInteraction,
-  session: ScanSession,
-): Promise<void> {
+async function renderPage(interaction: ButtonInteraction, session: ScanSession): Promise<void> {
   const embed = buildPageEmbed(session);
   const components = buildNavigationRow(session, session.interactionId);
 
   await interaction.update({
-    content: '',
+    content: "",
     embeds: [embed],
     components,
   } as Record<string, unknown>);
@@ -344,10 +372,7 @@ async function renderPage(
 
 // ─── Edit Modal ─────────────────────────────────────────────────────────────
 
-async function sendEditModal(
-  interaction: ButtonInteraction,
-  session: ScanSession,
-): Promise<void> {
+async function sendEditModal(interaction: ButtonInteraction, session: ScanSession): Promise<void> {
   const sessionId = session.interactionId;
   const page = session.pages[session.currentPage];
 
@@ -356,45 +381,42 @@ async function sendEditModal(
     .setTitle(`Edit Row — ${session.metric.toUpperCase()} Power`);
 
   const rowNumberField = new TextInputBuilder()
-    .setCustomId('row_select')
+    .setCustomId("row_select")
     // eslint-disable-next-line deprecation/deprecation
     .setLabel(`Row number (1-${page.rows.length})`)
     .setStyle(TextInputStyle.Short)
-    .setPlaceholder('Enter row number to edit')
+    .setPlaceholder("Enter row number to edit")
     .setRequired(true)
-    .setValue('1');
+    .setValue("1");
 
   const nameField = new TextInputBuilder()
-    .setCustomId('name_input')
+    .setCustomId("name_input")
     // eslint-disable-next-line deprecation/deprecation
-    .setLabel('Member name')
+    .setLabel("Member name")
     .setStyle(TextInputStyle.Short)
-    .setPlaceholder('Enter corrected name')
+    .setPlaceholder("Enter corrected name")
     .setRequired(true)
     .setMaxLength(64);
 
   const powerField = new TextInputBuilder()
-    .setCustomId('power_input')
+    .setCustomId("power_input")
     // eslint-disable-next-line deprecation/deprecation
-    .setLabel('Power (integer)')
+    .setLabel("Power (integer)")
     .setStyle(TextInputStyle.Short)
-    .setPlaceholder('Enter power value')
+    .setPlaceholder("Enter power value")
     .setRequired(true);
 
   // eslint-disable-next-line deprecation/deprecation
   modal.addComponents(
     new ActionRowBuilder<TextInputBuilder>().addComponents(rowNumberField),
     new ActionRowBuilder<TextInputBuilder>().addComponents(nameField),
-    new ActionRowBuilder<TextInputBuilder>().addComponents(powerField),
+    new ActionRowBuilder<TextInputBuilder>().addComponents(powerField)
   );
 
   await interaction.showModal(modal);
 }
 
-async function handleSave(
-  interaction: ButtonInteraction,
-  session: ScanSession,
-): Promise<void> {
+async function handleSave(interaction: ButtonInteraction, session: ScanSession): Promise<void> {
   const { guildId, userId, metric } = session;
 
   if (interaction.user.id !== userId) {
@@ -420,7 +442,7 @@ async function handleSave(
       guildId,
       metric,
       userId,
-      canonicalMerged.map((r) => ({ member_name: r.name, power_value: r.power })),
+      canonicalMerged.map((r) => ({ member_name: r.name, power_value: r.power }))
     );
 
     for (const page of session.pages) {
@@ -440,7 +462,7 @@ async function handleSave(
       content: `Saved **${canonicalMerged.length}** members to **${metric.toUpperCase()}** staging. Run /club-push when ready to commit both metrics to the database.`,
     });
   } catch (err) {
-    console.error('[club-analyze] Save failed:', err);
+    console.error("[club-analyze] Save failed:", err);
     try {
       await interaction.reply({
         content: `❌ Save failed: ${(err as Error).message}`,
@@ -454,7 +476,7 @@ async function handleSave(
 
 async function handleCancelConfirm(
   interaction: ButtonInteraction,
-  session: ScanSession,
+  session: ScanSession
 ): Promise<void> {
   const { guildId, metric } = session;
 
@@ -467,7 +489,7 @@ async function handleCancelConfirm(
   sessions.delete(session.interactionId);
 
   await interaction.update({
-    content: '🛑 Scan discarded. Run /club-analyze to start fresh.',
+    content: "🛑 Scan discarded. Run /club-analyze to start fresh.",
     embeds: [],
     components: [],
   } as Record<string, unknown>);

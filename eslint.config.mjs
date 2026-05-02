@@ -1,5 +1,7 @@
 import webConfigs from "./apps/web/eslint.config.mjs";
 import tseslintParser from "@typescript-eslint/parser";
+import eslintPluginPrettier from "eslint-plugin-prettier";
+import eslintConfigPrettier from "eslint-config-prettier";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -24,6 +26,9 @@ export default [
         tsconfigRootDir: __dirname,
       },
     },
+    plugins: {
+      prettier: eslintPluginPrettier,
+    },
     rules: {
       "@typescript-eslint/no-explicit-any": "off",
       "@typescript-eslint/no-unsafe-function-type": "off",
@@ -36,6 +41,8 @@ export default [
         },
       ],
       "deprecation/deprecation": "warn",
+      "prettier/prettier": "error",
     },
   },
+  eslintConfigPrettier,
 ];

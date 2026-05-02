@@ -2,6 +2,8 @@ import { FlatCompat } from "@eslint/eslintrc";
 import tseslintPlugin from "@typescript-eslint/eslint-plugin";
 import tseslintParser from "@typescript-eslint/parser";
 import deprecation from "eslint-plugin-deprecation";
+import eslintPluginPrettier from "eslint-plugin-prettier";
+import eslintConfigPrettier from "eslint-config-prettier";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -15,7 +17,7 @@ const config = [
   },
   {
     files: ["**/*.{ts,tsx,mts,cts}"],
-    plugins: { "@typescript-eslint": tseslintPlugin, deprecation },
+    plugins: { "@typescript-eslint": tseslintPlugin, deprecation, prettier: eslintPluginPrettier },
     languageOptions: {
       parser: tseslintParser,
       parserOptions: {
@@ -28,8 +30,10 @@ const config = [
       "@typescript-eslint/no-unsafe-function-type": "off",
       "@typescript-eslint/no-unused-vars": ["error", { varsIgnorePattern: "^_", argsIgnorePattern: "^_", destructuredArrayIgnorePattern: "^_" }],
       "deprecation/deprecation": "warn",
+      "prettier/prettier": "error",
     },
   },
+  eslintConfigPrettier,
   {
     files: ["tests/**/*.{ts,tsx}", "**/*.test.{ts,tsx}"],
     rules: {
