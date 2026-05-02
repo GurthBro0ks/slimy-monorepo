@@ -105,7 +105,7 @@ function formatDateTime(dateStr: string): string {
 const MEDALS = ["🥇", "🥈", "🥉"];
 
 const POWER_FILTERS: { label: PowerFilter; min: number }[] = [
-  { label: "All", min: 0 },
+  { label: "all", min: 0 },
   { label: "10M+", min: 10_000_000 },
   { label: "5M+", min: 5_000_000 },
   { label: "1M+", min: 1_000_000 },

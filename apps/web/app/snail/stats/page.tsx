@@ -213,9 +213,9 @@ export default function SnailStatsPage() {
             { key: "simPctChange", label: "WoW %" },
           ]}
           data={sortedTopSim}
-          renderRow={(m) => (
+          renderRow={(m: Member) => (
             <tr key={m.nameDisplay} className="border-b border-[#8a4baf]/20 hover:bg-[#1a0b2e]/50 transition-colors">
-              <td className="px-4 py-3 text-[#8a4baf] font-bold">{m._rank}</td>
+              <td className="px-4 py-3 text-[#8a4baf] font-bold">{(m as Member & { _rank?: number })._rank}</td>
               <td className="px-4 py-3 text-[#d6b4fc] font-bold">{m.nameDisplay}</td>
               <td className="px-4 py-3 text-[#d6b4fc]">{abbreviateNumber(m.simPower)}</td>
               <td className="px-4 py-3 text-[#39ff14] font-bold">{abbreviateNumber(m.totalPower)}</td>
@@ -245,9 +245,9 @@ export default function SnailStatsPage() {
             { key: "totalPctChange", label: "WoW %" },
           ]}
           data={sortedTopTotal}
-          renderRow={(m) => (
+          renderRow={(m: Member) => (
             <tr key={m.nameDisplay} className="border-b border-[#8a4baf]/20 hover:bg-[#1a0b2e]/50 transition-colors">
-              <td className="px-4 py-3 text-[#8a4baf] font-bold">{m._rank}</td>
+              <td className="px-4 py-3 text-[#8a4baf] font-bold">{(m as Member & { _rank?: number })._rank}</td>
               <td className="px-4 py-3 text-[#d6b4fc] font-bold">{m.nameDisplay}</td>
               <td className="px-4 py-3 text-[#d6b4fc]">{abbreviateNumber(m.simPower)}</td>
               <td className="px-4 py-3 text-[#39ff14] font-bold">{abbreviateNumber(m.totalPower)}</td>
@@ -293,7 +293,7 @@ export default function SnailStatsPage() {
                         <td className="px-4 py-3 text-[#d6b4fc] font-bold">{m.nameDisplay}</td>
                         <td className="px-4 py-3 text-[#d6b4fc]">{abbreviateNumber(m.simPower)}</td>
                         <td className="px-4 py-3 text-[#d6b4fc]">{m.simPrev != null ? abbreviateNumber(m.simPrev) : "—"}</td>
-                        <td className="px-4 py-3 text-[#39ff14] font-bold">{abbreviateNumber(m.wowChange)}</td>
+                        <td className="px-4 py-3 text-[#39ff14] font-bold">{m.wowChange != null ? abbreviateNumber(m.wowChange) : "—"}</td>
                         <td className="px-4 py-3">
                           {typeof m.wowPct === "number" ? (
                             <span className="font-bold" style={{ color: "#39ff14" }}>
@@ -332,7 +332,7 @@ export default function SnailStatsPage() {
                         <td className="px-4 py-3 text-[#d6b4fc] font-bold">{m.nameDisplay}</td>
                         <td className="px-4 py-3 text-[#d6b4fc]">{abbreviateNumber(m.simPower)}</td>
                         <td className="px-4 py-3 text-[#d6b4fc]">{m.simPrev != null ? abbreviateNumber(m.simPrev) : "—"}</td>
-                        <td className="px-4 py-3 text-[#ff4444] font-bold">{abbreviateNumber(m.wowChange)}</td>
+                        <td className="px-4 py-3 text-[#ff4444] font-bold">{m.wowChange != null ? abbreviateNumber(m.wowChange) : "—"}</td>
                         <td className="px-4 py-3">
                           {typeof m.wowPct === "number" ? (
                             <span className="font-bold" style={{ color: "#ff4444" }}>
@@ -362,7 +362,7 @@ export default function SnailStatsPage() {
 
 // ─── Subcomponents ─────────────────────────────────────────────────────
 
-function StatCard({ icon, label, value, format }) {
+function StatCard({ icon, label, value, format }: { icon: React.ReactNode; label: string; value: string | number; format: boolean }) {
   return (
     <div className="bg-[#0a0412] border-2 border-[#8a4baf] p-6 rounded-lg">
       <div className="flex items-center gap-3 mb-3">
@@ -370,13 +370,13 @@ function StatCard({ icon, label, value, format }) {
         <span className="text-[#8a4baf] text-lg font-bold tracking-widest uppercase">{label}</span>
       </div>
       <p className="text-4xl font-bold text-[#39ff14] drop-shadow-[0_0_5px_rgba(57,255,20,0.5)]">
-        {format ? abbreviateNumber(value) : value}
+        {format ? abbreviateNumber(value as number) : value}
       </p>
     </div>
   );
 }
 
-function Section({ title, children }) {
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="space-y-4">
       <h2 className="text-2xl font-bold text-[#d6b4fc] tracking-wider">{title}</h2>
@@ -385,13 +385,13 @@ function Section({ title, children }) {
   );
 }
 
-function Table({ columns, data, renderRow }) {
+function Table({ columns, data, renderRow }: { columns: { key: string; label: string }[]; data: Member[]; renderRow: (m: Member) => React.ReactNode }) {
   return (
     <div className="overflow-x-auto border border-[#8a4baf]/30">
       <table className="w-full">
         <thead className="bg-[#1a0b2e] sticky top-0">
           <tr className="border-b border-[#8a4baf]/30 text-[#8a4baf]">
-            {columns.map((col) => (
+            {columns.map((col: { key: string; label: string }) => (
               <th key={col.key} className="px-4 py-3 font-bold">
                 {col.label}
               </th>

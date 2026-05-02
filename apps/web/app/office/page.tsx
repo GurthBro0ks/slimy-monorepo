@@ -14,7 +14,7 @@ const AGENT_ROSTER = [
 ];
 
 // Check if an agent has an active session
-function getAgentStatus(agentName: string, sessions: any[]): { isActive: boolean; message: string } {
+function getAgentStatus(agentName: string, sessions: unknown[] | null): { isActive: boolean; message: string } {
   if (!Array.isArray(sessions) || sessions.length === 0) {
     return { isActive: false, message: 'Waiting for tasks...' };
   }

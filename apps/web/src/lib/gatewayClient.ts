@@ -177,7 +177,7 @@ export class GatewayClient {
     }
 
     // Handle responses to pending requests
-    if (message.type === 'res' && this.pendingRequests.has(message.id)) {
+    if (message.type === 'res' && message.id && this.pendingRequests.has(message.id)) {
       const { resolve } = this.pendingRequests.get(message.id)!;
       this.pendingRequests.delete(message.id);
       resolve(message);

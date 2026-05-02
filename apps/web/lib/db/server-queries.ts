@@ -48,29 +48,31 @@ export async function getUserServers(userId: string): Promise<UserServer[]> {
 
   if (memberships.length === 0) return [];
 
-  const serverIds = memberships.map(m => m._id.server);
+  const serverIds = memberships.map(m => (m as unknown as { _id: { server: string } })._id.server);
 
   // 2. Fetch server details
   const servers = await db.collection("servers")
-    .find({ _id: { $in: serverIds } })
+    .find({ _id: { $in: serverIds } } as unknown as Record<string, unknown>)
     .toArray();
 
   // 3. Join data
   return servers.map(server => {
-    const membership = memberships.find(m => m._id.server === server._id);
+    const s = server as unknown as { _id: string; name: string; icon?: UserServer['serverIcon'] };
+    const membership = memberships.find(m => (m as unknown as { _id: { server: string } })._id.server === s._id);
+    const m = membership as unknown as { joined_at?: number; roles?: string[] } | undefined;
     return {
-      serverId: server._id,
-      serverName: server.name,
-      serverIcon: server.icon,
-      joinedAt: membership?.joined_at || 0,
-      userRoles: membership?.roles || [],
+      serverId: s._id,
+      serverName: s.name,
+      serverIcon: s.icon,
+      joinedAt: m?.joined_at || 0,
+      userRoles: m?.roles || [],
     };
   });
 }
 
 export async function getServerDetails(serverId: string): Promise<ServerDetails | null> {
   const db = await getRevoltDb();
-  const server = await db.collection("servers").findOne({ _id: serverId });
+  const server = await db.collection("servers").findOne({ _id: serverId } as unknown as Record<string, unknown>);
   return server as ServerDetails | null;
 }
 
@@ -90,20 +92,22 @@ export async function getServerMembers(serverId: string): Promise<ServerMember[]
     .find({ "_id.server": serverId })
     .toArray();
 
-  const userIds = members.map(m => m._id.user);
+  const userIds = members.map(m => (m as unknown as { _id: { user: string } })._id.user);
   const users = await db.collection("users")
-    .find({ _id: { $in: userIds } })
+    .find({ _id: { $in: userIds } } as unknown as Record<string, unknown>)
     .toArray();
 
   return members.map(member => {
-    const user = users.find(u => u._id === member._id.user);
+    const m = member as unknown as { _id: { user: string }; joined_at?: number; roles?: string[] };
+    const user = users.find(u => (u as unknown as { _id: string })._id === m._id.user);
+    const u = user as unknown as { username?: string; display_name?: string; avatar?: unknown } | undefined;
     return {
-      userId: member._id.user,
-      username: user?.username || "Unknown",
-      displayName: user?.display_name,
-      avatar: user?.avatar,
-      joinedAt: member.joined_at,
-      roles: member.roles || [],
+      userId: m._id.user,
+      username: u?.username || "Unknown",
+      displayName: u?.display_name,
+      avatar: u?.avatar,
+      joinedAt: m.joined_at || 0,
+      roles: m.roles || [],
     };
   });
 }

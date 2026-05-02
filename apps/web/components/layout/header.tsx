@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth/context";
-import { UsageBadge } from "@/components/usage-badge";
+
 
 import { LoginButton } from "@/components/auth/login-button";
 import { UserNav } from "@/components/auth/user-nav";
@@ -102,8 +102,6 @@ export function Header() {
           </div>
 
           <div className="flex items-center gap-4">
-            <UsageBadge />
-            
             {/* Desktop Auth Buttons */}
             <div className="hidden md:flex items-center gap-3">
               {isLoading ? (

@@ -4,8 +4,6 @@
  */
 
 import { fetchDiscordCodes } from "./adapters/discord";
-import { fetchRedditCodes } from "./adapters/reddit";
-import { fetchWikiCodes } from "./adapters/wiki";
 import { fetchPocketGamerCodes } from "./adapters/pocketgamer";
 import { fetchSnelpCodes } from "./adapters/snelp";
 import { deduplicateCodes, filterByScope } from "./dedupe";
@@ -16,13 +14,15 @@ import { Code, SourceMetadata, AggregationResult, SourceSite } from "./types/cod
  */
 export async function aggregateCodes(): Promise<AggregationResult> {
   // Fetch from all sources in parallel
-  const [discord, reddit, wiki, pocketgamer, snelp] = await Promise.all([
+  const [discord, pocketgamer, snelp] = await Promise.all([
     fetchDiscordCodes(),
-    fetchRedditCodes(),
-    fetchWikiCodes(),
     fetchPocketGamerCodes(),
     fetchSnelpCodes(),
   ]);
+
+  // Reddit and wiki sources removed (dead code)
+  const reddit = { codes: [] as Code[], metadata: { source: "reddit" as SourceSite, status: "not_configured" as const, lastFetch: new Date().toISOString(), itemCount: 0, error: "Reddit source removed" } };
+  const wiki = { codes: [] as Code[], metadata: { source: "wiki" as SourceSite, status: "not_configured" as const, lastFetch: new Date().toISOString(), itemCount: 0, error: "Wiki source removed" } };
 
   // Combine all codes
   const allCodes: Code[] = [

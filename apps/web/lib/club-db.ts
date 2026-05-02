@@ -32,12 +32,12 @@ export function getClubPool(): mysql.Pool {
 
 export async function queryClub<T extends mysql.RowDataPacket[]>(
   sql: string,
-  values?: mysql.QueryInput[]
-): Promise<[T, mysql.QueryResult]> {
+  values?: unknown[]
+): Promise<[T, mysql.FieldPacket[]]> {
   const p = getClubPool();
   const connection = await p.getConnection();
   try {
-    return (await connection.query<T>(sql, values)) as [T, mysql.QueryResult];
+    return await connection.query<T>(sql, values);
   } finally {
     connection.release();
   }
@@ -45,15 +45,12 @@ export async function queryClub<T extends mysql.RowDataPacket[]>(
 
 export async function executeClub(
   sql: string,
-  values?: mysql.QueryInput[]
-): Promise<[mysql.ResultSetHeader, mysql.QueryResult]> {
+  values?: any[]
+): Promise<[mysql.ResultSetHeader, mysql.FieldPacket[]]> {
   const p = getClubPool();
   const connection = await p.getConnection();
   try {
-    return (await connection.execute(sql, values)) as [
-      mysql.ResultSetHeader,
-      mysql.QueryResult,
-    ];
+    return await connection.execute(sql, values) as [mysql.ResultSetHeader, mysql.FieldPacket[]];
   } finally {
     connection.release();
   }

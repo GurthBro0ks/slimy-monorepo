@@ -12,12 +12,10 @@ export async function GET(request: NextRequest) {
       user: {
         id: ctx.owner.id,
         email: ctx.owner.email,
-        globalName: ctx.owner.globalName,
       },
       owner: {
         id: ctx.owner.id,
         email: ctx.owner.email,
-        userId: ctx.owner.userId,
       },
       isOwner: true,
     });

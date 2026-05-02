@@ -10,7 +10,7 @@ export interface OwnerAccessCheck {
   user?: {
     id: string;
     email?: string | null;
-    discordId: string;
+    discordId?: string | null;
     globalName?: string | null;
   };
   owner?: {
@@ -44,7 +44,7 @@ export async function checkOwnerAccessServer(
     return {
       isOwner: true,
       isAuthenticated: true,
-      user: ctx.user,
+      user: ctx.owner,
       owner: ctx.owner,
     };
   } catch (error) {

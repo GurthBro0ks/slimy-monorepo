@@ -96,7 +96,7 @@ export async function POST(request: NextRequest) {
       }
 
       // Find matching task(s)
-      const matchingTasks = keyToTasks[actionKey] || [];
+      const matchingTasks = actionKey ? keyToTasks[actionKey] || [] : [];
       if (matchingTasks.length === 0) {
         unmatched++;
         details.push({ action: actionType, protocol, status: "no_matching_task" });
