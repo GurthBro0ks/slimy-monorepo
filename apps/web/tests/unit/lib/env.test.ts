@@ -5,7 +5,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
 const ensureRequiredClientEnv = () => {
-  process.env.NEXT_PUBLIC_ADMIN_API_BASE ||= 'http://localhost:3080';
   process.env.NEXT_PUBLIC_SNELP_CODES_URL ||= 'https://snelp.com/api/codes';
 };
 
@@ -39,7 +38,6 @@ describe('Environment Variables', () => {
 
   describe('Environment Validation', () => {
     it('should validate required client environment variables', async () => {
-      process.env.NEXT_PUBLIC_ADMIN_API_BASE = 'http://localhost:3080';
       process.env.NEXT_PUBLIC_SNELP_CODES_URL = 'https://snelp.com/api/codes';
 
       await expect(loadEnvModule()).resolves.toBeDefined();

@@ -6,13 +6,6 @@ import { join } from "path";
 const errors: string[] = [];
 const warnings: string[] = [];
 
-// Check required environment variables in production
-if (process.env.NODE_ENV === "production") {
-  if (!process.env.NEXT_PUBLIC_ADMIN_API_BASE) {
-    warnings.push("NEXT_PUBLIC_ADMIN_API_BASE is not set");
-  }
-}
-
 // Check if docs exist
 const docsDir = join(process.cwd(), "content/docs");
 if (!existsSync(docsDir)) {

@@ -5,7 +5,6 @@ import path from 'node:path';
 import { config as dotenvConfig } from 'dotenv';
 
 // Set required environment variables for all tests
-process.env.NEXT_PUBLIC_ADMIN_API_BASE = 'https://admin.example.test';
 process.env.NEXT_PUBLIC_SNELP_CODES_URL = 'https://snelp.example.test/api/codes';
 
 const testEnvPath = path.resolve(__dirname, '..', '.env.test.local');

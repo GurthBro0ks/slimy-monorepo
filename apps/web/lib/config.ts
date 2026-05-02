@@ -246,7 +246,7 @@ export const securityConfig = {
   cors: {
     allowedOrigins: env.NODE_ENV === 'production'
       ? [env.NEXT_PUBLIC_APP_URL]
-      : ['http://localhost:3000', 'http://localhost:3080'],
+      : ['http://localhost:3000'],
   },
   headers: {
     frameOptions: 'DENY',

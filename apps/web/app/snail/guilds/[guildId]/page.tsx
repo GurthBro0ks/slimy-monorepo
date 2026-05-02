@@ -227,7 +227,7 @@ export default function ClubDashboardPage() {
           <div className="bg-[#0a0412] border-2 border-[#8a4baf] p-4 overflow-hidden">
             <div className="bg-[#001000] border border-[#39ff14] p-4 mb-4">
               <p className="text-[#39ff14] font-bold flex items-center gap-2">
-                <Database size={16} /> STREAMING_LIVE_DATA_FROM_ADMIN_API...
+                <Database size={16} /> STREAMING_LIVE_DATA...
               </p>
             </div>
             

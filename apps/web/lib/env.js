@@ -40,7 +40,6 @@ const clientEnvSchema = zod_1.z.object({
     // App Configuration
     NEXT_PUBLIC_APP_URL: zod_1.z.string().url().optional().default('http://localhost:3000'),
     // API Configuration
-    NEXT_PUBLIC_ADMIN_API_BASE: zod_1.z.string().url(),
     NEXT_PUBLIC_SNELP_CODES_URL: zod_1.z.string().url(),
     // Analytics
     NEXT_PUBLIC_PLAUSIBLE_DOMAIN: zod_1.z.string().optional(),

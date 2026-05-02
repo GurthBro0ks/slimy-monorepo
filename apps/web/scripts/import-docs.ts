@@ -264,7 +264,7 @@ Automatically export data to Google Sheets for further analysis.
 ## Requirements
 
 - Club role or admin permissions
-- Admin API connection configured
+- Club analytics configured
 `,
     },
   ];

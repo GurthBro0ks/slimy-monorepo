@@ -52,7 +52,6 @@ const clientEnvSchema = z.object({
   NEXT_PUBLIC_APP_URL: z.url().optional().default('http://localhost:3000'),
 
   // API Configuration
-  NEXT_PUBLIC_ADMIN_API_BASE: z.url(),
   NEXT_PUBLIC_SNELP_CODES_URL: z.url(),
 
   // Analytics

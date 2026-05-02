@@ -1,7 +1,7 @@
 /**
  * Request-scoped authentication context using AsyncLocalStorage
  *
- * This provides per-request caching to prevent multiple Admin API calls
+ * This provides per-request caching to prevent multiple auth database calls
  * when requireAuth() is called multiple times within the same request.
  */
 
