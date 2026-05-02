@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
 import { slimeChatGetUser } from "@/lib/auth/slimechat-client";
 
 const MC_API_URL = process.env.MISSION_CONTROL_URL;
@@ -7,12 +6,8 @@ const MC_API_KEY = process.env.MC_API_KEY;
 const OWNER_USER_ID = process.env.OWNER_USER_ID;
 
 async function getAuthContext() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get("slimy_session")?.value;
-  if (!token) return null;
-
   try {
-    const user = await slimeChatGetUser(token);
+    const user = await slimeChatGetUser();
     return {
       userId: user._id,
       role: user._id === OWNER_USER_ID ? "owner" : "member",

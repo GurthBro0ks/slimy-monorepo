@@ -1,17 +1,12 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
 import { slimeChatGetUser } from "@/lib/auth/slimechat-client";
 
 const MC_API_URL = process.env.MISSION_CONTROL_URL;
 const MC_API_KEY = process.env.MC_API_KEY;
 
 async function isAuthenticated() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get("slimy_session")?.value;
-  if (!token) return false;
-
   try {
-    await slimeChatGetUser(token);
+    await slimeChatGetUser();
     return true;
   } catch (error) {
     return false;

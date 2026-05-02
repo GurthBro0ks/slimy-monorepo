@@ -63,7 +63,9 @@ export async function GET(request: NextRequest) {
           action: log.action,
           resourceType: log.resourceType,
           resourceId: log.resourceId,
-          changes: parseAuditChanges(log.changes || null),
+          changes: parseAuditChanges(
+            typeof log.changes === "string" ? log.changes : JSON.stringify(log.changes) || null
+          ),
           ipAddress: log.ipAddress,
           userAgent: log.userAgent,
           createdAt: log.createdAt,

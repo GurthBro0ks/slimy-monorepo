@@ -7,10 +7,11 @@ export const dynamic = "force-dynamic";
 // PATCH /api/owner/notifications/[id] — Mark read/dismiss
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     await requireOwner(req);
+    const { id } = await params;
 
     const body = await req.json();
     const data: any = {};
@@ -19,7 +20,7 @@ export async function PATCH(
     if (typeof body.dismissed === "boolean") data.dismissed = body.dismissed;
 
     const notification = await prisma.slimyNotification.update({
-      where: { id: params.id },
+      where: { id },
       data,
     });
 
@@ -36,13 +37,14 @@ export async function PATCH(
 // DELETE /api/owner/notifications/[id] — Delete notification
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     await requireOwner(req);
+    const { id } = await params;
 
     await prisma.slimyNotification.delete({
-      where: { id: params.id },
+      where: { id },
     });
 
     return NextResponse.json({ ok: true });

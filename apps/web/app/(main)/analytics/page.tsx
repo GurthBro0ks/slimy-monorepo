@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 
 export default function AnalyticsPage() {
   return (
-    <CommandShell title="Analytics" breadcrumbs="Home / Analytics" statusText="Sheets + Usage: Pending">
+    <CommandShell title="Analytics">
       <div className="container mx-auto py-8 px-4">
         <LazyAnalyticsDashboard />
       </div>

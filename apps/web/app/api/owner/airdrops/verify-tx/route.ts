@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireOwner } from "@/lib/auth/owner";
 import { db as prisma } from "@/lib/db";
-import { verifyTx } from "@/lib/tx-verify";
+import { verifyTx, detectChain } from "@/lib/tx-verify";
 
 const MAX_VERIFY_PER_REQUEST = 10;
 
@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
         task: {
           select: {
             airdrop: {
-              select: { name: true, token: true },
+              select: { protocol: true, token: true },
             },
           },
         },
@@ -73,7 +73,7 @@ export async function POST(request: NextRequest) {
       where: { id: { in: ids } },
       include: {
         task: {
-          include: { airdrop: { select: { name: true, token: true } } },
+          include: { airdrop: { select: { protocol: true, token: true } } },
         },
       },
     });
@@ -93,11 +93,11 @@ export async function POST(request: NextRequest) {
       }
 
       const chain = detectChain(
-        completion.task.airdrop.name,
+        completion.task.airdrop.protocol,
         completion.task.airdrop.token
       );
 
-      const result = await verifyTx(txHash, chain);
+      const result = await verifyTx(txHash, chain as "ethereum" | "base");
 
       await prisma.airdropCompletion.update({
         where: { id: completion.id },
@@ -111,10 +111,10 @@ export async function POST(request: NextRequest) {
       });
 
       if (result.verified) verified++;
-      else if (result.status === "error") failed++;
+      else if (result.status === "failure") failed++;
       else skipped++;
 
-      results.push({ id: completion.id, ...result, chain });
+      results.push({ id: completion.id, ...result, chain, blockNumber: result.blockNumber ?? undefined });
     }
 
     return NextResponse.json({ verified, failed, skipped, results });
