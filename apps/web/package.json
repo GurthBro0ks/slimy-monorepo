@@ -33,6 +33,7 @@
   },
   "dependencies": {
     "@next/mdx": "^16.0.1",
+    "@slimy/db": "workspace:*",
     "@prisma/client": "^6.19.0",
     "@radix-ui/react-tooltip": "^1.2.8",
     "argon2": "^0.44.0",

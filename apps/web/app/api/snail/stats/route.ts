@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import mysql from "mysql2/promise";
+import { RowDataPacket } from "@slimy/db";
 import { requireLeaderOrAbove } from "@/lib/auth/owner";
 import { getClubPool } from "@/lib/club-db";
 
@@ -13,8 +13,7 @@ export async function GET(request: NextRequest) {
     const connection = await p.getConnection();
 
     try {
-
-      const [summaryRows] = await connection.query<mysql.RowDataPacket[]>(`
+      const [summaryRows] = await connection.query<RowDataPacket[]>(`
         SELECT
           COUNT(*) as totalMembers,
           SUM(sim_power) as totalSimPower,
@@ -25,21 +24,21 @@ export async function GET(request: NextRequest) {
         FROM club_latest
       `);
 
-      const [topSimRows] = await connection.query<mysql.RowDataPacket[]>(`
+      const [topSimRows] = await connection.query<RowDataPacket[]>(`
         SELECT name_display as name, sim_power, total_power, sim_prev, sim_pct_change
         FROM club_latest
         ORDER BY sim_power DESC
         LIMIT 10
       `);
 
-      const [topTotalRows] = await connection.query<mysql.RowDataPacket[]>(`
+      const [topTotalRows] = await connection.query<RowDataPacket[]>(`
         SELECT name_display as name, sim_power, total_power, total_prev, total_pct_change
         FROM club_latest
         ORDER BY total_power DESC
         LIMIT 10
       `);
 
-      const [moversRows] = await connection.query<mysql.RowDataPacket[]>(`
+      const [moversRows] = await connection.query<RowDataPacket[]>(`
         SELECT name_display as name, sim_power, sim_prev,
           (sim_power - sim_prev) as wow_change,
           sim_pct_change as wow_pct
@@ -49,7 +48,7 @@ export async function GET(request: NextRequest) {
         LIMIT 5
       `);
 
-      const [declinersRows] = await connection.query<mysql.RowDataPacket[]>(`
+      const [declinersRows] = await connection.query<RowDataPacket[]>(`
         SELECT name_display as name, sim_power, sim_prev,
           (sim_power - sim_prev) as wow_change,
           sim_pct_change as wow_pct
@@ -109,14 +108,10 @@ export async function GET(request: NextRequest) {
       return error;
     }
 
-    const message =
-      error instanceof Error ? error.message : "internal_server_error";
+    const message = error instanceof Error ? error.message : "internal_server_error";
     console.error("[/api/snail/stats GET] Error:", message);
 
-    if (
-      message.includes("must be configured") ||
-      message.includes("ECONNREFUSED")
-    ) {
+    if (message.includes("must be configured") || message.includes("ECONNREFUSED")) {
       return NextResponse.json(
         {
           error: "database_not_configured",

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import mysql from "mysql2/promise";
+import { RowDataPacket } from "@slimy/db";
 import { requireLeaderOrAbove } from "@/lib/auth/owner";
 import { getClubPool } from "@/lib/club-db";
 
@@ -31,14 +31,14 @@ export async function GET(request: NextRequest) {
     const connection = await p.getConnection();
 
     try {
-      const [rows] = await connection.query<mysql.RowDataPacket[]>(`
+      const [rows] = await connection.query<RowDataPacket[]>(`
         SELECT name_display, sim_power, total_power, sim_prev, total_prev,
                sim_pct_change, total_pct_change, latest_at
         FROM club_latest
         ORDER BY total_power DESC
       `);
 
-      const [tsRows] = await connection.query<mysql.RowDataPacket[]>(`
+      const [tsRows] = await connection.query<RowDataPacket[]>(`
         SELECT MAX(latest_at) as last_updated
         FROM club_latest
       `);
