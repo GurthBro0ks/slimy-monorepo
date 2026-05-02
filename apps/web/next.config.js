@@ -11,7 +11,7 @@ const nextConfig = {
       { protocol: 'https', hostname: 'media.discordapp.net', pathname: '/**' },
     ],
   },
-  typescript: { ignoreBuildErrors: true },
+  typescript: { ignoreBuildErrors: false },
 };
 
 module.exports = nextConfig;
